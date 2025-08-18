@@ -1,0 +1,323 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Use curl to test the endpoint and check the response structure when you need changes in the front.
+
+## 🧭 General Guidelines
+
+- Avoid code duplication. Always scan the `convision-api` and `convision-font` projects before creating new code.
+- All code must follow best practices and clean architecture patterns.
+- All information in the frontend must be presented in Spanish.
+- Always apply your changes in the project — partial or local-only changes are not accepted.
+- Backend always runs on port `8000` and frontend on port `4200`.
+
+---
+
+## ⚙️ Backend (Laravel)
+
+- Always use **Laravel Form Request classes** to validate controller inputs. Do not write validations directly in controllers.
+- Use `apiFilterable` to filter and order data consistently:
+  - Add the trait to your model.
+  - In controllers, use `$model->apiFilter($request)` instead of manual filtering.
+- Create services or actions to isolate business logic from controllers.
+- Use **Eloquent relationships** and eager loading to avoid N+1 query issues.
+- All controller logic should be delegated to services or actions.
+- Handle exceptions using custom exception classes or Laravel's centralized handler.
+- Use Laravel policies or gates for authorization.
+- Every new model must include its **migration**, **factory**, and **seeder**.
+
+---
+
+## 🌐 API Communication
+
+- Always create services to isolate and reuse API communication logic.
+- Never hardcode secrets or API endpoints — use environment variables.
+- All API calls must be handled in `/services`, not directly in components.
+- Use `axios` with interceptors to attach auth tokens and handle global errors.
+- Add proper error handling and user feedback for all API calls.
+- Always show loading states and disable repeated actions while waiting for responses.
+
+---
+
+## 🧩 Frontend (React)
+
+- Use **functional components** with **React Hooks** only. Avoid class components.
+- Always render tables using the centralized **DataTable** module.
+- Maintain consistent structure using folders like `components/`, `pages/`, and `services/`.
+- Use controlled components for forms and prefer custom hooks for reusable logic.
+- Use `useCallback`, `useMemo`, and dependency arrays properly to avoid unnecessary re-renders.
+- Use Tailwind CSS for styling instead of inline styles or separate CSS files.
+- Max component size: **200 lines**. Break down logic into smaller components if needed.
+
+---
+
+## 🧪 Testing
+
+- All backend logic must be tested using PHPUnit (Feature or Unit tests).
+- Use factories for test data — avoid relying on seeders.
+- For frontend components, write basic tests using **React Testing Library**.
+- Ensure consistency and reproducibility in test environments using `.env.testing`.
+
+---
+
+## 🔐 Environment and Secrets
+
+- Never commit `.env`, `.env.local`, or private keys.
+- Keep `.env.example` up-to-date with all required environment variables.
+- Use `.env.testing` for test environment overrides.
+
+---
+
+
+## 🧪 Sample cURL for Backend Login Testing
+
+bash
+curl --location 'http://localhost:8000/api/v1/auth/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "email": "admin@convision.com",
+  "password": "password"
+}'
+
+Backend application always are running in port 8000 and front in 4200.
+
+When you need a backend token you could get using this curl
+curl --location 'http://localhost:8000/api/v1/auth/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "email": "admin@convision.com",
+    "password": "password"
+}'
+
+ApiFilterable: Siempre usar para filtrar y ordenar datos. En backend, añadir trait a modelos y usar ->apiFilter($request) en controladores. En frontend, enviar parámetros s_f (campos) y s_v (valores) como JSON, y usar DataTable para renderizar tablas de forma centralizada. Obligatorio para mantener consistencia en filtrado, búsqueda y paginación.
+
+Los request de los controladores deben ser validados usando Laravel request para evitar escribir el codigo de estas validacines dentro del controlador.
+
+Instrucciones para obtener el descuento de un producto
+Estructura de datos
+Un producto (lente) tiene una propiedad has_discounts (booleano) que indica si tiene descuentos disponibles
+Los descuentos tienen un campo discount_percentage que almacena el porcentaje de descuento
+Cada descuento está asociado a un lens_id y opcionalmente a un patient_id
+Flujo para obtener el descuento
+Verificar si el producto tiene descuentos disponibles (lens.has_discounts === true)
+Llamar al servicio discountService.getBestDiscount(lensId, patientId?) para obtener el mejor descuento disponible
+Extraer el porcentaje de descuento con bestDiscount.discount_percentage
+Calcular el precio con descuento usando discountService.calculateDiscountedPrice(originalPrice, discountPercentage)
+
+# Laravel Form Request Validation Pattern
+
+## Overview
+This project follows a strict pattern for handling request validation using Laravel Form Requests instead of inline validation in controllers. This pattern ensures consistency, maintainability, and proper separation of concerns.
+
+## Directory Structure
+All Form Requests must be organized in the following structure:
+
+app/Http/Requests/Api/V1/{ControllerName}/{ActionName}{ControllerName}Request.php
+
+
+### Examples:
+- `app/Http/Requests/Api/V1/Patient/StorePatientRequest.php`
+- `app/Http/Requests/Api/V1/Patient/UpdatePatientRequest.php`
+- `app/Http/Requests/Api/V1/Appointment/StoreAppointmentRequest.php`
+- `app/Http/Requests/Api/V1/Prescription/StorePrescriptionRequest.php`
+
+## Naming Convention
+- **Store operations**: `Store{ControllerName}Request.php`
+- **Update operations**: `Update{ControllerName}Request.php`
+
+# MDC - Patrón de Diseño Laravel API Resources
+
+## Instrucciones Obligatorias para Controladores API
+
+### 1. Estructura de Recursos
+**NUNCA usar `response()->json()` directamente en controladores API. SIEMPRE usar Laravel API Resources.**
+
+#### Organización de Recursos por Carpetas
+Los recursos deben organizarse en subcarpetas agrupadas por funcionalidad relacionada:
+
+```
+app/Http/Resources/V1/
+├── User/
+│   ├── UserResource.php
+│   └── UserCollection.php
+├── Patient/
+│   ├── PatientResource.php
+│   └── PatientCollection.php
+├── Lens/
+
+```
+
+### 2. Namespace y Estructura de Recursos
+
+#### Resource Individual
+```php
+<?php
+
+namespace App\Http\Resources\V1\[Categoria];
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class [Modelo]Resource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'campo1' => $this->campo1,
+            'campo2' => $this->campo2,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}
+```
+
+#### Collection
+```php
+<?php
+
+namespace App\Http\Resources\V1\[Categoria];
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\ResourceCollection;
+
+class [Modelo]Collection extends ResourceCollection
+{
+    public function toArray(Request $request): array
+    {
+        return parent::toArray($request);
+    }
+}
+```
+
+### 3. Patrón de Controladores API
+
+#### Imports Obligatorios
+```php
+use App\Http\Resources\V1\[Categoria]\[Modelo]Resource;
+use App\Http\Resources\V1\[Categoria]\[Modelo]Collection;
+```
+
+#### Métodos Estándar
+
+**Index (Listado con paginación)**
+```php
+public function index(Request $request)
+{
+    $query = [Modelo]::apiFilter($request);
+    
+    $perPage = $request->get('per_page', 15);
+    $perPage = min(max(1, (int)$perPage), 100);
+    
+    $items = $query->paginate($perPage);
+    
+    return new [Modelo]Collection($items);
+}
+```
+
+**Show (Mostrar individual)**
+```php
+public function show($id)
+{
+    $item = [Modelo]::findOrFail($id);
+    return new [Modelo]Resource($item);
+}
+```
+
+**Store (Crear)**
+```php
+public function store(Store[Modelo]Request $request)
+{
+    $validatedData = $request->validated();
+    
+    $item = [Modelo]::create($validatedData);
+    
+    return new [Modelo]Resource($item);
+}
+```
+
+**Update (Actualizar)**
+```php
+public function update(Update[Modelo]Request $request, $id)
+{
+    $item = [Modelo]::findOrFail($id);
+    $validatedData = $request->validated();
+    
+    $item->update($validatedData);
+    
+    return new [Modelo]Resource($item->fresh());
+}
+```
+
+**Destroy (Eliminar)**
+```php
+public function destroy($id)
+{
+    $item = [Modelo]::findOrFail($id);
+    $item->delete();
+    
+    return response()->json(null, 204);
+}
+```
+
+### 4. Reglas de ApiFilterable
+
+**OBLIGATORIO usar ApiFilterable en todos los listados:**
+- En el modelo: añadir trait `ApiFilterable`
+- En el controlador: usar `->apiFilter($request)` en queries
+- En frontend: enviar parámetros `s_f` (campos) y `s_v` (valores) como JSON
+
+### 5. Validación con Request Classes
+
+**NUNCA validar directamente en controladores. SIEMPRE usar Laravel Request classes:**
+
+```php
+// Crear: app/Http/Requests/Api/V1/[Categoria]/Store[Modelo]Request.php
+// Actualizar: app/Http/Requests/Api/V1/[Categoria]/Update[Modelo]Request.php
+```
+
+### 6. Casos Especiales
+
+#### Controladores que NO necesitan Resources
+- Controladores de importación (retornan estado de acción)
+- Controladores de autenticación (pueden usar UserResource existente)
+- Controladores de PDF (retornan archivos)
+- Controladores de lookup/búsqueda simple
+
+
+#### Paginación Personalizada
+```php
+public function index(Request $request)
+{
+    $query = [Modelo]::with(['relacion1', 'relacion2'])
+        ->apiFilter($request);
+    
+    $perPage = $request->get('per_page', 15);
+    $perPage = min(max(1, (int)$perPage), 100);
+    
+    $items = $query->paginate($perPage);
+    
+    return new [Modelo]Collection($items);
+}
+```
+
+### 7. Checklist de Implementación
+
+Al crear/refactorizar un controlador API:
+
+- [ ] ¿Está usando Laravel API Resources en lugar de `response()->json()`?
+- [ ] ¿Los recursos están organizados en subcarpetas por categoría?
+- [ ] ¿El namespace del resource es correcto (`App\Http\Resources\V1\[Categoria]`)?
+- [ ] ¿Está usando `apiFilter($request)` para filtrado?
+- [ ] ¿Está usando Request classes para validación?
+- [ ] ¿La paginación está limitada (máximo 100 items)?
+- [ ] ¿Los métodos destroy retornan 204 sin contenido?
+- [ ] ¿Los métodos store/update usan `validated()` data?
+
+## IMPORTANTE
+Este patrón es OBLIGATORIO para todos los controladores API nuevos y debe aplicarse al refactorizar controladores existentes. Mantiene consistencia, reutilización y facilita el mantenimiento del código. 
+
+
