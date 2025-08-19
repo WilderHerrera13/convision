@@ -1,0 +1,1304 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import ApiService from '@/services/ApiService';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { toast } from '@/components/ui/use-toast';
+import {
+  ChevronLeft,
+  Search,
+  Filter,
+  ShoppingBag,
+  Eye,
+  Check,
+  ArrowLeft,
+  X,
+  Sliders,
+  ChevronDown,
+  Tag
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+  SheetFooter,
+} from '@/components/ui/sheet';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Types
+interface Lens {
+  id: number;
+  internal_code: string;
+  identifier: string;
+  description: string;
+  price: string;
+  cost: string;
+  type_id: number;
+  brand_id: number;
+  material_id: number;
+  lens_class_id: number;
+  treatment_id: number;
+  photochromic_id: number | null;
+  supplier_id: number;
+  sphere_min: string | null;
+  sphere_max: string | null;
+  cylinder_min: string | null;
+  cylinder_max: string | null;
+  addition_min: string | null;
+  addition_max: string | null;
+  type: { id: number; name: string };
+  brand: { id: number; name: string };
+  material: { id: number; name: string };
+  lens_class: { id: number; name: string };
+  treatment: { id: number; name: string };
+  photochromic: { id: number; name: string } | null;
+  supplier: { id: number; name: string };
+}
+
+interface PaginatedResponse {
+  current_page: number;
+  data: Lens[];
+  first_page_url: string;
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  links: {
+    url: string | null;
+    label: string;
+    active: boolean;
+  }[];
+  next_page_url: string | null;
+  path: string;
+  per_page: string;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
+}
+
+interface FilterOption {
+  id: number;
+  name: string;
+}
+
+interface ApiResponse<T> {
+  data: T;
+}
+
+interface SaleData {
+  appointmentId?: number;
+  patientId?: number;
+  patientName?: string;
+  prescription?: {
+    id: number;
+    recommendation?: string;
+    observation?: string;
+  };
+  selectedLens?: Lens | null;
+}
+
+interface ApiPrescriptionResponse {
+  data: {
+    id: number;
+    right_sphere?: string | null;
+    left_sphere?: string | null;
+    right_cylinder?: string | null;
+    left_cylinder?: string | null;
+    right_addition?: string | null;
+    left_addition?: string | null;
+    right_axis?: string | null;
+    left_axis?: string | null;
+    right_visual_acuity_far?: string | null;
+    left_visual_acuity_far?: string | null;
+    right_visual_acuity_near?: string | null;
+    left_visual_acuity_near?: string | null;
+    correction_type?: string | null;
+    usage_type?: string | null;
+    professional?: string | null;
+    observation?: string | null;
+    recommendation?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+}
+
+const SalesCatalog: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  const [lenses, setLenses] = useState<Lens[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [displayMode, setDisplayMode] = useState<'grid' | 'list'>('grid');
+  const [saleData, setSaleData] = useState<SaleData | null>(null);
+  const [selectedLens, setSelectedLens] = useState<Lens | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Filter states
+  const [descriptionFilter, setDescriptionFilter] = useState('');
+  const [selectedType, setSelectedType] = useState<FilterOption | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<FilterOption | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<FilterOption | null>(null);
+  const [selectedLensClass, setSelectedLensClass] = useState<FilterOption | null>(null);
+  const [selectedTreatment, setSelectedTreatment] = useState<FilterOption | null>(null);
+  
+  // Filter options
+  const [types, setTypes] = useState<FilterOption[]>([]);
+  const [brands, setBrands] = useState<FilterOption[]>([]);
+  const [materials, setMaterials] = useState<FilterOption[]>([]);
+  const [lensClasses, setLensClasses] = useState<FilterOption[]>([]);
+  const [treatments, setTreatments] = useState<FilterOption[]>([]);
+  const [activeTab, setActiveTab] = useState('all');
+  const [recommendedLenses, setRecommendedLenses] = useState<Lens[]>([]);
+  
+  // Loading states for filters
+  const [filtersLoading, setFiltersLoading] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
+  
+  // Request tracking refs to prevent duplicate requests
+  const pendingRequests = useRef<Record<string, boolean>>({});
+  const filterTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // Get sale data from session storage
+  useEffect(() => {
+    const storedSaleData = sessionStorage.getItem('pendingSale');
+    if (storedSaleData) {
+      const parsedData = JSON.parse(storedSaleData) as SaleData;
+      setSaleData(parsedData);
+      
+      // If there's a prescription with recommendation, default to the recommended tab
+      if (parsedData.prescription?.recommendation) {
+        setActiveTab('recommended');
+      }
+    } else {
+      // No sale data, navigate back
+      toast({
+        title: "No hay venta en progreso",
+        description: "No se encontró información de venta en progreso.",
+        variant: "destructive",
+      });
+      navigate('/receptionist/appointments');
+    }
+  }, [navigate]);
+  
+  // Load filter options with improved error handling
+  useEffect(() => {
+    loadFilterOptions();
+    
+    // Clear timers on unmount
+    return () => {
+      Object.values(filterTimers.current).forEach(timer => clearTimeout(timer));
+    };
+  }, []);
+  
+  // Helper function to convert filter IDs to strings to match SearchableSelect expected format
+  const getFilterValueString = (filter: FilterOption | null): string => {
+    return filter ? filter.id.toString() : "all";
+  };
+  
+  const loadFilterOptions = async () => {
+    try {
+      setFiltersLoading(true);
+      setFilterError(null);
+      
+      // Fetch filter options
+      const [typesRes, brandsRes, materialsRes, lensClassesRes, treatmentsRes] = await Promise.all([
+        ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/lens-types'),
+        ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/brands'),
+        ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/materials'),
+        ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/lens-classes'),
+        ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/treatments'),
+      ]);
+
+      // Make sure we're setting arrays, not undefined values
+      setTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
+      setBrands(Array.isArray(brandsRes.data) ? brandsRes.data : []);
+      setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
+      setLensClasses(Array.isArray(lensClassesRes.data) ? lensClassesRes.data : []);
+      setTreatments(Array.isArray(treatmentsRes.data) ? treatmentsRes.data : []);
+      
+      // Fallback: If any filter category is empty, try to load it individually
+      if (!typesRes.data?.length || !brandsRes.data?.length || !materialsRes.data?.length || 
+          !lensClassesRes.data?.length || !treatmentsRes.data?.length) {
+        await loadEmptyFilters();
+      }
+    } catch (error) {
+      console.error('Error loading filter options:', error);
+      setFilterError('No se pudieron cargar las opciones de filtro');
+      
+      // Attempt fallback loading on error
+      await loadEmptyFilters();
+    } finally {
+      setFiltersLoading(false);
+    }
+  };
+  
+  // Function to load empty filters as fallback
+  const loadEmptyFilters = async () => {
+    const loadPromises = [];
+    
+    if (!types.length) {
+      try {
+        const typesRes = await ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/lens-types');
+        setTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
+      } catch (err) {
+        console.error('Failed to load types in fallback:', err);
+      }
+    }
+    
+    if (!brands.length) {
+      try {
+        const brandsRes = await ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/brands');
+        setBrands(Array.isArray(brandsRes.data) ? brandsRes.data : []);
+      } catch (err) {
+        console.error('Failed to load brands in fallback:', err);
+      }
+    }
+    
+    if (!materials.length) {
+      try {
+        const materialsRes = await ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/materials');
+        setMaterials(Array.isArray(materialsRes.data) ? materialsRes.data : []);
+      } catch (err) {
+        console.error('Failed to load materials in fallback:', err);
+      }
+    }
+    
+    if (!lensClasses.length) {
+      try {
+        const lensClassesRes = await ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/lens-classes');
+        setLensClasses(Array.isArray(lensClassesRes.data) ? lensClassesRes.data : []);
+      } catch (err) {
+        console.error('Failed to load lens classes in fallback:', err);
+      }
+    }
+    
+    if (!treatments.length) {
+      try {
+        const treatmentsRes = await ApiService.get<ApiResponse<FilterOption[]>>('/api/v1/treatments');
+        setTreatments(Array.isArray(treatmentsRes.data) ? treatmentsRes.data : []);
+      } catch (err) {
+        console.error('Failed to load treatments in fallback:', err);
+      }
+    }
+  };
+  
+  // Load lenses data
+  const loadLenses = async (selectedTab = activeTab) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        per_page: perPage.toString(),
+        page: currentPage.toString(),
+      });
+      
+      // Build s_f and s_v arrays for all filters
+      const searchFields: string[] = [];
+      const searchValues: string[] = [];
+      
+      if (searchQuery) {
+        searchFields.push('description');
+        searchValues.push(searchQuery);
+      }
+      
+      if (selectedType) {
+        searchFields.push('type_id');
+        searchValues.push(selectedType.id.toString());
+      }
+      
+      if (selectedBrand) {
+        searchFields.push('brand_id');
+        searchValues.push(selectedBrand.id.toString());
+      }
+      
+      if (selectedMaterial) {
+        searchFields.push('material_id');
+        searchValues.push(selectedMaterial.id.toString());
+      }
+      
+      if (selectedLensClass) {
+        searchFields.push('lens_class_id');
+        searchValues.push(selectedLensClass.id.toString());
+      }
+      
+      if (selectedTreatment) {
+        searchFields.push('treatment_id');
+        searchValues.push(selectedTreatment.id.toString());
+      }
+      
+      if (searchFields.length > 0) {
+        params.append('s_f', JSON.stringify(searchFields));
+        params.append('s_v', JSON.stringify(searchValues));
+      }
+      
+      const response = await ApiService.get<PaginatedResponse>(`/api/v1/lenses?${params.toString()}`);
+      
+      console.log('API Response structure:', Object.keys(response));
+      
+      // Check if the response has the expected structure
+      if (!response || typeof response !== 'object') {
+        console.error('Invalid API response structure');
+        setLenses([]);
+        setTotalPages(1);
+        return;
+      }
+      
+      // This is the lens array inside the response
+      // The response should be a PaginatedResponse object with data property that is an array of Lens objects
+      const lensesData = Array.isArray(response.data) ? response.data : [];
+      
+      // Ensure response.data is an array before proceeding
+      if (selectedTab === 'recommended' && saleData?.prescription?.id) {
+        // Filter lenses based on prescription values
+        if (Array.isArray(lensesData)) {
+          filterRecommendedLenses(lensesData);
+        } else {
+          console.error('Lenses data is not an array:', lensesData);
+          setLenses([]);
+          setRecommendedLenses([]);
+        }
+      } else if (Array.isArray(lensesData)) {
+        setLenses(lensesData);
+      } else {
+        console.error('Lenses data is not an array:', lensesData);
+        setLenses([]);
+      }
+      
+      // Set pagination from the PaginatedResponse
+      setTotalPages(response.last_page || 1);
+    } catch (error) {
+      console.error('Error loading lenses:', error);
+      setLenses([]);
+      setTotalPages(1);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los lentes.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter lenses based on prescription values
+  const filterRecommendedLenses = async (lensData: Lens[]) => {
+    if (!saleData?.prescription?.id || !Array.isArray(lensData)) {
+      console.log('No prescription ID found or invalid lens data, skipping filtering');
+      setRecommendedLenses([]);
+      setLenses([]);
+      return;
+    }
+    
+    try {
+      console.log(`Fetching prescription details for ID: ${saleData.prescription.id}`);
+      // Get prescription details
+      const prescriptionData = await ApiService.get<ApiPrescriptionResponse>(`/api/v1/prescriptions/${saleData.prescription.id}`);
+      
+      if (!prescriptionData?.data) {
+        console.log('Prescription data is empty or invalid');
+        setRecommendedLenses([]);
+        setLenses([]);
+        return;
+      }
+      
+      console.log('Prescription data received:', prescriptionData.data);
+      
+      // Get values from prescription to filter lenses
+      const rightSphere = parseFloat(prescriptionData.data.right_sphere || '0');
+      const leftSphere = parseFloat(prescriptionData.data.left_sphere || '0');
+      const rightCylinder = parseFloat(prescriptionData.data.right_cylinder || '0');
+      const leftCylinder = parseFloat(prescriptionData.data.left_cylinder || '0');
+      const rightAddition = parseFloat(prescriptionData.data.right_addition || '0');
+      const leftAddition = parseFloat(prescriptionData.data.left_addition || '0');
+      
+      // Get min and max values for filtering
+      const sphereMin = Math.min(rightSphere, leftSphere);
+      const sphereMax = Math.max(rightSphere, leftSphere);
+      const cylinderMin = Math.min(rightCylinder, leftCylinder);
+      const cylinderMax = Math.max(rightCylinder, leftCylinder);
+      const additionMin = Math.min(rightAddition, leftAddition);
+      const additionMax = Math.max(rightAddition, leftAddition);
+      
+      console.log('Prescription values for filtering:');
+      console.log(`Sphere: min=${sphereMin}, max=${sphereMax}`);
+      console.log(`Cylinder: min=${cylinderMin}, max=${cylinderMax}`);
+      console.log(`Addition: min=${additionMin}, max=${additionMax}`);
+      
+      console.log(`Filtering ${lensData.length} lenses based on prescription values`);
+      
+      // Filter lenses that match the prescription values
+      const filteredLenses = lensData.filter(lens => {
+        // Skip lenses that don't have sphere or cylinder range defined
+        if (!lens.sphere_min || !lens.sphere_max || 
+            !lens.cylinder_min || !lens.cylinder_max) {
+          return false;
+        }
+        
+        // Parse lens range values, ensuring we have valid numbers
+        const lensSphereMin = parseFloat(lens.sphere_min.toString()) || 0;
+        const lensSphereMax = parseFloat(lens.sphere_max.toString()) || 0;
+        const lensCylinderMin = parseFloat(lens.cylinder_min.toString()) || 0;
+        const lensCylinderMax = parseFloat(lens.cylinder_max.toString()) || 0;
+        const lensAdditionMin = lens.addition_min ? parseFloat(lens.addition_min.toString()) || 0 : null;
+        const lensAdditionMax = lens.addition_max ? parseFloat(lens.addition_max.toString()) || 0 : null;
+        
+        // Check if lens ranges include the prescription values
+        const matchesSphere = 
+          (sphereMin >= lensSphereMin && sphereMin <= lensSphereMax) ||
+          (sphereMax >= lensSphereMin && sphereMax <= lensSphereMax) ||
+          (lensSphereMin >= sphereMin && lensSphereMax <= sphereMax);
+        
+        const matchesCylinder = 
+          (cylinderMin >= lensCylinderMin && cylinderMin <= lensCylinderMax) ||
+          (cylinderMax >= lensCylinderMin && cylinderMax <= lensCylinderMax) ||
+          (lensCylinderMin >= cylinderMin && lensCylinderMax <= cylinderMax);
+        
+        // Only check addition if it's greater than 0
+        let matchesAddition = true;
+        if (additionMax > 0) {
+          // If lens doesn't have addition values, it can't be a progressive/bifocal lens
+          if (!lensAdditionMin || !lensAdditionMax) {
+            matchesAddition = false;
+          } else {
+            matchesAddition = 
+              (additionMin >= lensAdditionMin && additionMin <= lensAdditionMax) ||
+              (additionMax >= lensAdditionMin && additionMax <= lensAdditionMax) ||
+              (lensAdditionMin >= additionMin && lensAdditionMax <= additionMax);
+          }
+        } else {
+          // If no addition is needed, prefer lenses without addition values
+          matchesAddition = !lensAdditionMin && !lensAdditionMax;
+        }
+        
+        const matches = matchesSphere && matchesCylinder && matchesAddition;
+        
+        // Log detailed matching info for debugging
+        if (lens.id % 5 === 0) { // Only log some lenses to avoid console spam
+          console.log(`Lens #${lens.id} (${lens.description}): matches=${matches}`, {
+            sphere: `${lensSphereMin} to ${lensSphereMax}`, matchesSphere,
+            cylinder: `${lensCylinderMin} to ${lensCylinderMax}`, matchesCylinder,
+            addition: lensAdditionMin !== null ? `${lensAdditionMin} to ${lensAdditionMax}` : 'N/A', matchesAddition
+          });
+        }
+        
+        return matches;
+      });
+      
+      console.log(`Found ${filteredLenses.length} matching lenses out of ${lensData.length}`);
+      
+      setRecommendedLenses(filteredLenses);
+      setLenses(filteredLenses);
+      
+      if (filteredLenses.length === 0) {
+        toast({
+          title: "Sin coincidencias",
+          description: "No se encontraron lentes que coincidan con la prescripción. Considera usar filtros menos restrictivos.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error filtering recommended lenses:', error);
+      setRecommendedLenses([]);
+    }
+  };
+  
+  // Load lenses when component mounts and when tab changes
+  useEffect(() => {
+    loadLenses(activeTab);
+  }, [currentPage, activeTab]);
+  
+  // Format price as currency
+  const formatPrice = (price: string) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+    }).format(parseFloat(price));
+  };
+  
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setCurrentPage(1);
+  };
+  
+  // Handle selecting a lens for purchase
+  const handleSelectLens = (lens: Lens) => {
+    setSelectedLens(lens);
+    setDetailsOpen(true);
+  };
+  
+  // Complete sale with selected lens
+  const handleCompleteSale = () => {
+    if (!selectedLens || !saleData) return;
+    
+    try {
+      // Update sale data with selected lens
+      const updatedSaleData = {
+        ...saleData,
+        selectedLens
+      };
+      
+      // Save updated data to session storage
+      sessionStorage.setItem('pendingSale', JSON.stringify(updatedSaleData));
+      
+      toast({
+        title: "Lente seleccionado",
+        description: `Se ha seleccionado el lente ${selectedLens.description}`,
+      });
+      
+      // Navigate to the sales form
+      navigate('/receptionist/sales/new');
+    } catch (error) {
+      console.error('Error completing sale:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Ocurrió un error al seleccionar el lente. Inténtalo de nuevo.',
+      });
+    }
+  };
+  
+  // Handle search
+  const handleSearch = () => {
+    setCurrentPage(1);
+    loadLenses();
+  };
+
+  return (
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
+      <div className="w-full max-w-7xl mx-auto">
+        {/* Header with back button and info */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div className="flex items-center">
+            <Button variant="ghost" onClick={() => navigate(-1)} className="mr-2 p-2 hover:bg-primary/10">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Selección de Lentes</h1>
+              {saleData?.patientName && (
+                <p className="text-gray-500 text-sm">
+                  Paciente: <span className="font-medium">{saleData.patientName}</span>
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {/* Search and filters */}
+          <div className="flex gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Buscar lentes..."
+                className="pl-8 pr-4 h-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
+              <DrawerTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Sliders className="h-4 w-4" />
+                  <span className="hidden md:inline">Filtros</span>
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent className="p-6">
+                <DrawerHeader className="px-0">
+                  <DrawerTitle>Filtros de búsqueda</DrawerTitle>
+                  <DrawerDescription>
+                    Selecciona los filtros para encontrar los lentes ideales.
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Tipo</label>
+                    <Select
+                      value={selectedType?.id.toString() || "all"}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          setSelectedType(null);
+                        } else {
+                          const type = types.find(t => t.id.toString() === value);
+                          setSelectedType(type || null);
+                        }
+                      }}
+                      disabled={filtersLoading}
+                    >
+                      <SelectTrigger className={filtersLoading ? "opacity-70" : ""}>
+                        <SelectValue placeholder={filtersLoading ? "Cargando..." : "Seleccionar tipo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los tipos</SelectItem>
+                        {Array.isArray(types) && types.length > 0 ? (
+                          types.map(type => (
+                            <SelectItem key={type.id} value={type.id.toString()}>
+                              {type.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem disabled value="no-data">
+                            {filtersLoading ? "Cargando opciones..." : "No hay tipos disponibles"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Marca</label>
+                    <Select
+                      value={selectedBrand?.id.toString() || "all"}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          setSelectedBrand(null);
+                        } else {
+                          const brand = brands.find(b => b.id.toString() === value);
+                          setSelectedBrand(brand || null);
+                        }
+                      }}
+                      disabled={filtersLoading}
+                    >
+                      <SelectTrigger className={filtersLoading ? "opacity-70" : ""}>
+                        <SelectValue placeholder={filtersLoading ? "Cargando..." : "Seleccionar marca"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las marcas</SelectItem>
+                        {Array.isArray(brands) && brands.length > 0 ? (
+                          brands.map(brand => (
+                            <SelectItem key={brand.id} value={brand.id.toString()}>
+                              {brand.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem disabled value="no-data">
+                            {filtersLoading ? "Cargando opciones..." : "No hay marcas disponibles"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Material</label>
+                    <Select
+                      value={selectedMaterial?.id.toString() || "all"}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          setSelectedMaterial(null);
+                        } else {
+                          const material = materials.find(m => m.id.toString() === value);
+                          setSelectedMaterial(material || null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los materiales</SelectItem>
+                        {Array.isArray(materials) && materials.map(material => (
+                          <SelectItem key={material.id} value={material.id.toString()}>
+                            {material.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Clase</label>
+                    <Select
+                      value={selectedLensClass?.id.toString() || "all"}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          setSelectedLensClass(null);
+                        } else {
+                          const lensClass = lensClasses.find(lc => lc.id.toString() === value);
+                          setSelectedLensClass(lensClass || null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar clase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las clases</SelectItem>
+                        {Array.isArray(lensClasses) && lensClasses.map(lensClass => (
+                          <SelectItem key={lensClass.id} value={lensClass.id.toString()}>
+                            {lensClass.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Tratamiento</label>
+                    <Select
+                      value={selectedTreatment?.id.toString() || "all"}
+                      onValueChange={(value) => {
+                        if (value === "all") {
+                          setSelectedTreatment(null);
+                        } else {
+                          const treatment = treatments.find(t => t.id.toString() === value);
+                          setSelectedTreatment(treatment || null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tratamiento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los tratamientos</SelectItem>
+                        {Array.isArray(treatments) && treatments.map(treatment => (
+                          <SelectItem key={treatment.id} value={treatment.id.toString()}>
+                            {treatment.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DrawerFooter className="px-0">
+                  <Button onClick={() => {
+                    handleSearch();
+                    setFilterDrawerOpen(false);
+                  }}>
+                    Aplicar filtros
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedType(null);
+                    setSelectedBrand(null);
+                    setSelectedMaterial(null);
+                    setSelectedLensClass(null);
+                    setSelectedTreatment(null);
+                    setSearchQuery('');
+                  }}>
+                    Limpiar filtros
+                  </Button>
+                  <DrawerClose asChild>
+                    <Button variant="ghost">Cancelar</Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+          </div>
+        </div>
+        
+        {/* Tabs and display modes */}
+        <div className="flex justify-between items-center mb-4">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+            <TabsList className="bg-muted/50 p-1">
+              <TabsTrigger value="all" className="data-[state=active]:bg-white">
+                Todos los lentes
+              </TabsTrigger>
+              <TabsTrigger 
+                value="recommended" 
+                className="data-[state=active]:bg-white"
+                disabled={!saleData?.prescription?.id}
+              >
+                Recomendados
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <div className="flex gap-2">
+            <Button
+              variant={displayMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDisplayMode('grid')}
+              className="px-3"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+            </Button>
+            <Button
+              variant={displayMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDisplayMode('list')}
+              className="px-3"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+            </Button>
+          </div>
+        </div>
+        
+        {/* Active filters */}
+        {(selectedType || selectedBrand || selectedMaterial || selectedLensClass || selectedTreatment) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {selectedType && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                Tipo: {selectedType.name}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => setSelectedType(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedBrand && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                Marca: {selectedBrand.name}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => setSelectedBrand(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedMaterial && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                Material: {selectedMaterial.name}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => setSelectedMaterial(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedLensClass && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                Clase: {selectedLensClass.name}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => setSelectedLensClass(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedTreatment && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                Tratamiento: {selectedTreatment.name}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => setSelectedTreatment(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setSelectedType(null);
+                setSelectedBrand(null);
+                setSelectedMaterial(null);
+                setSelectedLensClass(null);
+                setSelectedTreatment(null);
+                setSearchQuery('');
+                loadLenses();
+              }}
+            >
+              Limpiar todos
+            </Button>
+          </div>
+        )}
+        
+        {/* Display lenses in grid or list view */}
+        <div className="mb-6">
+          {loading ? (
+            <div className="w-full py-20 flex flex-col items-center justify-center bg-white rounded-lg border">
+              <div className="h-12 w-12 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin mb-4"></div>
+              <p className="text-gray-500">Cargando lentes...</p>
+            </div>
+          ) : lenses.length === 0 ? (
+            <div className="w-full py-20 flex flex-col items-center justify-center bg-white rounded-lg border">
+              <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold mb-1">No se encontraron lentes</h3>
+              <p className="text-gray-500 text-center max-w-md mb-4">
+                {activeTab === 'recommended' 
+                  ? 'No hay lentes recomendados que coincidan con la fórmula del paciente.'
+                  : 'No se encontraron lentes con los filtros seleccionados.'}
+              </p>
+              {activeTab === 'recommended' && (
+                <Button variant="outline" onClick={() => setActiveTab('all')}>
+                  Ver todos los lentes
+                </Button>
+              )}
+            </div>
+          ) : displayMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.isArray(lenses) && lenses.map(lens => (
+                <Card 
+                  key={lens.id} 
+                  className="overflow-hidden hover:border-primary/50 transition-all duration-200 hover:shadow-md cursor-pointer"
+                  onClick={() => handleSelectLens(lens)}
+                >
+                  <div className="px-4 py-3 bg-primary/5 border-b flex flex-col">
+                    <span className="font-medium text-sm truncate" title={lens.description}>
+                      {lens.description}
+                    </span>
+                    <span className="text-xs text-gray-500">{lens.internal_code}</span>
+                  </div>
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Badge variant="outline" className="text-xs">
+                        {lens.type?.name}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {lens.brand?.name}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      {!isSpecialist && (
+                        <span className="text-primary font-bold">
+                          {formatPrice(lens.price)}
+                        </span>
+                      )}
+                      <Button variant="outline" size="sm" className="h-8 px-2 gap-1">
+                        <Eye className="h-3.5 w-3.5" />
+                        <span className="text-xs">Detalles</span>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <div className="grid grid-cols-1 divide-y">
+                {Array.isArray(lenses) && lenses.map(lens => (
+                  <div 
+                    key={lens.id}
+                    className="grid grid-cols-12 p-4 gap-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => handleSelectLens(lens)}
+                  >
+                    <div className="col-span-5 md:col-span-4">
+                      <div className="font-medium truncate" title={lens.description}>
+                        {lens.description}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Código: {lens.internal_code}
+                      </div>
+                    </div>
+                    <div className="col-span-3 hidden md:block">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-xs">
+                          {lens.type?.name}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {lens.brand?.name}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="col-span-3 md:col-span-2">
+                      <div className="text-sm text-gray-500">Material</div>
+                      <div className="truncate" title={lens.material?.name}>
+                        {lens.material?.name}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      {!isSpecialist && (
+                        <div className="text-right font-bold text-primary">
+                          {formatPrice(lens.price)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-span-2 md:col-span-1 flex justify-end">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+        
+        {/* Pagination controls */}
+        {!loading && Array.isArray(lenses) && lenses.length > 0 && (
+          <div className="flex justify-center gap-1 mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Show pages around current page
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCurrentPage(pageNum)}
+                  className="w-9"
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronLeft className="h-4 w-4 rotate-180" />
+            </Button>
+          </div>
+        )}
+        
+        {/* Lens details modal */}
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="max-w-4xl">
+            {selectedLens && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">{selectedLens.description}</DialogTitle>
+                </DialogHeader>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                  {/* Left column - Technical details */}
+                  <div className="space-y-6">
+                    <div className="bg-primary/5 p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-3 text-primary">Especificaciones Técnicas</h3>
+                      <div className="grid grid-cols-2 gap-y-2">
+                        <div className="text-sm font-medium">Código interno:</div>
+                        <div className="text-sm">{selectedLens.internal_code}</div>
+                        
+                        <div className="text-sm font-medium">Tipo:</div>
+                        <div className="text-sm">{selectedLens.type?.name}</div>
+                        
+                        <div className="text-sm font-medium">Marca:</div>
+                        <div className="text-sm">{selectedLens.brand?.name}</div>
+                        
+                        <div className="text-sm font-medium">Material:</div>
+                        <div className="text-sm">{selectedLens.material?.name}</div>
+                        
+                        <div className="text-sm font-medium">Clase:</div>
+                        <div className="text-sm">{selectedLens.lens_class?.name}</div>
+                        
+                        <div className="text-sm font-medium">Tratamiento:</div>
+                        <div className="text-sm">{selectedLens.treatment?.name}</div>
+                        
+                        <div className="text-sm font-medium">Proveedor:</div>
+                        <div className="text-sm">{selectedLens.supplier?.name}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-3">Rangos Ópticos</h3>
+                      <div className="grid grid-cols-2 gap-y-2">
+                        <div className="text-sm font-medium">Rango de Esfera:</div>
+                        <div className="text-sm">
+                          {selectedLens.sphere_min && selectedLens.sphere_max 
+                            ? `${parseFloat(selectedLens.sphere_min.toString()).toFixed(2)} a ${parseFloat(selectedLens.sphere_max.toString()).toFixed(2)}` 
+                            : 'No especificado'}
+                        </div>
+                        
+                        <div className="text-sm font-medium">Rango de Cilindro:</div>
+                        <div className="text-sm">
+                          {selectedLens.cylinder_min && selectedLens.cylinder_max 
+                            ? `${parseFloat(selectedLens.cylinder_min.toString()).toFixed(2)} a ${parseFloat(selectedLens.cylinder_max.toString()).toFixed(2)}` 
+                            : 'No especificado'}
+                        </div>
+                        
+                        <div className="text-sm font-medium">Rango de Adición:</div>
+                        <div className="text-sm">
+                          {selectedLens.addition_min && selectedLens.addition_max 
+                            ? `${parseFloat(selectedLens.addition_min.toString()).toFixed(2)} a ${parseFloat(selectedLens.addition_max.toString()).toFixed(2)}` 
+                            : 'No especificado'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right column - Pricing and features */}
+                  <div className="space-y-6">
+                    {!isSpecialist && (
+                      <div className="bg-white p-6 rounded-xl border-2 border-primary/20 shadow-sm space-y-6">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-xl font-bold">Precio</h3>
+                          <div className="text-2xl font-bold text-primary">{formatPrice(selectedLens.price)}</div>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-gray-600">Características destacadas:</h4>
+                          <ul className="space-y-2">
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Material: <strong>{selectedLens.material?.name}</strong></span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Tratamiento: <strong>{selectedLens.treatment?.name}</strong></span>
+                            </li>
+                            {selectedLens.photochromic && (
+                              <li className="flex items-start gap-2">
+                                <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span>Fotocromático: <strong>{selectedLens.photochromic?.name}</strong></span>
+                              </li>
+                            )}
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Marca de prestigio: <strong>{selectedLens.brand?.name}</strong></span>
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2 mt-6">
+                          <Button 
+                            className="w-full py-6 text-lg gap-2" 
+                            onClick={handleCompleteSale}
+                          >
+                            <ShoppingBag className="h-5 w-5" />
+                            Seleccionar este lente
+                          </Button>
+                          <p className="text-xs text-gray-500 text-center mt-2">
+                            Al seleccionar este lente continuará al proceso de venta
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {isSpecialist && (
+                      <div className="bg-white p-6 rounded-xl border-2 border-primary/20 shadow-sm space-y-6">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-gray-600">Características destacadas:</h4>
+                          <ul className="space-y-2">
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Material: <strong>{selectedLens.material?.name}</strong></span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Tratamiento: <strong>{selectedLens.treatment?.name}</strong></span>
+                            </li>
+                            {selectedLens.photochromic && (
+                              <li className="flex items-start gap-2">
+                                <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span>Fotocromático: <strong>{selectedLens.photochromic?.name}</strong></span>
+                              </li>
+                            )}
+                            <li className="flex items-start gap-2">
+                              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span>Marca de prestigio: <strong>{selectedLens.brand?.name}</strong></span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {saleData?.prescription?.recommendation && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h3 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                            <path d="M9 12h6"></path>
+                            <path d="M12 9v6"></path>
+                            <path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9z"></path>
+                          </svg>
+                          Recomendación del Especialista
+                        </h3>
+                        <p className="text-sm text-blue-700">{saleData.prescription.recommendation}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+};
+
+export default SalesCatalog;
+
+  );
+};
+
+export default SalesCatalog;
+
+

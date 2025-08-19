@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Test</title>
+</head>
+<body>
+    <h1>Authentication Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAuth() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test login
+                results.innerHTML += '<p>Testing login...</p>';
+                const loginResponse = await fetch('http://localhost:8000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@convision.com',
+                        password: 'password'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                results.innerHTML += `<p>Login response: ${JSON.stringify(loginData)}</p>`;
+                
+                if (loginData.access_token) {
+                    // Test /auth/me
+                    results.innerHTML += '<p>Testing /auth/me...</p>';
+                    const meResponse = await fetch('http://localhost:8000/api/v1/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${loginData.access_token}`
+                        }
+                    });
+                    
+                    const meData = await meResponse.json();
+                    results.innerHTML += `<p>/auth/me response: ${JSON.stringify(meData)}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p>Error: ${error.message}</p>`;
+            }
+        }
+        
+        testAuth();
+    </script>
+</body>
+</html> 

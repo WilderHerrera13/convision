@@ -1,0 +1,1197 @@
+{
+  "info": {
+    "name": "Convision API",
+    "description": "API collection for testing Convision endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?per_page=15&s_f=[\"name\",\"email\"]&s_v=[\"john\",\"example\"]&sort=name,asc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "s_f",
+                  "value": "[\"name\",\"email\"]",
+                  "description": "Search fields (JSON array of field names)"
+                },
+                {
+                  "key": "s_v",
+                  "value": "[\"john\",\"example\"]",
+                  "description": "Search values (JSON array of values to search for)"
+                },
+                {
+                  "key": "sort",
+                  "value": "name,asc",
+                  "description": "Sort by field and direction (format: field,direction)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New User\",\n    \"email\": \"newuser@example.com\",\n    \"password\": \"password\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated User\",\n    \"email\": \"updated@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lenses",
+      "item": [
+        {
+          "name": "Get All Lenses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"internal_code\": \"SV-001\",\n  \"identifier\": \"ESS-SV-PREMIUM\",\n  \"type\": \"Single Vision\",\n  \"brand\": \"Essilor\",\n  \"material\": \"CR-39\",\n  \"lens_class\": \"Premium\",\n  \"treatment\": \"Anti-Reflective\",\n  \"photochromic\": \"Gen 8\",\n  \"description\": \"High-quality single vision lenses\",\n  \"supplier\": \"Essilor International\",\n  \"price\": 199.99,\n  \"cost\": 89.99\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"internal_code\": \"SV-002\",\n  \"identifier\": \"ESS-SV-PREMIUM-UPDATED\",\n  \"type\": \"Single Vision\",\n  \"brand\": \"Essilor\",\n  \"material\": \"CR-39\",\n  \"lens_class\": \"Premium\",\n  \"treatment\": \"Anti-Reflective\",\n  \"photochromic\": \"Gen 8\",\n  \"description\": \"Updated high-quality single vision lenses\",\n  \"supplier\": \"Essilor International\",\n  \"price\": 299.99,\n  \"cost\": 99.99\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Bulk Upload Lenses",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lenses/bulk-upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lenses", "bulk-upload"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/excel/file.xlsx"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lens Types",
+      "item": [
+        {
+          "name": "Get All Lens Types",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-types?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-types"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens Type",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-types"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Single Vision\",\n  \"description\": \"Standard single vision lenses\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens Type by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-types", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens Type",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-types", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Single Vision\",\n  \"description\": \"Updated standard single vision lenses\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens Type",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-types", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lens Classes",
+      "item": [
+        {
+          "name": "Get All Lens Classes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-classes?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-classes"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens Class",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-classes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-classes"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium\",\n  \"description\": \"High-end lens class\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens Class by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-classes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-classes", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens Class",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-classes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-classes", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Premium\",\n  \"description\": \"Updated high-end lens class\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens Class",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-classes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-classes", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lens Materials",
+      "item": [
+        {
+          "name": "Get All Lens Materials",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-materials?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-materials"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens Material",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-materials",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-materials"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CR-39\",\n  \"description\": \"Standard plastic lens material\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens Material by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-materials/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-materials", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens Material",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-materials/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-materials", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated CR-39\",\n  \"description\": \"Updated standard plastic lens material\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens Material",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-materials/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-materials", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lens Treatments",
+      "item": [
+        {
+          "name": "Get All Lens Treatments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-treatments?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-treatments"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens Treatment",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-treatments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-treatments"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anti-Reflective\",\n  \"description\": \"Reduces glare and reflections\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens Treatment by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-treatments/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-treatments", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens Treatment",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-treatments/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-treatments", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Anti-Reflective\",\n  \"description\": \"Updated reduces glare and reflections\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens Treatment",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-treatments/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-treatments", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lens Photochromics",
+      "item": [
+        {
+          "name": "Get All Lens Photochromics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-photochromics?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-photochromics"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Lens Photochromic",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-photochromics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-photochromics"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gen 8\",\n  \"description\": \"Latest generation photochromic technology\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Lens Photochromic by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-photochromics/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-photochromics", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Update Lens Photochromic",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-photochromics/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-photochromics", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Gen 8\",\n  \"description\": \"Updated latest generation photochromic technology\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Lens Photochromic",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/lens-photochromics/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "lens-photochromics", "1"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patients",
+      "item": [
+        {
+          "name": "List Patients",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/patients?per_page=15&s_f=[\"name\",\"email\",\"phone\"]&s_v=[\"john\",\"example\",\"123\"]&sort=name,asc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "patients"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "s_f",
+                  "value": "[\"name\",\"email\",\"phone\"]",
+                  "description": "Search fields (JSON array of field names)"
+                },
+                {
+                  "key": "s_v",
+                  "value": "[\"john\",\"example\",\"123\"]",
+                  "description": "Search values (JSON array of values to search for)"
+                },
+                {
+                  "key": "sort",
+                  "value": "name,asc",
+                  "description": "Sort by field and direction (format: field,direction)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/patients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "patients"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"1234567890\",\n    \"identification\": \"1234567890\",\n    \"identification_type\": \"dni\",\n    \"birth_date\": \"1990-01-01\",\n    \"gender\": \"male\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Restore Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/patients/:id/restore",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "patients", ":id", "restore"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "List Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments?per_page=15&s_f=[\"notes\",\"patient.name\"]&s_v=[\"checkup\",\"john\"]&sort=date,desc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "appointments"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "s_f",
+                  "value": "[\"notes\",\"patient.name\"]",
+                  "description": "Search fields (JSON array of field names, use dot notation for relations)"
+                },
+                {
+                  "key": "s_v",
+                  "value": "[\"checkup\",\"john\"]",
+                  "description": "Search values (JSON array of values to search for)"
+                },
+                {
+                  "key": "sort",
+                  "value": "date,desc",
+                  "description": "Sort by field and direction (format: field,direction)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "appointments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"patient_id\": 1,\n    \"date\": \"2024-03-20\",\n    \"time\": \"14:30\",\n    \"notes\": \"Regular checkup\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prescriptions",
+      "item": [
+        {
+          "name": "List Prescriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions?per_page=15&s_f=[\"patient.name\"]&s_v=[\"john\"]&sort=created_at,desc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "prescriptions"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "s_f",
+                  "value": "[\"patient.name\"]",
+                  "description": "Search fields (JSON array of field names, use dot notation for relations)"
+                },
+                {
+                  "key": "s_v",
+                  "value": "[\"john\"]",
+                  "description": "Search values (JSON array of values to search for)"
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at,desc",
+                  "description": "Sort by field and direction (format: field,direction)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Prescription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "prescriptions"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"patient_id\": 1,\n    \"sphere_right\": -2.00,\n    \"sphere_left\": -2.25,\n    \"cylinder_right\": -0.50,\n    \"cylinder_left\": -0.75,\n    \"axis_right\": 180,\n    \"axis_left\": 175\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    }
+  ]
+} 
