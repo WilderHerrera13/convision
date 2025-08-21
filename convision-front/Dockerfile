@@ -29,7 +29,7 @@ RUN useradd -ms /bin/bash devuser
 USER devuser
 
 # Expose Vite dev server port
-EXPOSE 4200
+EXPOSE 4300
 
 # Default command: start a shell (for development)
-CMD ["bash"] 
+CMD ["tail", "-f", "/dev/null"] 
