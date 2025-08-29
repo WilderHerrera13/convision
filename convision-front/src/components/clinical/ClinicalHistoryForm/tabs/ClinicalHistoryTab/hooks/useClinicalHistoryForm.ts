@@ -9,7 +9,6 @@ export const useClinicalHistoryForm = ({ patient, initialData, onCancel, onSave 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [serverErrors, setServerErrors] = React.useState<Record<string, string[]>>({});
-  const [expandedSections, setExpandedSections] = React.useState<Record<string, boolean>>({});
 
   const form = useForm<ClinicalHistoryFormValues>({
     resolver: zodResolver(clinicalHistorySchema),
@@ -146,65 +145,6 @@ export const useClinicalHistoryForm = ({ patient, initialData, onCancel, onSave 
     }
   };
 
-  const toggleSection = (sectionTitle: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionTitle]: !prev[sectionTitle]
-    }));
-  };
-
-  const getSectionStatus = (section: SectionDefinition) => {
-    const sectionFields = section.fields.map(f => f.name);
-    const hasErrors = sectionFields.some(field => 
-      formErrors[field as keyof ClinicalHistoryFormValues] || serverErrors[field]
-    );
-    
-    // Special handling for "Información Adicional" section
-    if (section.title === "Información Adicional") {
-      // Check if both NO APLICA checkboxes are checked
-      const acompañanteNoAplica = form.getValues('acompañante_no_aplica');
-      const responsableNoAplica = form.getValues('responsable_no_aplica');
-      
-      // If both are checked, no requirements needed
-      if (acompañanteNoAplica && responsableNoAplica) {
-        return hasErrors ? 'error' : 'completed';
-      }
-      
-      // Check required fields based on checkbox states
-      let requiredFieldsFilled = true;
-      
-      if (!acompañanteNoAplica) {
-        const acompañanteFields = ['acompañante_nombre', 'acompañante_documento'];
-        requiredFieldsFilled = requiredFieldsFilled && acompañanteFields.every(field => {
-          const value = form.getValues(field as keyof ClinicalHistoryFormValues);
-          return value && value !== '';
-        });
-      }
-      
-      if (!responsableNoAplica) {
-        const responsableFields = ['responsable_nombre', 'responsable_documento'];
-        requiredFieldsFilled = requiredFieldsFilled && responsableFields.every(field => {
-          const value = form.getValues(field as keyof ClinicalHistoryFormValues);
-          return value && value !== '';
-        });
-      }
-      
-      if (hasErrors) return 'error';
-      if (requiredFieldsFilled) return 'completed';
-      return 'empty';
-    }
-    
-    // Default logic for other sections
-    const requiredFields = section.fields.filter(f => f.required).map(f => f.name);
-    const requiredFieldsFilled = requiredFields.every(field => {
-      const value = form.getValues(field as keyof ClinicalHistoryFormValues);
-      return value && value !== '' && value !== 0;
-    });
-
-    if (hasErrors) return 'error';
-    if (requiredFieldsFilled && requiredFields.length > 0) return 'completed';
-    return 'empty';
-  };
 
   // Get all current errors for display
   const getAllErrors = () => {
@@ -243,16 +183,12 @@ export const useClinicalHistoryForm = ({ patient, initialData, onCancel, onSave 
     loading,
     error,
     serverErrors,
-    expandedSections,
-    setExpandedSections,
     formErrors,
     isValid,
     isDirty,
     hasAnyErrors,
     allErrors,
     onSubmit,
-    toggleSection,
-    getSectionStatus,
     onCancel,
     initialData
   };

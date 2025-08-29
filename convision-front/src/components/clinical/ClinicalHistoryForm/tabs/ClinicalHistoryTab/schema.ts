@@ -192,6 +192,53 @@ export const clinicalHistorySchema = z.object({
       message: 'Las observaciones no deben exceder 1000 caracteres'
     })
     .optional(),
+
+  // Subjetivo fields
+  subjetivo_od_esfera: z.string().optional(),
+  subjetivo_od_cilindro: z.string().optional(),
+  subjetivo_od_eje: z.string().optional(),
+  subjetivo_od_add: z.string().optional(),
+  subjetivo_od_dp: z.string().optional(),
+  subjetivo_od_lejos: z.string().optional(),
+  subjetivo_od_cerca: z.string().optional(),
+  subjetivo_oi_esfera: z.string().optional(),
+  subjetivo_oi_cilindro: z.string().optional(),
+  subjetivo_oi_eje: z.string().optional(),
+  subjetivo_oi_add: z.string().optional(),
+  subjetivo_oi_dp: z.string().optional(),
+  subjetivo_oi_lejos: z.string().optional(),
+  subjetivo_oi_cerca: z.string().optional(),
+
+  // Motilidad ocular fields
+  motilidad_krimsky: z.boolean().optional(),
+  motilidad_cover: z.boolean().optional(),
+  motilidad_vl: z.string().optional(),
+  motilidad_cerca: z.string().optional(),
+  motilidad_x100: z.string().optional(),
+  motilidad_20cm: z.string().optional(),
+  motilidad_ppc: z.string().optional(),
+
+  // Disposición field
+  disposicion: z.string()
+    .refine((val) => !val || val.length === 0 || val.length <= 1000, {
+      message: 'La disposición no debe exceder 1000 caracteres'
+    })
+    .optional(),
+
+  // Diagnóstico fields
+  recomendacion: z.string().optional(),
+  tipo_diagnostico: z.string().optional(),
+  n_dispositivos_medicos: z.string()
+    .refine((val) => !val || val.length === 0 || /^\d*$/.test(val), {
+      message: 'El número de dispositivos médicos solo puede contener números'
+    })
+    .optional(),
+  profesional: z.string().optional(),
+  proximo_control_visual: z.string()
+    .refine((val) => !val || val.length === 0 || val.length <= 50, {
+      message: 'El próximo control visual no debe exceder 50 caracteres'
+    })
+    .optional(),
 }).superRefine((data, ctx) => {
   // Note: Conditional validation for required fields is now handled by soft red borders
   // We only add validation errors here for fields that have content but are invalid

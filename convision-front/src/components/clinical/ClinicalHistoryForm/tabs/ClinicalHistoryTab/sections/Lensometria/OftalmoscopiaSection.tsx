@@ -1,6 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Typography, Button, TextField, Select, MenuItem, FormControl } from '@mui/material';
 import { SectionProps, FieldDefinition } from '../../types';
+import UnsavedChangesWarning from '../../../../shared/UnsavedChangesWarning';
+
+// Section Divider Component (extracted from ClinicalHistoryTab)
+interface SectionDividerProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+const SectionDivider: React.FC<SectionDividerProps> = ({ 
+  title, 
+  children 
+}) => {
+  return (
+    <Box sx={{ mb: 4 }}>
+      {/* Section Title with Line */}
+      <Box sx={{ position: 'relative', mb: 3 }}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            height: '2px',
+            backgroundColor: '#e2e8f0',
+            zIndex: 1
+          }}
+        />
+        <Typography
+          variant="body2"
+          sx={{
+            display: 'inline-block',
+            bgcolor: '#e2e8f0',
+            px: 2,
+            py: 0.5,
+            color: 'black',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            position: 'relative',
+            zIndex: 2,
+            border: '1px solid #e2e8f0',
+            borderRadius: 1
+          }}
+        >
+          {title}
+        </Typography>
+      </Box>
+      
+      {/* Section Content */}
+      <Box>
+        {children}
+      </Box>
+    </Box>
+  );
+};
 
 interface OftalmoscopiaSectionProps extends SectionProps {
   onSave: (data: { [key: string]: string }) => void;
@@ -46,31 +100,47 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
     fijacion_oi: "Central"
   };
 
-  // Local state for oftalmoscopia data
-  const [oftalmoscopiaData, setOftalmoscopiaData] = useState(() => {
-    const initialDataWithDefaults: { [key: string]: string } = {};
+  // Create initial data with defaults - this will be our reference for change detection
+  const initialDataWithDefaults = useMemo(() => {
+    const data: { [key: string]: string } = {};
     
     // Set pupil examination defaults
     Object.entries(pupilDefaults).forEach(([key, defaultValue]) => {
       if (isEditing && Object.keys(initialData).length > 0) {
-        initialDataWithDefaults[key] = initialData[key] ?? '';
+        data[key] = initialData[key] ?? '';
       } else {
-        initialDataWithDefaults[key] = initialData[key] ?? defaultValue;
+        data[key] = initialData[key] ?? defaultValue;
       }
     });
 
     // Set fundoscopy defaults  
     Object.entries(fundoscopyDefaults).forEach(([key, defaultValue]) => {
       if (isEditing && Object.keys(initialData).length > 0) {
-        initialDataWithDefaults[key] = initialData[key] ?? '';
+        data[key] = initialData[key] ?? '';
       } else {
-        initialDataWithDefaults[key] = initialData[key] ?? defaultValue;
+        data[key] = initialData[key] ?? defaultValue;
       }
     });
     
-    initialDataWithDefaults.observaciones = initialData.observaciones ?? '';
-    return initialDataWithDefaults;
-  });
+    data.observaciones = initialData.observaciones ?? '';
+    return data;
+  }, [initialData, isEditing]);
+
+  // Local state for oftalmoscopia data
+  const [oftalmoscopiaData, setOftalmoscopiaData] = useState(initialDataWithDefaults);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
+  // Update local state when initialData changes
+  useEffect(() => {
+    setOftalmoscopiaData(initialDataWithDefaults);
+  }, [initialDataWithDefaults]);
+
+  // Check if data has changed from initial state
+  const hasChanges = useMemo(() => {
+    return Object.keys(oftalmoscopiaData).some(key => 
+      oftalmoscopiaData[key] !== initialDataWithDefaults[key]
+    );
+  }, [oftalmoscopiaData, initialDataWithDefaults]);
 
   const handleFieldChange = (fieldName: string, value: string) => {
     setOftalmoscopiaData(prev => ({
@@ -80,8 +150,43 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
   };
 
   const handleSave = () => {
+    // Only save if there are changes
+    if (hasChanges) {
     onSave(oftalmoscopiaData);
+    }
   };
+
+  const handleCancel = () => {
+    if (hasChanges) {
+      setShowUnsavedWarning(true);
+    } else {
+      onCancel();
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setShowUnsavedWarning(false);
+    onCancel();
+  };
+
+  const handleKeepChanges = () => {
+    setShowUnsavedWarning(false);
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [hasChanges]);
 
   const pupilOptions = [
     { value: "Normoreactivo", label: "Normoreactivo" },
@@ -89,42 +194,47 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
   ];
 
   return (
+    <>
     <Box sx={{ 
-      p: 2,
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
       width: '100%',
-      backgroundColor: 'white',
-      border: '1px solid #e2e8f0',
-      borderRadius: 2,
-      color: 'black'
+      backgroundColor: '#f8fafc',
+      color: '#1e293b',
+      maxHeight: '90vh',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
       {/* Header */}
-      <Typography variant="h5" sx={{ 
-        fontWeight: 600, 
-        textAlign: 'center',
-        color: 'black',
-        mb: 2
-      }}>
-        {isEditing ? 'Editar Oftalmoscopia' : 'Oftalmoscopia'}
-      </Typography>
-
-      {/* Examen pupilar Section */}
-      <Box sx={{
-        border: '1px solid #e0e0e0',
-        borderRadius: 1,
-        p: 2,
-        backgroundColor: 'white',
-        color: 'black'
-      }}>
-        <Typography variant="h6" sx={{ 
-          color: 'black',
-          mb: 2,
-          fontWeight: 600
+      <Box sx={{ p: 3, backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', flexShrink: 0 }}>
+        <Typography variant="h5" sx={{ 
+          fontWeight: 600, 
+          textAlign: 'center',
+          color: '#1e293b',
+          fontSize: '1.25rem'
         }}>
-          Examen pupilar
+          {isEditing ? 'Editar Oftalmoscopia' : 'Oftalmoscopia'}
         </Typography>
+      </Box>
+
+      {/* Main Content Area */}
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        overflow: 'auto',
+        minHeight: 0
+      }}>
+        {/* Content Container */}
+        <Box sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          p: 3,
+          backgroundColor: '#f8fafc'
+        }}>
+        {/* Examen pupilar Section */}
+        <SectionDivider title="Examen pupilar">
 
         {/* Column Headers for Pupil Exam */}
         <Box sx={{
@@ -151,10 +261,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.fotomotor_directo_od || ''}
               onChange={(e) => handleFieldChange('fotomotor_directo_od', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -166,10 +282,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.consensual_od || ''}
               onChange={(e) => handleFieldChange('consensual_od', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -181,10 +303,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.acomodativo_od || ''}
               onChange={(e) => handleFieldChange('acomodativo_od', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -201,10 +329,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.fotomotor_directo_oi || ''}
               onChange={(e) => handleFieldChange('fotomotor_directo_oi', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -216,10 +350,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.consensual_oi || ''}
               onChange={(e) => handleFieldChange('consensual_oi', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -231,10 +371,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             <Select
               value={oftalmoscopiaData.acomodativo_oi || ''}
               onChange={(e) => handleFieldChange('acomodativo_oi', e.target.value)}
+              MenuProps={{
+                sx: { zIndex: 10001 },
+                PaperProps: {
+                  sx: {
+                    maxHeight: 200
+                  }
+                }
+              }}
               sx={{ 
-                backgroundColor: 'white', 
-                fontSize: '0.85rem',
-                border: '1px solid #e0e0e0'
+                bgcolor: 'white'
               }}
             >
               {pupilOptions.map(option => (
@@ -243,23 +389,10 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
             </Select>
           </FormControl>
         </Box>
-      </Box>
+        </SectionDivider>
 
-      {/* Oftalmoscopia Section */}
-      <Box sx={{
-        border: '1px solid #e0e0e0',
-        borderRadius: 1,
-        p: 2,
-        backgroundColor: 'white',
-        color: 'black'
-      }}>
-        <Typography variant="h6" sx={{ 
-          color: 'black',
-          mb: 2,
-          fontWeight: 600
-        }}>
-          Oftalmoscopia
-        </Typography>
+        {/* Oftalmoscopia Section */}
+        <SectionDivider title="Oftalmoscopia">
 
         {/* Column Headers */}
         <Box sx={{
@@ -296,15 +429,7 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
               onChange={(e) => handleFieldChange(`${field.key}_od`, e.target.value)}
               sx={{ 
                 flex: 1,
-                '& .MuiInputBase-root': {
-                  backgroundColor: 'white',
-                  fontSize: '0.85rem',
-                  height: '32px',
-                  border: '1px solid #e0e0e0',
-                  '& input': {
-                    color: 'black'
-                  }
-                }
+                bgcolor: 'white'
               }}
             />
             <TextField
@@ -313,30 +438,15 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
               onChange={(e) => handleFieldChange(`${field.key}_oi`, e.target.value)}
               sx={{ 
                 flex: 1,
-                '& .MuiInputBase-root': {
-                  backgroundColor: 'white',
-                  fontSize: '0.85rem',
-                  height: '32px',
-                  border: '1px solid #e0e0e0',
-                  '& input': {
-                    color: 'black'
-                  }
-                }
+                bgcolor: 'white'
               }}
             />
           </Box>
         ))}
-      </Box>
+        </SectionDivider>
 
       {/* Observaciones Section */}
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="h6" sx={{ 
-          color: 'black',
-          mb: 1,
-          fontWeight: 600
-        }}>
-          Observaciones
-        </Typography>
+      <SectionDivider title="Observaciones">
         <TextField
           multiline
           rows={3}
@@ -344,33 +454,59 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
           onChange={(e) => handleFieldChange('observaciones', e.target.value)}
           sx={{ 
             width: '100%',
-            '& .MuiInputBase-root': {
-              backgroundColor: 'white',
-              border: '1px solid #e0e0e0',
-              '& textarea': {
-                color: 'black'
-              }
-            }
+            bgcolor: 'white'
           }}
         />
+        </SectionDivider>
+        </Box>
       </Box>
 
       {/* Action Buttons */}
       <Box sx={{ 
+        position: 'sticky',
+        bottom: 0,
+        backgroundColor: '#f8fafc',
+        borderTop: '2px solid #e2e8f0',
+        p: 3,
         display: 'flex',
         gap: 2,
-        justifyContent: 'center',
-        mt: 3
+        justifyContent: 'flex-end',
+        mt: 'auto',
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
+        zIndex: 1000
       }}>
+        <Button
+          variant="outlined"
+          onClick={handleCancel}
+          sx={{
+            borderColor: '#64748b',
+            color: '#64748b',
+            minWidth: '120px',
+            '&:hover': {
+              borderColor: '#475569',
+              backgroundColor: 'rgba(100, 116, 139, 0.1)'
+            },
+            textTransform: 'none',
+            fontWeight: 600
+          }}
+        >
+          Cancelar
+        </Button>
+        
         <Button
           variant="contained"
           onClick={handleSave}
+          disabled={!hasChanges}
           sx={{
-            backgroundColor: '#2B5797',
+            backgroundColor: hasChanges ? '#2B5797' : '#cccccc',
             color: 'white',
             minWidth: '120px',
             '&:hover': {
-              backgroundColor: '#1e3f6f'
+              backgroundColor: hasChanges ? '#1e3f6f' : '#cccccc'
+            },
+            '&:disabled': {
+              backgroundColor: '#cccccc',
+              color: '#999999'
             },
             textTransform: 'none',
             fontWeight: 600
@@ -378,25 +514,16 @@ const OftalmoscopiaSection: React.FC<OftalmoscopiaSectionProps> = ({
         >
           Guardar
         </Button>
-        <Button
-          variant="outlined"
-          onClick={onCancel}
-          sx={{
-            borderColor: '#2B5797',
-            color: '#2B5797',
-            minWidth: '120px',
-            '&:hover': {
-              borderColor: '#1e3f6f',
-              backgroundColor: 'rgba(43, 87, 151, 0.1)'
-            },
-            textTransform: 'none',
-            fontWeight: 600
-          }}
-        >
-          Cancel
-        </Button>
       </Box>
     </Box>
+
+    {/* Unsaved Changes Warning Dialog */}
+    <UnsavedChangesWarning
+      open={showUnsavedWarning}
+      onConfirm={handleConfirmCancel}
+      onCancel={handleKeepChanges}
+    />
+    </>
   );
 };
 

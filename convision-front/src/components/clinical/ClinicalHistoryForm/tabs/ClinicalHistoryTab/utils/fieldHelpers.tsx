@@ -335,7 +335,7 @@ const renderTextInputField = (
         const hasSoftRedBorder = shouldShowSoftRedBorder();
         
         return (
-          <FormItem>
+          <FormItem style={{ margin: "4px 0" }}>
             <FormLabel className={hasError ? 'text-red-600' : ''}>
               {field.label}
               {isFieldRequired && <span className="text-red-500 ml-1">*</span>}

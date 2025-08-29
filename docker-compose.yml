@@ -42,7 +42,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    # platform: linux/arm64/v8
+    platform: linux/arm64/v8
     container_name: convision_mysql
     restart: unless-stopped
     environment:
@@ -65,9 +65,9 @@ services:
       start_period: 40s
 
   phpmyadmin:
-    image: phpmyadmin:latest
-    # image: arm64v8/phpmyadmin:latest
-    # platform: linux/arm64/v8
+    # image: phpmyadmin:latest
+    image: arm64v8/phpmyadmin:latest
+    platform: linux/arm64/v8
     container_name: convision_phpmyadmin
     restart: unless-stopped
     environment:

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography, TextField, FormControl, Select, MenuItem } from '@mui/material';
 import { SectionProps, FieldDefinition } from '../types';
 
 const ConsultationInfoSection: React.FC<SectionProps> = ({ form, serverErrors, renderField }) => {
@@ -95,34 +95,107 @@ const ConsultationInfoSection: React.FC<SectionProps> = ({ form, serverErrors, r
     }
   ];
 
+  // Get form values
+  const formValues = form.watch();
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-      {/* Left column with select fields */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {fields.filter(field => field.name !== 'ultimo_control_visual').map(field => {
-          const renderedField = renderField(field);
-          if (!renderedField) return null;
-          
-          return (
-            <Box key={field.name}>
-              {renderedField}
-            </Box>
-          );
-        })}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* First row - Último Control Visual */}
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+            Último Control Visual
+          </Typography>
+          <TextField
+            value={formValues.ultimo_control_visual || ''}
+            onChange={(e) => form.setValue('ultimo_control_visual', e.target.value)}
+            size="small"
+            fullWidth
+            placeholder="1 año y 2 meses"
+            error={!!serverErrors?.ultimo_control_visual}
+            helperText={serverErrors?.ultimo_control_visual}
+            sx={{ bgcolor: 'white' }}
+          />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          {/* Empty space to maintain layout */}
+        </Box>
       </Box>
-      
-      {/* Right column with Último Control Visual */}
-      <Box sx={{ flex: '0 0 300px', minWidth: { xs: '100%', md: '300px' } }}>
-        {fields.filter(field => field.name === 'ultimo_control_visual').map(field => {
-          const renderedField = renderField(field);
-          if (!renderedField) return null;
-          
-          return (
-            <Box key={field.name}>
-              {renderedField}
-            </Box>
-          );
-        })}
+
+      {/* Second row - 2 fields */}
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+            Tipo consulta
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ bgcolor: 'white' }}>
+            <Select
+              value={formValues.tipo_consulta || ''}
+              onChange={(e) => form.setValue('tipo_consulta', e.target.value)}
+            >
+              {fields.find(f => f.name === 'tipo_consulta')?.options?.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+            Tipo de atención
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ bgcolor: 'white' }}>
+            <Select
+              value={formValues.tipo_atencion || ''}
+              onChange={(e) => form.setValue('tipo_atencion', e.target.value)}
+            >
+              {fields.find(f => f.name === 'tipo_atencion')?.options?.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
+
+      {/* Third row - 2 fields */}
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+            Causa Externa
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ bgcolor: 'white' }}>
+            <Select
+              value={formValues.causa_externa || ''}
+              onChange={(e) => form.setValue('causa_externa', e.target.value)}
+            >
+              {fields.find(f => f.name === 'causa_externa')?.options?.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+            Finalidad
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ bgcolor: 'white' }}>
+            <Select
+              value={formValues.finalidad_consulta || ''}
+              onChange={(e) => form.setValue('finalidad_consulta', e.target.value)}
+            >
+              {fields.find(f => f.name === 'finalidad_consulta')?.options?.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
     </Box>
   );
