@@ -24,12 +24,11 @@ RUN npm install
 # Copy the rest of the code
 COPY . .
 
-# Create a non-root user for development
-RUN useradd -ms /bin/bash devuser
-USER devuser
+# The node user already exists in the base image and has the correct UID/GID
+# No need to create a custom user or change ownership
 
 # Expose Vite dev server port
-EXPOSE 4200
+EXPOSE 4300
 
 # Default command: start a shell (for development)
-CMD ["bash"] 
+CMD ["tail", "-f", "/dev/null"]

@@ -12,8 +12,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Proxy all /api requests to the Laravel backend
       '/api': {
-
-        target: 'http://127.0.0.1:8001',
+        target: 'http://app:8000',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
