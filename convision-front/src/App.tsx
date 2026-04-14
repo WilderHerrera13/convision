@@ -59,6 +59,11 @@ import CashRegisterHistory from './pages/receptionist/CashRegisterHistory';
 import DailyReport from './pages/receptionist/DailyReport';
 import DailyReportHistory from './pages/receptionist/DailyReportHistory';
 
+// Admin cash close module
+import AdminCashCloses from './pages/admin/CashCloses';
+import AdminCashCloseDetail from './pages/admin/CashCloseDetail';
+import AdminDailyReports from './pages/admin/DailyReports';
+
 // Import the laboratory orders components
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
 import LaboratoryOrderDetail from '@/pages/admin/LaboratoryOrderDetail';
@@ -377,6 +382,18 @@ const router = createBrowserRouter([
           {
             path: "laboratory-status",
             element: <LaboratoryStatus />,
+          },
+          {
+            path: "cash-closes",
+            element: <AdminCashCloses />,
+          },
+          {
+            path: "cash-closes/:id",
+            element: <AdminCashCloseDetail />,
+          },
+          {
+            path: "daily-reports",
+            element: <AdminDailyReports />,
           },
         ],
       },

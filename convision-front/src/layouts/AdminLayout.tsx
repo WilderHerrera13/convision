@@ -1,361 +1,213 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import {
-  LayoutDashboard,
-  Users,
-  UserPlus,
-  Calendar,
-  LogOut,
-  Menu,
-  Glasses,
-  User as UserIcon,
-  Package,
-  ShoppingBag,
-  Box,
-  Percent,
-  DollarSign,
-  Building2,
-  FileText,
-  FlaskConical
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  useSidebar
-} from '@/components/ui/sidebar';
+  LayoutDashboard, UserRound, CalendarDays, ShoppingCart,
+  PackageOpen, FileText, ShoppingBag, FlaskConical, Archive,
+  CreditCard, TrendingUp, LogOut, Menu, Eye,
+  Wrench, Tag, ArrowLeftRight, Banknote, Users2, Building2,
+  ClipboardList, BarChart3,
+} from 'lucide-react';
+import { useSidebar } from '@/components/ui/sidebar';
+
+type NavItem = { title: string; path: string; icon: React.ComponentType<{ className?: string }> };
+type NavSection = { label: string | null; items: NavItem[] };
+
+const adminNav: NavSection[] = [
+  { label: null, items: [{ title: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard }] },
+  {
+    label: 'CLÍNICA',
+    items: [
+      { title: 'Pacientes', path: '/admin/patients', icon: UserRound },
+      { title: 'Citas', path: '/admin/appointments', icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'COMERCIAL',
+    items: [
+      { title: 'Ventas', path: '/admin/sales', icon: ShoppingCart },
+      { title: 'Cotizaciones', path: '/admin/quotes', icon: FileText },
+      { title: 'Órdenes de Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen },
+      { title: 'Órdenes de Arreglo', path: '/admin/service-orders', icon: Wrench },
+      { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag },
+    ],
+  },
+  {
+    label: 'ADMINISTRACIÓN',
+    items: [
+      { title: 'Compras', path: '/admin/purchases-dashboard', icon: ShoppingBag },
+      { title: 'Inventario', path: '/admin/inventory', icon: Archive },
+      { title: 'Nómina', path: '/admin/payrolls', icon: CreditCard },
+      { title: 'Gastos', path: '/admin/expenses', icon: TrendingUp },
+      { title: 'Traslados', path: '/admin/cash-transfers', icon: ArrowLeftRight },
+      { title: 'Pagos Proveedores', path: '/admin/supplier-payments', icon: Banknote },
+      { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList },
+      { title: 'Reportes Diarios', path: '/admin/daily-reports', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'GESTIÓN',
+    items: [
+      { title: 'Usuarios', path: '/admin/users', icon: Users2 },
+      { title: 'Proveedores', path: '/admin/suppliers', icon: Building2 },
+      { title: 'Laboratorios', path: '/admin/laboratories', icon: FlaskConical },
+    ],
+  },
+];
+
+const receptionistNav: NavSection[] = [
+  { label: null, items: [{ title: 'Dashboard', path: '/receptionist/dashboard', icon: LayoutDashboard }] },
+  {
+    label: 'CLÍNICA',
+    items: [
+      { title: 'Pacientes', path: '/receptionist/patients', icon: UserRound },
+      { title: 'Citas', path: '/receptionist/appointments', icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'COMERCIAL',
+    items: [
+      { title: 'Ventas', path: '/receptionist/sales', icon: ShoppingCart },
+      { title: 'Cotizaciones', path: '/receptionist/quotes', icon: FileText },
+      { title: 'Órdenes', path: '/receptionist/orders', icon: PackageOpen },
+      { title: 'Descuentos', path: '/receptionist/discount-requests', icon: Tag },
+    ],
+  },
+];
+
+const specialistNav: NavSection[] = [
+  { label: null, items: [{ title: 'Dashboard', path: '/specialist/dashboard', icon: LayoutDashboard }] },
+  { label: 'CLÍNICA', items: [{ title: 'Citas', path: '/specialist/appointments', icon: CalendarDays }] },
+];
+
+function getInitials(name: string) {
+  return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
+}
+
+const roleLabels: Record<string, { badge: string; title: string }> = {
+  admin: { badge: 'Admin', title: 'Administrador' },
+  specialist: { badge: 'Especialista', title: 'Especialista' },
+  receptionist: { badge: 'Recepción', title: 'Recepcionista' },
+};
 
 const AdminLayout: React.FC = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
+  const isCollapsed = state === 'collapsed';
 
-  // Admin menu
-  const adminMenuItems = [
-    {
-      title: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      path: '/admin/dashboard',
-    },
-    {
-      title: 'Perfil',
-      icon: <UserIcon className="w-5 h-5" />,
-      path: '/profile',
-    },
-    {
-      title: 'Usuarios',
-      icon: <Users className="w-5 h-5" />,
-      path: '/admin/users',
-    },
-    {
-      title: 'Pacientes',
-      icon: <UserPlus className="w-5 h-5" />,
-      path: '/admin/patients',
-    },
-    {
-      title: 'Proveedores',
-      icon: <Box className="w-5 h-5" />,
-      path: '/admin/suppliers',
-    },
-    {
-      title: 'Compras',
-      icon: <ShoppingBag className="w-5 h-5" />,
-      path: '/admin/purchases-dashboard',
-    },
-    {
-      title: 'Laboratorios',
-      icon: <Building2 className="w-5 h-5" />,
-      path: '/admin/laboratories',
-    },
-    {
-      title: 'Órdenes de Laboratorio',
-      icon: <FlaskConical className="w-5 h-5" />,
-      path: '/admin/laboratory-orders',
-    },
-    {
-      title: 'Catálogo de Lentes',
-      icon: <Glasses className="w-5 h-5" />,
-      path: '/admin/catalog',
-    },
-    {
-      title: 'Inventario',
-      icon: <Package className="w-5 h-5" />,
-      path: '/admin/inventory',
-    },
-    {
-      title: 'Ventas',
-      icon: <DollarSign className="w-5 h-5" />,
-      path: '/admin/sales',
-    },
-    {
-      title: 'Cotizaciones',
-      icon: <FileText className="w-5 h-5" />,
-      path: '/admin/quotes',
-    },
-    {
-      title: 'Citas',
-      icon: <Calendar className="w-5 h-5" />,
-      path: '/admin/appointments',
-    },
-    {
-      title: 'Descuentos',
-      icon: <Percent className="w-5 h-5" />,
-      path: '/admin/discount-requests',
-    },
-  ];
+  const path = location.pathname;
+  let navSections = adminNav;
+  if (user?.role === 'receptionist' || path.startsWith('/receptionist')) navSections = receptionistNav;
+  else if (user?.role === 'specialist' || path.startsWith('/specialist')) navSections = specialistNav;
 
-  // Receptionist menu
-  const receptionistMenuItems = [
-    {
-      title: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      path: '/receptionist/dashboard',
-    },
-    {
-      title: 'Perfil',
-      icon: <UserIcon className="w-5 h-5" />,
-      path: '/profile',
-    },
-    {
-      title: 'Pacientes',
-      icon: <UserPlus className="w-5 h-5" />,
-      path: '/receptionist/patients',
-    },
-    {
-      title: 'Catálogo',
-      icon: <Glasses className="w-5 h-5" />,
-      path: '/receptionist/catalog',
-    },
-    {
-      title: 'Citas',
-      icon: <Calendar className="w-5 h-5" />,
-      path: '/receptionist/appointments',
-    },
-    {
-      title: 'Órdenes',
-      icon: <ShoppingBag className="w-5 h-5" />,
-      path: '/receptionist/orders',
-    },
-    {
-      title: 'Ventas',
-      icon: <DollarSign className="w-5 h-5" />,
-      path: '/receptionist/sales',
-    },
-    {
-      title: 'Cotizaciones',
-      icon: <FileText className="w-5 h-5" />,
-      path: '/receptionist/quotes',
-    },
-    {
-      title: 'Descuentos',
-      icon: <Percent className="w-5 h-5" />,
-      path: '/receptionist/discount-requests',
-    },
-  ];
-
-  // Specialist menu (add if needed)
-  const specialistMenuItems = [
-    {
-      title: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      path: '/specialist/dashboard',
-    },
-    {
-      title: 'Perfil',
-      icon: <UserIcon className="w-5 h-5" />,
-      path: '/profile',
-    },
-    {
-      title: 'Citas',
-      icon: <Calendar className="w-5 h-5" />,
-      path: '/specialist/appointments',
-    },
-  ];
-
-  // Choose menu based on role
-  let menuItems = [];
-  
-  // If authentication is disabled (no user), default to admin menu for testing
-  // You can determine this by checking if we're on an admin route
-  const currentPath = location.pathname;
-  const isAdminRoute = currentPath.startsWith('/admin');
-  const isReceptionistRoute = currentPath.startsWith('/receptionist');
-  const isSpecialistRoute = currentPath.startsWith('/specialist');
-  
-  if (user?.role === 'admin' || (!user && isAdminRoute)) {
-    menuItems = adminMenuItems;
-  } else if (user?.role === 'receptionist' || (!user && isReceptionistRoute)) {
-    menuItems = receptionistMenuItems;
-  } else if (user?.role === 'specialist' || (!user && isSpecialistRoute)) {
-    menuItems = specialistMenuItems;
-  } else {
-    // Always default to admin menu if no user (for testing)
-    menuItems = adminMenuItems;
-  }
-
-  console.log('AdminLayout - Menu selection:', {
-    userRole: user?.role,
-    currentPath,
-    isAdminRoute,
-    isReceptionistRoute,
-    isSpecialistRoute,
-    menuItemsCount: menuItems.length,
-    hasUser: !!user
-  });
-
-  // Helper to get the correct profile path for the current role
-  const getProfilePath = () => {
-    if (user?.role === 'admin') return '/admin/profile';
-    if (user?.role === 'receptionist') return '/receptionist/profile';
-    if (user?.role === 'specialist') return '/specialist/profile';
-    
-    // If no user (auth disabled), determine from current route
-    if (!user) {
-      if (isAdminRoute) return '/admin/profile';
-      if (isReceptionistRoute) return '/receptionist/profile';
-      if (isSpecialistRoute) return '/specialist/profile';
-    }
-    
-    return '/profile';
-  };
-
-  const handleLogout = async () => {
-    await logout();
-  };
+  const roleInfo = roleLabels[user?.role ?? 'admin'] ?? { badge: 'Admin', title: 'Administrador' };
+  const initials = user?.name ? getInitials(user.name) : 'US';
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Floating Sidebar Toggle Button */}
-      {state === 'collapsed' && (
+    <div className="flex h-screen w-full overflow-hidden bg-convision-background">
+      {/* Collapsed toggle */}
+      {isCollapsed && (
         <button
           onClick={toggleSidebar}
-          className="fixed top-4 left-2 z-50 bg-white border border-border rounded-full shadow p-2 hover:bg-gray-100 transition-colors"
-          style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-          aria-label="Expand sidebar"
+          className="fixed top-4 left-3 z-50 bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-convision-background transition-colors"
+          aria-label="Expandir sidebar"
         >
-          <Menu className="h-6 w-6 text-gray-700" />
+          <Menu className="size-4 text-convision-text-secondary" />
         </button>
       )}
+
       {/* Sidebar */}
-      <Sidebar
-        className={cn(
-          'h-screen fixed top-0 left-0 z-40',
-          'bg-white border-r border-slate-100',
-          'w-56 flex flex-col shadow-none'
-        )}
-        collapsible="offcanvas"
-      >
-        <div className="flex items-center gap-3 h-20 px-6 border-b border-slate-100 bg-white">
-          <div className="flex items-center justify-center bg-transparent rounded-xl p-2">
-            <Glasses className="h-7 w-7 text-convision-primary" />
+      {!isCollapsed && (
+        <aside className="bg-convision-sidebar border-r border-convision-border w-[240px] h-screen flex flex-col shrink-0 z-40">
+          {/* Logo */}
+          <div className="bg-white border-b border-convision-border-subtle h-[60px] flex items-center px-[14px] gap-2 shrink-0">
+            <div className="flex items-center gap-[6px]">
+              <Eye className="size-5 text-convision-primary" />
+              <span className="text-[14px] font-semibold leading-none">
+                <span className="text-convision-text">con</span>
+                <span className="text-convision-primary">vision</span>
+              </span>
+            </div>
+            <div className="flex-1" />
+            <button onClick={toggleSidebar} className="p-1 rounded hover:bg-convision-background">
+              <Menu className="size-[14px] text-convision-text-secondary" />
+            </button>
+            <div className="bg-convision-light px-2 py-[3px] rounded-full">
+              <span className="text-[10px] font-semibold text-convision-primary leading-none">{roleInfo.badge}</span>
+            </div>
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-convision-primary">Convision</span>
-          <SidebarTrigger className="ml-auto md:hidden" />
-        </div>
-        <SidebarContent className="flex-1 flex flex-col justify-between">
-          <div>
-            <SidebarGroup>
-              <SidebarGroupLabel>
-                <span className="uppercase text-xs tracking-widest text-slate-300 font-semibold pl-2">Menú</span>
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menuItems.filter(item => item.path !== '/profile').map((item) => (
-                    <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={location.pathname === item.path}
-                        className={cn(
-                          'group flex w-full items-center gap-3 px-5 py-2.5 rounded-lg font-normal transition-all',
-                          'text-slate-600 hover:bg-slate-50 hover:text-convision-primary',
-                          location.pathname === item.path
-                            ? 'bg-slate-50 text-convision-primary font-semibold border-l-2 border-convision-primary shadow-none'
-                            : 'border-l-2 border-transparent'
-                        )}
-                        style={{ marginBottom: 2 }}
-                      >
-                        <button
-                          onClick={() => navigate(item.path)}
-                          className="flex w-full items-center gap-3 text-left focus:outline-none"
-                        >
-                          <span className="flex items-center justify-center w-6 h-6">
-                            {item.icon}
-                          </span>
-                          <span className="truncate text-base font-light tracking-tight">{item.title}</span>
-                        </button>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </div>
-          {/* Special options at the bottom */}
-          <div className="mb-4">
-            <div className="border-t border-slate-100 my-4" />
-            <SidebarMenu>
-              {/* Profile option */}
-              {menuItems.find(item => item.path === '/profile') && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === getProfilePath()}
-                    className={cn(
-                      'group flex w-full items-center gap-3 px-5 py-2.5 rounded-lg font-normal transition-all',
-                      'text-slate-600 hover:bg-slate-50 hover:text-convision-primary',
-                      location.pathname === getProfilePath()
-                        ? 'bg-slate-50 text-convision-primary font-semibold border-l-2 border-convision-primary shadow-none'
-                        : 'border-l-2 border-transparent'
-                    )}
-                  >
-                    <button
-                      onClick={() => navigate(getProfilePath())}
-                      className="flex w-full items-center gap-3 text-left focus:outline-none"
-                    >
-                      <span className="flex items-center justify-center w-6 h-6">
-                        <UserIcon className="w-5 h-5" />
-                      </span>
-                      <span className="truncate text-base font-light tracking-tight">Perfil</span>
-                    </button>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {/* Logout option */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 rounded-lg px-5 py-2.5 text-left text-red-500 bg-transparent hover:bg-red-50 hover:text-red-700 font-semibold transition-all border-l-2 border-transparent hover:border-red-400"
-                  >
-                    <span className="flex items-center justify-center w-6 h-6">
-                      <LogOut className="h-5 w-5" />
+
+          {/* Nav */}
+          <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-0.5">
+            {navSections.map((section, i) => (
+              <div key={i}>
+                {section.label && (
+                  <div className="flex items-center h-[26px] px-[10px] pt-2">
+                    <span className="text-[9px] font-semibold text-convision-text-muted tracking-[1.2px] uppercase leading-none">
+                      {section.label}
                     </span>
-                    <span className="truncate text-base font-light tracking-tight">Cerrar Sesión</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+                  </div>
+                )}
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => navigate(item.path)}
+                      className={cn(
+                        'w-full flex items-center gap-2 h-9 px-[10px] rounded-[6px] text-left transition-colors',
+                        isActive
+                          ? 'bg-convision-light text-convision-primary'
+                          : 'text-convision-text-secondary hover:bg-convision-background hover:text-convision-text',
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      <span className={cn('text-[13px] leading-none whitespace-nowrap', isActive ? 'font-semibold' : 'font-normal')}>
+                        {item.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
-        </SidebarContent>
-      </Sidebar>
-      {/* Main content */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        <div className="bg-white rounded-lg shadow p-4 min-h-full">
-          <Outlet />
-        </div>
-      </div>
+
+          {/* User footer */}
+          <div className="bg-white border-t border-convision-border-subtle h-16 flex items-center justify-between px-[14px] shrink-0">
+            <div className="flex items-center gap-[10px]">
+              <div className="size-[34px] bg-convision-light rounded-full flex items-center justify-center shrink-0">
+                <span className="text-[11px] font-semibold text-convision-primary leading-none">{initials}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[12px] font-semibold text-convision-text leading-none whitespace-nowrap">
+                  {user?.name ?? 'Usuario'}
+                </span>
+                <span className="text-[11px] text-convision-text-secondary leading-none whitespace-nowrap">
+                  {roleInfo.title}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => logout()}
+              className="p-1 rounded hover:bg-convision-background transition-colors"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="size-[14px] text-convision-text-secondary" />
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Main content — no wrapper padding, pages handle their own layout */}
+      <main className="flex-1 h-screen overflow-hidden flex flex-col min-w-0">
+        <Outlet />
+      </main>
     </div>
   );
 };
 
-export default AdminLayout; 
+export default AdminLayout;
