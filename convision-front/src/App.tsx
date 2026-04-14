@@ -50,23 +50,35 @@ import Purchases from "./pages/admin/Purchases";
 import NewPurchase from "./pages/admin/NewPurchase";
 import PurchaseDetail from "./pages/admin/PurchaseDetail";
 import EditPurchase from "./pages/admin/EditPurchase";
-import Expenses from "./pages/admin/Expenses";
+import Expenses from "@/pages/admin/Expenses";
 import NewExpense from "./pages/admin/NewExpense";
+
+// Cash register close module
+import CashRegisterClose from './pages/receptionist/CashRegisterClose';
+import CashRegisterHistory from './pages/receptionist/CashRegisterHistory';
+import DailyReport from './pages/receptionist/DailyReport';
+import DailyReportHistory from './pages/receptionist/DailyReportHistory';
 
 // Import the laboratory orders components
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
+import LaboratoryOrderDetail from '@/pages/admin/LaboratoryOrderDetail';
 import NewLaboratoryOrder from '@/pages/admin/NewLaboratoryOrder';
 
 // Import the purchases dashboard and new modules
 import PurchasesDashboard from '@/pages/admin/PurchasesDashboard';
 import Payrolls from '@/pages/admin/Payrolls';
+import PayrollDetail from '@/pages/admin/PayrollDetail';
 import ServiceOrders from '@/pages/admin/ServiceOrders';
+import NewServiceOrder from '@/pages/admin/NewServiceOrder';
+import ServiceOrderDetail from '@/pages/admin/ServiceOrderDetail';
+import EditServiceOrder from '@/pages/admin/EditServiceOrder';
 import CashTransfers from '@/pages/admin/CashTransfers';
 
 // Import the new components for missing routes
 import NewPayroll from '@/pages/admin/NewPayroll';
 import PayrollCalculate from '@/pages/admin/PayrollCalculate';
 import SupplierPayments from '@/pages/admin/SupplierPayments';
+import SupplierPaymentDetail from '@/pages/admin/SupplierPaymentDetail';
 import NewCashTransfer from '@/pages/admin/NewCashTransfer';
 import LaboratoryStatus from '@/pages/admin/LaboratoryStatus';
 
@@ -78,7 +90,7 @@ const ProtectedRoute: React.FC<{
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingScreen message="Verificando autenticación..." />;
+    return <LoadingScreen variant="auth" />;
   }
 
   if (requireAuth && !isAuthenticated) {
@@ -96,7 +108,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingScreen message="Verificando autenticación..." />;
+    return <LoadingScreen variant="auth" />;
   }
 
   if (isAuthenticated && user) {
@@ -117,7 +129,7 @@ const HomePage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingScreen message="Cargando..." />;
+    return <LoadingScreen variant="auth" />;
   }
 
   if (!isAuthenticated) {
@@ -307,6 +319,10 @@ const router = createBrowserRouter([
             element: <LaboratoryOrders />,
           },
           {
+            path: "laboratory-orders/:id",
+            element: <LaboratoryOrderDetail />,
+          },
+          {
             path: "laboratory-orders/new",
             element: <NewLaboratoryOrder />,
           },
@@ -315,8 +331,24 @@ const router = createBrowserRouter([
             element: <Payrolls />,
           },
           {
+            path: "payrolls/:id",
+            element: <PayrollDetail />,
+          },
+          {
             path: "service-orders",
             element: <ServiceOrders />,
+          },
+          {
+            path: "service-orders/:id",
+            element: <ServiceOrderDetail />,
+          },
+          {
+            path: "service-orders/:id/edit",
+            element: <EditServiceOrder />,
+          },
+          {
+            path: "service-orders/new",
+            element: <NewServiceOrder />,
           },
           {
             path: "cash-transfers",
@@ -333,6 +365,10 @@ const router = createBrowserRouter([
           {
             path: "supplier-payments",
             element: <SupplierPayments />,
+          },
+          {
+            path: "supplier-payments/:id",
+            element: <SupplierPaymentDetail />,
           },
           {
             path: "cash-transfers/new",
@@ -461,6 +497,22 @@ const router = createBrowserRouter([
           {
             path: "orders",
             element: <OrderList />,
+          },
+          {
+            path: "cash-closes",
+            element: <CashRegisterClose />,
+          },
+          {
+            path: "cash-close-history",
+            element: <CashRegisterHistory />,
+          },
+          {
+            path: "daily-report",
+            element: <DailyReport />,
+          },
+          {
+            path: "daily-report-history",
+            element: <DailyReportHistory />,
           },
           {
             path: "profile",
