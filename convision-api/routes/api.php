@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\V1\CashTransferController;
 use App\Http\Controllers\Api\V1\CashRegisterCloseController;
 use App\Http\Controllers\Api\V1\SaleLensPriceAdjustmentController;
 use App\Http\Controllers\Api\V1\SupplierPayableController;
+use App\Http\Controllers\Api\V1\DailyActivityReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -340,6 +341,12 @@ Route::prefix('v1')->group(function () {
         Route::post('cash-register-closes/{id}/submit', [CashRegisterCloseController::class, 'submit']);
         Route::post('cash-register-closes/{id}/approve', [CashRegisterCloseController::class, 'approve'])
             ->middleware('role:admin');
+    });
+
+    // Daily Activity Report routes (Reporte Diario de Gestión del Asesor)
+    Route::middleware('auth:api')->group(function () {
+        Route::apiResource('daily-activity-reports', DailyActivityReportController::class)
+            ->except(['destroy']);
     });
 });
 
