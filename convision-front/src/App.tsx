@@ -524,6 +524,10 @@ const router = createBrowserRouter([
             element: <CashRegisterHistory />,
           },
           {
+            path: "cash-close-detail/:id",
+            element: <AdminCashCloseDetail />,
+          },
+          {
             path: "daily-report",
             element: <DailyReport />,
           },

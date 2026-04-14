@@ -74,6 +74,15 @@ const receptionistNav: NavSection[] = [
       { title: 'Descuentos', path: '/receptionist/discount-requests', icon: Tag },
     ],
   },
+  {
+    label: 'CAJA',
+    items: [
+      { title: 'Cierre de Caja', path: '/receptionist/cash-closes', icon: ClipboardList },
+      { title: 'Historial Cierres', path: '/receptionist/cash-close-history', icon: BarChart3 },
+      { title: 'Reporte Diario', path: '/receptionist/daily-report', icon: FileText },
+      { title: 'Historial Reportes', path: '/receptionist/daily-report-history', icon: Eye },
+    ],
+  },
 ];
 
 const specialistNav: NavSection[] = [

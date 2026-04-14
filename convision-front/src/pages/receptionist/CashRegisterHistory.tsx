@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
@@ -18,6 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 const CashRegisterHistory: React.FC = () => {
+  const navigate = useNavigate();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
@@ -69,7 +71,7 @@ const CashRegisterHistory: React.FC = () => {
           size="sm"
           variant="outline"
           className="bg-[#eff4ff] border-[#c5d3f8] text-[#3a71f7] hover:bg-blue-100"
-          onClick={() => alert('Vista detalle próximamente')}
+          onClick={() => navigate(`/receptionist/cash-close-detail/${row.original.id}`)}
         >
           <Eye className="h-4 w-4" />
         </Button>

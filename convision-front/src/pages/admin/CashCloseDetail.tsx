@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,8 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 const AdminCashCloseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [close, setClose] = useState<CashCloseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminNotes, setAdminNotes] = useState('');
@@ -159,7 +162,7 @@ const AdminCashCloseDetail: React.FC = () => {
           </CardContent>
         </Card>
 
-        {close.status === 'submitted' && (
+        {close.status === 'submitted' && isAdmin && (
           <Card className="border-[#f4c678]" style={{ background: '#fff6e3' }}>
             <CardContent className="pt-5 space-y-3">
               <p className="font-semibold text-[#b57218]">⚠ Pendiente de Aprobación</p>
