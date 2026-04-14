@@ -44,7 +44,9 @@ use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\PayrollController;
 use App\Http\Controllers\Api\V1\ServiceOrderController;
 use App\Http\Controllers\Api\V1\CashTransferController;
+use App\Http\Controllers\Api\V1\CashRegisterCloseController;
 use App\Http\Controllers\Api\V1\SaleLensPriceAdjustmentController;
+use App\Http\Controllers\Api\V1\SupplierPayableController;
 
 /*
 |--------------------------------------------------------------------------
@@ -305,6 +307,11 @@ Route::prefix('v1')->group(function () {
         Route::post('expenses/{expense}/payments', [ExpenseController::class, 'addPayment']);
     });
 
+    // Supplier payables (multi-origen)
+    Route::middleware('auth:api')->group(function () {
+        Route::get('supplier-payables', [SupplierPayableController::class, 'index']);
+    });
+
     // Payroll routes
     Route::middleware('auth:api')->group(function () {
         Route::get('payrolls/stats', [PayrollController::class, 'stats']);
@@ -325,6 +332,14 @@ Route::prefix('v1')->group(function () {
         Route::post('cash-transfers/{cashTransfer}/approve', [CashTransferController::class, 'approve']);
         Route::post('cash-transfers/{cashTransfer}/cancel', [CashTransferController::class, 'cancel']);
         Route::apiResource('cash-transfers', CashTransferController::class);
+    });
+
+    // Cash Register Close routes (Cierre de Caja)
+    Route::middleware('auth:api')->group(function () {
+        Route::apiResource('cash-register-closes', CashRegisterCloseController::class);
+        Route::post('cash-register-closes/{id}/submit', [CashRegisterCloseController::class, 'submit']);
+        Route::post('cash-register-closes/{id}/approve', [CashRegisterCloseController::class, 'approve'])
+            ->middleware('role:admin');
     });
 });
 
