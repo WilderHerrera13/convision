@@ -15,6 +15,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [ ] **Phase 3: Commercial Flow Reliability** - Secure quote/sale/PDF paths and discount-related business rules
 - [ ] **Phase 4: Finance & Orders Consistency** - Stabilize expenses/payroll/purchases/service-lab orders and related API contracts
 - [ ] **Phase 5: Quality Hardening & Verification** - Close gaps in conventions, regressions, and verification evidence
+- [x] **Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor** - Cierre de caja, reporte de gestión diaria, aprobación admin (2026-04-14)
 
 ## Phase Details
 
@@ -120,14 +121,4 @@ Plans:
 | 3. Commercial Flow Reliability | 0/3 | Not started | - |
 | 4. Finance & Orders Consistency | 0/4 | Not started | - |
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
-| 6. Cash Register Close Module | 0/4 | Not started | - |
-
-### Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 5
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 6 to break down)
+| 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
