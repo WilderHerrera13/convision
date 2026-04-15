@@ -70,8 +70,10 @@ const PatientInfo: React.FC<PatientInfoProps> = ({ patient }) => {
               />
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              {patient.identification_type && patient.identification
-                ? `${patient.identification_type.toUpperCase()}: ${patient.identification}`
+              {patient.identification
+                ? patient.identification_type
+                  ? `${patient.identification_type.toUpperCase()}: ${patient.identification}`
+                  : patient.identification
                 : 'Sin identificación registrada'}
             </Typography>
           </Grid>

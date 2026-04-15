@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatDate, parseLocalDatetime } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { appointmentsService } from '@/services/appointmentsService';
@@ -120,6 +120,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
   
   const [appointment, setAppointment] = useState<AppointmentWithPrescription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
   const [evolutionsKey, setEvolutionsKey] = useState(0);
@@ -132,9 +133,13 @@ const SpecialistAppointmentDetail: React.FC = () => {
     }
   }, [id]);
 
-  const fetchAppointment = async () => {
+  const fetchAppointment = async (silent = false) => {
     try {
-      setLoading(true);
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const appointmentData = await appointmentsService.getAppointmentById(Number(id)) as unknown as AppointmentApiResponse;
       
       const extendedAppointment: AppointmentWithPrescription = {
@@ -152,6 +157,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -165,7 +171,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
         title: 'Cita tomada',
         description: 'Has iniciado la atención de esta cita exitosamente.',
       });
-      fetchAppointment();
+      fetchAppointment(true);
     } catch (error: unknown) {
       // Check if this is an appointment in progress error
       if (error && typeof error === 'object' && 'response' in error) {
@@ -217,7 +223,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
         title: 'Cita pausada',
         description: 'La cita ha sido pausada. Puedes reanudarla más tarde.',
       });
-      fetchAppointment();
+      fetchAppointment(true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No se pudo pausar la cita.';
       toast({
@@ -240,7 +246,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
         title: 'Cita reanudada',
         description: 'Has reanudado la atención de esta cita.',
       });
-      fetchAppointment();
+      fetchAppointment(true);
     } catch (error: unknown) {
       // Check if this is an appointment in progress error
       if (error && typeof error === 'object' && 'response' in error) {
@@ -306,7 +312,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
         title: 'Cita completada',
         description: 'La cita ha sido marcada como completada.',
       });
-      fetchAppointment();
+      fetchAppointment(true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'No se pudo completar la cita.';
       toast({
@@ -326,8 +332,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
       title: 'Evolución creada',
       description: 'La evolución clínica ha sido registrada exitosamente.',
     });
-    // Optionally refresh appointment data if needed
-    fetchAppointment();
+    fetchAppointment(true);
   };
 
   const getStatusConfig = (status: string) => {
@@ -365,7 +370,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
     }
   };
 
-  const canTakeAppointment = appointment?.status === 'scheduled';
+  const canTakeAppointment = user?.role === 'specialist' && appointment?.status === 'scheduled';
   const canPauseAppointment = appointment?.status === 'in_progress' && appointment?.taken_by_id === user?.id;
   const canResumeAppointment = appointment?.status === 'paused' && appointment?.taken_by_id === user?.id;
   const canCompleteAppointment = appointment?.status === 'in_progress' && appointment?.taken_by_id === user?.id;
@@ -422,7 +427,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
               {appointment.patient.first_name} {appointment.patient.last_name}
             </h1>
             <p className="text-sm text-gray-600">
-              {formatDate(appointment.scheduled_at)} - {format(new Date(appointment.scheduled_at), 'h:mm a')}
+              {formatDate(appointment.scheduled_at)} - {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'h:mm a')}
             </p>
           </div>
         </div>

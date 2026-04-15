@@ -18,11 +18,18 @@ class StoreAppointmentRequest extends FormRequest
         return [
             'patient_id' => 'required|exists:patients,id',
             'specialist_id' => 'nullable|exists:users,id,role,specialist',
-            'scheduled_at' => 'required_without_all:date,time|date_format:Y-m-d H:i',
+            'scheduled_at' => 'required_without_all:date,time|date_format:Y-m-d H:i|after:now',
             'date' => 'required_without:scheduled_at|date_format:Y-m-d',
             'time' => 'required_without:scheduled_at|date_format:H:i',
             'notes' => 'nullable|string',
             'appointment_type_id' => 'nullable|exists:appointment_types,id',
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'scheduled_at.after' => 'La fecha y hora de la cita debe ser en el futuro.',
         ];
     }
 

@@ -207,7 +207,7 @@ const ClinicalHistory = () => {
   }
 
   return (
-    <div>
+    <div style={{ overflowX: 'hidden' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate(-1)}>
           Volver
