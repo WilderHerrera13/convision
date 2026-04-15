@@ -28,6 +28,7 @@
 .env.production
 .env.local
 .env.*.local
+.env.docker
 
 # PHP
 .phpunit.result.cache

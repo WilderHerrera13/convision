@@ -1,15 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Convision — Base de datos de desarrollo
+# Convision — Stack completo de desarrollo
 #
-# Uso:
+# Uso (desde la raíz del proyecto):
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# Variables de entorno (.env en la raíz del proyecto, o exportadas en shell):
-#   DB_DATABASE   (default: convision)
-#   DB_USERNAME   (default: convision)
-#   DB_PASSWORD   (default: root)
-#   DB_PORT       (default: 3306)
-#   PMA_PORT      (default: 8080)
+# Primera vez:
+#   Copia docker/.env.example → docker/.env y ajusta si es necesario.
+#   Las migraciones y seeds se aplican automáticamente al iniciar el contenedor app.
+#
+# Hot reload:
+#   - Backend: guarda cualquier archivo PHP → Laravel lo sirve al instante (php artisan serve).
+#   - Frontend: guarda cualquier archivo en convision-front/src → Vite HMR actualiza el browser.
 #
 # Para ARM (Apple Silicon M1/M2/M3):
 #   DOCKER_PLATFORM=linux/arm64/v8 docker compose -f docker/docker-compose.yml up -d
@@ -18,6 +19,7 @@
 version: '3.8'
 
 services:
+
   # ── MySQL 8 ──────────────────────────────────────────────────────────────
   mysql:
     image: mysql:8.0
@@ -26,9 +28,9 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-convision}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       MYSQL_USER: ${DB_USERNAME:-convision}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-convision}
       TZ: America/Bogota
     ports:
       - "${DB_PORT:-3306}:3306"
@@ -38,11 +40,55 @@ services:
     networks:
       - convision_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD:-root}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD:-root}"]
       interval: 10s
       timeout: 5s
-      retries: 6
-      start_period: 30s
+      retries: 8
+      start_period: 40s
+
+  # ── Laravel API (backend) ─────────────────────────────────────────────────
+  app:
+    build:
+      context: ../convision-api
+      dockerfile: Dockerfile
+    container_name: convision_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ../convision-api:/var/www/html
+      - /var/www/html/vendor
+    env_file:
+      - ../convision-api/.env.docker
+    networks:
+      - convision_network
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    entrypoint: ["/var/www/html/docker/entrypoint.sh"]
+
+  # ── React + Vite (frontend) ───────────────────────────────────────────────
+  front:
+    build:
+      context: ../convision-front
+      dockerfile: Dockerfile
+    container_name: convision_front
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../convision-front:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://app:8000
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - convision_network
+    ports:
+      - "${FRONT_PORT:-4300}:4300"
+    depends_on:
+      - app
+    command: npm run dev -- --host 0.0.0.0
 
   # ── phpMyAdmin ────────────────────────────────────────────────────────────
   phpmyadmin:
@@ -53,7 +99,7 @@ services:
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       PMA_ARBITRARY: 1
       UPLOAD_LIMIT: 128M
     ports:
