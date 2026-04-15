@@ -2,6 +2,16 @@
 
 This directory contains a modularized version of the Clinical History Form, broken down into manageable, focused components.
 
+## 🔄 Auto-Save System
+
+**NEW**: The form now includes an automatic save system that:
+- ✅ Saves data to localStorage every 30 seconds
+- ✅ Loads saved data when reopening the form
+- ✅ Shows visual save status indicator
+- ✅ Stores data per patient (separate drafts)
+
+[📖 See detailed documentation](./AUTO_SAVE_SYSTEM.md)
+
 ## 📁 Structure
 
 ```

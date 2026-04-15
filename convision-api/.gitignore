@@ -1,15 +1,142 @@
+# Dependencies
 /node_modules
+/vendor
+
+# Laravel specific
+/bootstrap/compiled.php
+/bootstrap/cache
 /public/hot
 /public/storage
 /storage/*.key
-/vendor
+/storage/app/*
+!/storage/app/.gitkeep
+!/storage/app/public
+/storage/framework/cache/*
+!/storage/framework/cache/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/testing/*
+!/storage/framework/testing/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Environment files
 .env
 .env.backup
+.env.production
+.env.local
+.env.*.local
+
+# PHP
 .phpunit.result.cache
-docker-compose.override.yml
-Homestead.json
-Homestead.yaml
+.php_cs.cache
+.php-cs-fixer.cache
+composer.phar
+
+# Testing
+/coverage
+/tests/coverage
+/.phpunit.cache
+
+# Laravel Mix / Vite
+/public/js
+/public/css
+/public/mix-manifest.json
+/public/build
+
+# Node.js
 npm-debug.log
 yarn-error.log
+yarn-debug.log
+package-lock.json
+
+# IDE files
 /.idea
 /.vscode
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+
+# Docker
+docker-compose.override.yml
+.docker
+/*.dockerfile
+
+# Logs
+*.log
+/storage/logs/*.log
+
+# Laravel packages
+/public/vendor/telescope
+/public/vendor/horizon
+/public/vendor/nova
+/public/vendor/sanctum
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Temporary files
+*.temp
+*.temporary
+
+# Laravel Passport
+/storage/oauth-public.key
+/storage/oauth-private.key
+
+# API documentation
+/public/docs
+/.scribe
+
+# Laravel Debugbar
+/storage/debugbar
+
+# Laravel IDE Helper
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+
+# Vagrant
+Homestead.json
+Homestead.yaml
+/.vagrant
+
+# Local development
+/laradock
+/.sail
+
+# Cache
+*.cache
+/bootstrap/cache/*.php
+
+# SSL certificates
+*.pem
+*.crt
+*.key
+
+# Database
+*.sqlite
+*.db
+
+# Profiling
+*.prof
+
+# XDebug
+xdebug.log
+
+# Laravel Dusk
+/tests/Browser/screenshots
+/tests/Browser/console
