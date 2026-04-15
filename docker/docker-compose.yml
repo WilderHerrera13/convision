@@ -24,7 +24,7 @@ services:
   mysql:
     image: mysql:8.0
     platform: ${DOCKER_PLATFORM:-linux/amd64}
-    container_name: convision_mysql
+    container_name: convision-mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-convision}
@@ -51,7 +51,7 @@ services:
     build:
       context: ../convision-api
       dockerfile: Dockerfile
-    container_name: convision_app
+    container_name: convision-app
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
@@ -71,7 +71,7 @@ services:
     build:
       context: ../convision-front
       dockerfile: Dockerfile
-    container_name: convision_front
+    container_name: convision-front
     restart: unless-stopped
     working_dir: /app
     volumes:
@@ -92,7 +92,7 @@ services:
   phpmyadmin:
     image: phpmyadmin:latest
     platform: ${DOCKER_PLATFORM:-linux/amd64}
-    container_name: convision_phpmyadmin
+    container_name: convision-phpmyadmin
     restart: unless-stopped
     environment:
       PMA_HOST: mysql
