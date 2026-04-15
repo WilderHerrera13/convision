@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,27 +8,47 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Search, Filter, Eye, CreditCard } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Search, Filter, Eye, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { purchaseService, type Purchase } from '@/services/purchaseService';
+import { expenseService, type Expense } from '@/services/expenseService';
+import { payrollService } from '@/services/payrollService';
+import { supplierPaymentsService, type SupplierPayableRow } from '@/services/supplierPaymentsService';
+import { DatePicker } from '@/components/ui/date-picker';
+import PageLayout from '@/components/layouts/PageLayout';
 
-interface SupplierPayment {
+interface SupplierPaymentRow {
   id: number;
+  purchase_id: number;
+  source: 'purchase' | 'expense';
   supplier_name: string;
   invoice_number: string;
   amount: number;
-  payment_date: string;
-  payment_method: string;
+  payment_method?: string;
   status: 'pending' | 'paid' | 'overdue';
-  due_date: string;
+  due_date?: string;
 }
 
 export default function SupplierPayments() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [payments, setPayments] = useState<SupplierPayment[]>([]);
-  const [filteredPayments, setFilteredPayments] = useState<SupplierPayment[]>([]);
+  const [payments, setPayments] = useState<SupplierPaymentRow[]>([]);
+  const [filteredPayments, setFilteredPayments] = useState<SupplierPaymentRow[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isPayOpen, setIsPayOpen] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentMethodId, setPaymentMethodId] = useState<string>('');
+  const [paymentDate, setPaymentDate] = useState<string>('');
+  const [reference, setReference] = useState<string>('');
+
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: () => payrollService.getPaymentMethods(),
+  });
 
   useEffect(() => {
     fetchPayments();
@@ -35,49 +56,27 @@ export default function SupplierPayments() {
 
   useEffect(() => {
     filterPayments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payments, searchTerm, statusFilter]);
 
   const fetchPayments = async () => {
     setLoading(true);
     try {
-      // TODO: Implement API call to fetch supplier payments
-      const mockPayments: SupplierPayment[] = [
-        {
-          id: 1,
-          supplier_name: 'Proveedor ABC',
-          invoice_number: 'INV-001',
-          amount: 1500000,
-          payment_date: '2024-01-15',
-          payment_method: 'Transferencia',
-          status: 'paid',
-          due_date: '2024-01-15'
-        },
-        {
-          id: 2,
-          supplier_name: 'Proveedor XYZ',
-          invoice_number: 'INV-002',
-          amount: 2300000,
-          payment_date: '',
-          payment_method: '',
-          status: 'pending',
-          due_date: '2024-01-20'
-        },
-        {
-          id: 3,
-          supplier_name: 'Proveedor DEF',
-          invoice_number: 'INV-003',
-          amount: 890000,
-          payment_date: '',
-          payment_method: '',
-          status: 'overdue',
-          due_date: '2024-01-10'
-        }
-      ];
-
-      setPayments(mockPayments);
+      const result = await supplierPaymentsService.list({ per_page: 100 });
+      const rows: SupplierPaymentRow[] = result.data.map((r: SupplierPayableRow) => ({
+        id: Number(r.source_id),
+        purchase_id: r.source === 'purchase' ? r.source_id : 0,
+        source: r.source,
+        supplier_name: r.supplier?.name || '—',
+        invoice_number: r.reference || '—',
+        amount: r.balance,
+        payment_method: undefined,
+        status: r.status,
+        due_date: r.due_date || undefined,
+      }));
+      setPayments(rows);
     } catch (error) {
-      console.error('Error fetching payments:', error);
-      toast.error("Error al cargar los pagos");
+      toast.error('Error al cargar los pagos');
     } finally {
       setLoading(false);
     }
@@ -123,38 +122,70 @@ export default function SupplierPayments() {
     );
   };
 
-  const handlePayment = async (paymentId: number) => {
+  const openPayModal = async (purchaseId: number, source?: 'purchase' | 'expense') => {
     try {
-      // TODO: Implement payment processing
-      console.log('Processing payment:', paymentId);
-      toast.success("Pago procesado exitosamente");
-      fetchPayments(); // Refresh the list
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      toast.error("Error al procesar el pago");
+      if (source === 'expense') {
+        const expense = await expenseService.getExpense(purchaseId);
+        setSelectedExpense(expense);
+        setSelectedPurchase(null);
+        setPaymentAmount(expense.balance || 0);
+      } else {
+        const purchase = await purchaseService.getPurchase(purchaseId);
+        setSelectedPurchase(purchase);
+        setSelectedExpense(null);
+        setPaymentAmount(purchase.balance || 0);
+      }
+      setPaymentDate(new Date().toISOString().slice(0,10));
+      setPaymentMethodId('');
+      setReference('');
+      setIsPayOpen(true);
+    } catch {
+      toast.error('No se pudo cargar el registro');
     }
   };
 
+  const payMutation = useMutation({
+    mutationFn: async () => {
+      if (paymentAmount <= 0 || !paymentDate || !paymentMethodId) return Promise.reject();
+      if (selectedPurchase) {
+        return purchaseService.addPayment(selectedPurchase.id, {
+          payment_method_id: Number(paymentMethodId),
+          amount: paymentAmount,
+          payment_date: paymentDate,
+          reference,
+        });
+      }
+      if (selectedExpense) {
+        return expenseService.addPayment(selectedExpense.id, {
+          payment_method_id: Number(paymentMethodId),
+          amount: paymentAmount,
+          payment_date: paymentDate,
+          reference,
+        });
+      }
+      return Promise.reject();
+    },
+    onSuccess: () => {
+      toast.success('Pago procesado exitosamente');
+      setIsPayOpen(false);
+      fetchPayments();
+    },
+    onError: () => {
+      toast.error('Error al procesar el pago');
+    }
+  });
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate('/admin/dashboard')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-          <h1 className="text-3xl font-bold">Pagos a Proveedores</h1>
-        </div>
+    <PageLayout
+      title="Pagos a Proveedores"
+      actions={
         <Button onClick={() => navigate('/admin/supplier-payments/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Pago
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-4">
@@ -260,6 +291,7 @@ export default function SupplierPayments() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Proveedor</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Factura</TableHead>
                   <TableHead>Monto</TableHead>
                   <TableHead>Fecha Vencimiento</TableHead>
@@ -270,27 +302,32 @@ export default function SupplierPayments() {
               </TableHeader>
               <TableBody>
                 {filteredPayments.map((payment) => (
-                  <TableRow key={payment.id}>
+                  <TableRow key={`${payment.source}-${payment.id}`}>
                     <TableCell className="font-medium">{payment.supplier_name}</TableCell>
+                    <TableCell>
+                      {payment.source === 'purchase' ? 'Compra' : 'Gasto'}
+                    </TableCell>
                     <TableCell>{payment.invoice_number}</TableCell>
                     <TableCell>{formatCurrency(payment.amount)}</TableCell>
-                    <TableCell>{new Date(payment.due_date).toLocaleDateString('es-CO')}</TableCell>
+                    <TableCell>{payment.due_date ? new Date(payment.due_date).toLocaleDateString('es-CO') : '—'}</TableCell>
                     <TableCell>{getStatusBadge(payment.status)}</TableCell>
                     <TableCell>{payment.payment_method || 'N/A'}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/supplier-payments/${payment.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        {payment.source === 'purchase' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/admin/supplier-payments/${payment.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                         {payment.status !== 'paid' && (
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => handlePayment(payment.id)}
+                            onClick={() => openPayModal(payment.purchase_id || payment.id, payment.source)}
                           >
                             <CreditCard className="h-4 w-4" />
                           </Button>
@@ -304,6 +341,57 @@ export default function SupplierPayments() {
           )}
         </CardContent>
       </Card>
-    </div>
+      <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar pago</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Proveedor</Label>
+              <Input value={(selectedPurchase?.supplier?.name ?? selectedExpense?.supplier?.name) || ''} readOnly />
+            </div>
+            <div>
+              <Label>Factura</Label>
+              <Input value={(selectedPurchase?.invoice_number ?? selectedExpense?.invoice_number) || ''} readOnly />
+            </div>
+            <div>
+              <Label>Saldo</Label>
+              <Input value={formatCurrency(((selectedPurchase?.balance ?? selectedExpense?.balance) || 0))} readOnly />
+            </div>
+            <div>
+              <Label>Método de Pago</Label>
+              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un método" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((m: { id: number; name: string }) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Fecha de Pago</Label>
+              <DatePicker value={paymentDate} onChange={(d) => setPaymentDate(d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
+            </div>
+            <div>
+              <Label>Monto</Label>
+              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Referencia</Label>
+              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Opcional" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPayOpen(false)}>Cancelar</Button>
+            <Button onClick={() => payMutation.mutate()} disabled={!paymentMethodId || paymentAmount <= 0 || !paymentDate}>Pagar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
+    </PageLayout>
   );
 } 

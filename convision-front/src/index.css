@@ -153,6 +153,21 @@
   background-size: 200% 200%;
 }
 
+@keyframes loading-dot-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.78);
+  }
+}
+
+.loading-dot {
+  animation: loading-dot-pulse 1.4s ease-in-out infinite;
+}
+
 @keyframes fade-in-up {
   0% {
     opacity: 0;
@@ -184,5 +199,6 @@
   body {
     @apply bg-convision-background text-convision-text;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }

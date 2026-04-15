@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -41,6 +42,7 @@ import {
   PurchaseSearchParams,
 } from '@/services/purchaseService';
 import { supplierService } from '@/services/supplierService';
+import PageLayout from '@/components/layouts/PageLayout';
 
 const Purchases: React.FC = () => {
   const navigate = useNavigate();
@@ -65,6 +67,21 @@ const Purchases: React.FC = () => {
       per_page: perPage,
     }),
   });
+
+  // Debug: Log the purchases data to see what's coming from the backend
+  React.useEffect(() => {
+    if (purchasesData?.data) {
+      console.log('Purchases data from backend:', purchasesData.data);
+      purchasesData.data.forEach((purchase, index) => {
+        console.log(`Purchase ${index}:`, {
+          id: purchase.id,
+          supplier_id: purchase.supplier_id,
+          supplier: purchase.supplier,
+          supplier_name: purchase.supplier?.name,
+        });
+      });
+    }
+  }, [purchasesData]);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-all'],
@@ -153,6 +170,32 @@ const Purchases: React.FC = () => {
     }
   };
 
+  // Helper function to get supplier name safely
+  const getSupplierName = (purchase: Purchase): string => {
+    console.log('=== GET SUPPLIER NAME DEBUG ===');
+    console.log('Purchase:', purchase);
+    console.log('Supplier object:', purchase.supplier);
+    console.log('Supplier type:', typeof purchase.supplier);
+    
+    if (!purchase.supplier) {
+      console.log('Supplier is null/undefined');
+      return '-';
+    }
+    
+    if (typeof purchase.supplier === 'string') {
+      console.log('Supplier is string:', purchase.supplier);
+      return purchase.supplier;
+    }
+    
+    if (typeof purchase.supplier === 'object' && purchase.supplier.name) {
+      console.log('Supplier is object with name:', purchase.supplier.name);
+      return purchase.supplier.name;
+    }
+    
+    console.log('Supplier is object but no name found');
+    return '-';
+  };
+
   const columns: DataTableColumnDef<Purchase>[] = [
     {
       id: 'invoice_number',
@@ -164,9 +207,7 @@ const Purchases: React.FC = () => {
       id: 'supplier',
       header: 'Proveedor',
       type: 'text',
-      cell: (purchase: Purchase) => {
-        return purchase.supplier?.name || '-';
-      },
+      accessorKey: 'supplier.name',
     },
     {
       id: 'purchase_date',
@@ -212,36 +253,24 @@ const Purchases: React.FC = () => {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: (purchase: Purchase) => {
-        return (
-          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleViewPurchase(purchase)}
-              title="Ver detalles"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleEditPurchase(purchase)}
-              title="Editar compra"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeletePurchase(purchase)}
-              title="Eliminar compra"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      },
+      actions: [
+        {
+          label: 'Ver detalles',
+          icon: <Eye className="h-4 w-4" />,
+          onClick: (purchase: Purchase) => handleViewPurchase(purchase),
+        },
+        {
+          label: 'Editar compra',
+          icon: <Edit className="h-4 w-4" />,
+          onClick: (purchase: Purchase) => handleEditPurchase(purchase),
+        },
+        {
+          label: 'Eliminar compra',
+          icon: <Trash2 className="h-4 w-4" />,
+          onClick: (purchase: Purchase) => handleDeletePurchase(purchase),
+          variant: 'destructive',
+        },
+      ],
     },
   ];
 
@@ -249,14 +278,10 @@ const Purchases: React.FC = () => {
   const totalPages = purchasesData?.last_page || 1;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Compras</h1>
-          <p className="text-muted-foreground">
-            Gestiona las compras y facturas de proveedores
-          </p>
-        </div>
+    <PageLayout
+      title="Compras"
+      subtitle="Gestiona las compras y facturas de proveedores"
+      actions={
         <div className="flex items-center gap-2">
           <Select
             value={perPage.toString()}
@@ -275,15 +300,14 @@ const Purchases: React.FC = () => {
               <SelectItem value="50">50 por página</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            onClick={() => navigate('/admin/purchases/new')}
-          >
+          <Button onClick={() => navigate('/admin/purchases/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Compra
           </Button>
         </div>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -350,19 +374,18 @@ const Purchases: React.FC = () => {
           <CardTitle>Lista de Compras</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            data={purchases}
+          <EntityTable
             columns={columns}
-            loading={isLoading}
-            error={error?.message}
+            queryKeyBase="purchases"
+            fetcher={({ page, per_page, search }) => purchaseService.getPurchases({
+              ...filters,
+              page,
+              per_page,
+              search,
+            })}
             onRowClick={handleViewPurchase}
-            enableSearch={true}
-            onSearch={handleSearch}
             searchPlaceholder="Buscar por número de factura, proveedor o concepto..."
-            enablePagination={true}
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
+            initialPerPage={15}
           />
         </CardContent>
       </Card>
@@ -394,7 +417,8 @@ const Purchases: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

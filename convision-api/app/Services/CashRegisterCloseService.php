@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\CashRegisterClose;
 use App\Models\CashRegisterClosePayment;
+use App\Models\CashRegisterCloseActualPayment;
 use App\Models\CashCountDenomination;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CashRegisterCloseService
 {
@@ -16,19 +18,14 @@ class CashRegisterCloseService
                 'user_id' => $userId,
                 'close_date' => $validated['close_date'],
                 'status' => CashRegisterClose::STATUS_DRAFT,
-                'total_registered' => 0,
                 'total_counted' => 0,
-                'total_difference' => 0,
             ]);
 
             foreach ($validated['payment_methods'] as $method) {
-                $difference = $method['registered_amount'] - $method['counted_amount'];
                 CashRegisterClosePayment::create([
                     'cash_register_close_id' => $close->id,
                     'payment_method_name' => $method['name'],
-                    'registered_amount' => $method['registered_amount'],
                     'counted_amount' => $method['counted_amount'],
-                    'difference' => $difference,
                 ]);
             }
 
@@ -53,14 +50,10 @@ class CashRegisterCloseService
     {
         $payments = CashRegisterClosePayment::where('cash_register_close_id', $close->id)->get();
 
-        $totalRegistered = $payments->sum('registered_amount');
         $totalCounted = $payments->sum('counted_amount');
-        $totalDifference = $totalRegistered - $totalCounted;
 
         $close->update([
-            'total_registered' => $totalRegistered,
             'total_counted' => $totalCounted,
-            'total_difference' => $totalDifference,
         ]);
     }
 
@@ -78,13 +71,10 @@ class CashRegisterCloseService
             if (isset($validated['payment_methods'])) {
                 $close->payments()->delete();
                 foreach ($validated['payment_methods'] as $method) {
-                    $difference = $method['registered_amount'] - $method['counted_amount'];
                     CashRegisterClosePayment::create([
                         'cash_register_close_id' => $close->id,
                         'payment_method_name' => $method['name'],
-                        'registered_amount' => $method['registered_amount'],
                         'counted_amount' => $method['counted_amount'],
-                        'difference' => $difference,
                     ]);
                 }
             }
@@ -113,9 +103,21 @@ class CashRegisterCloseService
             throw new \Exception('Solo se pueden enviar cierres en estado borrador.');
         }
 
+        $this->recalculateTotals($close);
+        $close->refresh();
+
+        $totalPaymentCounted = (float) $close->total_counted;
+        $denomTotal = (float) CashCountDenomination::where('cash_register_close_id', $close->id)->sum('subtotal');
+
+        if ($totalPaymentCounted <= 0 && $denomTotal <= 0) {
+            throw ValidationException::withMessages([
+                'submit' => ['No se puede enviar un cierre sin montos. Declare al menos un valor contado en medios de pago o complete el arqueo de efectivo.'],
+            ]);
+        }
+
         $close->update(['status' => CashRegisterClose::STATUS_SUBMITTED]);
 
-        return $close->fresh();
+        return $close->fresh()->load(['payments', 'denominations', 'user']);
     }
 
     public function approve(CashRegisterClose $close, int $adminId, ?string $notes): CashRegisterClose
@@ -131,6 +133,48 @@ class CashRegisterCloseService
             'admin_notes' => $notes,
         ]);
 
-        return $close->fresh();
+        return $close->fresh()->load(['payments', 'denominations', 'user', 'approvedBy', 'actualPayments']);
+    }
+
+    /**
+     * Totales reales ingresados por administración (ventas / contabilidad manual hasta integración).
+     */
+    public function returnToDraft(CashRegisterClose $close, ?string $notes): CashRegisterClose
+    {
+        if ($close->status !== CashRegisterClose::STATUS_SUBMITTED) {
+            throw new \Exception('Solo se pueden devolver cierres en estado enviado.');
+        }
+
+        $close->update([
+            'status' => CashRegisterClose::STATUS_DRAFT,
+            'admin_notes' => $notes,
+        ]);
+
+        return $close->fresh()->load(['payments', 'denominations', 'user', 'actualPayments']);
+    }
+
+    public function syncAdminActualAmounts(CashRegisterClose $close, array $actualPaymentMethods): CashRegisterClose
+    {
+        return DB::transaction(function () use ($close, $actualPaymentMethods) {
+            $close->actualPayments()->delete();
+
+            $sum = 0;
+            foreach ($actualPaymentMethods as $row) {
+                $amount = (float) $row['actual_amount'];
+                CashRegisterCloseActualPayment::create([
+                    'cash_register_close_id' => $close->id,
+                    'payment_method_name' => $row['name'],
+                    'actual_amount' => $amount,
+                ]);
+                $sum += $amount;
+            }
+
+            $close->update([
+                'total_actual_amount' => $sum,
+                'admin_actuals_recorded_at' => now(),
+            ]);
+
+            return $close->fresh()->load(['payments', 'denominations', 'user', 'approvedBy', 'actualPayments']);
+        });
     }
 }

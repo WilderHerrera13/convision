@@ -34,7 +34,7 @@ import { appointmentsService } from '@/services/appointmentsService';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate } from '@/lib/utils';
+import { formatDate, parseLocalDatetime } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface Prescription {
@@ -143,12 +143,12 @@ const SpecialistDashboard: React.FC = () => {
         nextWeek.setDate(nextWeek.getDate() + 7);
         
         const todaysApps = appointments.filter(appointment => {
-          const appDate = new Date(appointment.scheduled_at);
+          const appDate = parseLocalDatetime(appointment.scheduled_at) ?? new Date(appointment.scheduled_at);
           return appDate >= today && appDate < tomorrow;
         }) as AppointmentWithPrescription[];
         
         const weekApps = appointments.filter(appointment => {
-          const appDate = new Date(appointment.scheduled_at);
+          const appDate = parseLocalDatetime(appointment.scheduled_at) ?? new Date(appointment.scheduled_at);
           return appDate >= tomorrow && appDate < nextWeek;
         }) as AppointmentWithPrescription[];
         
@@ -347,7 +347,7 @@ const SpecialistDashboard: React.FC = () => {
                 </h3>
                 <div className="space-y-1">
                   <p className="text-sm">Fecha: {formatDate(activeAppointment.scheduled_at)}</p>
-                  <p className="text-sm">Hora: {format(new Date(activeAppointment.scheduled_at), 'h:mm a')}</p>
+                  <p className="text-sm">Hora: {format(parseLocalDatetime(activeAppointment.scheduled_at) ?? new Date(), 'h:mm a')}</p>
                   {activeAppointment.notes && (
                     <p className="text-sm bg-yellow-100 p-2 rounded-md mt-2">{activeAppointment.notes}</p>
                   )}
@@ -412,7 +412,7 @@ const SpecialistDashboard: React.FC = () => {
                     <div>
                       <p className="font-medium">{appointment.patient.first_name} {appointment.patient.last_name}</p>
                       <p className="text-sm text-gray-500">
-                        Pausada desde {format(new Date(appointment.scheduled_at), 'h:mm a')}
+                        Pausada desde {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'h:mm a')}
                       </p>
                     </div>
                   </div>
@@ -500,7 +500,7 @@ const SpecialistDashboard: React.FC = () => {
                           <div>
                             <p className="font-medium text-lg">{appointment.patient.first_name} {appointment.patient.last_name}</p>
                             <p className="text-sm text-gray-500">
-                              {format(new Date(appointment.scheduled_at), 'h:mm a')} · ID: {appointment.patient.identification}
+                              {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'h:mm a')} · ID: {appointment.patient.identification}
                             </p>
                           </div>
                         </div>
@@ -555,7 +555,7 @@ const SpecialistDashboard: React.FC = () => {
                           <div>
                             <p className="font-medium text-lg">{appointment.patient.first_name} {appointment.patient.last_name}</p>
                             <p className="text-sm text-gray-500">
-                              {format(new Date(appointment.scheduled_at), 'EEEE d \'de\' MMMM', { locale: es })} · {format(new Date(appointment.scheduled_at), 'h:mm a')}
+                              {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'EEEE d \'de\' MMMM', { locale: es })} · {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'h:mm a')}
                             </p>
                           </div>
                         </div>

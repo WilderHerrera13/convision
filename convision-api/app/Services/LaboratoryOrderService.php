@@ -109,14 +109,14 @@ class LaboratoryOrderService
 
     public function updateLaboratoryOrderStatus(LaboratoryOrder $laboratoryOrder, string $status, ?string $notes = null): LaboratoryOrder
     {
-        $userId = Auth::id();
+        $userId = Auth::id() ?? $laboratoryOrder->created_by;
 
         DB::beginTransaction();
 
         try {
             $laboratoryOrder->update(['status' => $status]);
 
-            $this->createStatusHistory($laboratoryOrder->id, $status, $notes, $userId);
+            $this->createStatusHistory((int) $laboratoryOrder->id, $status, $notes, (int) $userId);
 
             DB::commit();
 

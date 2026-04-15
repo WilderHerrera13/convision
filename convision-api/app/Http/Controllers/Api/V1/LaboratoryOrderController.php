@@ -92,9 +92,10 @@ class LaboratoryOrderController extends Controller
     /**
      * Update the status of a laboratory order.
      */
-    public function updateStatus(UpdateLaboratoryOrderStatusRequest $request, LaboratoryOrder $laboratoryOrder)
+    public function updateStatus(UpdateLaboratoryOrderStatusRequest $request, $id)
     {
         $validatedData = $request->validated();
+        $laboratoryOrder = LaboratoryOrder::findOrFail($id);
         $updatedOrder = $this->laboratoryOrderService->updateLaboratoryOrderStatus(
             $laboratoryOrder,
             $validatedData['status'],

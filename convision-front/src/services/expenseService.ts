@@ -73,17 +73,17 @@ class ExpenseService {
 
   async getExpense(id: number): Promise<Expense> {
     const response = await api.get(`/api/v1/expenses/${id}`);
-    return response.data;
+    return response.data.data;
   }
 
   async createExpense(data: CreateExpenseData): Promise<Expense> {
     const response = await api.post('/api/v1/expenses', data);
-    return response.data;
+    return response.data.data;
   }
 
   async updateExpense(id: number, data: UpdateExpenseData): Promise<Expense> {
     const response = await api.put(`/api/v1/expenses/${id}`, data);
-    return response.data;
+    return response.data.data;
   }
 
   async deleteExpense(id: number): Promise<void> {

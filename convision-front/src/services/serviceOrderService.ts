@@ -70,37 +70,37 @@ class ServiceOrderService {
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.per_page) params.append('per_page', filters.per_page.toString());
 
-    const response = await api.get(`/service-orders?${params.toString()}`);
+    const response = await api.get(`/api/v1/service-orders?${params.toString()}`);
     return response.data;
   }
 
   async getServiceOrder(id: number): Promise<ServiceOrder> {
-    const response = await api.get(`/service-orders/${id}`);
+    const response = await api.get(`/api/v1/service-orders/${id}`);
     return response.data.data;
   }
 
   async createServiceOrder(data: CreateServiceOrderData): Promise<ServiceOrder> {
-    const response = await api.post('/service-orders', data);
+    const response = await api.post('/api/v1/service-orders', data);
     return response.data.data;
   }
 
   async updateServiceOrder(id: number, data: UpdateServiceOrderData): Promise<ServiceOrder> {
-    const response = await api.put(`/service-orders/${id}`, data);
+    const response = await api.put(`/api/v1/service-orders/${id}`, data);
     return response.data.data;
   }
 
   async deleteServiceOrder(id: number): Promise<void> {
-    await api.delete(`/service-orders/${id}`);
+    await api.delete(`/api/v1/service-orders/${id}`);
   }
 
   async updateStatus(id: number, status: string): Promise<ServiceOrder> {
-    const response = await api.post(`/service-orders/${id}/status`, { status });
+    const response = await api.post(`/api/v1/service-orders/${id}/status`, { status });
     return response.data.data;
   }
 
   async getStats(): Promise<ServiceOrderStats> {
-    const response = await api.get('/service-orders/stats');
-    return response.data.data;
+    const response = await api.get('/api/v1/service-orders/stats');
+    return response.data;
   }
 
   async exportServiceOrders(filters: ServiceOrderFilters = {}): Promise<Blob> {
@@ -113,7 +113,7 @@ class ServiceOrderService {
     if (filters.deadline_from) params.append('deadline_from', filters.deadline_from);
     if (filters.deadline_to) params.append('deadline_to', filters.deadline_to);
 
-    const response = await api.get(`/service-orders/export?${params.toString()}`, {
+    const response = await api.get(`/api/v1/service-orders/export?${params.toString()}`, {
       responseType: 'blob',
     });
     return response.data;

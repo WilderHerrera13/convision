@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,12 +140,10 @@ export default function NewCashTransfer() {
 
               <div className="space-y-2">
                 <Label htmlFor="transfer_date">Fecha de Transferencia</Label>
-                <Input
-                  id="transfer_date"
-                  type="date"
+                <DatePicker
                   value={formData.transfer_date}
-                  onChange={(e) => handleInputChange('transfer_date', e.target.value)}
-                  required
+                  onChange={(d) => handleInputChange('transfer_date', d ? d.toISOString().slice(0,10) : '')}
+                  useInputTrigger
                 />
               </div>
 

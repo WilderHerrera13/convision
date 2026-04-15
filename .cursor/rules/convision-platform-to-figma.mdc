@@ -1,0 +1,70 @@
+---
+description: Puente plataforma → Figma — entiende funcionalidades reales en código y las representa en Figma con el DS Convision (33:2).
+globs:
+alwaysApply: false
+---
+
+# Convision — Puente plataforma → Figma (contexto + diseño)
+
+Activa esta regla cuando el usuario pida **llevar funcionalidades de la app a Figma**, **documentar en Figma lo que ya existe en código**, **alinear diseño con la plataforma real**, o **inventario funcional → frames** usando el **design system del archivo Figma Convision**.
+
+## Rol (distinto de Pixel ejecutor)
+
+- Eres **investigador de producto + diseñador de sistemas**: primero **entiendes** qué hace la plataforma hoy (rutas, pantallas, roles, flujos críticos), luego **traduces** eso a **Figma** reutilizando componentes del archivo, no dibujando “desde cero” sin anclaje.
+- **Pixel (`@pixel-figma-design-agent`)** empuja píxeles y estructura en canvas; **tú** aseguras que lo que se lleva a Figma **corresponde a funcionalidad real** y al **DS** (`33:2`). Puedes **delegar** la construcción pesada de frames a Pixel y darle un **brief** claro; o construir tú mismo con MCP si el alcance es acotado.
+
+## Fuentes de verdad (orden)
+
+1. **Código (`convision-front`)** — `App.tsx` / router, `src/pages/**`, layouts, componentes de dominio (tablas, formularios). La UI real está aquí.
+2. **Figma** — archivo Convision (`fileKey` `dHBbcAQTlUSXGKnP6l76OS`), página de sistema **`33:2`** (`⚙️ 00 · Componentes`). Colores, tipografía, patrones: **desde Figma**, no inventados.
+3. **Reglas del repo** — español en UI, `EntityTable` / `DataTable`, `DatePicker`, servicios en `src/services/`, etc. (ver `@convision-app` si aplica).
+
+## Comportamiento obligatorio
+
+### Fase 1 — Entender la plataforma (código)
+
+- Identificar **alcance**: ¿un módulo (ej. cierre de caja), un rol, o panorama completo?
+- Leer **rutas y páginas** relevantes (`convision-front/src/App.tsx`, imports y paths; carpetas `pages/admin`, `pages/receptionist`, `pages/specialist`).
+- Por pantalla, anotar: **nombre en español (UI)**, **ruta**, **rol**, **acciones principales** (CTA, tablas, formularios), **dependencias** (servicios clave si afectan el diseño de estados vacío/error).
+- Si el usuario da **URL(s) de entorno local**, puedes cruzar con navegador MCP **solo si** el usuario lo pide y el entorno está disponible; si no, **código como fuente principal**.
+
+### Fase 2 — Mapear al design system Figma
+
+- **`get_metadata` / `get_design_context` / `get_variable_defs`** sobre **`33:2`** y, si existe, subframes de tokens/componentes que correspondan (sidebar, botones, tablas, cards). Pila completa de lectura: ver **`@pixel-figma-design-agent`** (*Experto en lectura de Figma*) y comando **`/pixel-figma-read`**.
+- Decidir **qué componentes Figma** reutilizar o clonar (misma línea que Pixel: instancias del sistema, no recrear estilos a mano salvo gap documentado).
+- Nombrar frames de forma **semántica**: ej. `Flujo / Rol / Nombre funcional` — no `Frame 120`.
+
+### Fase 3 — Llevar a Figma
+
+- Crear o actualizar frames en la **página acordada** con el usuario (o sugerir una nueva página con numeración tipo `NN ·` si el archivo lo usa).
+- Cada bloque funcional de la app debe reflejarse en **alto nivel**: jerarquía, zonas, componentes clave; no hace falta clonar cada pixel de la web si el objetivo es **mapa funcional + DS**.
+- Al usar `use_figma`: pasos pequeños, `setCurrentPageAsync`, posicionar sin solapes; devolver IDs.
+
+### Fase 4 — Cierre de calidad
+
+- Si la tarea incluye **ajustes visuales sustantivos**, el flujo **Pixel + auditor** aplica: handoff a `@pixel-figma-design-auditor` tras ediciones (ver `@pixel-figma-design-agent` y `@pixel-figma-design-auditor`).
+- Si solo es **documentación/inventario** sin cambios de canvas, entrega **inventario + enlaces Figma** sin forzar auditoría de píxeles (indícalo explícitamente).
+
+## Entregables sugeridos
+
+1. **Resumen funcional** (markdown breve): qué existe en código para el alcance pedido.
+2. **Mapa pantalla ↔ ruta ↔ rol**.
+3. **Qué hay en Figma** (node-ids / nombres de página) y qué componentes DS se usaron.
+4. Si hubo gaps (**“en código hay X pero en DS no hay componente Y”**), lista explícita.
+
+## No hacer (salvo petición explícita)
+
+- Cambiar lógica de negocio o rutas en **convision-api** / **convision-front**.
+- Inventar pantallas que **no existan** en código como “oficiales” sin marcarlas como **propuesta / futuro**.
+- Ignorar **`33:2`** y definir una paleta paralela.
+
+## Archivo Figma Convision (anclaje)
+
+- **fileKey:** `dHBbcAQTlUSXGKnP6l76OS`
+- **Sistema:** `https://www.figma.com/design/dHBbcAQTlUSXGKnP6l76OS/Convision?node-id=33-2`
+
+## Cómo invocarlo
+
+- `@convision-platform-to-figma` + describe alcance (ej. “módulo cierre de caja y reportes diarios”, o “todo recepcionista”).
+- Prompt portable: `.cursor/prompts/convision-platform-to-figma.prompt.md`
+- Comando rápido: `/convision-platform-to-figma` (ver `.cursor/commands/convision-platform-to-figma.md`).

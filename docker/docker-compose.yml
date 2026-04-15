@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Convision — Base de datos de desarrollo
+#
+# Uso:
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# Variables de entorno (.env en la raíz del proyecto, o exportadas en shell):
+#   DB_DATABASE   (default: convision)
+#   DB_USERNAME   (default: convision)
+#   DB_PASSWORD   (default: root)
+#   DB_PORT       (default: 3306)
+#   PMA_PORT      (default: 8080)
+#
+# Para ARM (Apple Silicon M1/M2/M3):
+#   DOCKER_PLATFORM=linux/arm64/v8 docker compose -f docker/docker-compose.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: '3.8'
+
+services:
+  # ── MySQL 8 ──────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: convision_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-convision}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_USER: ${DB_USERNAME:-convision}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+      TZ: America/Bogota
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    networks:
+      - convision_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  # ── phpMyAdmin ────────────────────────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    container_name: convision_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 128M
+    ports:
+      - "${PMA_PORT:-8080}:80"
+    networks:
+      - convision_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+networks:
+  convision_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local

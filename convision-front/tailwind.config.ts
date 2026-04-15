@@ -63,16 +63,26 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				convision: {
-					primary: '#1890ff',
-					dark: '#096dd9',
-					light: '#e6f7ff',
-					background: '#f0f2f5',
-					text: '#262626',
-					success: '#52c41a',
-					warning: '#faad14',
-					error: '#f5222d',
-				}
+			convision: {
+				primary: 'var(--role-primary, #3a71f7)',
+				dark: 'var(--role-dark, #0e4dd6)',
+				light: 'var(--role-light, #eff1ff)',
+				background: '#f5f5f6',
+				text: '#121215',
+				success: '#228b52',
+				warning: '#b57218',
+				error: '#b82626',
+				sidebar: '#fcfcfd',
+				border: '#ebebee',
+				'border-subtle': '#e5e5e9',
+				'text-secondary': '#7d7d87',
+				'text-muted': '#b4b5bc',
+				'text-label': '#6a6a73',
+				'success-light': '#ebf5ef',
+				'warning-light': '#fff6e3',
+				'error-light': '#ffeeee',
+				'row-alt': '#fafafb',
+			}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

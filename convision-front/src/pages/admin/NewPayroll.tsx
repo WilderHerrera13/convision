@@ -3,26 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
+import { payrollService } from '@/services/payrollService';
 
 export default function NewPayroll() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     employee_name: '',
-    period_start: '',
-    period_end: '',
-    basic_salary: '',
+    employee_identification: '',
+    employee_position: '',
+    pay_period_start: '',
+    pay_period_end: '',
+    base_salary: '',
     overtime_hours: '',
     overtime_rate: '',
     bonuses: '',
-    deductions: '',
-    tax_withholding: '',
-    social_security: '',
+    other_deductions: '',
+    tax_deduction: '',
+    health_deduction: '',
+    pension_deduction: '',
     notes: ''
   });
 
@@ -31,8 +36,25 @@ export default function NewPayroll() {
     setLoading(true);
 
     try {
-      // TODO: Implement payroll creation API call
-      console.log('Creating payroll:', formData);
+      // Convertir valores numéricos
+      const payrollData = {
+        employee_name: formData.employee_name,
+        employee_identification: formData.employee_identification,
+        employee_position: formData.employee_position,
+        pay_period_start: formData.pay_period_start,
+        pay_period_end: formData.pay_period_end,
+        base_salary: parseFloat(formData.base_salary) || 0,
+        overtime_hours: parseFloat(formData.overtime_hours) || 0,
+        overtime_rate: parseFloat(formData.overtime_rate) || 0,
+        bonuses: parseFloat(formData.bonuses) || 0,
+        other_deductions: parseFloat(formData.other_deductions) || 0,
+        tax_deduction: parseFloat(formData.tax_deduction) || 0,
+        health_deduction: parseFloat(formData.health_deduction) || 0,
+        pension_deduction: parseFloat(formData.pension_deduction) || 0,
+        notes: formData.notes
+      };
+
+      await payrollService.createPayroll(payrollData);
       
       toast.success("Nómina creada exitosamente");
       navigate('/admin/payrolls');
@@ -86,37 +108,45 @@ export default function NewPayroll() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="basic_salary">Salario Básico</Label>
+                <Label htmlFor="employee_identification">Identificación del Empleado</Label>
                 <Input
-                  id="basic_salary"
+                  id="employee_identification"
+                  value={formData.employee_identification}
+                  onChange={(e) => handleInputChange('employee_identification', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="employee_position">Cargo/Posición</Label>
+                <Input
+                  id="employee_position"
+                  value={formData.employee_position}
+                  onChange={(e) => handleInputChange('employee_position', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="base_salary">Salario Base</Label>
+                <Input
+                  id="base_salary"
                   type="number"
                   step="0.01"
-                  value={formData.basic_salary}
-                  onChange={(e) => handleInputChange('basic_salary', e.target.value)}
+                  value={formData.base_salary}
+                  onChange={(e) => handleInputChange('base_salary', e.target.value)}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="period_start">Inicio del Período</Label>
-                <Input
-                  id="period_start"
-                  type="date"
-                  value={formData.period_start}
-                  onChange={(e) => handleInputChange('period_start', e.target.value)}
-                  required
-                />
+                <Label htmlFor="pay_period_start">Inicio del Período</Label>
+                <DatePicker value={formData.pay_period_start} onChange={(d)=>handleInputChange('pay_period_start', d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="period_end">Fin del Período</Label>
-                <Input
-                  id="period_end"
-                  type="date"
-                  value={formData.period_end}
-                  onChange={(e) => handleInputChange('period_end', e.target.value)}
-                  required
-                />
+                <Label htmlFor="pay_period_end">Fin del Período</Label>
+                <DatePicker value={formData.pay_period_end} onChange={(d)=>handleInputChange('pay_period_end', d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
               </div>
 
               <div className="space-y-2">
@@ -153,35 +183,46 @@ export default function NewPayroll() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="deductions">Deducciones</Label>
+                <Label htmlFor="other_deductions">Otras Deducciones</Label>
                 <Input
-                  id="deductions"
+                  id="other_deductions"
                   type="number"
                   step="0.01"
-                  value={formData.deductions}
-                  onChange={(e) => handleInputChange('deductions', e.target.value)}
+                  value={formData.other_deductions}
+                  onChange={(e) => handleInputChange('other_deductions', e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tax_withholding">Retención de Impuestos</Label>
+                <Label htmlFor="tax_deduction">Deducción de Impuestos</Label>
                 <Input
-                  id="tax_withholding"
+                  id="tax_deduction"
                   type="number"
                   step="0.01"
-                  value={formData.tax_withholding}
-                  onChange={(e) => handleInputChange('tax_withholding', e.target.value)}
+                  value={formData.tax_deduction}
+                  onChange={(e) => handleInputChange('tax_deduction', e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="social_security">Seguridad Social</Label>
+                <Label htmlFor="health_deduction">Deducción de Salud</Label>
                 <Input
-                  id="social_security"
+                  id="health_deduction"
                   type="number"
                   step="0.01"
-                  value={formData.social_security}
-                  onChange={(e) => handleInputChange('social_security', e.target.value)}
+                  value={formData.health_deduction}
+                  onChange={(e) => handleInputChange('health_deduction', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pension_deduction">Deducción de Pensión</Label>
+                <Input
+                  id="pension_deduction"
+                  type="number"
+                  step="0.01"
+                  value={formData.pension_deduction}
+                  onChange={(e) => handleInputChange('pension_deduction', e.target.value)}
                 />
               </div>
             </div>

@@ -170,7 +170,7 @@ const ReceptionistQuotes: React.FC = () => {
   };
 
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<Quote>[] = [
     {
       id: 'quote_number',
       header: 'Número',
@@ -206,8 +206,8 @@ const ReceptionistQuotes: React.FC = () => {
       header: 'Estado',
       type: 'text',
       accessorKey: 'status',
-      cell: ({ row }) => {
-        const status = row.original.status;
+      cell: (quote) => {
+        const status = quote.status;
         
         // Direct mapping without any conditional logic
         if (status === 'pending') return <Badge variant="warning">Pendiente</Badge>;

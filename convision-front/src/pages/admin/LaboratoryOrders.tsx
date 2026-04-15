@@ -61,8 +61,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDate } from '@/lib/utils';
 import { Laboratory } from '@/services/laboratoryService';
 import { laboratoryService } from '@/services/laboratoryService';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
 import { useDebounce } from '@/hooks/useDebounce.ts';
+import PageLayout from '@/components/layouts/PageLayout';
 import { CellContext } from '@tanstack/react-table';
 
 interface BadgeVariantProps {
@@ -370,152 +372,92 @@ const LaboratoryOrders: React.FC = () => {
       id: "laboratory",
       header: "Laboratorio",
       type: "text" as const,
-      // @ts-ignore - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        // Extract row data from the info object passed by DataTable
-        const row = info.row?.original;
-        // More robust handling of nested data
-        const labName = row?.laboratory?.name;
-        console.log('Debug - Laboratory cell rendering:', { 
-          rowObject: row, 
-          laboratoryObject: row?.laboratory,
-          labName
-        });
-        return labName || '-';
-      }
+      cell: (row) => row.laboratory?.name || '-'
     },
     {
       id: "patient",
       header: "Paciente",
       type: "text" as const,
-      // @ts-ignore - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        // Extract row data from the info object passed by DataTable
-        const row = info.row?.original;
-        // More robust handling of nested data
-        const patientName = row?.patient ? `${row.patient.first_name} ${row.patient.last_name}` : null;
-        console.log('Debug - Patient cell rendering:', { 
-          rowObject: row, 
-          patientObject: row?.patient,
-          patientName
-        });
-        return patientName || '-';
-      }
+      cell: (row) => (row.patient ? `${row.patient.first_name} ${row.patient.last_name}` : '-')
     },
     {
       id: "status",
       header: "Estado",
       type: "status" as const,
       accessorKey: "status",
-      // @ts-ignore - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        const row = info.row?.original;
-        console.log('Debug - Status cell rendering:', { status: row?.status });
-        return (
-          <Badge variant={getStatusBadge(row?.status)}>
-            {getStatusText(row?.status)}
-          </Badge>
-        );
-      }
+      cell: (row) => (
+        <Badge variant={getStatusBadge(row.status)}>
+          {getStatusText(row.status)}
+        </Badge>
+      )
     },
     {
       id: "priority",
       header: "Prioridad",
       type: "status" as const,
       accessorKey: "priority",
-      // @ts-ignore - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        const row = info.row?.original;
-        console.log('Debug - Priority cell rendering:', { priority: row?.priority });
-        return (
-          <Badge variant={getPriorityBadge(row?.priority)}>
-            {getPriorityText(row?.priority)}
-          </Badge>
-        );
-      }
+      cell: (row) => (
+        <Badge variant={getPriorityBadge(row.priority)}>
+          {getPriorityText(row.priority)}
+        </Badge>
+      )
     },
     {
       id: "created_at",
       header: "Fecha",
       type: "date" as const,
       accessorKey: "created_at",
-      // @ts-expect-error - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        const row = info.row?.original;
-        console.log('Debug - Date cell rendering:', { created_at: row?.created_at });
-        return row?.created_at ? formatDate(row.created_at) : '—';
-      }
+      cell: (row) => (row.created_at ? formatDate(row.created_at) : '—')
     },
     {
       id: "actions",
       header: "Acciones",
       type: "actions" as const,
-      // @ts-expect-error - Using any for compatibility with DataTable component
-      cell: (info: any) => {
-        const row = info.row?.original;
-        console.log('Debug - Actions cell rendering:', { 
-          rowObject: row, 
-          rowId: row?.id
-        });
-        
-        return (
-          <div className="flex space-x-2 justify-end">
+      cell: (row) => (
+        <div className="flex space-x-2 justify-end">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/admin/laboratory-orders/${row.id}`);
+            }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Ver
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              openStatusModal(row);
+            }}
+          >
+            <Package className="h-4 w-4 mr-1" />
+            Estado
+          </Button>
+          {row.pdf_token && (
             <Button 
               variant="outline" 
               size="sm" 
               className="flex items-center"
               onClick={(e) => {
                 e.stopPropagation();
-                if (row?.id) {
-                  navigate(`/admin/laboratory-orders/${row.id}`);
-                } else {
-                  console.error('Cannot navigate: missing row ID');
-                }
+                window.open(
+                  laboratoryOrderService.getLaboratoryOrderPdfUrl(row.id, row.pdf_token), 
+                  '_blank'
+                );
               }}
             >
-              <Eye className="h-4 w-4 mr-1" />
-              Ver
+              <Download className="h-4 w-4 mr-1" />
+              PDF
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (row) {
-                  openStatusModal(row);
-                } else {
-                  console.error('Cannot open status modal: missing row data');
-                }
-              }}
-            >
-              <Package className="h-4 w-4 mr-1" />
-              Estado
-            </Button>
-            {row?.pdf_token && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (row?.id && row?.pdf_token) {
-                    window.open(
-                      laboratoryOrderService.getLaboratoryOrderPdfUrl(row.id, row.pdf_token), 
-                      '_blank'
-                    );
-                  } else {
-                    console.error('Cannot open PDF: missing ID or token');
-                  }
-                }}
-              >
-                <Download className="h-4 w-4 mr-1" />
-                PDF
-              </Button>
-            )}
-          </div>
-        );
-      }
+          )}
+        </div>
+      )
     }
   ];
 
@@ -531,14 +473,15 @@ const LaboratoryOrders: React.FC = () => {
   }, [laboratoryOrders]);
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Órdenes de Laboratorio</h2>
+    <PageLayout
+      title="Órdenes de Laboratorio"
+      actions={
         <Button onClick={() => navigate('/admin/laboratory-orders/new')}>
           <Plus className="mr-2 h-4 w-4" /> Nueva Orden
         </Button>
-      </div>
-      
+      }
+    >
+      <div className="space-y-6">
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
@@ -547,7 +490,7 @@ const LaboratoryOrders: React.FC = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats.total ?? 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -555,7 +498,7 @@ const LaboratoryOrders: React.FC = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
+              <div className="text-2xl font-bold">{stats.pending ?? 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -563,7 +506,7 @@ const LaboratoryOrders: React.FC = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">En Proceso</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.in_process + stats.sent_to_lab}</div>
+              <div className="text-2xl font-bold">{(stats.in_process ?? 0) + (stats.sent_to_lab ?? 0)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -571,100 +514,29 @@ const LaboratoryOrders: React.FC = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">Listos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.ready_for_delivery}</div>
+              <div className="text-2xl font-bold">{stats.ready_for_delivery ?? 0}</div>
             </CardContent>
           </Card>
         </div>
       )}
       
-      {/* Laboratory Orders Table */}
-      <Card>
-        <CardContent className="p-0">
-          {/* Add custom styles through regular CSS classes */}
-          <DataTable
-            columns={columns}
-            data={laboratoryOrders || []}
-            loading={loading}
-            enablePagination={true}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            enableSearch={true}
-            onSearch={handleSearch}
-            searchPlaceholder="Buscar orden..."
-            onRowClick={handleRowClick}
-            title="Órdenes de Laboratorio"
-            addNewButton={{
-              label: "Nueva Orden",
-              onClick: () => navigate('/admin/laboratory-orders/new')
-            }}
-            emptyMessage="No se encontraron órdenes de laboratorio con los filtros aplicados."
-            filters={
-              <div className="flex flex-wrap gap-2">
-                <div className="w-40">
-                  <Select 
-                    value={filters.status || ''}
-                    onValueChange={(value) => handleFilterChange('status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los estados</SelectItem>
-                      <SelectItem value="pending">Pendiente</SelectItem>
-                      <SelectItem value="in_process">En proceso</SelectItem>
-                      <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
-                      <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
-                      <SelectItem value="delivered">Entregado</SelectItem>
-                      <SelectItem value="cancelled">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-40">
-                  <Select 
-                    value={filters.laboratory_id?.toString() || ''}
-                    onValueChange={(value) => handleFilterChange('laboratory_id', value ? parseInt(value) : undefined)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Laboratorio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los laboratorios</SelectItem>
-                      {laboratories.map(lab => (
-                        <SelectItem key={lab.id} value={lab.id.toString()}>
-                          {lab.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-40">
-                  <Select 
-                    value={filters.priority || ''}
-                    onValueChange={(value) => handleFilterChange('priority', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Prioridad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las prioridades</SelectItem>
-                      <SelectItem value="low">Baja</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {(filters.status || filters.laboratory_id || filters.priority) && (
-                  <Button variant="outline" onClick={clearFilters} className="whitespace-nowrap">
-                    Limpiar filtros
-                  </Button>
-                )}
-              </div>
-            }
-          />
-        </CardContent>
-      </Card>
+      {/* Laboratory Orders Table using EntityTable */}
+      <EntityTable
+        columns={columns}
+        queryKeyBase="laboratory-orders"
+        fetcher={async ({ page, per_page, search }) => {
+          const resp = await laboratoryOrderService.getLaboratoryOrders({
+            ...filters,
+            page,
+            per_page,
+            search,
+          });
+          return resp;
+        }}
+        searchPlaceholder="Buscar orden..."
+        extraFilters={filters as any}
+        onRowClick={handleRowClick}
+      />
       
       {/* Status Update Modal */}
       <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
@@ -711,7 +583,8 @@ const LaboratoryOrders: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

@@ -54,10 +54,17 @@ class ExpenseService
                 throw new \Exception('El pago no puede exceder el saldo pendiente del gasto.');
             }
             
-            $expense->update([
+            $update = [
                 'payment_amount' => $newPaymentAmount,
                 'balance' => $newBalance,
-            ]);
+            ];
+            if (isset($paymentData['payment_method_id'])) {
+                $update['payment_method_id'] = $paymentData['payment_method_id'];
+            }
+            if (isset($paymentData['reference'])) {
+                $update['reference'] = $paymentData['reference'];
+            }
+            $expense->update($update);
             
             return $expense->load(['supplier', 'paymentMethod', 'createdBy']);
         });

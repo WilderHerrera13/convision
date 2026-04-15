@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -317,12 +318,7 @@ const NewPurchase: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="purchase-date">Fecha de Compra *</Label>
-                <Input
-                  id="purchase-date"
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                />
+                <DatePicker value={purchaseDate} onChange={(d)=>setPurchaseDate(d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
               </div>
               <div>
                 <Label htmlFor="invoice-number">N° Factura *</Label>
@@ -347,12 +343,7 @@ const NewPurchase: React.FC = () => {
 
             <div>
               <Label htmlFor="payment-due-date">Fecha de Vencimiento</Label>
-              <Input
-                id="payment-due-date"
-                type="date"
-                value={paymentDueDate}
-                onChange={(e) => setPaymentDueDate(e.target.value)}
-              />
+              <DatePicker value={paymentDueDate} onChange={(d)=>setPaymentDueDate(d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
             </div>
 
             <div className="flex items-center space-x-2">
@@ -558,12 +549,7 @@ const NewPurchase: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="payment-date">Fecha</Label>
-              <Input
-                id="payment-date"
-                type="date"
-                value={newPayment.payment_date}
-                onChange={(e) => setNewPayment({ ...newPayment, payment_date: e.target.value })}
-              />
+              <DatePicker value={newPayment.payment_date as string} onChange={(d)=> setNewPayment({ ...newPayment, payment_date: d ? d.toISOString().slice(0,10) : '' })} useInputTrigger />
             </div>
             <div>
               <Label htmlFor="payment-reference">Referencia</Label>

@@ -1,8 +1,13 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
+
+Todos los selectores de fecha deben usar DatePicker.
+
+Totas las tablas del proyecto deben usar EntityTable, asi se centraliza el codigo y se unifica el comportamiento en front.
+
 Use curl to test the endpoint and check the response structure when you need changes in the front.
 
 ## 🧭 General Guidelines
@@ -11,7 +16,7 @@ Use curl to test the endpoint and check the response structure when you need cha
 - All code must follow best practices and clean architecture patterns.
 - All information in the frontend must be presented in Spanish.
 - Always apply your changes in the project — partial or local-only changes are not accepted.
-- Backend always runs on port `8000` and frontend on port `4200`.
+- Backend always runs on port `8000` and frontend on port `4300` (Vite; ver `convision-front/vite.config.ts`).
 
 ---
 
@@ -70,25 +75,24 @@ Use curl to test the endpoint and check the response structure when you need cha
 
 ---
 
-
 ## 🧪 Sample cURL for Backend Login Testing
 
 bash
 curl --location 'http://localhost:8000/api/v1/auth/login' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-  "email": "admin@convision.com",
-  "password": "password"
+"email": "admin@convision.com",
+"password": "password"
 }'
 
-Backend application always are running in port 8000 and front in 4200.
+Backend application always are running in port 8000 and front in 4300.
 
 When you need a backend token you could get using this curl
 curl --location 'http://localhost:8000/api/v1/auth/login' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "email": "admin@convision.com",
-    "password": "password"
+"email": "admin@convision.com",
+"password": "password"
 }'
 
 ApiFilterable: Siempre usar para filtrar y ordenar datos. En backend, añadir trait a modelos y usar ->apiFilter($request) en controladores. En frontend, enviar parámetros s_f (campos) y s_v (valores) como JSON, y usar DataTable para renderizar tablas de forma centralizada. Obligatorio para mantener consistencia en filtrado, búsqueda y paginación.
@@ -109,21 +113,24 @@ Calcular el precio con descuento usando discountService.calculateDiscountedPrice
 # Laravel Form Request Validation Pattern
 
 ## Overview
+
 This project follows a strict pattern for handling request validation using Laravel Form Requests instead of inline validation in controllers. This pattern ensures consistency, maintainability, and proper separation of concerns.
 
 ## Directory Structure
+
 All Form Requests must be organized in the following structure:
 
 app/Http/Requests/Api/V1/{ControllerName}/{ActionName}{ControllerName}Request.php
 
-
 ### Examples:
+
 - `app/Http/Requests/Api/V1/Patient/StorePatientRequest.php`
 - `app/Http/Requests/Api/V1/Patient/UpdatePatientRequest.php`
 - `app/Http/Requests/Api/V1/Appointment/StoreAppointmentRequest.php`
 - `app/Http/Requests/Api/V1/Prescription/StorePrescriptionRequest.php`
 
 ## Naming Convention
+
 - **Store operations**: `Store{ControllerName}Request.php`
 - **Update operations**: `Update{ControllerName}Request.php`
 
@@ -132,9 +139,11 @@ app/Http/Requests/Api/V1/{ControllerName}/{ActionName}{ControllerName}Request.ph
 ## Instrucciones Obligatorias para Controladores API
 
 ### 1. Estructura de Recursos
+
 **NUNCA usar `response()->json()` directamente en controladores API. SIEMPRE usar Laravel API Resources.**
 
 #### Organización de Recursos por Carpetas
+
 Los recursos deben organizarse en subcarpetas agrupadas por funcionalidad relacionada:
 
 ```
@@ -152,6 +161,7 @@ app/Http/Resources/V1/
 ### 2. Namespace y Estructura de Recursos
 
 #### Resource Individual
+
 ```php
 <?php
 
@@ -176,6 +186,7 @@ class [Modelo]Resource extends JsonResource
 ```
 
 #### Collection
+
 ```php
 <?php
 
@@ -196,6 +207,7 @@ class [Modelo]Collection extends ResourceCollection
 ### 3. Patrón de Controladores API
 
 #### Imports Obligatorios
+
 ```php
 use App\Http\Resources\V1\[Categoria]\[Modelo]Resource;
 use App\Http\Resources\V1\[Categoria]\[Modelo]Collection;
@@ -204,21 +216,23 @@ use App\Http\Resources\V1\[Categoria]\[Modelo]Collection;
 #### Métodos Estándar
 
 **Index (Listado con paginación)**
+
 ```php
 public function index(Request $request)
 {
     $query = [Modelo]::apiFilter($request);
-    
+
     $perPage = $request->get('per_page', 15);
     $perPage = min(max(1, (int)$perPage), 100);
-    
+
     $items = $query->paginate($perPage);
-    
+
     return new [Modelo]Collection($items);
 }
 ```
 
 **Show (Mostrar individual)**
+
 ```php
 public function show($id)
 {
@@ -228,37 +242,40 @@ public function show($id)
 ```
 
 **Store (Crear)**
+
 ```php
 public function store(Store[Modelo]Request $request)
 {
     $validatedData = $request->validated();
-    
+
     $item = [Modelo]::create($validatedData);
-    
+
     return new [Modelo]Resource($item);
 }
 ```
 
 **Update (Actualizar)**
+
 ```php
 public function update(Update[Modelo]Request $request, $id)
 {
     $item = [Modelo]::findOrFail($id);
     $validatedData = $request->validated();
-    
+
     $item->update($validatedData);
-    
+
     return new [Modelo]Resource($item->fresh());
 }
 ```
 
 **Destroy (Eliminar)**
+
 ```php
 public function destroy($id)
 {
     $item = [Modelo]::findOrFail($id);
     $item->delete();
-    
+
     return response()->json(null, 204);
 }
 ```
@@ -266,6 +283,7 @@ public function destroy($id)
 ### 4. Reglas de ApiFilterable
 
 **OBLIGATORIO usar ApiFilterable en todos los listados:**
+
 - En el modelo: añadir trait `ApiFilterable`
 - En el controlador: usar `->apiFilter($request)` en queries
 - En frontend: enviar parámetros `s_f` (campos) y `s_v` (valores) como JSON
@@ -282,24 +300,25 @@ public function destroy($id)
 ### 6. Casos Especiales
 
 #### Controladores que NO necesitan Resources
+
 - Controladores de importación (retornan estado de acción)
 - Controladores de autenticación (pueden usar UserResource existente)
 - Controladores de PDF (retornan archivos)
 - Controladores de lookup/búsqueda simple
 
-
 #### Paginación Personalizada
+
 ```php
 public function index(Request $request)
 {
     $query = [Modelo]::with(['relacion1', 'relacion2'])
         ->apiFilter($request);
-    
+
     $perPage = $request->get('per_page', 15);
     $perPage = min(max(1, (int)$perPage), 100);
-    
+
     $items = $query->paginate($perPage);
-    
+
     return new [Modelo]Collection($items);
 }
 ```
@@ -318,6 +337,5 @@ Al crear/refactorizar un controlador API:
 - [ ] ¿Los métodos store/update usan `validated()` data?
 
 ## IMPORTANTE
-Este patrón es OBLIGATORIO para todos los controladores API nuevos y debe aplicarse al refactorizar controladores existentes. Mantiene consistencia, reutilización y facilita el mantenimiento del código. 
 
-
+Este patrón es OBLIGATORIO para todos los controladores API nuevos y debe aplicarse al refactorizar controladores existentes. Mantiene consistencia, reutilización y facilita el mantenimiento del código.

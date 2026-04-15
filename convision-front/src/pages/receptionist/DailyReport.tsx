@@ -17,31 +17,20 @@ import dailyActivityReportService, {
   defaultCustomerAttention,
   defaultOperations,
   defaultSocialMedia,
+  normalizeDailyActivityReport,
   CustomerAttention,
   Operations,
   SocialMedia,
 } from '@/services/dailyActivityReportService';
+import { Link } from 'react-router-dom';
+import CustomerAttentionMatrix from '@/components/cashClose/CustomerAttentionMatrix';
 import DailyReportSection from '@/components/cashClose/DailyReportSection';
 
-const CUSTOMER_FIELDS = [
-  { key: 'questions_men', label: 'Preguntas H' },
-  { key: 'questions_women', label: 'Preguntas M' },
-  { key: 'questions_children', label: 'Preguntas N' },
-  { key: 'quotes_men', label: 'Cotizaciones H' },
-  { key: 'quotes_women', label: 'Cotizaciones M' },
-  { key: 'quotes_children', label: 'Cotizaciones N' },
-  { key: 'effective_consultations_men', label: 'Consultas Efectivas H' },
-  { key: 'effective_consultations_women', label: 'Consultas Efectivas M' },
-  { key: 'effective_consultations_children', label: 'Consultas Efectivas N' },
-  { key: 'formula_sale_consultations_men', label: 'Consulta Venta Fórmula H' },
-  { key: 'formula_sale_consultations_women', label: 'Consulta Venta Fórmula M' },
-  { key: 'formula_sale_consultations_children', label: 'Consulta Venta Fórmula N' },
-  { key: 'non_effective_consultations_men', label: 'Consultas No Efectivas H' },
-  { key: 'non_effective_consultations_women', label: 'Consultas No Efectivas M' },
-  { key: 'non_effective_consultations_children', label: 'Consultas No Efectivas N' },
-];
-
 const OPERATIONS_FIELDS = [
+  { key: 'bonos_entregados', label: 'Bonos entregados' },
+  { key: 'bonos_redimidos', label: 'Bonos redimidos' },
+  { key: 'sistecreditos_realizados', label: 'Sistecréditos realizados' },
+  { key: 'addi_realizados', label: 'Addi realizados' },
   { key: 'control_seguimiento', label: 'Control de Seguimiento' },
   { key: 'seguimiento_garantias', label: 'Seguimiento Garantías' },
   { key: 'ordenes', label: 'Órdenes' },
@@ -80,13 +69,14 @@ const DailyReport: React.FC = () => {
     const load = async () => {
       try {
         const resp = await dailyActivityReportService.list({ report_date: dateStr, shift });
-        const items = resp?.data ?? (Array.isArray(resp) ? resp : []);
+        const rawList = (resp as { data?: unknown[] })?.data ?? (Array.isArray(resp) ? resp : []);
+        const items = Array.isArray(rawList) ? rawList : [];
         if (items[0]) {
-          const r = items[0];
+          const r = normalizeDailyActivityReport(items[0] as Record<string, unknown>);
           setExistingId(r.id);
-          if (r.customer_attention) setCustomerAttention(r.customer_attention);
-          if (r.operations) setOperations(r.operations);
-          if (r.social_media) setSocialMedia(r.social_media);
+          setCustomerAttention(r.customer_attention);
+          setOperations(r.operations);
+          setSocialMedia(r.social_media);
           setObservations(r.observations ?? '');
         } else {
           setExistingId(null);
@@ -140,7 +130,14 @@ const DailyReport: React.FC = () => {
           <h1 className="text-2xl font-bold">Reporte Diario de Gestión</h1>
           <p className="text-muted-foreground text-sm">Registro de actividades y gestión del día</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="outline" asChild className="border-[#8753ef] text-[#8753ef] hover:bg-[#f5f0ff]">
+            <Link
+              to={`/receptionist/daily-report/quick-attention?date=${encodeURIComponent(dateStr)}&shift=${encodeURIComponent(shift)}`}
+            >
+              Registro rápido de atención
+            </Link>
+          </Button>
           <div className="w-48">
             <DatePicker
               value={reportDate}
@@ -161,12 +158,9 @@ const DailyReport: React.FC = () => {
         </div>
       </div>
 
-      <DailyReportSection
-        title="Atención al Cliente"
-        headerColor="bg-[#eff1ff] text-[#3a71f7]"
-        fields={CUSTOMER_FIELDS}
-        values={customerAttention as unknown as Record<string, number>}
-        onChange={handleFieldChange(setCustomerAttention as React.Dispatch<React.SetStateAction<Record<string, number>>>)}
+      <CustomerAttentionMatrix
+        values={customerAttention}
+        onChange={(key, value) => setCustomerAttention((prev) => ({ ...prev, [key]: value }))}
       />
 
       <DailyReportSection
@@ -197,7 +191,7 @@ const DailyReport: React.FC = () => {
 
       <div className="flex justify-end">
         <Button
-          className="bg-green-700 hover:bg-green-800 text-white"
+          className="bg-[#8753ef] hover:bg-[#7345d6] text-white"
           onClick={handleSave}
           disabled={isSaving}
         >

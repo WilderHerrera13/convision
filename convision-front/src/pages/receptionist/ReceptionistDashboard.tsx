@@ -7,6 +7,7 @@ import { appointmentsService } from '@/services/appointmentsService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { parseLocalDatetime } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
 
 interface Appointment {
@@ -36,18 +37,6 @@ const ReceptionistDashboard: React.FC = () => {
 
 
 
-  // Debugging function to verify specific appointment status
-  const verifyAppointmentStatus = async (appointmentId: number) => {
-    try {
-      const appointment = await appointmentsService.getAppointmentById(appointmentId);
-      console.log(`Direct fetch - Appointment ${appointmentId}: status=${appointment.status}`);
-      return appointment.status === 'completed';
-    } catch (error) {
-      console.error(`Error fetching appointment ${appointmentId}:`, error);
-      return false;
-    }
-  };
-
   // Function to check if an appointment is truly completed
   const isAppointmentTrulyCompleted = (appointment: Appointment): boolean => {
     // Ensure status is explicitly completed
@@ -69,8 +58,6 @@ const ReceptionistDashboard: React.FC = () => {
         setIsRefreshing(true);
       }
       
-      console.log("Fetching completed appointments...");
-      
       // Make the API request with explicit filtering for completed status
       // Add a cache-busting timestamp to ensure fresh data
       const timestamp = new Date().getTime();
@@ -81,22 +68,10 @@ const ReceptionistDashboard: React.FC = () => {
         view: `${timestamp}` // Add as a query param to bust cache
       });
       
-      console.log(`API returned ${response.data.length} appointments with completed status`);
-      
-      // Debug: Check for any inconsistencies in statuses
-      const incorrectStatusAppointments = response.data.filter(a => a.status !== 'completed');
-      if (incorrectStatusAppointments.length > 0) {
-        console.error('Warning: Found appointments with incorrect status:', 
-          incorrectStatusAppointments.map(a => ({ id: a.id, status: a.status }))
-        );
-      }
-      
       // Apply strict filtering to ensure only truly completed appointments are shown
       const strictlyCompletedAppointments = response.data.filter(appointment => 
         isAppointmentTrulyCompleted(appointment)
       );
-      
-      console.log(`After strict filtering: ${strictlyCompletedAppointments.length} truly completed appointments`);
       
       // Set only the truly completed appointments
       setCompletedAppointments(strictlyCompletedAppointments);
@@ -159,7 +134,7 @@ const ReceptionistDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                 <AlertCircle className="h-3.5 w-3.5 mr-1" />
-                Requieren Atención
+                Requieren atención
               </Badge>
               <Button 
                 variant="outline" 
@@ -220,7 +195,7 @@ const ReceptionistDashboard: React.FC = () => {
                           <div>
                             <div className="text-sm text-gray-500">Fecha</div>
                             <div className="font-medium">
-                              {format(new Date(appointment.scheduled_at), 'dd/MM/yyyy • HH:mm')}
+                              {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'dd/MM/yyyy HH:mm')}
                             </div>
                           </div>
                         </div>
@@ -271,7 +246,7 @@ const ReceptionistDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <p className="text-gray-500">Consulta y gestiona el catálogo de productos ópticos.</p>
-            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/catalog'); }}>Ir al Catálogo</Button>
+            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/catalog'); }}>Ir al catálogo</Button>
           </CardContent>
         </Card>
         <Card className="hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/receptionist/appointments')}>

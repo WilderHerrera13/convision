@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -167,12 +168,7 @@ const NewExpense: React.FC = () => {
 
               <div>
                 <Label htmlFor="expense-date">Fecha del Gasto *</Label>
-                <Input
-                  id="expense-date"
-                  type="date"
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                />
+                <DatePicker value={expenseDate} onChange={(d)=>setExpenseDate(d ? d.toISOString().slice(0,10) : '')} useInputTrigger />
               </div>
 
               <div>

@@ -8,6 +8,8 @@ import { ExpandMore } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import { clinicalEvolutionService } from '@/services/clinicalEvolutionService';
 import { ClinicalEvolution } from '@/services/clinicalHistoryService';
+import { EmptyState } from '@/components/ui/empty-state';
+import { parseLocalDatetime } from '@/lib/utils';
 
 interface ClinicalEvolutionsListProps {
   clinicalHistoryId: number;
@@ -84,7 +86,12 @@ const ClinicalEvolutionsList: React.FC<ClinicalEvolutionsListProps> = ({ clinica
   }
 
   if (evolutions.length === 0) {
-    return <Alert severity="info">No hay evoluciones registradas para este paciente.</Alert>;
+    return (
+      <EmptyState
+        variant="history"
+        description="Este paciente aún no tiene evoluciones registradas."
+      />
+    );
   }
 
   return (
@@ -100,7 +107,7 @@ const ClinicalEvolutionsList: React.FC<ClinicalEvolutionsListProps> = ({ clinica
                 {evolution.appointment && (
                   <Chip 
                     size="small" 
-                    label={`Cita: ${new Date(evolution.appointment.scheduled_at).toLocaleDateString()}`} 
+                    label={`Cita: ${(parseLocalDatetime(evolution.appointment.scheduled_at) ?? new Date(evolution.appointment.scheduled_at)).toLocaleDateString('es-CO')}`} 
                     color="primary" 
                     sx={{ mr: 1 }} 
                   />

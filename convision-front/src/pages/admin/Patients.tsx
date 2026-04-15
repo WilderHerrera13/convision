@@ -35,12 +35,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, Plus, X, Trash, Edit, Phone, Mail, Loader2, FileText, Camera, User, UserCircle, MapPin, Stethoscope, Building2, BookCheck } from 'lucide-react';
+import { Search, Plus, X, Trash, Edit, Phone, Mail, Loader2, FileText, Camera, User, UserCircle, MapPin, Stethoscope, Building2, BookCheck, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import api from '@/lib/axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { ImageUpload } from "@/components/ui/image-upload";
 import { patientService } from "@/services/patientService";
 import { patientLookupService } from "@/services/patientLookupService";
@@ -61,6 +62,11 @@ import {
   DataTable,
   DataTableColumnDef,
 } from '@/components/ui/data-table';
+import { cn } from '@/lib/utils';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import PageLayout from '@/components/layouts/PageLayout';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Patient type
 type Patient = {
@@ -141,11 +147,28 @@ interface ApiError {
   };
 }
 
+function getPaginationPages(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  if (current > 3) pages.push('...');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
 const Patients: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const basePath = (user?.role === 'receptionist' || location.pathname.startsWith('/receptionist')) ? '/receptionist' : '/admin';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [filterStatus, setFilterStatus] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -398,18 +421,30 @@ const Patients: React.FC = () => {
 
   // Query to fetch patients
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['patients', page, search],
+    queryKey: ['patients', page, search, filterStatus],
     queryFn: async () => {
       const params: Record<string, string | number | boolean | string[]> = {
         page,
         per_page: perPage,
       };
 
-      // Add search params if search is provided
+      const filterFields: string[] = [];
+      const filterValues: string[] = [];
+
       if (search && search.length >= 3) {
         params.s_f = JSON.stringify(['first_name', 'last_name', 'identification', 'email']);
         params.s_v = JSON.stringify([search, search, search, search]);
-        params.s_o = 'or'; // Use logical OR for better search
+        params.s_o = 'or';
+      }
+
+      if (filterStatus && filterStatus !== 'all') {
+        filterFields.push('status');
+        filterValues.push(filterStatus);
+      }
+
+      if (filterFields.length > 0) {
+        params.f_f = JSON.stringify(filterFields);
+        params.f_v = JSON.stringify(filterValues);
       }
 
       const response = await api.get('/api/v1/patients', { params });
@@ -820,188 +855,256 @@ const Patients: React.FC = () => {
     }
   }, [isCreateModalOpen]);
 
+  const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+    active: { label: 'Activo', className: 'bg-[#ebf5ef] text-[#228b52]' },
+    inactive: { label: 'Inactivo', className: 'bg-[#f9f9fa] text-[#7d7d87]' },
+  };
+
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
-    {
-      id: 'profile_image',
-      header: '',
-      type: 'text',
-      cell: ({ row }) => {
-        const patient = row.original;
-        return (
-          <div className="w-10">
-            {patient.profile_image ? (
-              <Avatar 
-                className="h-9 w-9 rounded-full border-2 border-primary"
-                style={{
-                  backgroundImage: `url(${patientService.getProfileImageUrl(patient.profile_image)})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center'
-                }}
-              />
-            ) : (
-              <Avatar className="h-9 w-9">
-                <User className="h-5 w-5" />
-              </Avatar>
-            )}
-          </div>
-        );
-      }
-    },
+  const columns: DataTableColumnDef<Patient>[] = [
     {
       id: 'full_name',
-      header: 'Nombre Completo',
+      header: 'Paciente',
       type: 'text',
       accessorKey: 'first_name',
-      cell: ({ row }) => {
-        const patient = row.original;
-        return (
-          <span className="font-medium">
-            {patient.first_name} {patient.last_name}
-          </span>
-        );
-      }
+      cell: (patient) => (
+        <span className="font-semibold text-[13px] text-[#121215]">
+          {patient.first_name} {patient.last_name}
+        </span>
+      ),
     },
     {
       id: 'identification',
-      header: 'Identificación',
+      header: 'Documento',
       type: 'text',
       accessorKey: 'identification',
-      cell: ({ row }) => {
-        const patient = row.original;
-        return patient.identification;
-      }
+      cell: (patient) => (
+        <span className="text-[13px] text-[#7d7d87]">CC {patient.identification}</span>
+      ),
     },
     {
-      id: 'contact',
-      header: 'Contacto',
+      id: 'phone',
+      header: 'Teléfono',
       type: 'text',
-      cell: ({ row }) => {
-        const patient = row.original;
+      accessorKey: 'phone',
+      cell: (patient) => (
+        <span className="text-[13px] text-[#7d7d87]">{patient.phone || '—'}</span>
+      ),
+    },
+    {
+      id: 'last_visit',
+      header: 'Última visita',
+      type: 'text',
+      cell: (patient) => (
+        <span className="text-[13px] text-[#7d7d87]">
+          {patient.updated_at
+            ? format(parseISO(patient.updated_at), "d MMM yyyy", { locale: es })
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Estado',
+      type: 'text',
+      accessorKey: 'status',
+      cell: (patient) => {
+        const cfg = STATUS_CONFIG[patient.status ?? 'inactive'] ?? STATUS_CONFIG.inactive;
         return (
-          <div className="flex flex-col">
-            <div className="flex items-center text-sm">
-              <Mail className="mr-1 h-3 w-3" /> {patient.email}
-            </div>
-            <div className="flex items-center text-sm">
-              <Phone className="mr-1 h-3 w-3" /> {patient.phone || '-'}
-            </div>
-          </div>
+          <span className={cn('inline-flex items-center justify-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold', cfg.className)}>
+            {cfg.label}
+          </span>
         );
-      }
+      },
     },
     {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: ({ row }) => {
-        const patient = row.original;
-        return (
-          <div className="text-right">
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              title="Ver historial"
-            >
-              <Link to={`/admin/patients/${patient.id}/history`}>
-                <FileText className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => openEditModal(patient)}
-              title="Editar paciente"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-red-500"
-              onClick={() => openDeleteModal(patient)}
-              title="Eliminar paciente"
-            >
-              <Trash className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      }
-    }
+      cell: (patient) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <Link
+            to={`${basePath}/patients/${patient.id}/history`}
+            className="flex items-center justify-center size-8 rounded-[6px] bg-convision-light border border-convision-primary/30 text-convision-primary hover:opacity-80 transition-colors"
+            title="Ver historial"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-[#f5f5f7] border border-[#e0e0e4] text-[#7d7d87] hover:bg-[#ebebee] transition-colors"
+            onClick={() => navigate(`${basePath}/patients/${patient.id}/edit`)}
+            title="Editar paciente"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-[#fff0f0] border border-[#f5baba] text-red-500 hover:bg-[#ffe4e4] transition-colors"
+            onClick={() => openDeleteModal(patient)}
+            title="Eliminar paciente"
+          >
+            <Trash className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Pacientes</h1>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
+    <PageLayout
+      title="Pacientes"
+      subtitle="Base de datos de pacientes"
+      actions={
+        <Button
+          onClick={() => navigate(`${basePath}/patients/new`)}
+          className="bg-convision-primary hover:bg-convision-dark text-white text-[13px] h-9 px-4"
+        >
+          + Nuevo paciente
         </Button>
+      }
+    >
+    <div className="space-y-5">
+      {/* ── Filter row ───────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select
+          value={filterStatus}
+          onValueChange={(v) => { setFilterStatus(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-[148px] h-9 text-[13px] bg-white border-[#e5e5e9]">
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="active">Activo</SelectItem>
+            <SelectItem value="inactive">Inactivo</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="all">
+          <SelectTrigger className="w-[180px] h-9 text-[13px] bg-white border-[#e5e5e9]">
+            <SelectValue placeholder="Especialista" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los especialistas</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="all">
+          <SelectTrigger className="w-[164px] h-9 text-[13px] bg-white border-[#e5e5e9]">
+            <SelectValue placeholder="Última visita" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Cualquier fecha</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="ml-auto flex items-center h-9 px-3 rounded-md border border-[#e5e5e9] bg-white">
+          <span className="text-[13px] text-[#7d7d87]">
+            {data?.meta?.total ?? 0} pacientes
+          </span>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Pacientes</CardTitle>
-          <CardDescription>
-            Administra los pacientes del sistema
-          </CardDescription>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+      {/* ── Table card ───────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e5e9]">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[#121215]">Pacientes</h2>
+            <p className="text-[12px] text-[#b4b5bc] mt-0.5">
+              Base de datos · {data?.meta?.total ?? 0} registros
+            </p>
+          </div>
+          <div className="relative w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
             <Input
-              placeholder="Buscar pacientes..."
+              placeholder="Buscar paciente..."
               value={search}
               onChange={handleSearch}
-              className="pl-10 pr-10"
+              className="pl-9 h-[34px] text-[13px] border-[#e5e5e9] bg-[#f7f7f9] focus:bg-white"
             />
             {search && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+              <button
                 onClick={clearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#b4b5bc] hover:text-[#7d7d87]"
               >
-                <X className="h-4 w-4" />
-              </Button>
+                <X className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
-        </CardHeader>
-        <CardContent>
-          <DataTable 
-            columns={columns} 
-            data={data?.data || []} 
-            loading={isLoading}
-            emptyMessage="No se encontraron pacientes"
-          />
+        </div>
 
-          {/* Pagination */}
-          {data?.meta && (
-            <div className="flex justify-between items-center mt-4">
-              <div className="text-sm text-gray-500">
-                Mostrando {data.meta.from || 0} a {data.meta.to || 0} de {data.meta.total} pacientes
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === data.meta.last_page}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
+        {/* Table */}
+        <DataTable
+          columns={columns}
+          data={data?.data || []}
+          loading={isLoading}
+          emptyStateContent={
+            search.trim() || filterStatus !== 'all' ? (
+              <EmptyState
+                variant="table-filter"
+                onAction={() => { setSearch(''); setFilterStatus('all'); setPage(1); }}
+              />
+            ) : (
+              <EmptyState
+                variant="patients"
+                onAction={() => navigate(`${basePath}/patients/new`)}
+              />
+            )
+          }
+        />
+
+        {/* Pagination */}
+        {data?.meta && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[#e5e5e9]">
+            <p className="text-[12px] text-[#7d7d87]">
+              Mostrando{' '}
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-convision-light text-convision-primary font-semibold text-[12px]">
+                {data.meta.from ?? 0}–{data.meta.to ?? 0}
+              </span>{' '}
+              de {data.meta.total} registros
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              {getPaginationPages(page, data.meta.last_page).map((p, idx) =>
+                p === '...' ? (
+                  <span
+                    key={`dot-${idx}`}
+                    className="h-8 w-8 flex items-center justify-center text-[13px] text-[#7d7d87]"
+                  >
+                    ···
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    className={cn(
+                      'h-8 w-8 flex items-center justify-center rounded-[6px] text-[13px] font-medium transition-colors',
+                      page === p
+                        ? 'bg-[#121212] text-white'
+                        : 'border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8]'
+                    )}
+                    onClick={() => setPage(Number(p))}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+              <button
+                className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
+                disabled={page === data.meta.last_page}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
 
       {/* Create Patient Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
@@ -2087,6 +2190,7 @@ const Patients: React.FC = () => {
         </DialogContent>
       </Dialog>
     </div>
+    </PageLayout>
   );
 };
 

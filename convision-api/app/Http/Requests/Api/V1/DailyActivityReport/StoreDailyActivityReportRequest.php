@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Api\V1\DailyActivityReport;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDailyActivityReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->role !== User::ROLE_ADMIN;
     }
 
     public function rules(): array
@@ -35,6 +36,7 @@ class StoreDailyActivityReportRequest extends FormRequest
             'bonos_redimidos'          => 'nullable|integer|min:0',
             'sistecreditos_realizados' => 'nullable|integer|min:0',
             'addi_realizados'          => 'nullable|integer|min:0',
+            'control_seguimiento'      => 'nullable|integer|min:0',
             'seguimiento_garantias'    => 'nullable|integer|min:0',
             'ordenes'                  => 'nullable|integer|min:0',
             'plan_separe'              => 'nullable|integer|min:0',

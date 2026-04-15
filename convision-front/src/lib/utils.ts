@@ -77,6 +77,18 @@ export function safeDateFormat(date: Date | string | undefined | null, formatPat
 }
 
 /**
+ * Parses a datetime string from the backend as local time (no UTC conversion).
+ * The backend stores appointments without timezone info (naive datetimes).
+ * Stripping the trailing Z prevents the browser from shifting to local timezone.
+ */
+export function parseLocalDatetime(value: string | undefined | null): Date | null {
+  if (!value) return null;
+  const naive = value.replace('T', ' ').replace(/Z$/, '').replace(/\+00:00$/, '').slice(0, 16);
+  const d = new Date(naive);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
  * Translates error messages from English to Spanish
  * @param message The error message in English
  * @returns The translated error message in Spanish
@@ -183,16 +195,37 @@ export function formatCurrency(
   
   const numValue = typeof amount === 'string' ? parseFloat(amount) : amount;
   
+  // Check if the parsed value is valid
+  if (isNaN(numValue)) return '—';
+  
   const {
     locale = 'es-CO',
     minimumFractionDigits = 0,
     maximumFractionDigits = 2
   } = options;
 
-  return new Intl.NumberFormat(locale, { 
-    style: 'currency', 
-    currency,
-    minimumFractionDigits,
-    maximumFractionDigits 
-  }).format(numValue);
+  try {
+    return new Intl.NumberFormat(locale, { 
+      style: 'currency', 
+      currency,
+      minimumFractionDigits,
+      maximumFractionDigits 
+    }).format(numValue);
+  } catch (error) {
+    console.error('Error formatting currency:', error, 'amount:', amount);
+    return '—';
+  }
+}
+
+export function parseMoneyDigitsToInt(input: string): number {
+  const digits = input.replace(/\D/g, '');
+  if (!digits) return 0;
+  const n = Number.parseInt(digits, 10);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, Number.MAX_SAFE_INTEGER);
+}
+
+export function formatIntegerEsCO(n: number): string {
+  if (n <= 0) return '';
+  return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
 }

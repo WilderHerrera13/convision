@@ -201,69 +201,54 @@ const InventoryStock: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const { toast } = useToast();
 
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<LensWithInventory>[] = [
     {
       id: 'internal_code',
       header: 'Código',
       type: 'text',
       accessorKey: 'internal_code',
-      cell: ({ row }) => {
-        const lens = row.original;
-        return <div className="font-medium">{lens.internal_code}</div>;
-      },
+      cell: (lens) => <div className="font-medium">{lens.internal_code}</div>,
     },
     {
       id: 'identifier',
       header: 'Lente',
       type: 'text',
       accessorKey: 'identifier',
-      cell: ({ row }) => {
-        const lens = row.original;
-        return <div>{lens.identifier}</div>;
-      },
+      cell: (lens) => <div>{lens.identifier}</div>,
     },
     {
       id: 'brand',
       header: 'Marca',
       type: 'text',
       accessorKey: 'brand',
-      cell: ({ row }) => {
-        const lens = row.original;
-        return <div>{lens.brand?.name || 'Sin marca'}</div>;
-      },
+      cell: (lens) => <div>{lens.brand?.name || 'Sin marca'}</div>,
     },
     {
       id: 'total_quantity',
       header: 'Stock Total',
       type: 'text',
       accessorKey: 'total_quantity',
-      cell: ({ row }) => {
-        const lens = row.original;
-        return (
-          <Badge variant="outline" className="font-bold">
-            {lens.total_quantity}
-          </Badge>
-        );
-      },
+      cell: (lens) => (
+        <Badge variant="outline" className="font-bold">
+          {lens.total_quantity}
+        </Badge>
+      ),
     },
     {
       id: 'actions',
       header: 'Acciones',
       type: 'text',
-      cell: ({ row }) => {
-        const lens = row.original;
-        return (
-          <div className="text-right">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedLens(lens.id)}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      },
+      cell: (lens) => (
+        <div className="text-right">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedLens(lens.id)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ];
 

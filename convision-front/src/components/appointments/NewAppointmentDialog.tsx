@@ -217,8 +217,18 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
       toast({ title: 'Cita creada', description: 'La cita ha sido programada exitosamente.' });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       handleClose();
-    } catch {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la cita.' });
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
+      const serverErrors = apiError?.response?.data?.errors;
+      const serverMessage = apiError?.response?.data?.message;
+      let description = 'No se pudo crear la cita. Verifica los datos e intenta de nuevo.';
+      if (serverErrors) {
+        const firstField = Object.values(serverErrors)[0];
+        if (firstField?.[0]) description = firstField[0];
+      } else if (serverMessage) {
+        description = serverMessage;
+      }
+      toast({ variant: 'destructive', title: 'Error al crear la cita', description });
     } finally {
       setIsSubmitting(false);
     }

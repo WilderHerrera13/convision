@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Api\V1\DailyActivityReport;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateDailyActivityReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->role !== User::ROLE_ADMIN;
     }
 
     public function rules(): array
@@ -35,6 +36,7 @@ class UpdateDailyActivityReportRequest extends FormRequest
             'bonos_redimidos'          => 'sometimes|nullable|integer|min:0',
             'sistecreditos_realizados' => 'sometimes|nullable|integer|min:0',
             'addi_realizados'          => 'sometimes|nullable|integer|min:0',
+            'control_seguimiento'      => 'sometimes|nullable|integer|min:0',
             'seguimiento_garantias'    => 'sometimes|nullable|integer|min:0',
             'ordenes'                  => 'sometimes|nullable|integer|min:0',
             'plan_separe'              => 'sometimes|nullable|integer|min:0',

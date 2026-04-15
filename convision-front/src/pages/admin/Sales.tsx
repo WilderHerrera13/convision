@@ -55,6 +55,7 @@ import {
   Eye,
   FileText
 } from 'lucide-react';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { saleService, Sale, PaymentMethod, SaleStats, SaleFilterParams } from '@/services/saleService';
 import {
   DataTable,
@@ -62,6 +63,7 @@ import {
 } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import PageLayout from '@/components/layouts/PageLayout';
 import { PDFViewer } from '@/components/ui/pdf-viewer';
 
 // Override Badge variants to include the ones we need
@@ -111,6 +113,8 @@ const Sales: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [paymentNotes, setPaymentNotes] = useState('');
   const [perPage, setPerPage] = useState(10);
+  const [cancelSaleTarget, setCancelSaleTarget] = useState<number | null>(null);
+  const [removePaymentTarget, setRemovePaymentTarget] = useState<{ saleId: number; paymentId: number } | null>(null);
 
   // Load sales on component mount and filter changes
   useEffect(() => {
@@ -190,11 +194,10 @@ const Sales: React.FC = () => {
     }
   };
 
-  const handleCancelSale = async (id: number) => {
-    if (!confirm('¿Está seguro de cancelar esta venta?')) {
-      return;
-    }
-    
+  const handleCancelSale = async () => {
+    if (!cancelSaleTarget) return;
+    const id = cancelSaleTarget;
+    setCancelSaleTarget(null);
     try {
       await saleService.cancelSale(id);
       toast({
@@ -212,11 +215,10 @@ const Sales: React.FC = () => {
     }
   };
 
-  const handleRemovePayment = async (saleId: number, paymentId: number) => {
-    if (!confirm('¿Está seguro de eliminar este pago?')) {
-      return;
-    }
-
+  const handleRemovePayment = async () => {
+    if (!removePaymentTarget) return;
+    const { saleId, paymentId } = removePaymentTarget;
+    setRemovePaymentTarget(null);
     try {
       await saleService.removePayment(saleId, paymentId);
       toast({
@@ -332,20 +334,17 @@ const Sales: React.FC = () => {
   };
 
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<Sale>[] = [
     {
       id: 'sale_number',
       header: 'Factura',
       type: 'text',
       accessorKey: 'sale_number',
-      cell: ({ row }) => {
-        const sale = row.original;
-        return sale.sale_number ? (
+      cell: (sale) => (
+        sale.sale_number ? (
           <span className="font-medium text-blue-600">{sale.sale_number}</span>
-        ) : (
-          '—'
-        );
-      }
+        ) : '—'
+      )
     },
     {
       id: 'patient',
@@ -356,18 +355,16 @@ const Sales: React.FC = () => {
         if (!patient) return '—';
         return `${patient.first_name} ${patient.last_name}`;
       },
-      cell: ({ row }) => {
-        const sale = row.original;
-        if (!sale.patient) return '—';
-        return (
+      cell: (sale) => (
+        !sale.patient ? '—' : (
           <div className="flex flex-col">
             <span className="font-medium">{sale.patient.first_name} {sale.patient.last_name}</span>
             {sale.patient.identification && (
               <span className="text-xs text-gray-500">ID: {sale.patient.identification}</span>
             )}
           </div>
-        );
-      }
+        )
+      )
     },
     {
       id: 'created_at',
@@ -396,22 +393,19 @@ const Sales: React.FC = () => {
       type: 'money',
       accessorKey: 'balance',
       className: 'text-right font-medium',
-      cell: ({ row }) => {
-        const sale = row.original;
-        return (
+      cell: (sale) => (
           <span className={sale.balance > 0 ? "text-amber-600 font-medium" : "text-green-600 font-medium"}>
             {formatCurrency(sale.balance)}
           </span>
-        );
-      }
+      )
     },
     {
       id: 'status',
       header: 'Estado',
       type: 'text',
       accessorKey: 'status',
-      cell: ({ row }) => {
-        const status = row.original.status;
+      cell: (sale) => {
+        const status = sale.status;
         
         // Direct mapping without any conditional logic
         if (status === 'pending') return <Badge variant="warning">Pendiente</Badge>;
@@ -427,8 +421,8 @@ const Sales: React.FC = () => {
       header: 'Pago',
       type: 'text',
       accessorKey: 'payment_status',
-      cell: ({ row }) => {
-        const status = row.original.payment_status;
+      cell: (sale) => {
+        const status = sale.payment_status;
         
         // Direct mapping without any conditional logic
         if (status === 'pending') return <Badge variant="warning">Pendiente</Badge>;
@@ -444,9 +438,7 @@ const Sales: React.FC = () => {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: ({ row }) => {
-        const sale = row.original;
-        return (
+      cell: (sale) => (
           <div className="flex space-x-2 justify-end">
             <Button 
               variant="outline" 
@@ -471,22 +463,21 @@ const Sales: React.FC = () => {
               Ver
             </Button>
           </div>
-        );
-      }
+      )
     }
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Gestión de Ventas</h1>
+    <PageLayout
+      title="Gestión de Ventas"
+      actions={
         <div className="flex gap-2">
           <Select
             value={perPage.toString()}
             onValueChange={(value) => {
               setPerPage(Number(value));
-              setCurrentPage(1); // Reset to first page when changing items per page
-              setTimeout(fetchSales, 0); // Refetch with new per_page
+              setCurrentPage(1);
+              setTimeout(fetchSales, 0);
             }}
           >
             <SelectTrigger className="w-[130px]">
@@ -508,8 +499,9 @@ const Sales: React.FC = () => {
             Nueva Venta
           </Button>
         </div>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       {/* Today's Stats */}
       {todayStats && (
         <>
@@ -804,8 +796,31 @@ const Sales: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+
+      <ConfirmDialog
+        open={cancelSaleTarget !== null}
+        onOpenChange={(open) => { if (!open) setCancelSaleTarget(null); }}
+        title="Cancelar venta"
+        description="Esta acción no se puede deshacer. ¿Está seguro de cancelar esta venta?"
+        confirmLabel="Cancelar venta"
+        cancelLabel="Volver"
+        variant="danger"
+        onConfirm={handleCancelSale}
+      />
+
+      <ConfirmDialog
+        open={removePaymentTarget !== null}
+        onOpenChange={(open) => { if (!open) setRemovePaymentTarget(null); }}
+        title="Eliminar pago"
+        description="Esta acción no se puede deshacer. ¿Está seguro de eliminar este pago?"
+        confirmLabel="Eliminar"
+        cancelLabel="Volver"
+        variant="danger"
+        onConfirm={handleRemovePayment}
+      />
+    </PageLayout>
   );
 };
 
-export default Sales; 
+export default Sales;

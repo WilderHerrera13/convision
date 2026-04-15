@@ -15,7 +15,13 @@ type NavItem = { title: string; path: string; icon: React.ComponentType<{ classN
 type NavSection = { label: string | null; items: NavItem[] };
 
 const adminNav: NavSection[] = [
-  { label: null, items: [{ title: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard }] },
+  {
+    label: null,
+    items: [
+      { title: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+      { title: 'Reporte de gestión diario', path: '/admin/daily-reports', icon: UserRound },
+    ],
+  },
   {
     label: 'CLÍNICA',
     items: [
@@ -43,7 +49,6 @@ const adminNav: NavSection[] = [
       { title: 'Traslados', path: '/admin/cash-transfers', icon: ArrowLeftRight },
       { title: 'Pagos Proveedores', path: '/admin/supplier-payments', icon: Banknote },
       { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList },
-      { title: 'Reportes Diarios', path: '/admin/daily-reports', icon: BarChart3 },
     ],
   },
   {
@@ -79,7 +84,7 @@ const receptionistNav: NavSection[] = [
     items: [
       { title: 'Cierre de Caja', path: '/receptionist/cash-closes', icon: ClipboardList },
       { title: 'Historial Cierres', path: '/receptionist/cash-close-history', icon: BarChart3 },
-      { title: 'Reporte Diario', path: '/receptionist/daily-report', icon: FileText },
+      { title: 'Reporte de gestión diario', path: '/receptionist/daily-report', icon: FileText },
       { title: 'Historial Reportes', path: '/receptionist/daily-report-history', icon: Eye },
     ],
   },
@@ -100,6 +105,12 @@ const roleLabels: Record<string, { badge: string; title: string }> = {
   receptionist: { badge: 'Recepción', title: 'Recepcionista' },
 };
 
+const roleColors: Record<string, { primary: string; dark: string; light: string }> = {
+  admin:        { primary: '#3a71f8', dark: '#2558d4', light: '#eff1ff' },
+  specialist:   { primary: '#0f8f64', dark: '#0a6e4d', light: '#e5f8ef' },
+  receptionist: { primary: '#8753ef', dark: '#6a3cc4', light: '#f1ebff' },
+};
+
 const AdminLayout: React.FC = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -114,9 +125,17 @@ const AdminLayout: React.FC = () => {
 
   const roleInfo = roleLabels[user?.role ?? 'admin'] ?? { badge: 'Admin', title: 'Administrador' };
   const initials = user?.name ? getInitials(user.name) : 'US';
+  const colors = roleColors[user?.role ?? 'admin'] ?? roleColors.admin;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-convision-background">
+    <div
+      className="flex h-screen w-full overflow-hidden bg-convision-background"
+      style={{
+        '--role-primary': colors.primary,
+        '--role-dark': colors.dark,
+        '--role-light': colors.light,
+      } as React.CSSProperties}
+    >
       {/* Collapsed toggle */}
       {isCollapsed && (
         <button
@@ -212,8 +231,10 @@ const AdminLayout: React.FC = () => {
       )}
 
       {/* Main content — no wrapper padding, pages handle their own layout */}
-      <main className="flex-1 h-screen overflow-hidden flex flex-col min-w-0">
-        <Outlet />
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden h-screen">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

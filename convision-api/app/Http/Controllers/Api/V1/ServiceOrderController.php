@@ -63,7 +63,7 @@ class ServiceOrderController extends Controller
     public function updateStatus(Request $request, ServiceOrder $serviceOrder)
     {
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,cancelled',
+            'status' => 'required|in:pending,in_progress,completed,delivered,cancelled',
             'observations' => 'nullable|string',
         ]);
 

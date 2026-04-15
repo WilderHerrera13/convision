@@ -25,6 +25,7 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1546,13 +1547,7 @@ const NewSale: React.FC = () => {
                     </div>
                     <div>
                       <Label htmlFor="sale-date" className="text-xs text-slate-500">Fecha</Label>
-                      <Input
-                        id="sale-date"
-                        type="date"
-                        value={salesDate}
-                        onChange={(e) => setSalesDate(e.target.value)}
-                        className="text-sm"
-                      />
+                      <DatePicker value={salesDate} onChange={(d)=>setSalesDate(d ? format(d, 'yyyy-MM-dd') : '')} useInputTrigger />
                     </div>
                   </div>
                 </div>

@@ -107,14 +107,6 @@ const PurchasesDashboard: React.FC = () => {
       path: '/admin/cash-transfers',
       features: ['Origen y destino', 'Montos', 'Razones', 'Aprobaciones', 'Auditoría'],
     },
-    {
-      title: 'Estados Laboratorio',
-      description: 'Rastrear estado de órdenes de laboratorio con filtros y exportaciones',
-      icon: BarChart3,
-      color: 'bg-pink-500',
-      path: '/admin/laboratory-status',
-      features: ['Estados de órdenes', 'Filtros avanzados', 'Exportaciones', 'Seguimiento', 'Alertas'],
-    },
   ];
 
   const stats = [

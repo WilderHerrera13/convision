@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Calendar, User, Eye } from 'lucide-react';
 import { clinicalEvolutionService } from '@/services/clinicalEvolutionService';
 import { ClinicalEvolution } from '@/services/clinicalHistoryService';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface AppointmentEvolutionsListProps {
   patientId: number;
@@ -88,12 +89,11 @@ const AppointmentEvolutionsList: React.FC<AppointmentEvolutionsListProps> = ({
       </CardHeader>
       <CardContent>
         {evolutions.length === 0 ? (
-          <div className="text-center py-8">
-            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-3">
-              {appointmentId ? 'No hay evoluciones para esta cita' : 'No hay evoluciones registradas'}
-            </p>
-          </div>
+          <EmptyState
+            variant="history"
+            title={appointmentId ? 'Sin evoluciones' : 'Sin historial clínico'}
+            description={appointmentId ? 'No hay evoluciones registradas para esta cita.' : 'Este paciente aún no tiene consultas registradas.'}
+          />
         ) : (
           <div className="space-y-4">
             {evolutions.map((evolution) => (

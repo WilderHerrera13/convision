@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\V1\CashRegisterCloseController;
 use App\Http\Controllers\Api\V1\SaleLensPriceAdjustmentController;
 use App\Http\Controllers\Api\V1\SupplierPayableController;
 use App\Http\Controllers\Api\V1\DailyActivityReportController;
+use App\Http\Controllers\Api\V1\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,6 +70,11 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('me', [AuthController::class, 'me']);
         Route::post('refresh', [AuthController::class, 'refresh']);
+    });
+
+    // Dashboard routes
+    Route::middleware('auth:api')->group(function () {
+        Route::get('dashboard/summary', [DashboardController::class, 'summary']);
     });
 
     // User routes
@@ -140,10 +146,13 @@ Route::prefix('v1')->group(function () {
     // Appointment routes
     Route::middleware(['auth:api', 'role:admin|specialist|receptionist'])->group(function () {
         Route::apiResource('appointments', AppointmentController::class);
-        Route::post('appointments/{id}/take', [AppointmentController::class, 'takeAppointment']);
         Route::post('appointments/{id}/pause', [AppointmentController::class, 'pauseAppointment']);
         Route::post('appointments/{id}/resume', [AppointmentController::class, 'resumeAppointment']);
         Route::post('appointments/{id}/annotations', [AppointmentController::class, 'saveAnnotations']);
+    });
+
+    Route::middleware(['auth:api', 'role:specialist'])->group(function () {
+        Route::post('appointments/{id}/take', [AppointmentController::class, 'takeAppointment']);
         Route::post('appointments/{id}/lens-annotation', [AppointmentController::class, 'uploadLensAnnotation']);
         Route::get('appointments/{id}/lens-annotation', [AppointmentController::class, 'getLensAnnotation']);
     });
@@ -341,10 +350,17 @@ Route::prefix('v1')->group(function () {
         Route::post('cash-register-closes/{id}/submit', [CashRegisterCloseController::class, 'submit']);
         Route::post('cash-register-closes/{id}/approve', [CashRegisterCloseController::class, 'approve'])
             ->middleware('role:admin');
+        Route::post('cash-register-closes/{id}/return', [CashRegisterCloseController::class, 'returnToDraft'])
+            ->middleware('role:admin');
+        Route::put('cash-register-closes/{id}/admin-actuals', [CashRegisterCloseController::class, 'putAdminActuals'])
+            ->middleware('role:admin');
+        Route::get('cash-register-closes-advisors-pending', [CashRegisterCloseController::class, 'advisorsPending'])
+            ->middleware('role:admin');
     });
 
     // Daily Activity Report routes (Reporte Diario de Gestión del Asesor)
     Route::middleware('auth:api')->group(function () {
+        Route::post('daily-activity-reports/quick-attention', [DailyActivityReportController::class, 'quickAttention']);
         Route::apiResource('daily-activity-reports', DailyActivityReportController::class)
             ->except(['destroy']);
     });

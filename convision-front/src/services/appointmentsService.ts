@@ -23,7 +23,7 @@ type Appointment = {
   patient: Patient;
   specialist: Specialist;
   scheduled_at: string;
-  status: 'scheduled' | 'in_progress' | 'paused' | 'completed';
+  status: 'scheduled' | 'in_progress' | 'paused' | 'completed' | 'cancelled';
   notes?: string;
   taken_by_id?: number;
   takenBy?: {
@@ -56,6 +56,9 @@ type GetAppointmentsParams = {
   sort?: string;
   page?: number;
   view?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
 };
 
 export const appointmentsService = {
@@ -84,9 +87,12 @@ export const appointmentsService = {
   async getAppointments({ 
     perPage = 15, 
     filters = {}, 
-    sort = 'scheduled_at,desc', 
+    sort = 'scheduled_at,asc', 
     page = 1, 
-    view 
+    view,
+    startDate,
+    endDate,
+    search,
   }: GetAppointmentsParams = {}): Promise<AppointmentsResponse> {
     // Prepare filter fields and values
     const s_f: string[] = [];
@@ -120,9 +126,20 @@ export const appointmentsService = {
       params.status = status;
     }
     
-    // Add the view parameter if provided
     if (view) {
       params.view = view;
+    }
+
+    if (startDate) {
+      params.start_date = startDate;
+    }
+
+    if (endDate) {
+      params.end_date = endDate;
+    }
+
+    if (search) {
+      params.search = search;
     }
     
     // Use no-cache headers to ensure fresh data
@@ -183,6 +200,13 @@ export const appointmentsService = {
   async completeAppointment(id: number): Promise<Appointment> {
     const response = await api.put(`/api/v1/appointments/${id}`, {
       status: 'completed'
+    });
+    return response.data.data;
+  },
+
+  async cancelAppointment(id: number): Promise<Appointment> {
+    const response = await api.put(`/api/v1/appointments/${id}`, {
+      status: 'cancelled'
     });
     return response.data.data;
   },

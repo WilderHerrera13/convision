@@ -21,7 +21,8 @@ class PatientResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'identification' => $this->identification,
-            'identification_type' => $this->identification_type,
+            'identification_type' => $this->whenLoaded('identificationType', fn() => $this->identificationType?->name)
+                ?? $this->identification_type,
             'birth_date' => $this->birth_date,
             'gender' => $this->gender,
             'address' => $this->address,

@@ -13,6 +13,18 @@ class ServiceOrderService
         return DB::transaction(function () use ($data) {
             $data['created_by_user_id'] = Auth::id();
             $data['order_number'] = $this->generateOrderNumber();
+            if (isset($data['problem_description'])) {
+                $data['description'] = $data['problem_description'];
+                unset($data['problem_description']);
+            }
+            if (isset($data['deadline'])) {
+                $data['estimated_delivery_date'] = $data['deadline'];
+                unset($data['deadline']);
+            }
+            if (isset($data['actual_cost'])) {
+                $data['final_cost'] = $data['actual_cost'];
+                unset($data['actual_cost']);
+            }
             
             $serviceOrder = ServiceOrder::create($data);
             
@@ -23,6 +35,18 @@ class ServiceOrderService
     public function updateServiceOrder(ServiceOrder $serviceOrder, array $data): ServiceOrder
     {
         return DB::transaction(function () use ($serviceOrder, $data) {
+            if (isset($data['problem_description'])) {
+                $data['description'] = $data['problem_description'];
+                unset($data['problem_description']);
+            }
+            if (isset($data['deadline'])) {
+                $data['estimated_delivery_date'] = $data['deadline'];
+                unset($data['deadline']);
+            }
+            if (isset($data['actual_cost'])) {
+                $data['final_cost'] = $data['actual_cost'];
+                unset($data['actual_cost']);
+            }
             $serviceOrder->update($data);
             
             return $serviceOrder->load(['supplier', 'createdBy']);
@@ -38,7 +62,7 @@ class ServiceOrderService
                 $updateData['observations'] = $observations;
             }
             
-            if ($status === 'completed' && !$serviceOrder->actual_delivery_date) {
+            if (in_array($status, ['completed','delivered']) && !$serviceOrder->actual_delivery_date) {
                 $updateData['actual_delivery_date'] = now();
             }
             
@@ -59,6 +83,7 @@ class ServiceOrderService
         $pending = ServiceOrder::where('status', 'pending')->count();
         $inProgress = ServiceOrder::where('status', 'in_progress')->count();
         $completed = ServiceOrder::where('status', 'completed')->count();
+        $delivered = ServiceOrder::where('status', 'delivered')->count();
         $cancelled = ServiceOrder::where('status', 'cancelled')->count();
         
         $totalEstimatedCost = ServiceOrder::sum('estimated_cost');
@@ -74,6 +99,7 @@ class ServiceOrderService
             'pending_orders' => $pending,
             'in_progress_orders' => $inProgress,
             'completed_orders' => $completed,
+            'delivered_orders' => $delivered,
             'cancelled_orders' => $cancelled,
             'total_estimated_cost' => round($totalEstimatedCost, 2),
             'total_final_cost' => round($totalFinalCost, 2),

@@ -156,6 +156,8 @@ class AuthController extends Controller
      */
     public function refresh()
     {
+        app('tymon.jwt')->setRequest(request())->parseToken();
+
         return $this->respondWithToken(auth('api')->refresh());
     }
 
@@ -168,6 +170,8 @@ class AuthController extends Controller
      */
     protected function respondWithToken($token)
     {
+        auth('api')->setToken($token);
+
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',

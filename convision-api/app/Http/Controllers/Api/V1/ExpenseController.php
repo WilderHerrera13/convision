@@ -62,12 +62,15 @@ class ExpenseController extends Controller
 
     public function addPayment(Request $request, Expense $expense)
     {
-        $request->validate([
+        $data = $request->validate([
             'amount' => 'required|numeric|min:0.01|max:' . $expense->balance,
+            'payment_method_id' => 'nullable|exists:payment_methods,id',
+            'payment_date' => 'nullable|date',
+            'reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
 
-        $expense = $this->expenseService->addPayment($expense, $request->validated());
+        $expense = $this->expenseService->addPayment($expense, $data);
         
         return response()->json([
             'message' => 'Pago agregado exitosamente',

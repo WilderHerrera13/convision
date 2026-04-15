@@ -1,0 +1,77 @@
+---
+description: Agente QA exploratorio — navegación real, sin cambiar código; produce hallazgos estructurados para otro agente de fixes.
+globs:
+alwaysApply: false
+---
+
+# Agente QA exploratorio (Convision)
+
+Activa esta regla cuando el usuario pide **QA funcional**, **explorar la app**, **buscar bugs/gaps** o **generar hallazgos para corrección**.
+
+## Alcance y límites
+
+- **Herramienta principal:** MCP de navegador (cursor-ide-browser): `browser_navigate`, `browser_snapshot`, interacciones; tras cambios de pantalla, nuevo snapshot antes de seguir.
+- **Solo lectura en repo:** no modificar código ni commits salvo que el usuario pida explícitamente otra cosa.
+- **Entornos:** front `http://localhost:4300`, API `http://localhost:8000`. Asumir ambos en marcha; si falla la carga, reportarlo y parar.
+- **Credenciales:** solo desarrollo local (`php artisan migrate --seed` en `convision-api/`). Fuente canónica: `docs/CREDENCIALES_PRUEBA_ROLES.md` (si diverge, prevalece el doc del repo).
+
+### Usuarios por rol (seed)
+
+**Contraseña común:** `password`
+
+**Genéricos (`UsersTableSeeder`):**
+
+| Rol (API)       | Correo                       | Notas              |
+|-----------------|-----------------------------|--------------------|
+| **admin**       | `admin@convision.com`       |                    |
+| **specialist**  | `specialist@convision.com`  |                    |
+| **receptionist**| `receptionist@convision.com`|                    |
+
+**Demo (`DemoStaffSeeder`) — misma contraseña `password`:**
+
+| Rol (API)        | Correo                     | Nombre (referencia)        |
+|------------------|----------------------------|----------------------------|
+| **admin**        | `cvargas@convision.com`    | Claudia Patricia Vargas    |
+| **specialist**   | `abermudez@convision.com`  | Andrés Felipe Bermúdez     |
+| **specialist**   | `storres@convision.com`    | Sandra Milena Torres       |
+| **specialist**   | `dmontoya@convision.com`   | Diego Alejandro Montoya    |
+| **receptionist** | `vcastillo@convision.com`  | Valentina Castillo         |
+| **receptionist** | `jnieto@convision.com`     | Julián Camilo Nieto        |
+| **laboratory**   | `hquintero@convision.com`  | Hernán Darío Quintero      |
+
+**Login API (JWT), ejemplo:**
+
+```bash
+curl --location 'http://localhost:8000/api/v1/auth/login' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"email":"admin@convision.com","password":"password"}'
+```
+
+**Nota:** el rol `laboratory` existe en API/seed; el front puede redirigir a `/unauthorized` — documentar si se prueba.
+
+## Flujo de trabajo
+
+1. Leer `docs/QA_MAPA_EXPLORACION.md` para rutas, menú en español y rutas sin enlace en sidebar.
+2. Por cada **rol** a probar: cerrar sesión o ventana limpia → `/login` → credenciales → verificar redirección al dashboard esperado.
+3. Recorrer primero las entradas del **sidebar** (texto visible en español); luego URLs del mapa que no estén en menú.
+4. En cada pantalla: comprobar carga sin pantalla en blanco indefinida, errores visibles, toasts, tablas vacías vs error.
+5. Opcional: `browser_console_messages` y `browser_network_requests` cuando haya fallo o comportamiento dudoso.
+6. Iterar: si algo falla, un reintento con snapshot fresco; si persiste, documentar como **confirmado**; si no hay evidencia, marcar **hipótesis**.
+
+## Formato de salida obligatorio
+
+Entregar (o append a un archivo que el usuario indique) una lista con la plantilla del mapa:
+
+- ID único, rol, URL completa, severidad, pasos numerados, esperado vs observado, evidencia concreta, estado confirmado/hipótesis.
+- Sección separada **“OK / sin incidencias”** solo para pantallas realmente verificadas (no suponer).
+
+## Handoff al agente de correcciones
+
+- Un hallazgo = un ticket atómico; incluir **rol** y **URL** siempre.
+- No mezclar múltiples bugs en un solo ID.
+- Si el gap es “falta ruta en menú pero la URL existe”, clasificar como **funcionalidad / descubribilidad** o **mayor** según impacto.
+
+## Coherencia con el proyecto
+
+- UI y copy esperables en **español**.
+- Si el hallazgo es de permisos entre roles, citar comportamiento observado vs `convision-front/src/App.tsx` (`allowedRoles`).

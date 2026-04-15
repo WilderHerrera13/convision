@@ -13,8 +13,9 @@ class DailyActivityReportResource extends JsonResource
             'report_date' => $this->report_date->format('Y-m-d'),
             'shift'       => $this->shift,
             'user'        => $this->whenLoaded('user', fn () => [
-                'id'   => $this->user->id,
-                'name' => $this->user->name,
+                'id'        => $this->user->id,
+                'name'      => $this->user->name,
+                'last_name' => $this->user->last_name ?? '',
             ]),
             'atencion' => [
                 'preguntas' => [
@@ -40,6 +41,7 @@ class DailyActivityReportResource extends JsonResource
                 'bonos_redimidos'          => $this->bonos_redimidos,
                 'sistecreditos_realizados' => $this->sistecreditos_realizados,
                 'addi_realizados'          => $this->addi_realizados,
+                'control_seguimiento'      => $this->control_seguimiento,
                 'seguimiento_garantias'    => $this->seguimiento_garantias,
                 'ordenes'                  => $this->ordenes,
                 'plan_separe'              => $this->plan_separe,

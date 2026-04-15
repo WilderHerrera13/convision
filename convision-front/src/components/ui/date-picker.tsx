@@ -30,41 +30,46 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 }) => {
   // Convert string date to Date object if needed
   const dateValue = value ? (typeof value === 'string' ? new Date(value) : value) : undefined;
-  
+
+  const triggerContent = useInputTrigger ? (
+    <Input
+      value={dateValue ? format(dateValue, 'dd/MM/yyyy') : ''}
+      placeholder={placeholder}
+      readOnly
+      className={disabled ? 'cursor-not-allowed bg-muted' : 'cursor-pointer bg-white'}
+      disabled={disabled}
+    />
+  ) : (
+    <Button
+      type="button"
+      variant="outline"
+      className={`w-full justify-start text-left font-normal ${!dateValue ? 'text-muted-foreground' : ''} ${disabled ? 'cursor-not-allowed opacity-90' : ''}`}
+      disabled={disabled}
+    >
+      <CalendarIcon className="mr-2 h-4 w-4" />
+      {dateValue ? format(dateValue, 'dd/MM/yyyy') : placeholder}
+    </Button>
+  );
+
   return (
     <div className="w-full space-y-2">
       {label && <Label className="text-base font-medium">{label}</Label>}
-      <Popover>
-        <PopoverTrigger asChild>
-          {useInputTrigger ? (
-            <Input
-              value={dateValue ? format(dateValue, "dd/MM/yyyy") : ""}
-              placeholder={placeholder}
-              readOnly
-              className="cursor-pointer bg-white"
-              disabled={disabled}
+      {disabled ? (
+        triggerContent
+      ) : (
+        <Popover>
+          <PopoverTrigger asChild>{triggerContent}</PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateValue}
+              onSelect={onChange}
+              initialFocus
+              disabled={minDate ? (date) => date < minDate : undefined}
             />
-          ) : (
-            <Button
-              variant="outline"
-              className={`w-full justify-start text-left font-normal ${!dateValue ? "text-muted-foreground" : ""}`}
-              disabled={disabled}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateValue ? format(dateValue, "dd/MM/yyyy") : placeholder}
-            </Button>
-          )}
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={dateValue}
-            onSelect={onChange}
-            initialFocus
-            disabled={minDate ? (date) => date < minDate : undefined}
-          />
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+      )}
       {error && <p className="text-sm text-red-500">{error}</p>}
     </div>
   );

@@ -133,7 +133,7 @@ const DiscountRequests: React.FC = () => {
   };
   
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<DiscountRequest>[] = [
     {
       id: 'id',
       header: 'ID',
@@ -144,22 +144,18 @@ const DiscountRequests: React.FC = () => {
       id: 'lens',
       header: 'Lente',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
-        return (
+      cell: (request) => (
           <div className="flex flex-col">
             <span className="font-medium text-sm">{request.lens?.identifier}</span>
             <span className="text-xs text-gray-500 truncate max-w-[150px]">{request.lens?.description}</span>
           </div>
-        );
-      }
+      )
     },
     {
       id: 'patient',
       header: 'Paciente',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
+      cell: (request) => {
         if (request.is_global) {
           return (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -177,45 +173,34 @@ const DiscountRequests: React.FC = () => {
       id: 'discount_percentage',
       header: 'Descuento',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
-        return (
+      cell: (request) => (
           <Badge className="bg-purple-100 text-purple-800 border-purple-200">
             {request.discount_percentage}%
           </Badge>
-        );
-      }
+      )
     },
     {
       id: 'price',
       header: 'Precio',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
-        return (
+      cell: (request) => (
           <div className="flex flex-col">
             <span className="line-through text-xs text-gray-400">${safePriceFormat(request.original_price)}</span>
             <span className="font-medium text-green-600">${safePriceFormat(request.discounted_price)}</span>
           </div>
-        );
-      }
+      )
     },
     {
       id: 'status',
       header: 'Estado',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
-        return renderStatus(request.status);
-      }
+      cell: (request) => renderStatus(request.status)
     },
     {
       id: 'date',
       header: 'Fecha',
       type: 'text',
-      cell: ({ row }) => {
-        const request = row.original as DiscountRequest;
-        return (
+      cell: (request) => (
           <div>
             <span className="text-xs text-gray-500">{format(new Date(request.created_at), 'dd/MM/yyyy HH:mm')}</span>
             {request.status === 'rejected' && request.rejection_reason && (
@@ -224,16 +209,13 @@ const DiscountRequests: React.FC = () => {
               </div>
             )}
           </div>
-        );
-      }
+      )
     },
     {
       id: "actions",
       header: "Acciones",
       type: "custom",
-      cell: ({ row }) => {
-        const discount = row.original as DiscountRequest;
-        return (
+      cell: (discount) => (
           <Button 
             variant="outline" 
             size="sm" 
@@ -244,8 +226,7 @@ const DiscountRequests: React.FC = () => {
           >
             Ver detalles
           </Button>
-        );
-      }
+      )
     }
   ];
 

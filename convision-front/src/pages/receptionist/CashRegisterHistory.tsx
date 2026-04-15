@@ -2,20 +2,30 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 import cashRegisterCloseService, { CashClose } from '@/services/cashRegisterCloseService';
 
 const formatCOP = (v: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Borrador', className: 'border-gray-300 bg-[#f5f5f7] text-[#7d7d87]' },
-  submitted: { label: 'Enviado', className: 'border-[#b57218] bg-[#fff6e3] text-[#b57218]' },
-  approved: { label: 'Aprobado', className: 'border-[#228b52] bg-[#ebf5ef] text-[#228b52]' },
+  draft: {
+    label: 'Borrador',
+    className: 'rounded-full border-[#dcdce0] bg-[#f7f7f8] text-[#7d7d87]',
+  },
+  submitted: {
+    label: 'Enviado',
+    className: 'rounded-full border-[#f4c778] bg-[#fff6e3] text-[#b57218]',
+  },
+  approved: {
+    label: 'Aprobado',
+    className: 'rounded-full border-[#a3d9b8] bg-[#ebf5ef] text-[#228b52]',
+  },
 };
 
 const CashRegisterHistory: React.FC = () => {
@@ -27,37 +37,31 @@ const CashRegisterHistory: React.FC = () => {
     {
       accessorKey: 'close_date',
       header: 'Fecha',
-      cell: ({ row }) => format(new Date(row.original.close_date), 'dd/MM/yyyy'),
-    },
-    {
-      accessorKey: 'total_registered',
-      header: 'Total Registrado',
-      cell: ({ row }) => formatCOP(row.original.total_registered ?? 0),
+      enableSorting: false,
+      cell: (item) => (
+        <span className="text-[13px] text-[#7d7d87]">
+          {format(new Date(`${item.close_date}T12:00:00`), 'dd/MM/yyyy')}
+        </span>
+      ),
     },
     {
       accessorKey: 'total_counted',
       header: 'Total Contado',
-      cell: ({ row }) => formatCOP(row.original.total_counted ?? 0),
-    },
-    {
-      accessorKey: 'total_difference',
-      header: 'Diferencia',
-      cell: ({ row }) => {
-        const diff = row.original.total_difference ?? 0;
-        return (
-          <span className={diff < 0 ? 'text-red-600 font-medium' : 'text-green-700 font-medium'}>
-            {formatCOP(diff)}
-          </span>
-        );
-      },
+      enableSorting: false,
+      cell: (item) => (
+        <span className="text-[13px] font-semibold text-[#0f0f12]">
+          {formatCOP(item.total_counted ?? 0)}
+        </span>
+      ),
     },
     {
       accessorKey: 'status',
       header: 'Estado',
-      cell: ({ row }) => {
-        const cfg = STATUS_CONFIG[row.original.status] ?? STATUS_CONFIG.draft;
+      enableSorting: false,
+      cell: (item) => {
+        const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.draft;
         return (
-          <Badge variant="outline" className={cfg.className}>
+          <Badge variant="outline" className={`text-[11px] font-semibold ${cfg.className}`}>
             {cfg.label}
           </Badge>
         );
@@ -66,12 +70,18 @@ const CashRegisterHistory: React.FC = () => {
     {
       id: 'actions',
       header: 'Acciones',
-      cell: () => (
+      enableSorting: false,
+      cell: (item) => (
         <Button
-          size="sm"
+          type="button"
+          size="icon"
           variant="outline"
-          className="bg-[#eff4ff] border-[#c5d3f8] text-[#3a71f7] hover:bg-blue-100"
-          onClick={() => navigate(`/receptionist/cash-close-detail/${row.original.id}`)}
+          className="size-8 shrink-0 rounded-[6px] border border-[#c5d3f8] bg-[#eff1ff] text-[#3a71f7] hover:bg-blue-100"
+          aria-label="Ver detalle"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/receptionist/cash-close-detail/${item.id}`);
+          }}
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -87,6 +97,7 @@ const CashRegisterHistory: React.FC = () => {
     return {
       data: resp?.data ?? (Array.isArray(resp) ? resp : []),
       last_page: resp?.meta?.last_page ?? resp?.last_page ?? 1,
+      total: resp?.meta?.total,
     };
   };
 
@@ -96,47 +107,64 @@ const CashRegisterHistory: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Historial de Cierres</h1>
-        <p className="text-muted-foreground text-sm">Consulta los cierres registrados por fecha</p>
-      </div>
-
-      <div className="flex items-end gap-4 flex-wrap">
-        <div className="w-48">
-          <p className="text-sm font-medium mb-1">Desde</p>
-          <DatePicker
-            value={dateFrom}
-            onChange={setDateFrom}
-            placeholder="Fecha inicio"
-          />
+    <PageLayout
+      title="Historial de Cierres"
+      subtitle="Consulta los cierres registrados por fecha"
+      contentClassName="bg-[#f5f5f6] p-0"
+      actions={
+        <Button
+          className="h-9 bg-[#3a71f7] text-[13px] font-semibold text-white hover:bg-[#2d5dcc]"
+          onClick={() => navigate('/receptionist/cash-closes')}
+        >
+          <Plus className="mr-1 h-4 w-4" aria-hidden />
+          Nuevo Cierre
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-4 p-6">
+        <div className="flex items-center gap-4">
+          <div className="w-[160px]">
+            <DatePicker
+              value={dateFrom}
+              onChange={setDateFrom}
+              placeholder="Fecha inicio"
+            />
+          </div>
+          <div className="w-[160px]">
+            <DatePicker
+              value={dateTo}
+              onChange={setDateTo}
+              placeholder="Fecha fin"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[12px] text-[#7d7d87] hover:text-[#0f0f12]"
+              onClick={() => {
+                setDateFrom(undefined);
+                setDateTo(undefined);
+              }}
+            >
+              Limpiar
+            </Button>
+          )}
         </div>
-        <div className="w-48">
-          <p className="text-sm font-medium mb-1">Hasta</p>
-          <DatePicker
-            value={dateTo}
-            onChange={setDateTo}
-            placeholder="Fecha fin"
-          />
-        </div>
-        {(dateFrom || dateTo) && (
-          <Button
-            variant="ghost"
-            onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
 
-      <EntityTable<CashClose>
-        columns={columns}
-        fetcher={fetcher}
-        queryKeyBase="cash-close-history"
-        enableSearch={false}
-        extraFilters={extraFilters}
-      />
-    </div>
+        <EntityTable<CashClose>
+          columns={columns}
+          fetcher={fetcher}
+          queryKeyBase="cash-close-history"
+          enableSearch={false}
+          showPageSizeSelect
+          enableSorting={false}
+          tableLayout="ledger"
+          paginationVariant="figma"
+          extraFilters={extraFilters}
+        />
+      </div>
+    </PageLayout>
   );
 };
 

@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
     public function run()
     {
         $this->call([
+            // ── Catálogos base ──────────────────────────────────────
             UsersTableSeeder::class,
             AdminUserSeeder::class,
             BrandSeeder::class,
@@ -23,8 +24,11 @@ class DatabaseSeeder extends Seeder
             SuppliersTableSeeder::class,
             PaymentMethodSeeder::class,
             PatientLookupsSeeder::class,
-            UserSeeder::class,
-            PatientSeeder::class,
+
+            // ── Datos de demo ───────────────────────────────────────
+            DemoStaffSeeder::class,      // Médicos, recepcionistas, laboratorio
+            DemoPatientsSeeder::class,   // 15 pacientes colombianos
+            InventorySeeder::class,      // Bodega, productos y stock
         ]);
     }
 }

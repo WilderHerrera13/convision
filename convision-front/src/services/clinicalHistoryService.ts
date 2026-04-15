@@ -160,11 +160,10 @@ class ClinicalHistoryService {
   async getPatientHistory(patientId: number) {
     try {
       const response = await api.get(`/api/v1/patients/${patientId}/clinical-history`);
-      return response.data.data as ClinicalHistory;
+      return (response.data.data ?? null) as ClinicalHistory | null;
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
-      if (axiosError.response && axiosError.response.status === 404) {
-        // Patient doesn't have a clinical history yet
+      if (axiosError.response && (axiosError.response.status === 404 || axiosError.response.status === 403)) {
         return null;
       }
       throw error;

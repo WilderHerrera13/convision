@@ -22,6 +22,7 @@ class DailyActivityReport extends Model
         'consulta_venta_formula', 'consultas_no_efectivas',
         'bonos_entregados', 'bonos_redimidos',
         'sistecreditos_realizados', 'addi_realizados',
+        'control_seguimiento',
         'seguimiento_garantias', 'ordenes', 'plan_separe',
         'otras_ventas', 'entregas', 'sistecreditos_abonos', 'valor_ordenes',
         'publicaciones_facebook', 'publicaciones_instagram', 'publicaciones_whatsapp',

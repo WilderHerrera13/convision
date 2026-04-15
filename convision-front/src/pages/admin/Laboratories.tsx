@@ -18,6 +18,7 @@ import {
   DataTable,
   DataTableColumnDef,
 } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 
 interface Laboratory {
   id: number;
@@ -181,104 +182,83 @@ const Laboratories: React.FC = () => {
   };
 
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<Laboratory>[] = [
     {
       id: 'name',
       header: 'Nombre',
       type: 'text',
       accessorKey: 'name',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return <span className="font-medium">{lab.name}</span>;
-      }
+      cell: (lab) => <span className="font-medium">{lab.name}</span>
     },
     {
       id: 'contact_person',
       header: 'Persona de Contacto',
       type: 'text',
       accessorKey: 'contact_person',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return lab.contact_person || 'N/A';
-      }
+      cell: (lab) => lab.contact_person || 'N/A'
     },
     {
       id: 'phone',
       header: 'Teléfono',
       type: 'text',
       accessorKey: 'phone',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return lab.phone || 'N/A';
-      }
+      cell: (lab) => lab.phone || 'N/A'
     },
     {
       id: 'email',
       header: 'Correo Electrónico',
       type: 'text',
       accessorKey: 'email',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return lab.email || 'N/A';
-      }
+      cell: (lab) => lab.email || 'N/A'
     },
     {
       id: 'status',
       header: 'Estado',
       type: 'text',
       accessorKey: 'status',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return (
-          <Badge variant={lab.status === 'active' ? 'default' : 'outline'} className="capitalize">
-            {lab.status === 'active' ? 'Activo' : 'Inactivo'}
-          </Badge>
-        );
-      }
+      cell: (lab) => (
+        <Badge variant={lab.status === 'active' ? 'default' : 'outline'} className="capitalize">
+          {lab.status === 'active' ? 'Activo' : 'Inactivo'}
+        </Badge>
+      )
     },
     {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: ({ row }) => {
-        const lab = row.original;
-        return (
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => showEditDialog(lab)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => confirmDelete(lab)}
-            >
-              <Trash className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      }
+      cell: (lab) => (
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => showEditDialog(lab)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => confirmDelete(lab)}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
+      )
     }
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Laboratorios</h1>
-          <p className="text-muted-foreground">
-            Gestione los laboratorios asociados para la fabricación de lentes
-          </p>
-        </div>
+    <PageLayout
+      title="Laboratorios"
+      subtitle="Gestione los laboratorios asociados para la fabricación de lentes"
+      actions={
         <Button onClick={showCreateDialog}>
           <Plus className="mr-2 h-4 w-4" />
           Agregar Laboratorio
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Laboratorios</CardTitle>
@@ -448,7 +428,8 @@ const Laboratories: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

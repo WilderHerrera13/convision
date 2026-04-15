@@ -38,6 +38,7 @@ import { quoteService, Quote, QuoteFilterParams } from '@/services/quoteService'
 import { DataTable } from '@/components/ui/data-table';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import PageLayout from '@/components/layouts/PageLayout';
 
 // Badge variants for statuses
 const getStatusColor = (status: string): string => {
@@ -199,38 +200,33 @@ const Quotes: React.FC = () => {
   };
 
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<Quote>[] = [
     {
       id: 'quote_number',
       header: 'Número',
       type: 'text',
       accessorKey: 'quote_number',
-      cell: ({ row }) => {
-        const quote = row.original;
-        return quote.quote_number ? (
+      cell: (quote) => (
+        quote.quote_number ? (
           <span className="font-medium text-blue-600">{quote.quote_number}</span>
-        ) : (
-          '—'
-        );
-      }
+        ) : '—'
+      )
     },
     {
       id: 'patient',
       header: 'Cliente',
       type: 'text',
       accessorFn: (row: Quote) => `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim(),
-      cell: ({ row }) => {
-        const quote = row.original;
-        if (!quote.patient) return '—';
-        return (
+      cell: (quote) => (
+        !quote.patient ? '—' : (
           <div className="flex flex-col">
             <span className="font-medium">{quote.patient.first_name} {quote.patient.last_name}</span>
             {quote.patient.identification && (
               <span className="text-xs text-gray-500">ID: {quote.patient.identification}</span>
             )}
           </div>
-        );
-      }
+        )
+      )
     },
     {
       id: 'created_at',
@@ -245,12 +241,10 @@ const Quotes: React.FC = () => {
       type: 'date',
       accessorKey: 'expiration_date',
       className: 'whitespace-nowrap',
-      cell: ({ row }) => {
-        const quote = row.original;
+      cell: (quote) => {
         const today = new Date();
         const expirationDate = new Date(quote.expiration_date);
         const isExpired = expirationDate < today;
-        
         return (
           <span className={isExpired ? "text-red-600 font-medium" : "font-medium"}>
             {format(expirationDate, 'dd/MM/yyyy')}
@@ -270,8 +264,8 @@ const Quotes: React.FC = () => {
       header: 'Estado',
       type: 'text',
       accessorKey: 'status',
-      cell: ({ row }) => {
-        const status = row.original.status;
+      cell: (quote) => {
+        const status = quote.status;
         
         // Direct mapping without any conditional logic
         if (status === 'pending') return <Badge variant="warning">Pendiente</Badge>;
@@ -330,16 +324,16 @@ const Quotes: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Gestión de Cotizaciones</h1>
+    <PageLayout
+      title="Gestión de Cotizaciones"
+      actions={
         <div className="flex items-center gap-2">
           <Select
             value={perPage.toString()}
             onValueChange={(value) => {
               setPerPage(Number(value));
-              setCurrentPage(1); // Reset to first page when changing items per page
-              setTimeout(fetchQuotes, 0); // Refetch with new per_page
+              setCurrentPage(1);
+              setTimeout(fetchQuotes, 0);
             }}
           >
             <SelectTrigger className="w-[130px]">
@@ -361,8 +355,9 @@ const Quotes: React.FC = () => {
             Nueva Cotización
           </Button>
         </div>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       {/* Quotes DataTable */}
       <Card className="shadow-md border-none">
         <CardContent className="p-0">
@@ -463,7 +458,8 @@ const Quotes: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

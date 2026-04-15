@@ -46,6 +46,7 @@ import Sales from "./pages/admin/Sales";
 import SaleDetail from "./pages/admin/SaleDetail";
 import ReceptionistSaleDetail from "./pages/receptionist/SaleDetail";
 import NewPatient from "./pages/receptionist/NewPatient";
+import EditPatient from "./pages/receptionist/EditPatient";
 import Purchases from "./pages/admin/Purchases";
 import NewPurchase from "./pages/admin/NewPurchase";
 import PurchaseDetail from "./pages/admin/PurchaseDetail";
@@ -57,11 +58,14 @@ import NewExpense from "./pages/admin/NewExpense";
 import CashRegisterClose from './pages/receptionist/CashRegisterClose';
 import CashRegisterHistory from './pages/receptionist/CashRegisterHistory';
 import DailyReport from './pages/receptionist/DailyReport';
+import DailyQuickAttention from './pages/receptionist/DailyQuickAttention';
 import DailyReportHistory from './pages/receptionist/DailyReportHistory';
+import DailyReportDetailPage from './pages/DailyReportDetailPage';
 
 // Admin cash close module
 import AdminCashCloses from './pages/admin/CashCloses';
 import AdminCashCloseDetail from './pages/admin/CashCloseDetail';
+import AdminCashClosesByAdvisor from './pages/admin/CashClosesByAdvisor';
 import AdminDailyReports from './pages/admin/DailyReports';
 
 // Import the laboratory orders components
@@ -232,6 +236,14 @@ const router = createBrowserRouter([
             element: <Patients />,
           },
           {
+            path: "patients/new",
+            element: <NewPatient />,
+          },
+          {
+            path: "patients/:patientId/edit",
+            element: <EditPatient />,
+          },
+          {
             path: "patients/:patientId/history",
             element: <ClinicalHistory />,
           },
@@ -388,12 +400,24 @@ const router = createBrowserRouter([
             element: <AdminCashCloses />,
           },
           {
+            path: "cash-closes/advisor/:userId",
+            element: <AdminCashClosesByAdvisor />,
+          },
+          {
             path: "cash-closes/:id",
             element: <AdminCashCloseDetail />,
           },
           {
+            path: "daily-reports/quick-attention",
+            element: <Navigate to="/admin/daily-reports" replace />,
+          },
+          {
             path: "daily-reports",
             element: <AdminDailyReports />,
+          },
+          {
+            path: "daily-reports/:id",
+            element: <DailyReportDetailPage />,
           },
         ],
       },
@@ -480,6 +504,10 @@ const router = createBrowserRouter([
             element: <NewPatient />,
           },
           {
+            path: "patients/:patientId/edit",
+            element: <EditPatient />,
+          },
+          {
             path: "discount-requests",
             element: <DiscountRequests />,
           },
@@ -532,8 +560,16 @@ const router = createBrowserRouter([
             element: <DailyReport />,
           },
           {
+            path: "daily-report/quick-attention",
+            element: <DailyQuickAttention />,
+          },
+          {
             path: "daily-report-history",
             element: <DailyReportHistory />,
+          },
+          {
+            path: "daily-report-history/:id",
+            element: <DailyReportDetailPage />,
           },
           {
             path: "profile",

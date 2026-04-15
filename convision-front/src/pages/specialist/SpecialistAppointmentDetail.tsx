@@ -28,6 +28,7 @@ import {
   Activity,
   ClipboardList,
 } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, parseLocalDatetime } from '@/lib/utils';
@@ -182,31 +183,30 @@ const SpecialistAppointmentDetail: React.FC = () => {
           toast({
             variant: 'destructive',
             title: 'Cita en progreso',
-            description: 'Ya tienes una cita en progreso.',
+            description: `Ya tienes una cita en progreso (ID #${currentAppointmentId}). Debes completar o pausar esa cita primero.`,
             action: (
-              <button
+              <ToastAction
+                altText="Ir a la cita en progreso"
                 onClick={() => navigate(`/specialist/appointments/${currentAppointmentId}`)}
-                className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive"
               >
                 Ir a cita
-              </button>
+              </ToastAction>
             ),
           });
           return;
         }
       }
-      
-      // Handle other errors
-      const errorMessage = error && typeof error === 'object' && 'response' in error 
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
-        : error instanceof Error 
-        ? error.message 
+
+      const errorMessage = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : error instanceof Error
+        ? error.message
         : 'No se pudo tomar la cita.';
-        
+
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: errorMessage,
+        description: errorMessage || 'No se pudo tomar la cita.',
       });
     } finally {
       setActionLoading(null);
@@ -257,31 +257,30 @@ const SpecialistAppointmentDetail: React.FC = () => {
           toast({
             variant: 'destructive',
             title: 'Cita en progreso',
-            description: 'Ya tienes una cita en progreso.',
+            description: `Ya tienes una cita en progreso (ID #${currentAppointmentId}). Debes completar o pausar esa cita primero.`,
             action: (
-              <button
+              <ToastAction
+                altText="Ir a la cita en progreso"
                 onClick={() => navigate(`/specialist/appointments/${currentAppointmentId}`)}
-                className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive"
               >
                 Ir a cita
-              </button>
+              </ToastAction>
             ),
           });
           return;
         }
       }
-      
-      // Handle other errors
-      const errorMessage = error && typeof error === 'object' && 'response' in error 
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
-        : error instanceof Error 
-        ? error.message 
+
+      const errorMessage = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : error instanceof Error
+        ? error.message
         : 'No se pudo reanudar la cita.';
-        
+
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: errorMessage,
+        description: errorMessage || 'No se pudo reanudar la cita.',
       });
     } finally {
       setActionLoading(null);
@@ -422,8 +421,8 @@ const SpecialistAppointmentDetail: React.FC = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 break-words">
               {appointment.patient.first_name} {appointment.patient.last_name}
             </h1>
             <p className="text-sm text-gray-600">

@@ -20,7 +20,7 @@ class StorePatientRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:patients',
             'phone' => 'required|string|max:20',
             'identification' => 'required|string|max:255|unique:patients',
-            'identification_type_id' => 'required|exists:identification_types,id',
+            'identification_type_id' => 'nullable|exists:identification_types,id',
             'birth_date' => 'required|date',
             'gender' => ['required', Rule::in(['male', 'female', 'other'])],
             'address' => 'nullable|string|max:255',

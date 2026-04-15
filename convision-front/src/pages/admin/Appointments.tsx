@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/components/ui/use-toast';
 import { Search, Plus, X, Loader2 } from 'lucide-react';
 import api from '@/lib/axios';
+import PageLayout from '@/components/layouts/PageLayout';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -256,7 +257,7 @@ const Appointments: React.FC = () => {
   };
 
   return (
-    <div className="container max-w-3xl mx-auto py-6">
+    <PageLayout title="Crear Cita">
       <Card className="max-w-full">
         <CardHeader>
           <CardTitle>Crear Cita</CardTitle>
@@ -636,7 +637,7 @@ const Appointments: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 };
 

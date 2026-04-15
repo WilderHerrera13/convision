@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,8 +11,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Proxy all /api requests to the Laravel backend
       '/api': {
-
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {
@@ -32,8 +30,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    // Comentado temporalmente para evitar errores de sintaxis
+    // mode === 'development' &&
+    // componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {

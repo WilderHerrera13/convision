@@ -7,7 +7,7 @@ export interface Purchase {
     id: number;
     name: string;
     nit?: string;
-  };
+  } | null;
   purchase_date: string;
   invoice_number: string;
   concept: string;
@@ -27,7 +27,7 @@ export interface Purchase {
   created_by?: {
     id: number;
     name: string;
-  };
+  } | null;
   items?: PurchaseItem[];
   payments?: PurchasePayment[];
   created_at: string;
@@ -142,6 +142,21 @@ export interface AddPaymentData {
 class PurchaseService {
   async getPurchases(params: PurchaseSearchParams = {}): Promise<PaginatedPurchases> {
     const response = await api.get('/api/v1/purchases', { params });
+    console.log('=== PURCHASE SERVICE DEBUG ===');
+    console.log('Raw response from purchases API:', response.data);
+    console.log('Response data type:', typeof response.data);
+    console.log('Response data keys:', Object.keys(response.data));
+    
+    if (response.data.data && response.data.data.length > 0) {
+      const firstPurchase = response.data.data[0];
+      console.log('First purchase:', firstPurchase);
+      console.log('First purchase keys:', Object.keys(firstPurchase));
+      console.log('First purchase supplier:', firstPurchase.supplier);
+      console.log('First purchase supplier type:', typeof firstPurchase.supplier);
+      console.log('First purchase supplier keys:', firstPurchase.supplier ? Object.keys(firstPurchase.supplier) : 'null/undefined');
+    }
+    
+    console.log('=============================');
     return response.data;
   }
 

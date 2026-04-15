@@ -13,6 +13,9 @@ class ServiceOrder extends Model
     protected $fillable = [
         'order_number',
         'supplier_id',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
         'service_type',
         'description',
         'lens_horizontal_axis',
@@ -22,7 +25,9 @@ class ServiceOrder extends Model
         'final_cost',
         'estimated_delivery_date',
         'actual_delivery_date',
+        'priority',
         'status',
+        'notes',
         'observations',
         'created_by_user_id',
     ];

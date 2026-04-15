@@ -62,14 +62,16 @@ class ClinicalHistoryController extends Controller
     public function patientHistory($patientId)
     {
         $user = Auth::user();
-        $history = $this->clinicalHistoryService->getPatientHistory($patientId, $user);
-        
-        if (!$history) {
-            return response()->json([
-                'message' => 'No clinical history found for this patient'
-            ], 404);
+        $result = $this->clinicalHistoryService->getPatientHistoryResult($patientId, $user);
+
+        if ($result === 'forbidden') {
+            return response()->json(['message' => 'No tienes acceso al historial de este paciente.'], 403);
         }
-        
-        return new ClinicalHistoryResource($history);
+
+        if ($result === null) {
+            return response()->json(['data' => null, 'message' => 'Sin historial clínico registrado.'], 200);
+        }
+
+        return new ClinicalHistoryResource($result);
     }
 } 

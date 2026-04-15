@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -20,6 +20,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { cashTransferService } from '@/services/cashTransferService';
+import PageLayout from '@/components/layouts/PageLayout';
 
 const CashTransfers: React.FC = () => {
   const navigate = useNavigate();
@@ -110,91 +111,122 @@ const CashTransfers: React.FC = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const columns = [
+  type CashTransferRow = {
+    id: number;
+    transfer_number: string;
+    origin_type: string;
+    origin_description: string;
+    destination_type: string;
+    destination_description: string;
+    amount: number;
+    reason: string;
+    requested_by?: string;
+    status: 'pending' | 'approved' | 'completed' | 'cancelled' | string;
+    created_at: string;
+  };
+
+  const columns: DataTableColumnDef<CashTransferRow>[] = [
     {
+      id: 'transfer_number',
       accessorKey: 'transfer_number',
       header: 'Número',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="font-medium">{row.original.transfer_number}</div>
+      type: 'text',
+      cell: (row) => (
+        <div className="font-medium">{row.transfer_number}</div>
       ),
     },
     {
+      id: 'origin',
       accessorKey: 'origin',
       header: 'Origen',
-      cell: ({ row }: { row: { original: any } }) => (
+      type: 'text',
+      cell: (row) => (
         <div>
-          <div className="font-medium">{row.original.origin_type}</div>
-          <div className="text-sm text-muted-foreground">{row.original.origin_description}</div>
+          <div className="font-medium">{row.origin_type}</div>
+          <div className="text-sm text-muted-foreground">{row.origin_description}</div>
         </div>
       ),
     },
     {
+      id: 'destination',
       accessorKey: 'destination',
       header: 'Destino',
-      cell: ({ row }: { row: { original: any } }) => (
+      type: 'text',
+      cell: (row) => (
         <div>
-          <div className="font-medium">{row.original.destination_type}</div>
-          <div className="text-sm text-muted-foreground">{row.original.destination_description}</div>
+          <div className="font-medium">{row.destination_type}</div>
+          <div className="text-sm text-muted-foreground">{row.destination_description}</div>
         </div>
       ),
     },
     {
+      id: 'amount',
       accessorKey: 'amount',
       header: 'Monto',
-      cell: ({ row }: { row: { original: any } }) => (
+      type: 'money',
+      cell: (row) => (
         <div className="font-medium text-green-600">
-          {formatCurrency(row.original.amount)}
+          {formatCurrency(row.amount)}
         </div>
       ),
     },
     {
+      id: 'reason',
       accessorKey: 'reason',
       header: 'Razón',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="max-w-xs truncate" title={row.original.reason}>
-          {row.original.reason}
+      type: 'text',
+      cell: (row) => (
+        <div className="max-w-xs truncate" title={row.reason}>
+          {row.reason}
         </div>
       ),
     },
     {
+      id: 'requested_by',
       accessorKey: 'requested_by',
       header: 'Solicitado por',
+      type: 'text',
     },
     {
+      id: 'status',
       accessorKey: 'status',
       header: 'Estado',
-      cell: ({ row }: { row: { original: any } }) => getStatusBadge(row.original.status),
+      type: 'text',
+      cell: (row) => getStatusBadge(row.status),
     },
     {
+      id: 'created_at',
       accessorKey: 'created_at',
       header: 'Fecha',
-      cell: ({ row }: { row: { original: any } }) => formatDate(row.original.created_at),
+      type: 'date',
+      cell: (row) => formatDate(row.created_at),
     },
     {
       id: 'actions',
       header: 'Acciones',
-      cell: ({ row }: { row: { original: any } }) => (
+      type: 'actions',
+      cell: (row) => (
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/admin/cash-transfers/${row.original.id}`)}
+            onClick={() => navigate(`/admin/cash-transfers/${row.id}`)}
           >
             Ver
           </Button>
-          {row.original.status === 'pending' && (
+          {row.status === 'pending' && (
             <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => approveCashTransferMutation.mutate(row.original.id)}
+                onClick={() => approveCashTransferMutation.mutate(row.id)}
               >
                 Aprobar
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => cancelCashTransferMutation.mutate(row.original.id)}
+                onClick={() => cancelCashTransferMutation.mutate(row.id)}
               >
                 Cancelar
               </Button>
@@ -203,7 +235,7 @@ const CashTransfers: React.FC = () => {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => deleteCashTransferMutation.mutate(row.original.id)}
+            onClick={() => deleteCashTransferMutation.mutate(row.id)}
           >
             Eliminar
           </Button>
@@ -244,20 +276,17 @@ const CashTransfers: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Traslados de Efectivo</h1>
-          <p className="text-muted-foreground">
-            Gestiona los movimientos internos de fondos
-          </p>
-        </div>
+    <PageLayout
+      title="Traslados de Efectivo"
+      subtitle="Gestiona los movimientos internos de fondos"
+      actions={
         <Button onClick={() => navigate('/admin/cash-transfers/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Traslado
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => (
           <Card key={index}>
@@ -321,7 +350,8 @@ const CashTransfers: React.FC = () => {
           />
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

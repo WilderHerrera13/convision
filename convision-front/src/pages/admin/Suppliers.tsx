@@ -30,6 +30,7 @@ import {
   DataTable,
   DataTableColumnDef,
 } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 
 // Supplier type
 type Supplier = {
@@ -284,54 +285,40 @@ const Suppliers: React.FC = () => {
   };
 
   // Define columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<Supplier>[] = [
     {
       id: 'id',
       header: 'ID',
       type: 'text',
       accessorKey: 'id',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return <span className="font-medium">{supplier.id}</span>;
-      }
+      cell: (supplier) => <span className="font-medium">{supplier.id}</span>
     },
     {
       id: 'name',
       header: 'Nombre',
       type: 'text',
       accessorKey: 'name',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return supplier.name;
-      }
+      cell: (supplier) => supplier.name
     },
     {
       id: 'nit',
       header: 'NIT',
       type: 'text',
       accessorKey: 'nit',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return supplier.nit || '-';
-      }
+      cell: (supplier) => supplier.nit || '-'
     },
     {
       id: 'legal_representative',
       header: 'Representante Legal',
       type: 'text',
       accessorKey: 'legal_representative',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return supplier.legal_representative || '-';
-      }
+      cell: (supplier) => supplier.legal_representative || '-'
     },
     {
       id: 'contact',
       header: 'Contacto',
       type: 'text',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return (
+      cell: (supplier) => (
           <div>
             {supplier.phone && (
               <div className="flex items-center text-sm text-gray-500">
@@ -346,16 +333,13 @@ const Suppliers: React.FC = () => {
               </div>
             )}
           </div>
-        );
-      }
+      )
     },
     {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: ({ row }) => {
-        const supplier = row.original;
-        return (
+      cell: (supplier) => (
           <div className="text-right">
             <Button
               variant="ghost"
@@ -374,20 +358,20 @@ const Suppliers: React.FC = () => {
               <Trash className="h-4 w-4" />
             </Button>
           </div>
-        );
-      }
+      )
     }
   ];
 
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Proveedores</h1>
+    <PageLayout
+      title="Gestión de Proveedores"
+      actions={
         <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Nuevo Proveedor
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Lista de Proveedores</CardTitle>
@@ -857,7 +841,8 @@ const Suppliers: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

@@ -50,7 +50,7 @@ import PrescriptionForm from '@/components/PrescriptionForm';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { translateGender, formatDate, formatCurrency } from '@/lib/utils';
+import { translateGender, formatDate, formatCurrency, parseLocalDatetime } from '@/lib/utils';
 import { lensService, type Lens } from '@/services/lensService';
 import { SessionLensPriceAdjustmentModal } from '@/components/sales/SessionLensPriceAdjustmentModal';
 import { SessionLensPriceDisplay } from '@/components/sales/SessionLensPriceDisplay';
@@ -184,13 +184,9 @@ const AppointmentDetail: React.FC = () => {
     setError(null);
     try {
       const res = await ApiService.get(`/api/v1/appointments/${id}`);
-      console.log('Raw API response:', res);
-      // The API returns {data: appointmentObject}, so we need to extract the data property
       const appointmentData = (res && typeof res === 'object' && 'data' in res) 
         ? (res as { data: Appointment }).data 
         : res as Appointment;
-      console.log('Extracted appointment data:', appointmentData);
-      console.log('Patient data:', appointmentData?.patient);
       setAppointment(appointmentData);
     } catch (e) {
       setError((e as Error).message);
@@ -557,11 +553,11 @@ const AppointmentDetail: React.FC = () => {
     : '—';
   
   const appointmentTime = appointment.scheduled_at 
-    ? new Date(appointment.scheduled_at).toLocaleTimeString('es-ES', { 
+    ? (parseLocalDatetime(appointment.scheduled_at)?.toLocaleTimeString('es-CO', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: true 
-      }) 
+      }) ?? '—')
     : '—';
 
   // Get status text and color
@@ -614,7 +610,7 @@ const AppointmentDetail: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold">Detalle de la Cita</h1>
               <p className="text-gray-500 text-sm">
-                ID: {appointment.id} • Creada: {new Date(appointment.created_at || '').toLocaleDateString()}
+                ID: {appointment.id} • Creada: {formatDate(appointment.created_at)}
               </p>
             </div>
           </div>

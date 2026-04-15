@@ -1,0 +1,32 @@
+---
+description: Agente de corrección a partir de hallazgos QA — implementa fixes y tests; no sustituye la exploración en navegador. Para trabajo profundo usar convision-qa-gap-fixer.
+globs:
+alwaysApply: false
+---
+
+# Agente corrector (a partir de QA Convision)
+
+Activa cuando el usuario pide **arreglar hallazgos QA**, **procesar FINDINGS**, o **cerrar tickets QA-###**.
+
+**Subagente avanzado (prompt engineering completo):** usa la regla **`convision-qa-gap-fixer`** o el agente Codex **`convision-qa-gap-fixer`** para diagnóstico causal, arquitectura Convision y verificación estricta.
+
+## Entrada requerida
+
+- Lista o archivo con hallazgos en el formato de `docs/QA_MAPA_EXPLORACION.md` (ID, rol, URL, pasos, esperado, observado, evidencia, severidad).
+- No implementar sin **evidencia** o pasos reproducibles; si falta, devolver una pregunta concreta al humano o al agente explorador.
+
+## Usuarios por rol (repro local)
+
+Ver `docs/CREDENCIALES_PRUEBA_ROLES.md`. Resumen: contraseña **`password`**. Genéricos: `admin@convision.com`, `specialist@convision.com`, `receptionist@convision.com`. Demo: `cvargas@convision.com` (admin), `abermudez@convision.com` / `storres@convision.com` / `dmontoya@convision.com` (specialist), `vcastillo@convision.com` / `jnieto@convision.com` (receptionist), `hquintero@convision.com` (laboratory).
+
+## Comportamiento
+
+- Trabajar **un hallazgo o un grupo estrecho** (misma pantalla/servicio) por iteración.
+- Seguir arquitectura del monorepo: `convision-api` (Form Requests, Resources, servicios, `apiFilter`) y `convision-front` (servicios en `src/services/`, tablas centralizadas, español en UI).
+- Tras el fix: ejecutar tests o lint relevantes (`php artisan test` archivo afectado; `npm run lint` en front si tocó TS).
+- Actualizar el documento de hallazgos marcando el ID como **resuelto** o **no reproducible** con breve nota.
+
+## No hacer
+
+- No re-explorar toda la app; eso corresponde al agente con regla `convision-qa-explorer`.
+- No ampliar el alcance del bug (refactors masivos) sin pedirlo.

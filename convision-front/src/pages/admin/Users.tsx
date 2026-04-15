@@ -43,6 +43,7 @@ import { Users as UsersIcon, UserPlus, Search, Edit, Trash2, ArrowLeft, User as 
 import { useToast } from '@/components/ui/use-toast';
 import { userService, User, CreateUserData } from '@/services/userService';
 import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 
 // Form validation schema
 const createUserFormSchema = z.object({
@@ -271,7 +272,7 @@ const Users: React.FC = () => {
   };
 
   // In the component, define the columns for the DataTable
-  const columns: DataTableColumnDef[] = [
+  const columns: DataTableColumnDef<User>[] = [
     {
       id: 'name',
       header: 'Nombre',
@@ -306,9 +307,7 @@ const Users: React.FC = () => {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: ({ row }) => {
-        const user = row.original;
-        return (
+      cell: (user) => (
           <div className="flex items-center justify-end gap-2">
             <Button
               variant="ghost"
@@ -329,8 +328,7 @@ const Users: React.FC = () => {
               </Button>
             )}
           </div>
-        );
-      }
+      )
     }
   ];
 
@@ -542,19 +540,16 @@ const Users: React.FC = () => {
   console.log('Debug - Users component: columns config:', columns);
   
   return (
-    <>
+    <PageLayout
+      title="Gestión de Usuarios"
+      actions={
+        <Button onClick={handleCreateUser}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Nuevo Usuario
+        </Button>
+      }
+    >
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <UsersIcon className="h-6 w-6" /> 
-            Gestión de Usuarios
-          </h1>
-          <Button onClick={handleCreateUser}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Nuevo Usuario
-          </Button>
-        </div>
-
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -774,7 +769,7 @@ const Users: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
-    </>
+    </PageLayout>
   );
 };
 

@@ -111,6 +111,10 @@ class AppointmentService
 
     public function takeAppointment(Appointment $appointment, User $user): Appointment
     {
+        if ($user->role !== User::ROLE_SPECIALIST) {
+            throw new \Exception('Solo los especialistas pueden tomar citas.');
+        }
+
         if ($appointment->status !== Appointment::STATUS_SCHEDULED) {
             throw new \Exception('Solo las citas programadas pueden ser tomadas.');
         }

@@ -57,6 +57,7 @@ import api from '@/lib/axios';
 import { format } from 'date-fns';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
+import PageLayout from '@/components/layouts/PageLayout';
 
 // Types for discount requests
 interface User {
@@ -252,14 +253,15 @@ const DiscountRequests: React.FC = () => {
   };
 
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Descuentos</h1>
+    <PageLayout
+      title="Gestión de Descuentos"
+      actions={
         <Button onClick={handleOpenCreateModal}>
           <Plus className="mr-2 h-4 w-4" /> Crear Descuento
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <Tabs defaultValue="pending" value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="grid grid-cols-4 mb-4">
           <TabsTrigger value="pending">Pendientes</TabsTrigger>
@@ -407,7 +409,8 @@ const DiscountRequests: React.FC = () => {
           });
         }}
       />
-    </div>
+      </div>
+    </PageLayout>
   );
 
   function renderDiscountRequestsTable(status: string) {

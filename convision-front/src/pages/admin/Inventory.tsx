@@ -6,16 +6,14 @@ import WarehouseManagement from '@/components/inventory/WarehouseManagement';
 import LocationManagement from '@/components/inventory/LocationManagement';
 import InventoryStock from '@/components/inventory/InventoryStock';
 import InventoryTransfers from '@/components/inventory/InventoryTransfers';
+import PageLayout from '@/components/layouts/PageLayout';
 
 const Inventory: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Inventario</h1>
-      </div>
-      
+    <PageLayout title="Inventario">
+      <div className="space-y-6">
       <Tabs 
         defaultValue="stock" 
         value={activeTab} 
@@ -97,7 +95,8 @@ const Inventory: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

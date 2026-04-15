@@ -7,9 +7,17 @@ interface PaginationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  /** Alineado con diseño Figma (Table/Pagination): solo ← páginas →, página activa #121215 */
+  variant?: 'default' | 'figma';
 }
 
-const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange, className }) => {
+const Pagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  className,
+  variant = 'default',
+}) => {
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -35,6 +43,61 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
   };
 
   const pageNumbers = getPageNumbers();
+
+  if (variant === 'figma') {
+    const showEllipsisBeforeLast =
+      totalPages > 5 && !pageNumbers.includes(totalPages);
+    return (
+      <div className={`flex items-center gap-1 ${className || ''}`}>
+        <button
+          type="button"
+          aria-label="Página anterior"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e5e5e9] bg-white text-[13px] text-[#7d7d87] disabled:pointer-events-none disabled:opacity-40"
+        >
+          ←
+        </button>
+        {pageNumbers.map((pageNumber) => (
+          <button
+            key={pageNumber}
+            type="button"
+            onClick={() => onPageChange(pageNumber)}
+            className={
+              currentPage === pageNumber
+                ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[#121215] text-[12px] font-semibold text-white'
+                : 'inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e5e5e9] bg-white text-[12px] text-[#7d7d87]'
+            }
+          >
+            {pageNumber}
+          </button>
+        ))}
+        {showEllipsisBeforeLast && (
+          <>
+            <span className="inline-flex size-8 shrink-0 items-center justify-center text-[12px] text-[#7d7d87]">
+              ···
+            </span>
+            <button
+              type="button"
+              onClick={() => onPageChange(totalPages)}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e5e5e9] bg-white text-[12px] text-[#7d7d87]"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          aria-label="Página siguiente"
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e5e5e9] bg-white text-[13px] text-[#121215] disabled:pointer-events-none disabled:opacity-40"
+        >
+          →
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-2 ${className || ''}`}>

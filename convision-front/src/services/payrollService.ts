@@ -7,20 +7,20 @@ export interface Payroll {
   employee_position: string;
   pay_period_start: string;
   pay_period_end: string;
-  base_salary: number;
-  overtime_hours: number;
-  overtime_rate: number;
-  overtime_amount: number;
-  bonuses: number;
-  commissions: number;
-  other_income: number;
-  gross_salary: number;
-  health_deduction: number;
-  pension_deduction: number;
-  tax_deduction: number;
-  other_deductions: number;
-  total_deductions: number;
-  net_salary: number;
+  base_salary: string | number;
+  overtime_hours: string | number;
+  overtime_rate: string | number;
+  overtime_amount: string | number;
+  bonuses: string | number;
+  commissions: string | number;
+  other_income: string | number;
+  gross_salary: string | number;
+  health_deduction: string | number;
+  pension_deduction: string | number;
+  tax_deduction: string | number;
+  other_deductions: string | number;
+  total_deductions: string | number;
+  net_salary: string | number;
   payment_date?: string;
   payment_method_id?: number;
   payment_method?: {
@@ -37,6 +37,8 @@ export interface Payroll {
   };
   created_at: string;
   updated_at: string;
+  employee_id?: number;
+  employee_photo_url?: string;
 }
 
 export interface PayrollStats {
@@ -187,6 +189,14 @@ class PayrollService {
       name: user.name,
       base_salary: user.base_salary || 0,
     }));
+  }
+
+  async uploadEmployeePhoto(employeeId: number, file: File): Promise<void> {
+    const formData = new FormData();
+    formData.append('profile_image', file);
+    await api.post(`/api/v1/patients/${employeeId}/profile-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   }
 }
 

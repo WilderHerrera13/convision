@@ -33,9 +33,9 @@ class CashRegisterClose extends Model
         'user_id',
         'close_date',
         'status',
-        'total_registered',
         'total_counted',
-        'total_difference',
+        'total_actual_amount',
+        'admin_actuals_recorded_at',
         'admin_notes',
         'approved_by',
         'approved_at',
@@ -43,9 +43,9 @@ class CashRegisterClose extends Model
 
     protected $casts = [
         'close_date' => 'date',
-        'total_registered' => 'decimal:2',
         'total_counted' => 'decimal:2',
-        'total_difference' => 'decimal:2',
+        'total_actual_amount' => 'decimal:2',
+        'admin_actuals_recorded_at' => 'datetime',
         'approved_at' => 'datetime',
     ];
 
@@ -67,5 +67,10 @@ class CashRegisterClose extends Model
     public function denominations()
     {
         return $this->hasMany(CashCountDenomination::class);
+    }
+
+    public function actualPayments()
+    {
+        return $this->hasMany(CashRegisterCloseActualPayment::class);
     }
 }

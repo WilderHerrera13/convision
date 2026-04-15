@@ -1,6 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -9,73 +7,55 @@ const formatCOP = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Borrador', className: 'bg-gray-100 text-gray-700 border-gray-300' },
-  submitted: { label: 'Enviado', className: 'bg-amber-50 text-amber-700 border-amber-300' },
-  approved: { label: 'Aprobado', className: 'bg-green-50 text-green-700 border-green-300' },
+const STATUS_CONFIG: Record<string, { label: string; description: string }> = {
+  draft: {
+    label: 'Borrador',
+    description: 'Este cierre aún no ha sido enviado.',
+  },
+  submitted: {
+    label: 'Pendiente',
+    description:
+      'El administrador aún no ha validado este cierre. Solo verás el resultado cuando sea aprobado.',
+  },
+  approved: {
+    label: 'Aprobado',
+    description: 'Este cierre fue validado y aprobado por administración.',
+  },
 };
 
 interface Props {
-  totalRegistered: number;
   totalCounted: number;
-  totalDifference: number;
+  totalCashCounted: number;
   status: string;
+  showStatusRow?: boolean;
 }
 
 const CashCloseSummary: React.FC<Props> = ({
-  totalRegistered,
   totalCounted,
-  totalDifference,
   status,
 }) => {
-  const isNegative = totalDifference < 0;
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-muted-foreground">Estado del cierre:</span>
-        <Badge variant="outline" className={config.className}>
-          {config.label}
-        </Badge>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="relative overflow-hidden rounded-xl border-[1.5px] border-[#a3d9b8] bg-[#ebf5ef] shadow-[0_4px_16px_rgba(34,139,82,0.12)]">
+        <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l-[10px] bg-[#228b52]" />
+        <div className="px-4 py-5 pl-5">
+          <p className="text-[11px] font-normal text-[#7d7d87]">Total Contado</p>
+          <p className="mt-1 text-[28px] font-bold leading-tight text-[#228b52]">
+            {formatCOP(totalCounted)}
+          </p>
+          <p className="mt-3 text-[11px] font-normal text-[#7d7d87]">Tu conteo físico de caja</p>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Registrado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-700">{formatCOP(totalRegistered)}</p>
-          </CardContent>
-        </Card>
 
-        <Card className="border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Contado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-700">{formatCOP(totalCounted)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className={isNegative ? 'border-red-200' : 'border-green-200'}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Diferencia
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${isNegative ? 'text-red-600' : 'text-green-700'}`}>
-              {isNegative
-                ? `-${formatCOP(Math.abs(totalDifference))}`
-                : formatCOP(totalDifference)}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="relative overflow-hidden rounded-xl border-[1.5px] border-[#b7a3f8] bg-[#f1ebff]">
+        <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l-[10px] bg-[#8753ef]" />
+        <div className="px-4 py-5 pl-5">
+          <p className="text-[11px] font-normal text-[#7d7d87]">Estado del cruce</p>
+          <p className="mt-1 text-[22px] font-bold leading-tight text-[#8753ef]">{config.label}</p>
+          <p className="mt-3 text-[11px] font-normal text-[#7d7d87]">{config.description}</p>
+        </div>
       </div>
     </div>
   );

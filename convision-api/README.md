@@ -97,6 +97,18 @@ The seeder creates three default users:
     - Email: receptionist@convision.com
     - Password: password
 
+If `POST /api/v1/auth/login` returns **401 Unauthorized** with these credentials, the `users` table is often empty because migrations were run **without** `--seed`. Fix it with either:
+
+```bash
+php artisan db:seed --class=Database\\Seeders\\UsersTableSeeder
+```
+
+or:
+
+```bash
+php artisan convision:ensure-dev-users
+```
+
 ### API Endpoints
 
 #### Authentication

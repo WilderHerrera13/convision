@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye } from 'lucide-react';
@@ -8,6 +9,7 @@ import EntityTable from '@/components/ui/data-table/EntityTable';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import dailyActivityReportService, {
   DailyActivityReport,
+  normalizeDailyActivityReport,
   SHIFT_OPTIONS,
 } from '@/services/dailyActivityReportService';
 
@@ -16,6 +18,7 @@ const SHIFT_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const DailyReportHistory: React.FC = () => {
+  const navigate = useNavigate();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
@@ -23,22 +26,22 @@ const DailyReportHistory: React.FC = () => {
     {
       accessorKey: 'report_date',
       header: 'Fecha',
-      cell: ({ row }) => format(new Date(row.original.report_date), 'dd/MM/yyyy'),
+      cell: (item) => format(new Date(item.report_date), 'dd/MM/yyyy'),
     },
     {
       accessorKey: 'shift',
       header: 'Jornada',
-      cell: ({ row }) => (
+      cell: (item) => (
         <Badge variant="outline">
-          {SHIFT_LABELS[row.original.shift] ?? row.original.shift}
+          {SHIFT_LABELS[item.shift] ?? item.shift}
         </Badge>
       ),
     },
     {
       id: 'total_questions',
       header: 'Total Preguntas',
-      cell: ({ row }) => {
-        const ca = row.original.customer_attention;
+      cell: (item) => {
+        const ca = item.customer_attention;
         if (!ca) return '—';
         return (ca.questions_men ?? 0) + (ca.questions_women ?? 0) + (ca.questions_children ?? 0);
       },
@@ -46,8 +49,8 @@ const DailyReportHistory: React.FC = () => {
     {
       id: 'effective_consultations',
       header: 'Consultas Efectivas',
-      cell: ({ row }) => {
-        const ca = row.original.customer_attention;
+      cell: (item) => {
+        const ca = item.customer_attention;
         if (!ca) return '—';
         return (
           (ca.effective_consultations_men ?? 0) +
@@ -59,8 +62,8 @@ const DailyReportHistory: React.FC = () => {
     {
       id: 'valor_ordenes',
       header: 'Valor de Órdenes',
-      cell: ({ row }) => {
-        const ops = row.original.operations;
+      cell: (item) => {
+        const ops = item.operations;
         if (!ops) return '—';
         return new Intl.NumberFormat('es-CO', {
           style: 'currency',
@@ -72,12 +75,16 @@ const DailyReportHistory: React.FC = () => {
     {
       id: 'actions',
       header: 'Acciones',
-      cell: () => (
+      cell: (item) => (
         <Button
           size="sm"
           variant="outline"
-          className="bg-[#eff4ff] border-[#c5d3f8] text-[#3a71f7] hover:bg-blue-100"
-          onClick={() => alert('Vista detalle próximamente')}
+          className="border-[#8753ef] text-[#8753ef] hover:bg-[#f5f0ff]"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/receptionist/daily-report-history/${item.id}`);
+          }}
+          aria-label="Ver detalle del reporte"
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -90,9 +97,11 @@ const DailyReportHistory: React.FC = () => {
     if (dateFrom) params.date_from = format(dateFrom, 'yyyy-MM-dd');
     if (dateTo) params.date_to = format(dateTo, 'yyyy-MM-dd');
     const resp = await dailyActivityReportService.list(params);
+    const raw = (resp as { data?: unknown[] })?.data ?? [];
+    const rows = Array.isArray(raw) ? raw : [];
     return {
-      data: resp?.data ?? (Array.isArray(resp) ? resp : []),
-      last_page: resp?.meta?.last_page ?? resp?.last_page ?? 1,
+      data: rows.map((r) => normalizeDailyActivityReport(r as Record<string, unknown>)),
+      last_page: (resp as { meta?: { last_page?: number } })?.meta?.last_page ?? (resp as { last_page?: number })?.last_page ?? 1,
     };
   };
 
@@ -130,6 +139,7 @@ const DailyReportHistory: React.FC = () => {
         queryKeyBase="daily-report-history"
         enableSearch={false}
         extraFilters={extraFilters}
+        onRowClick={(row) => navigate(`/receptionist/daily-report-history/${row.id}`)}
       />
     </div>
   );

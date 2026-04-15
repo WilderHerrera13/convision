@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -18,8 +18,13 @@ import {
   DollarSign,
   CheckCircle,
   AlertCircle,
+  Eye,
+  Edit,
+  Play,
+  Trash,
 } from 'lucide-react';
-import { serviceOrderService } from '@/services/serviceOrderService';
+import { serviceOrderService, ServiceOrder } from '@/services/serviceOrderService';
+import PageLayout from '@/components/layouts/PageLayout';
 
 const ServiceOrders: React.FC = () => {
   const navigate = useNavigate();
@@ -104,107 +109,103 @@ const ServiceOrders: React.FC = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const columns = [
+  const columns: DataTableColumnDef<ServiceOrder>[] = [
     {
-      accessorKey: 'order_number',
+      id: 'order_number',
       header: 'Número',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="font-medium">{row.original.order_number}</div>
-      ),
+      type: 'text',
+      accessorKey: 'order_number',
+      cell: (row) => <div className="font-medium">{row.order_number}</div>,
     },
     {
-      accessorKey: 'customer_name',
+      id: 'customer_name',
       header: 'Cliente',
-      cell: ({ row }: { row: { original: any } }) => (
+      type: 'text',
+      cell: (row) => (
         <div>
-          <div className="font-medium">{row.original.customer_name}</div>
-          <div className="text-sm text-muted-foreground">{row.original.customer_phone}</div>
+          <div className="font-medium">{row.customer_name}</div>
+          <div className="text-sm text-muted-foreground">{row.customer_phone}</div>
         </div>
       ),
     },
     {
-      accessorKey: 'service_type',
+      id: 'service_type',
       header: 'Tipo de Servicio',
+      type: 'text',
+      accessorKey: 'service_type',
     },
     {
-      accessorKey: 'problem_description',
+      id: 'problem_description',
       header: 'Problema',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="max-w-xs truncate" title={row.original.problem_description}>
-          {row.original.problem_description}
+      type: 'text',
+      cell: (row) => (
+        <div className="max-w-xs truncate" title={row.problem_description}>
+          {row.problem_description}
         </div>
       ),
     },
     {
-      accessorKey: 'estimated_cost',
+      id: 'estimated_cost',
       header: 'Costo Estimado',
-      cell: ({ row }: { row: { original: any } }) => formatCurrency(row.original.estimated_cost),
+      type: 'money',
+      cell: (row) => formatCurrency(row.estimated_cost || 0),
     },
     {
-      accessorKey: 'deadline',
+      id: 'deadline',
       header: 'Fecha Límite',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="text-sm">
-          {formatDate(row.original.deadline)}
-        </div>
-      ),
+      type: 'date',
+      cell: (row) => <div className="text-sm">{formatDate(row.deadline)}</div>,
     },
     {
-      accessorKey: 'priority',
+      id: 'priority',
       header: 'Prioridad',
-      cell: ({ row }: { row: { original: any } }) => getPriorityBadge(row.original.priority),
+      type: 'custom',
+      cell: (row) => getPriorityBadge(row.priority),
     },
     {
-      accessorKey: 'status',
+      id: 'status',
       header: 'Estado',
-      cell: ({ row }: { row: { original: any } }) => getStatusBadge(row.original.status),
+      type: 'custom',
+      cell: (row) => getStatusBadge(row.status),
     },
     {
       id: 'actions',
       header: 'Acciones',
-      cell: ({ row }: { row: { original: any } }) => (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/service-orders/${row.original.id}`)}
-          >
-            Ver
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/service-orders/${row.original.id}/edit`)}
-          >
-            Editar
-          </Button>
-          {row.original.status === 'pending' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateStatusMutation.mutate({ id: row.original.id, status: 'in_progress' })}
-            >
-              Iniciar
-            </Button>
-          )}
-          {row.original.status === 'in_progress' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateStatusMutation.mutate({ id: row.original.id, status: 'completed' })}
-            >
-              Completar
-            </Button>
-          )}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => deleteServiceOrderMutation.mutate(row.original.id)}
-          >
-            Eliminar
-          </Button>
-        </div>
-      ),
+      type: 'actions',
+      actions: [
+        {
+          label: 'Ver',
+          icon: <Eye className="h-4 w-4 mr-2" />,
+          onClick: (row) => navigate(`/admin/service-orders/${row.id}`),
+          variant: 'outline',
+        },
+        {
+          label: 'Editar',
+          icon: <Edit className="h-4 w-4 mr-2" />,
+          onClick: (row) => navigate(`/admin/service-orders/${row.id}/edit`),
+          variant: 'outline',
+        },
+        {
+          label: 'Iniciar',
+          show: (row: ServiceOrder) => row.status === 'pending',
+          icon: <Play className="h-4 w-4 mr-2" />,
+          onClick: (row) => updateStatusMutation.mutate({ id: row.id, status: 'in_progress' }),
+          variant: 'outline',
+        },
+        {
+          label: 'Completar',
+          show: (row: ServiceOrder) => row.status === 'in_progress',
+          icon: <CheckCircle className="h-4 w-4 mr-2" />,
+          onClick: (row) => updateStatusMutation.mutate({ id: row.id, status: 'completed' }),
+          variant: 'outline',
+        },
+        {
+          label: 'Eliminar',
+          icon: <Trash className="h-4 w-4 mr-2" />,
+          onClick: (row: ServiceOrder) => deleteServiceOrderMutation.mutate(row.id),
+          variant: 'destructive',
+        },
+      ],
     },
   ];
 
@@ -240,20 +241,17 @@ const ServiceOrders: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Órdenes de Arreglo</h1>
-          <p className="text-muted-foreground">
-            Gestiona las reparaciones de monturas y lentes
-          </p>
-        </div>
+    <PageLayout
+      title="Órdenes de Arreglo"
+      subtitle="Gestiona las reparaciones de monturas y lentes"
+      actions={
         <Button onClick={() => navigate('/admin/service-orders/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Nueva Orden
         </Button>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => (
           <Card key={index}>
@@ -318,7 +316,8 @@ const ServiceOrders: React.FC = () => {
           />
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

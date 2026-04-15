@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -18,23 +19,18 @@ import {
   DollarSign,
   Users,
   Calendar,
+  Eye,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import { payrollService, type Payroll } from '@/services/payrollService';
+import PageLayout from '@/components/layouts/PageLayout';
 
 const Payrolls: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const { data: payrolls, isLoading } = useQuery({
-    queryKey: ['payrolls', searchTerm, statusFilter],
-    queryFn: () => payrollService.getPayrolls({
-      search: searchTerm,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
-  });
 
   const { data: stats } = useQuery({
     queryKey: ['payroll-stats'],
@@ -71,16 +67,27 @@ const Payrolls: React.FC = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const handleDeletePayroll = (payroll: Payroll) => {
+    deletePayrollMutation.mutate(payroll.id);
+  };
+
   const columns: DataTableColumnDef<Payroll>[] = [
+    {
+      id: 'id',
+      header: 'ID',
+      type: 'text',
+      accessorKey: 'id',
+      className: 'w-16',
+    },
     {
       id: 'employee_name',
       header: 'Empleado',
       type: 'text',
       cell: (payroll: Payroll) => (
         <div>
-          <div className="font-medium">{payroll.employee_name}</div>
-          <div className="text-sm text-muted-foreground">ID: {payroll.employee_identification}</div>
-          <div className="text-xs text-muted-foreground">{payroll.employee_position}</div>
+          <div className="font-medium">{payroll.employee_name || '—'}</div>
+          <div className="text-sm text-muted-foreground">ID: {payroll.employee_identification || '—'}</div>
+          <div className="text-xs text-muted-foreground">{payroll.employee_position || '—'}</div>
         </div>
       ),
     },
@@ -100,30 +107,42 @@ const Payrolls: React.FC = () => {
       header: 'Salario Base',
       type: 'money',
       accessorKey: 'base_salary',
+      className: 'text-right',
     },
     {
       id: 'gross_salary',
       header: 'Salario Bruto',
       type: 'money',
       accessorKey: 'gross_salary',
+      className: 'text-right',
     },
     {
       id: 'total_deductions',
       header: 'Deducciones',
       type: 'money',
-      cell: (payroll: Payroll) => (
-        <span className="text-red-600">-{formatCurrency(payroll.total_deductions)}</span>
-      ),
+      cell: (payroll: Payroll) => {
+        const deductions = parseFloat(String(payroll.total_deductions || 0));
+        return (
+          <span className="text-red-600 text-right block">
+            {deductions > 0 
+              ? `-${formatCurrency(deductions)}` 
+              : '—'
+            }
+          </span>
+        );
+      },
+      className: 'text-right',
     },
     {
       id: 'net_salary',
       header: 'Salario Neto',
       type: 'money',
       cell: (payroll: Payroll) => (
-        <div className="font-medium text-green-600">
-          {formatCurrency(payroll.net_salary)}
+        <div className="font-medium text-green-600 text-right">
+          {payroll.net_salary ? formatCurrency(payroll.net_salary) : '—'}
         </div>
       ),
+      className: 'text-right',
     },
     {
       id: 'status',
@@ -151,31 +170,24 @@ const Payrolls: React.FC = () => {
       id: 'actions',
       header: 'Acciones',
       type: 'actions',
-      cell: (payroll: Payroll) => (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/payrolls/${payroll.id}`)}
-          >
-            Ver
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/payrolls/${payroll.id}/edit`)}
-          >
-            Editar
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => deletePayrollMutation.mutate(payroll.id)}
-          >
-            Eliminar
-          </Button>
-        </div>
-      ),
+      actions: [
+        {
+          label: 'Ver',
+          icon: <Eye className="h-4 w-4" />,
+          onClick: (payroll: Payroll) => navigate(`/admin/payrolls/${payroll.id}`),
+        },
+        {
+          label: 'Editar',
+          icon: <Edit className="h-4 w-4" />,
+          onClick: (payroll: Payroll) => navigate(`/admin/payrolls/${payroll.id}/edit`),
+        },
+        {
+          label: 'Eliminar',
+          icon: <Trash2 className="h-4 w-4" />,
+          onClick: (payroll: Payroll) => handleDeletePayroll(payroll),
+          variant: 'destructive' as const,
+        },
+      ],
     },
   ];
 
@@ -211,14 +223,10 @@ const Payrolls: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nómina</h1>
-          <p className="text-muted-foreground">
-            Gestiona los pagos de empleados y nóminas
-          </p>
-        </div>
+    <PageLayout
+      title="Nómina"
+      subtitle="Gestiona los pagos de empleados y nóminas"
+      actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/admin/payrolls/calculate')}>
             <Calculator className="h-4 w-4 mr-2" />
@@ -229,8 +237,9 @@ const Payrolls: React.FC = () => {
             Nueva Nómina
           </Button>
         </div>
-      </div>
-
+      }
+    >
+      <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => (
           <Card key={index}>
@@ -253,47 +262,41 @@ const Payrolls: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Nóminas</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por empleado..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="pending">Pendiente</option>
-                <option value="paid">Pagado</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
-          </div>
         </CardHeader>
         <CardContent>
-          <DataTable
+          <div className="mb-4 flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="paid">Pagado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
+          </div>
+          <EntityTable<Payroll>
             columns={columns}
-            data={payrolls?.data || []}
-            loading={isLoading}
+            queryKeyBase="payrolls"
+            fetcher={({ page, per_page, search }) => payrollService.getPayrolls({
+              page,
+              per_page,
+              search,
+              status: statusFilter !== 'all' ? statusFilter : undefined,
+            })}
+            searchPlaceholder="Buscar por empleado..."
+            initialPerPage={15}
+            extraFilters={{ status: statusFilter }}
           />
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 

@@ -149,7 +149,7 @@ const laboratoryOrderService = {
     }
 
     // Build query params
-    const query: any = {
+    const query: Record<string, string | number> = {
       page: params.page || 1,
       per_page: params.per_page || 10,
     };
@@ -173,7 +173,7 @@ const laboratoryOrderService = {
       // Ensure proper data mapping
       if (response.data && Array.isArray(response.data.data)) {
         // Make sure all objects have the expected relationships
-        response.data.data = response.data.data.map((order: any) => {
+        response.data.data = response.data.data.map((order: LaboratoryOrder) => {
           // Ensure laboratory is initialized properly
           if (order.laboratory_id && !order.laboratory) {
             console.log('Debug - Missing laboratory object for ID:', order.laboratory_id);
@@ -202,7 +202,64 @@ const laboratoryOrderService = {
    */
   async getLaboratoryOrder(id: number) {
     const response = await api.get(`/api/v1/laboratory-orders/${id}`);
-    return response.data as LaboratoryOrder;
+    type RawStatusHistory = {
+      id: number;
+      status: string;
+      notes?: string | null;
+      created_at: string;
+      user?: { id: number; name: string } | null;
+    };
+    type RawOrder = {
+      id: number;
+      order_number: string;
+      order_id: number | null;
+      sale_id: number | null;
+      laboratory_id: number;
+      patient_id: number;
+      status: string;
+      priority: string;
+      estimated_completion_date?: string | null;
+      completion_date?: string | null;
+      notes?: string | null;
+      created_by: number;
+      created_at: string;
+      updated_at: string;
+      laboratory?: Record<string, unknown>;
+      patient?: { id: number; first_name: string; last_name: string } & Record<string, unknown>;
+      order?: { items?: Array<{ id: number; lens?: Record<string, unknown> }> };
+      sale?: Record<string, unknown>;
+      created_by_user?: { id: number; name: string } | null;
+      status_history?: RawStatusHistory[];
+      pdf_token?: string;
+      guest_pdf_url?: string;
+    };
+    const wrapped = response.data as { data?: RawOrder } | RawOrder;
+    const raw: RawOrder = (wrapped as { data?: RawOrder }).data ?? (wrapped as RawOrder);
+    const normalized: LaboratoryOrder = {
+      id: raw.id,
+      order_number: raw.order_number,
+      order_id: raw.order_id,
+      sale_id: raw.sale_id,
+      laboratory_id: raw.laboratory_id,
+      patient_id: raw.patient_id,
+      status: raw.status,
+      priority: raw.priority,
+      estimated_completion_date: raw.estimated_completion_date ?? null,
+      completion_date: raw.completion_date ?? null,
+      notes: raw.notes ?? null,
+      created_by: raw.created_by,
+      created_at: raw.created_at,
+      updated_at: raw.updated_at,
+      laboratory: raw.laboratory,
+      patient: raw.patient,
+      order: raw.order,
+      sale: raw.sale,
+      createdBy: raw.created_by_user ?? undefined,
+      statusHistory: raw.status_history as any,
+      pdf_token: raw.pdf_token,
+      guest_pdf_url: raw.guest_pdf_url,
+    };
+    return normalized;
   },
 
   /**
@@ -242,7 +299,7 @@ const laboratoryOrderService = {
    */
   async getLaboratoryOrderStats() {
     const response = await api.get('/api/v1/laboratory-orders/stats');
-    return response.data as LaboratoryOrderStats;
+    return (response.data?.data ?? response.data) as LaboratoryOrderStats;
   },
 
   /**

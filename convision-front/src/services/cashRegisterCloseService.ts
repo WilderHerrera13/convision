@@ -1,8 +1,8 @@
 import api from '@/lib/axios';
 
+/** Declaración del asesor por medio de pago (sin valor de sistema). */
 export interface PaymentMethodEntry {
   name: string;
-  registered_amount: number;
   counted_amount: number;
 }
 
@@ -11,18 +11,66 @@ export interface DenominationEntry {
   quantity: number;
 }
 
+/** Solo en respuestas autenticadas como admin (API no lo envía a asesor/recepción). */
+export interface CashCloseReconciliationTotals {
+  advisor_total: number;
+  admin_total: number | null;
+  variance_total: number | null;
+}
+
+export interface CashCloseReconciliationRow {
+  name: string;
+  advisor_counted: number;
+  admin_actual: number;
+  variance: number;
+}
+
+export interface CashCloseReconciliation {
+  totals: CashCloseReconciliationTotals;
+  recorded_at: string | null;
+  payment_methods: CashCloseReconciliationRow[] | null;
+}
+
 export interface CashClose {
   id: number;
   close_date: string;
   status: 'draft' | 'submitted' | 'approved';
+  user?: { id: number; name: string; last_name?: string | null };
   payment_methods: PaymentMethodEntry[];
   denominations?: DenominationEntry[];
-  total_registered: number;
   total_counted: number;
-  total_difference: number;
   admin_notes?: string;
+  /** Totales reales ingresados por admin (contabilidad manual). */
+  total_actual_amount?: number | null;
+  admin_actuals_recorded_at?: string | null;
+  reconciliation?: CashCloseReconciliation;
+  approved_by?: { id: number; name: string };
+  approved_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PutAdminActualsPayload {
+  actual_payment_methods: { name: string; actual_amount: number }[];
+}
+
+export interface AdvisorPendingClose {
+  id: number;
+  close_date: string;
+  status: 'draft' | 'submitted' | 'approved';
+  total_counted: number;
+}
+
+export interface AdvisorPendingGroup {
+  user_id: number;
+  user_name: string;
+  pending_count: number;
+  close_dates: string[];
+  total_today: number;
+  total_yesterday: number | null;
+  accumulated_variance: number | null;
+  latest_status: 'draft' | 'submitted' | 'approved';
+  closes: AdvisorPendingClose[];
 }
 
 export interface CreateCashClosePayload {
@@ -82,6 +130,22 @@ const cashRegisterCloseService = {
   approve: async (id: number, admin_notes?: string) => {
     const response = await api.post(`/api/v1/cash-register-closes/${id}/approve`, { admin_notes });
     return response.data;
+  },
+
+  returnToDraft: async (id: number, admin_notes?: string) => {
+    const response = await api.post(`/api/v1/cash-register-closes/${id}/return`, { admin_notes });
+    return response.data;
+  },
+
+  /** Totales reales por medio de pago (solo rol admin). */
+  putAdminActuals: async (id: number, data: PutAdminActualsPayload) => {
+    const response = await api.put(`/api/v1/cash-register-closes/${id}/admin-actuals`, data);
+    return response.data;
+  },
+
+  listAdvisorsWithPending: async (): Promise<AdvisorPendingGroup[]> => {
+    const response = await api.get('/api/v1/cash-register-closes-advisors-pending');
+    return response.data?.data ?? [];
   },
 };
 

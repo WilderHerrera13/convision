@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -73,6 +73,13 @@ export type DataTableColumnDef<T = any> = {
   statusLabels?: Record<string, string>;
   actions?: ActionItem[];
   className?: string;
+  /** Clases extra en la celda de cabecera (ledger: alineación o peso distinto al cuerpo). */
+  headerClassName?: string;
+  moneyFormat?: {
+    currency?: string;
+    minimumFractionDigits?: number;
+    maximumFractionDigits?: number;
+  };
 };
 
 export type DataTableProps<T = any> = {
@@ -107,6 +114,7 @@ export type DataTableProps<T = any> = {
   emptyState?: {
     message: string;
   };
+  emptyStateContent?: React.ReactNode;
   // Loading state
   loadingMessage?: string;
   loadingState?: {
@@ -121,6 +129,22 @@ export type DataTableProps<T = any> = {
   onShowFilters?: () => void;
   enableSorting?: boolean;
   className?: string;
+  /** Tablas tipo listado admin: cabecera gris y filas tipo ledger. */
+  tableLayout?: 'default' | 'ledger';
+  /**
+   * `grid`: celdas con bordes verticales (listados caja).
+   * `figma`: solo líneas horizontales (#e5e5e9), sin rejilla vertical — DS `780:1162`.
+   */
+  ledgerBorderMode?: 'grid' | 'figma';
+  /** Clases en `<table>` (p. ej. `table-fixed min-w-[1120px]`). */
+  tableClassName?: string;
+  /** Texto izquierda del footer de paginación (ej. Mostrando 1–10 de 47 resultados) */
+  paginationSummary?: { from: number; to: number; total: number } | null;
+  paginationVariant?: 'default' | 'figma';
+  /** Nombre accesible de la tabla para lectores de pantalla */
+  tableAriaLabel?: string;
+  /** Contenedor con scroll vertical alrededor de la tabla (listados tipo Figma con altura fija). */
+  tableScrollClassName?: string;
 };
 
 const DataTable = <T extends Record<string, any>>({
@@ -146,6 +170,7 @@ const DataTable = <T extends Record<string, any>>({
   // Empty state
   emptyMessage,
   emptyState = { message: emptyMessage || "No se encontraron elementos" },
+  emptyStateContent,
   // Loading state
   loadingMessage,
   loadingState = { message: loadingMessage || "Cargando..." },
@@ -155,6 +180,13 @@ const DataTable = <T extends Record<string, any>>({
   onShowFilters,
   enableSorting = true,
   className = "",
+  tableLayout = 'default',
+  paginationSummary = null,
+  paginationVariant = 'default',
+  tableAriaLabel,
+  tableScrollClassName,
+  ledgerBorderMode = 'grid',
+  tableClassName,
 }: DataTableProps<T>) => {
   // Use either loading or isLoading for backward compatibility
   const isLoadingData = isLoading !== undefined ? isLoading : loading;
@@ -194,8 +226,7 @@ const DataTable = <T extends Record<string, any>>({
       
       // Handle different cell rendering patterns
       if (column.cell) {
-        // This is for cells that expect the @tanstack/react-table format with { row }
-        baseColumn.cell = (props: any) => column.cell?.(props);
+        baseColumn.cell = ({ row }: any) => column.cell?.(row.original);
       } else {
         // Default cell rendering using our renderCellContent function
         baseColumn.cell = ({ row }: any) => renderCellContent(row.original, column);
@@ -204,6 +235,11 @@ const DataTable = <T extends Record<string, any>>({
       return baseColumn as ColumnDef<T>;
     });
   }, [columns, enableSorting]);
+
+  const isLedger = tableLayout === 'ledger';
+  const ledgerFigma = isLedger && ledgerBorderMode === 'figma';
+  /** Contenedor ancho completo; tabla + pie de paginación comparten el mismo ancho que el card. */
+  const ledgerFigmaShellClass = ledgerFigma ? 'w-full' : '';
 
   const table = useReactTable({
     data,
@@ -238,39 +274,27 @@ const DataTable = <T extends Record<string, any>>({
     }
   };
 
-  // Enhanced cell rendering with debugging
   const renderCellContent = (row: T, column: DataTableColumnDef<T>) => {
     // Get value using accessorKey or accessorFn
     let value;
     
-    // Extra debug for nested accessor keys
     if (column.accessorKey && column.accessorKey.includes('.')) {
-      console.log(`Debug - DataTable: nested accessorKey "${column.accessorKey}" for row:`, row);
-      
-      // Handle nested object paths manually
       const parts = column.accessorKey.split('.');
       let current: any = row;
-      
       for (const part of parts) {
         if (current && current[part] !== undefined) {
           current = current[part];
         } else {
-          console.log(`Debug - DataTable: path segment "${part}" not found in object:`, current);
           current = undefined;
           break;
         }
       }
-      
       value = current;
-      console.log(`Debug - DataTable: resolved nested value for "${column.accessorKey}":`, value);
     } else if (column.accessorKey) {
       value = row[column.accessorKey];
     } else if (column.accessorFn) {
       value = column.accessorFn(row);
     }
-    
-    // Add debug for the value before rendering
-    console.log(`Debug - DataTable: cell value for column "${column.id}" type "${column.type}":`, value);
 
     // If column has custom cell renderer
     if (column.cell) {
@@ -293,10 +317,14 @@ const DataTable = <T extends Record<string, any>>({
         }
       }
       
-      case 'money':
-        return value !== undefined && value !== null 
-          ? formatCurrency(Number(value)) 
-          : '—';
+      case 'money': {
+        if (value === undefined || value === null) return '—';
+        const mf = column.moneyFormat;
+        return formatCurrency(Number(value), mf?.currency ?? 'COP', {
+          minimumFractionDigits: mf?.minimumFractionDigits ?? 0,
+          maximumFractionDigits: mf?.maximumFractionDigits ?? 2,
+        });
+      }
       
       case 'boolean':
         return value ? 'Sí' : 'No';
@@ -355,7 +383,13 @@ const DataTable = <T extends Record<string, any>>({
   const isSearchEnabled = searchable || enableSearch;
 
   return (
-    <Card className={className}>
+    <Card
+      className={
+        isLedger
+          ? `${className} overflow-hidden rounded-lg border border-[#e5e5e9] shadow-[0px_2px_8px_0px_rgba(0,0,0,0.04)]`
+          : className
+      }
+    >
       {(title || description || isSearchEnabled || addNewButton) && (
         <CardHeader className={`${(isSearchEnabled || addNewButton) ? 'flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0' : ''}`}>
           <div>
@@ -415,14 +449,32 @@ const DataTable = <T extends Record<string, any>>({
       )}
       
       <CardContent className="p-0">
-        <Table className="w-full">
+        <div className={cn(ledgerFigmaShellClass, tableScrollClassName)}>
+        <Table className={cn('w-full', tableClassName)} aria-label={tableAriaLabel}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted">
-                {headerGroup.headers.map((header) => (
+              <TableRow
+                key={headerGroup.id}
+                className={
+                  isLedger
+                    ? 'border-0 bg-[#f5f5f6] hover:bg-[#f5f5f6]'
+                    : 'bg-muted/50 hover:bg-muted'
+                }
+              >
+                {headerGroup.headers.map((header) => {
+                  const col = columns.find((c) => c.id === header.column.id);
+                  return (
                   <TableHead
                     key={header.id}
-                    className={`py-3 px-4 text-sm font-medium text-muted-foreground ${columns.find(col => col.id === header.id)?.className || ''}`}
+                    className={cn(
+                      isLedger && ledgerFigma &&
+                        'h-9 border-b border-[#e5e5e9] px-3 py-0 text-left text-[11px] font-semibold text-[#7d7d87]',
+                      isLedger && !ledgerFigma &&
+                        'h-9 border-b border-r border-[#dcdce0] px-3 py-0 text-left text-[11px] font-semibold text-[#7d7d87] last:border-r-0',
+                      !isLedger && 'py-3 px-4 text-sm font-medium text-muted-foreground',
+                      col?.className,
+                      col?.headerClassName,
+                    )}
                   >
                     {header.isPlaceholder
                       ? null
@@ -431,16 +483,17 @@ const DataTable = <T extends Record<string, any>>({
                           header.getContext()
                         )}
                   </TableHead>
-                ))}
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {isLoadingData ? (
               Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={`loading-${index}`}>
-                  {columns.map((column) => (
-                    <TableCell key={`loading-${index}-${column.id}`} className="py-2 px-4">
+                <TableRow key={`loading-row-${index}`}>
+                  {columns.map((column, colIdx) => (
+                    <TableCell key={`loading-${index}-${column.id ?? column.accessorKey ?? colIdx}`} className="py-2 px-4">
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
                   ))}
@@ -453,21 +506,41 @@ const DataTable = <T extends Record<string, any>>({
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {emptyState.message}
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columns.length} className="p-0">
+                  {emptyStateContent ?? (
+                    <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                      {emptyState.message}
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, rowIndex) => (
                 <TableRow 
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   onClick={() => onRowClick && onRowClick(row.original as T)}
-                  className={`${onRowClick ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                  className={
+                    isLedger && ledgerFigma
+                      ? `border-0 bg-white ${onRowClick ? 'cursor-pointer hover:bg-[#f5f5f7]' : ''}`
+                      : isLedger
+                        ? `border-0 ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#f5f5f7]'} ${onRowClick ? 'cursor-pointer hover:bg-[#ebebef]' : ''}`
+                        : `${onRowClick ? 'cursor-pointer hover:bg-muted/50' : ''}`
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className={`py-3 px-4 ${columns.find(col => col.id === cell.column.id)?.className || ''}`}>
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        isLedger && ledgerFigma &&
+                          'h-12 border-b border-[#e5e5e9] px-3 py-0 align-middle text-[13px]',
+                        isLedger && !ledgerFigma &&
+                          'h-12 border-b border-r border-[#dcdce0] px-3 py-0 align-middle text-[13px] last:border-r-0',
+                        !isLedger && 'py-3 px-4',
+                        columns.find((col) => col.id === cell.column.id)?.className,
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -476,17 +549,48 @@ const DataTable = <T extends Record<string, any>>({
             )}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
       
       {paginationEnabled && handlePageChange && (
-        <CardFooter className="flex items-center justify-between pt-4">
-          <div className="text-sm text-muted-foreground">
-            Página {currentPageValue} de {totalPagesValue}
+        <CardFooter
+          className={
+            isLedger
+              ? cn(
+                  'flex h-12 items-center justify-between border-t border-[#e5e5e9] bg-white px-5 py-0',
+                  ledgerFigmaShellClass,
+                )
+              : 'flex items-center justify-between pt-4'
+          }
+        >
+          <div
+            className={
+              isLedger
+                ? 'flex flex-wrap items-center gap-1.5 text-[12px] text-[#7d7d87]'
+                : 'text-sm text-muted-foreground'
+            }
+          >
+            {paginationSummary ? (
+              paginationSummary.total === 0 ? (
+                <span>Sin resultados</span>
+              ) : (
+                <>
+                  <span>Mostrando</span>
+                  <span className="rounded bg-[#f5f5f6] px-1.5 py-0.5 text-[12px] font-semibold text-[#121215]">
+                    {paginationSummary.from}–{paginationSummary.to}
+                  </span>
+                  <span>de {paginationSummary.total} resultados</span>
+                </>
+              )
+            ) : (
+              <>Página {currentPageValue} de {totalPagesValue}</>
+            )}
           </div>
           <Pagination
             currentPage={currentPageValue}
             totalPages={totalPagesValue}
             onPageChange={handlePageChange}
+            variant={paginationVariant}
           />
         </CardFooter>
       )}

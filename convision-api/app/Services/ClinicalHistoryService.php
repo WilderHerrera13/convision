@@ -77,17 +77,32 @@ class ClinicalHistoryService
     public function getPatientHistory(int $patientId, User $user): ?ClinicalHistory
     {
         $query = ClinicalHistory::where('patient_id', $patientId);
-        
+
         if ($user->role !== 'admin') {
             $canAccessPatient = $user->appointments()
                 ->where('patient_id', $patientId)
                 ->exists();
-            
+
             if (!$canAccessPatient) {
                 return null;
             }
         }
-        
+
         return $query->first();
+    }
+
+    public function getPatientHistoryResult(int $patientId, User $user): ClinicalHistory|string|null
+    {
+        if ($user->role !== 'admin') {
+            $canAccessPatient = $user->appointments()
+                ->where('patient_id', $patientId)
+                ->exists();
+
+            if (!$canAccessPatient) {
+                return 'forbidden';
+            }
+        }
+
+        return ClinicalHistory::where('patient_id', $patientId)->first();
     }
 } 

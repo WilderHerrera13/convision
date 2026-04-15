@@ -30,7 +30,7 @@ return new class extends Migration
             $table->decimal('total_deductions', 15, 2)->default(0);
             $table->decimal('net_salary', 15, 2);
             $table->date('payment_date')->nullable();
-            $table->foreignId('payment_method_id')->nullable()->constrained('payment_methods')->onDelete('set null');
+            $table->unsignedBigInteger('payment_method_id')->nullable();
             $table->string('reference')->nullable();
             $table->text('notes')->nullable();
             $table->enum('status', ['pending', 'paid', 'cancelled'])->default('pending');
