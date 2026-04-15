@@ -57,8 +57,6 @@ services:
     volumes:
       - ../convision-api:/var/www/html
       - /var/www/html/vendor
-    env_file:
-      - ../convision-api/.env.docker
     networks:
       - convision_network
     ports:
