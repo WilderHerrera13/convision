@@ -39,8 +39,20 @@ php artisan test tests/Feature/YourTest.php
 # Refresh database with seeders
 php artisan migrate:fresh --seed
 
-# Docker (MySQL + PHPMyAdmin on port 8080)
-docker-compose up -d
+# Docker — stack completo (MySQL + API + Frontend + phpMyAdmin)
+# Desde la raíz del proyecto:
+cp convision-api/.env.docker.example convision-api/.env.docker
+docker compose -f docker/docker-compose.yml up -d
+
+# Apple Silicon (M1/M2/M3):
+DOCKER_PLATFORM=linux/arm64/v8 docker compose -f docker/docker-compose.yml up -d
+
+# URLs:
+#   Frontend:    http://localhost:4300
+#   API:         http://localhost:8000
+#   phpMyAdmin:  http://localhost:8080
+#
+# La primera vez instala deps, corre migraciones y seeds automáticamente.
 ```
 
 ### Frontend (`convision-front/`)
