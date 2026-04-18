@@ -88,15 +88,18 @@ func (r *PrescriptionRepository) List(filters map[string]any, page, perPage int)
 }
 
 func (r *PrescriptionRepository) ListByPatientID(patientID uint, page, perPage int) ([]*domain.Prescription, int64, error) {
+	// Build base query for counting
 	q := r.db.Model(&domain.Prescription{}).
 		Joins("JOIN appointments ON appointments.id = prescriptions.appointment_id").
 		Where("appointments.patient_id = ?", patientID)
 
+	// Count total BEFORE applying select/preload
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// Now apply relations and select for fetch
 	var prescriptions []*domain.Prescription
 	offset := (page - 1) * perPage
 	err := r.withRelations(q).
