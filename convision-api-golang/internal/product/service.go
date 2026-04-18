@@ -48,7 +48,7 @@ func clampPage(page, perPage int) (int, int) {
 // CreateInput holds validated fields for creating a product.
 type CreateInput struct {
 	InternalCode      string  `json:"internal_code"`
-	Identifier        string  `json:"identifier"          binding:"required"`
+	Identifier        string  `json:"identifier"          binding:"omitempty"`
 	Description       string  `json:"description"`
 	Cost              float64 `json:"cost"`
 	Price             float64 `json:"price"               binding:"required"`

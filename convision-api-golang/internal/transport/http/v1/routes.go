@@ -234,6 +234,16 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			productCategories.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteProductCategory)
 		}
 
+		// Alias: categories → product-categories (GOQA-008)
+		categories := protected.Group("/categories")
+		{
+			categories.GET("", h.ListProductCategories)
+			categories.GET("/:id", h.GetProductCategory)
+			categories.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProductCategory)
+			categories.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProductCategory)
+			categories.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteProductCategory)
+		}
+
 		// Products — read: all; write: admin only
 		products := protected.Group("/products")
 		{
@@ -282,9 +292,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			inventoryItems.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteInventoryItem)
 		}
 
-		// Inventory summary
+		// Inventory summary and operations (GOQA-010)
 		inventoryGroup := protected.Group("/inventory")
 		{
+			inventoryGroup.GET("", h.ListInventoryItems)
+			inventoryGroup.POST("/adjust", jwtauth.RequireRole(domain.RoleAdmin), h.AdjustInventory)
 			inventoryGroup.GET("/total-stock", h.GetTotalStock)
 		}
 
@@ -316,7 +328,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			discountRequests.POST("/:id/reject", jwtauth.RequireRole(domain.RoleAdmin), h.RejectDiscountRequest)
 		}
 
-		// Active discounts query
+		// Discounts — read: all; best discount lookup (GOQA-011)
+		discounts := protected.Group("/discounts")
+		{
+			discounts.GET("", h.ListActiveDiscounts)
+			discounts.GET("/best", h.GetBestDiscount)
+		}
+
+		// Active discounts query (legacy)
 		protected.GET("/active-discounts", h.ListActiveDiscounts)
 
 		// Quotes — admin and receptionist

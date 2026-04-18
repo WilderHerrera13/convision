@@ -343,3 +343,23 @@ func (h *Handler) DeleteInventoryTransfer(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// ======== Inventory Adjustments ========
+
+func (h *Handler) AdjustInventory(c *gin.Context) {
+	var input struct {
+		ProductID uint  `json:"product_id" binding:"required"`
+		Quantity  int64 `json:"quantity" binding:"required"`
+		Reason    string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+	result, err := h.inventory.AdjustStock(input.ProductID, input.Quantity, input.Reason)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}

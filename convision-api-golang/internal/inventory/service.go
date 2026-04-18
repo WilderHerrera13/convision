@@ -456,3 +456,35 @@ func (s *Service) DeleteTransfer(id uint) error {
 	}
 	return s.transferRepo.Delete(id)
 }
+
+// AdjustStock adjusts inventory stock for a product (GOQA-010)
+func (s *Service) AdjustStock(productID uint, quantity int64, reason string) (interface{}, error) {
+	// Get all inventory items for the product
+	filters := map[string]any{"product_id": productID}
+	items, _, err := s.itemRepo.List(filters, 1, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) == 0 {
+		return nil, &domain.ErrNotFound{Resource: "inventory item for product"}
+	}
+
+	// Adjust the first item (usually there's only one per product)
+	item := items[0]
+	item.Quantity += int(quantity)
+	if item.Quantity < 0 {
+		return nil, &domain.ErrValidation{Field: "quantity", Message: "cannot have negative stock"}
+	}
+
+	if err := s.itemRepo.Update(item); err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"product_id": productID,
+		"adjustment": quantity,
+		"new_quantity": item.Quantity,
+		"reason": reason,
+	}, nil
+}

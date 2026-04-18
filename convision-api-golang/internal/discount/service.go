@@ -190,3 +190,29 @@ func (s *Service) ListActive(productID, patientID *uint) ([]*domain.DiscountRequ
 	}
 	return s.repo.GetActiveForProduct(*productID)
 }
+
+// GetBestDiscount returns the highest applicable discount for a product/lens (GOQA-011)
+func (s *Service) GetBestDiscount(lensID, patientID *uint) (*domain.DiscountRequest, error) {
+	if lensID == nil {
+		return nil, nil
+	}
+	// Get all active discounts for the product
+	discounts, err := s.repo.GetActiveForProduct(*lensID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(discounts) == 0 {
+		return nil, nil
+	}
+
+	// Find the highest discount percentage
+	best := discounts[0]
+	for _, d := range discounts[1:] {
+		if d.DiscountPercentage > best.DiscountPercentage {
+			best = d
+		}
+	}
+
+	return best, nil
+}

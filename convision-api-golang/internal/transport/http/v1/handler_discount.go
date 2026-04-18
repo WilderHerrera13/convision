@@ -148,3 +148,39 @@ func (h *Handler) ListActiveDiscounts(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": discounts})
 }
+
+// GetBestDiscount returns the best (highest) applicable discount for a lens/product (GOQA-011)
+func (h *Handler) GetBestDiscount(c *gin.Context) {
+	var lensID *uint
+	var patientID *uint
+
+	if v := c.Query("lens_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			uid := uint(id)
+			lensID = &uid
+		}
+	}
+
+	if v := c.Query("patient_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			uid := uint(id)
+			patientID = &uid
+		}
+	}
+
+	// Get the best discount (highest percentage)
+	bestDiscount, err := h.discount.GetBestDiscount(lensID, patientID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	if bestDiscount == nil {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"discount_percentage": bestDiscount.DiscountPercentage,
+	})
+}
