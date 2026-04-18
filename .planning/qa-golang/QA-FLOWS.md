@@ -117,15 +117,15 @@
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
 | F-080 | Listar ventas | GET | `/api/v1/sales` | ✅ | paginación plana (sin meta) — saleService.getSales() lee root, OK |
-| F-081 | Crear venta | POST | `/api/v1/sales` | ❌ | HTTP 201 pero response raw Sale en vez de {message,sale,pdf_url} (GOQA-016) |
-| F-082 | Obtener venta | GET | `/api/v1/sales/:id` | ❌ | HTTP 200 pero sin wrapper {data:} — getSale() retorna undefined (GOQA-015); faltan payments[],partialPayments[],laboratoryOrders[] (GOQA-020) |
-| F-083 | PDF venta (token) | GET | `/api/v1/sales/:id/pdf-token` | ❌ | HTTP 200 pero {guest_pdf_url,pdf_token} en vez de {data:{token,url}} (GOQA-017) |
+| F-081 | Crear venta | POST | `/api/v1/sales` | ✅ | GOQA-016 resuelto — HTTP 201 con wrapper {message,sale,pdf_url,pdf_token} |
+| F-082 | Obtener venta | GET | `/api/v1/sales/:id` | ✅ | GOQA-015, GOQA-020 resueltos — HTTP 200 con {data: {...}} + payments[], laboratoryOrders[] |
+| F-083 | PDF venta (token) | GET | `/api/v1/sales/:id/pdf-token` | ✅ | GOQA-017 resuelto — HTTP 200 con {data: {token, url}} |
 | F-084 | PDF venta (guest) | GET | `/api/v1/guest/sales/:id/pdf?token=...` | ✅ | HTTP 403 con token inválido — correcto |
 | F-085 | Listar cotizaciones | GET | `/api/v1/quotes` | ✅ | paginación plana — quoteService.getQuotes() lee root, OK |
-| F-086 | Crear cotización | POST | `/api/v1/quotes` | ❌ | HTTP 422 si expiration_date es YYYY-MM-DD (front envía ese formato) — necesita RFC3339 (GOQA-018); además response shape incorrecto (GOQA-019) |
+| F-086 | Crear cotización | POST | `/api/v1/quotes` | ✅ | GOQA-018, GOQA-019 resueltos — HTTP 201 con expiration_date string + wrapper {message,quote,pdf_url,pdf_token} |
 | F-087 | Convertir cotización a venta | POST | `/api/v1/quotes/:id/convert` | ✅ | HTTP 201, devuelve Sale; quoteService.convertToSale() lee response.data, OK |
-| F-088 | PDF cotización (guest) | GET | `/api/v1/guest/quotes/:id/pdf?token=...` | 🟡 | Endpoint existe (403 con token inválido); /quotes/:id/pdf-token → 404 → sin forma de obtener token válido (GOQA-022) |
-| F-089 | Shape saleService vs response | — | comparación campos | ❌ | discount_amount/tax_amount en quotes (GOQA-021); wrappers y campos faltantes (ver GOQA-015,016,017,020) |
+| F-088 | PDF cotización (guest) | GET | `/api/v1/guest/quotes/:id/pdf?token=...` | ✅ | GOQA-022 resuelto — /quotes/:id/pdf-token existe con {data: {token, url}} |
+| F-089 | Shape saleService vs response | — | comparación campos | ✅ | GOQA-021 resuelto — quote.tax/discount (no tax_amount/discount_amount); todos los wrappers OK |
 
 ---
 
@@ -391,8 +391,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** GET /api/v1/sales/:id
 - **Esperado:** `{"data": <Sale>}` — `saleService.getSale()` hace `return response.data.data as Sale`
-- **Observado:** Respuesta es el objeto Sale directamente (sin wrapper `data`). `response.data.data` = `undefined`. El componente de detalle de venta nunca recibe datos.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — Respuesta correcta: `{"data": {...}}`. Handler devuelve `c.JSON(http.StatusOK, gin.H{"data": s})`
+- **Estado:** resuelto
 
 ---
 
@@ -402,8 +402,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** POST /api/v1/sales
 - **Esperado:** `{"message":"...","sale":<Sale>,"pdf_url":"...","pdf_token":"..."}` — `saleService.createSale()` castea `response.data as SaleResponse`
-- **Observado:** HTTP 201, pero response es el objeto Sale directamente. `response.data.sale` = `undefined`, `response.data.pdf_token` = `undefined`. El flujo de creación de venta no obtiene la venta ni el PDF.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — HTTP 201 con respuesta correcta: `{"message", "sale", "pdf_url", "pdf_token"}`. Handler CreateSale genera pdf_token y devuelve wrapper correcto.
+- **Estado:** resuelto
 
 ---
 
@@ -413,8 +413,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** GET /api/v1/sales/:id/pdf-token
 - **Esperado:** `{"data": {"token":"...","url":"..."}}` — `saleService.getPdfToken()` hace `return response.data.data` (espera `{token, url}`)
-- **Observado:** `{"guest_pdf_url":"/api/v1/sales/11/pdf?token=...","pdf_token":"..."}` — (1) sin wrapper `data`; (2) campo `token` se llama `pdf_token`; (3) campo `url` se llama `guest_pdf_url`. `downloadSalePdfSecure()` falla silenciosamente.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — HTTP 200 con respuesta correcta: `{"data": {"token": "...", "url": "..."}}`. Handler GetSalePdfToken mapea pdf_token→token y guest_pdf_url→url.
+- **Estado:** resuelto
 
 ---
 
@@ -424,8 +424,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** POST /api/v1/quotes
 - **Esperado:** Acepta `expiration_date` en formato `YYYY-MM-DD` (el front envía `"2026-05-31"` — tipo `string` en `CreateQuoteRequest`)
-- **Observado:** HTTP 422: `"parsing time \"2026-05-31\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"\" as \"T\""`. Go API requiere RFC3339 completo. Toda cotización creada desde el front falla con 422.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — HTTP 201 con formato correcto. quote/service.go: CreateInput.ExpirationDate es `string`, parseado con `time.Parse("2006-01-02", input.ExpirationDate)`.
+- **Estado:** resuelto
 
 ---
 
@@ -435,8 +435,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** POST /api/v1/quotes
 - **Esperado:** `{"message":"...","quote":<Quote>,"pdf_url":"...","pdf_token":"..."}` — `quoteService.createQuote()` castea `response.data as QuoteResponse`
-- **Observado:** Response es el objeto Quote directamente. `response.data.quote` = `undefined`. (Solo aplica cuando se arregle GOQA-018 y llegue a 201.)
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — HTTP 201 con respuesta correcta: `{"message", "quote", "pdf_url", "pdf_token"}`. Handler CreateQuote genera pdf_token y devuelve wrapper.
+- **Estado:** resuelto
 
 ---
 
@@ -446,8 +446,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/sales/:id
 - **Esperado:** Sale incluye `payments: Payment[]`, `partialPayments: PartialPayment[]`, `laboratoryOrders: LaboratoryOrder[]`
-- **Observado:** Ninguno de esos campos está presente en el response del Go API. El componente `SaleDetail` intentará hacer `.map()` sobre `undefined` → crash en runtime. También `createdBy` (front) vs `created_by_user` (Go API).
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — Todos los campos están presentes como arrays. domain/sale.go incluye Payments, PartialPayments, LaboratoryOrders con json tags correctos. sale_repository.go usa Preload para cargar relaciones.
+- **Estado:** resuelto
 
 ---
 
@@ -457,8 +457,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET/POST /api/v1/quotes, GET /api/v1/quotes/:id
 - **Esperado:** `Quote.discount` y `Quote.tax` (interfaz TypeScript del front)
-- **Observado:** Go API devuelve `discount_amount` y `tax_amount` en su lugar. Cualquier componente que lea `quote.discount` o `quote.tax` recibirá `undefined`. Cálculos de totales mostrarán `NaN` o `0`.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — domain/quote.go usa json tags correctos: `TaxAmount` → `json:"tax"`, `DiscountAmount` → `json:"discount"`. Response devuelve campos con nombres correctos.
+- **Estado:** resuelto
 
 ---
 
@@ -468,8 +468,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/quotes/:id/pdf-token
 - **Esperado:** Endpoint análogo a `/api/v1/sales/:id/pdf-token` para obtener token de descarga de PDF de cotización
-- **Observado:** `404 page not found` — el endpoint no existe. `quoteService.downloadQuotePdfWithToken()` depende de tener un `pdf_token` en el objeto Quote (que tampoco está presente). Sin token, el botón de descargar PDF de cotización no funciona.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — HTTP 200 con respuesta correcta: `{"data": {"token": "...", "url": "..."}}`. Handler GetQuotePdfToken existe en handler_quote.go y está registrado en routes.go.
+- **Estado:** resuelto
 
 ---
 
