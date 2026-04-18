@@ -28,7 +28,7 @@ func NewSupplierRepository(db *gorm.DB) *SupplierRepository {
 
 func (r *SupplierRepository) GetByID(id uint) (*domain.Supplier, error) {
 	var s domain.Supplier
-	err := r.db.First(&s, id).Error
+	err := r.db.Preload("City").First(&s, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "supplier"}
@@ -88,7 +88,8 @@ func (r *SupplierRepository) List(filters map[string]any, page, perPage int) ([]
 	}
 
 	offset := (page - 1) * perPage
-	err := q.Select("id, name, legal_name, nit, legal_representative, person_type, address, phone, email, state, country, postal_code, website, notes, created_at, updated_at").
+	err := q.Preload("City").
+		Select("id, name, legal_name, nit, legal_representative, person_type, address, phone, email, state, country, postal_code, website, notes, city_id, created_at, updated_at").
 		Order("id DESC").
 		Limit(perPage).Offset(offset).
 		Find(&suppliers).Error
