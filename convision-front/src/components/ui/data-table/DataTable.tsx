@@ -37,9 +37,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { cn, formatCurrency, formatDate, formatDateTime12h } from '@/lib/utils';
+import { parseISO } from 'date-fns';
 import {
   ColumnDef,
   flexRender,
@@ -145,6 +144,8 @@ export type DataTableProps<T = any> = {
   tableAriaLabel?: string;
   /** Contenedor con scroll vertical alrededor de la tabla (listados tipo Figma con altura fija). */
   tableScrollClassName?: string;
+  /** Barra superior dentro del card (solo listados `ledger`, p. ej. toolbar Figma). */
+  ledgerToolbar?: React.ReactNode;
 };
 
 const DataTable = <T extends Record<string, any>>({
@@ -187,6 +188,7 @@ const DataTable = <T extends Record<string, any>>({
   tableScrollClassName,
   ledgerBorderMode = 'grid',
   tableClassName,
+  ledgerToolbar,
 }: DataTableProps<T>) => {
   // Use either loading or isLoading for backward compatibility
   const isLoadingData = isLoading !== undefined ? isLoading : loading;
@@ -310,7 +312,7 @@ const DataTable = <T extends Record<string, any>>({
         try {
           if (!value) return '—';
           const date = typeof value === 'string' ? parseISO(value) : new Date(value);
-          return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
+          return formatDateTime12h(date);
         } catch (error) {
           console.error('Error formatting datetime:', error);
           return '—';
@@ -386,10 +388,11 @@ const DataTable = <T extends Record<string, any>>({
     <Card
       className={
         isLedger
-          ? `${className} overflow-hidden rounded-lg border border-[#e5e5e9] shadow-[0px_2px_8px_0px_rgba(0,0,0,0.04)]`
+          ? `${className} w-full overflow-hidden rounded-lg border border-[#e5e5e9] shadow-[0px_2px_8px_0px_rgba(0,0,0,0.04)]`
           : className
       }
     >
+      {isLedger && ledgerToolbar ? <div className="w-full shrink-0">{ledgerToolbar}</div> : null}
       {(title || description || isSearchEnabled || addNewButton) && (
         <CardHeader className={`${(isSearchEnabled || addNewButton) ? 'flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0' : ''}`}>
           <div>
@@ -572,7 +575,13 @@ const DataTable = <T extends Record<string, any>>({
           >
             {paginationSummary ? (
               paginationSummary.total === 0 ? (
-                <span>Sin resultados</span>
+                <>
+                  <span>Mostrando</span>
+                  <span className="rounded bg-[#f5f5f6] px-1.5 py-0.5 text-[12px] font-semibold text-[#121215]">
+                    0–0
+                  </span>
+                  <span>de 0 resultados</span>
+                </>
               ) : (
                 <>
                   <span>Mostrando</span>

@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\SaleLensPriceAdjustmentController;
 use App\Http\Controllers\Api\V1\SupplierPayableController;
 use App\Http\Controllers\Api\V1\DailyActivityReportController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\AdminNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +76,17 @@ Route::prefix('v1')->group(function () {
     // Dashboard routes
     Route::middleware('auth:api')->group(function () {
         Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+    });
+
+    Route::middleware(['auth:api', 'role:admin'])->prefix('admin/notifications')->group(function () {
+        Route::get('/', [AdminNotificationController::class, 'index']);
+        Route::get('summary', [AdminNotificationController::class, 'summary']);
+        Route::patch('read-all', [AdminNotificationController::class, 'markAllRead']);
+        Route::patch('{notification}/read', [AdminNotificationController::class, 'markRead']);
+        Route::patch('{notification}/unread', [AdminNotificationController::class, 'markUnread']);
+        Route::patch('{notification}/archive', [AdminNotificationController::class, 'archive']);
+        Route::patch('{notification}/unarchive', [AdminNotificationController::class, 'unarchive']);
+        Route::delete('{notification}', [AdminNotificationController::class, 'destroy']);
     });
 
     // User routes
@@ -355,6 +367,8 @@ Route::prefix('v1')->group(function () {
         Route::put('cash-register-closes/{id}/admin-actuals', [CashRegisterCloseController::class, 'putAdminActuals'])
             ->middleware('role:admin');
         Route::get('cash-register-closes-advisors-pending', [CashRegisterCloseController::class, 'advisorsPending'])
+            ->middleware('role:admin');
+        Route::get('cash-register-closes-calendar', [CashRegisterCloseController::class, 'calendarForAdvisor'])
             ->middleware('role:admin');
     });
 

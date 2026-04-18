@@ -21,14 +21,40 @@ export interface PaginatedLaboratoriesResponse {
   total: number;
 }
 
+export type PaginatedLaboratoriesTable = {
+  data: Laboratory[];
+  last_page: number;
+  total: number;
+};
+
 export const laboratoryService = {
-  /**
-   * Obtener todos los laboratorios con paginación
-   * @param page Número de página
-   * @param perPage Elementos por página
-   * @param filters Filtros adicionales (estado, búsqueda, etc.)
-   * @returns Laboratorios paginados
-   */
+  async getLaboratoriesTable(params: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+  }): Promise<PaginatedLaboratoriesTable> {
+    const page = params.page ?? 1;
+    const per_page = params.per_page ?? 10;
+    const query: Record<string, string | number> = {
+      page,
+      per_page,
+      sort: 'name,asc',
+    };
+    const t = params.search?.trim();
+    if (t) {
+      query.s_f = JSON.stringify(['name', 'contact_person', 'email', 'phone']);
+      query.s_v = JSON.stringify([`%${t}%`, `%${t}%`, `%${t}%`, `%${t}%`]);
+      query.s_o = 'or';
+    }
+    const response = await api.get('/api/v1/laboratories', { params: query });
+    const body = response.data;
+    return {
+      data: Array.isArray(body.data) ? body.data : [],
+      last_page: body.meta?.last_page ?? 1,
+      total: body.meta?.total ?? 0,
+    };
+  },
+
   async getLaboratories(
     page = 1, 
     perPage = 10, 
@@ -71,7 +97,8 @@ export const laboratoryService = {
    */
   async getLaboratory(laboratoryId: number): Promise<Laboratory> {
     const response = await api.get(`/api/v1/laboratories/${laboratoryId}`);
-    return response.data;
+    const body = response.data;
+    return (body?.data ?? body) as Laboratory;
   },
 
   /**
@@ -79,9 +106,8 @@ export const laboratoryService = {
    * @param laboratoryData Datos del laboratorio
    * @returns Promesa con el laboratorio creado
    */
-  async createLaboratory(laboratoryData: Partial<Laboratory>): Promise<{ message: string; laboratory: Laboratory }> {
-    const response = await api.post('/api/v1/laboratories', laboratoryData);
-    return response.data;
+  async createLaboratory(laboratoryData: Partial<Laboratory>): Promise<void> {
+    await api.post('/api/v1/laboratories', laboratoryData);
   },
 
   /**
@@ -90,12 +116,8 @@ export const laboratoryService = {
    * @param laboratoryData Datos actualizados del laboratorio
    * @returns Promesa con el laboratorio actualizado
    */
-  async updateLaboratory(
-    laboratoryId: number, 
-    laboratoryData: Partial<Laboratory>
-  ): Promise<{ message: string; laboratory: Laboratory }> {
-    const response = await api.put(`/api/v1/laboratories/${laboratoryId}`, laboratoryData);
-    return response.data;
+  async updateLaboratory(laboratoryId: number, laboratoryData: Partial<Laboratory>): Promise<void> {
+    await api.put(`/api/v1/laboratories/${laboratoryId}`, laboratoryData);
   },
 
   /**

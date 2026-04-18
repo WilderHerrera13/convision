@@ -13,7 +13,7 @@ import Pagination from '@/components/ui/pagination';
 import PageLayout from '@/components/layouts/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentsService } from '@/services/appointmentsService';
-import { parseLocalDatetime } from '@/lib/utils';
+import { parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import NewAppointmentDialog from '@/components/appointments/NewAppointmentDialog';
 import AppointmentStatusBadge, { Status } from '@/components/appointments/AppointmentStatusBadge';
@@ -219,7 +219,7 @@ const Appointments: React.FC = () => {
                       onClick={() => navigate(getDetailPath(appointment.id))}
                     >
                       <TableCell className="px-3 py-3 text-[13px] text-[#7d7d87]">
-                        {appointment.scheduled_at ? format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'HH:mm') : '—'}
+                        {appointment.scheduled_at ? formatTime12h(parseLocalDatetime(appointment.scheduled_at) ?? new Date()) : '—'}
                       </TableCell>
                       <TableCell className="px-3 py-3 text-[13px] font-semibold text-[#121215]">
                         {appointment.patient.first_name} {appointment.patient.last_name}

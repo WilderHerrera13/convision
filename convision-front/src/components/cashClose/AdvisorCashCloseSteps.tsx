@@ -1,7 +1,6 @@
 import React from 'react';
 import type { CashCloseStepIndex } from '@/components/cashClose/CashCloseStepper';
-import AdvisorCashClosePaymentsPanel from '@/components/cashClose/advisor/AdvisorCashClosePaymentsPanel';
-import AdvisorCashCloseCashPanel from '@/components/cashClose/advisor/AdvisorCashCloseCashPanel';
+import AdvisorCashCloseDataStep from '@/components/cashClose/advisor/AdvisorCashCloseDataStep';
 import AdvisorCashCloseReviewPanel from '@/components/cashClose/advisor/AdvisorCashCloseReviewPanel';
 import type { PaymentMethodState, DenominationState } from '@/hooks/useCashClose';
 
@@ -15,38 +14,36 @@ interface Props {
   totalCounted: number;
   totalCashCounted: number;
   currentStatus: string;
+  advisorNotes: string;
+  onAdvisorNotesChange: (value: string) => void;
 }
 
 const AdvisorCashCloseSteps: React.FC<Props> = (props) => {
   if (props.step === 0) {
     return (
-      <AdvisorCashClosePaymentsPanel
+      <AdvisorCashCloseDataStep
         paymentMethods={props.paymentMethods}
-        handlePaymentChange={props.handlePaymentChange}
-        isReadOnly={props.isReadOnly}
-        totalCounted={props.totalCounted}
-      />
-    );
-  }
-  if (props.step === 1) {
-    const efectivoRegistrado =
-      props.paymentMethods.find((pm) => pm.name === 'efectivo')?.counted_amount ?? 0;
-    return (
-      <AdvisorCashCloseCashPanel
         denominations={props.denominations}
+        handlePaymentChange={props.handlePaymentChange}
         handleDenominationChange={props.handleDenominationChange}
         isReadOnly={props.isReadOnly}
+        totalCounted={props.totalCounted}
         totalCashCounted={props.totalCashCounted}
-        efectivoRegistrado={efectivoRegistrado}
+        advisorNotes={props.advisorNotes}
+        onAdvisorNotesChange={props.onAdvisorNotesChange}
       />
     );
   }
+  const paymentMethodsForReview = props.paymentMethods.map((m) =>
+    m.name === 'efectivo' ? { ...m, counted_amount: props.totalCashCounted } : m
+  );
   return (
     <AdvisorCashCloseReviewPanel
-      paymentMethods={props.paymentMethods}
+      paymentMethods={paymentMethodsForReview}
       totalCounted={props.totalCounted}
       totalCashCounted={props.totalCashCounted}
       currentStatus={props.currentStatus}
+      advisorNotes={props.advisorNotes}
     />
   );
 };

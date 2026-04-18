@@ -57,6 +57,7 @@ export function useCashClose(closeDate: Date) {
     DENOMINATIONS.map((d) => ({ denomination: d, quantity: 0 }))
   );
   const [existingClose, setExistingClose] = useState<CashClose | null>(null);
+  const [advisorNotes, setAdvisorNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -76,13 +77,16 @@ export function useCashClose(closeDate: Date) {
           const pm = ext.payment_methods?.length ? ext.payment_methods : ext.payments;
           setPaymentMethods(normalizePaymentMethods(pm));
           if (detail.denominations?.length) setDenominations(detail.denominations);
+          setAdvisorNotes(detail.advisor_notes ?? '');
         } else {
           setExistingClose(null);
           setPaymentMethods(PAYMENT_METHODS.map((n) => ({ name: n, counted_amount: 0 })));
           setDenominations(DENOMINATIONS.map((d) => ({ denomination: d, quantity: 0 })));
+          setAdvisorNotes('');
         }
       } catch {
         setExistingClose(null);
+        setAdvisorNotes('');
       } finally {
         setIsLoading(false);
       }
@@ -98,14 +102,22 @@ export function useCashClose(closeDate: Date) {
     setDenominations((prev) => prev.map((d) => (d.denomination === denomination ? { ...d, quantity } : d)));
   }, []);
 
+  const totalCashCounted = denominations.reduce((s, d) => s + d.denomination * d.quantity, 0);
+
+  const nonCashCounted = paymentMethods
+    .filter((m) => m.name !== 'efectivo')
+    .reduce((s, m) => s + m.counted_amount, 0);
+  /** Efectivo solo por arqueo; el valor en estado `paymentMethods` para efectivo no se edita en UI. */
+  const totalCounted = nonCashCounted + totalCashCounted;
+
   const buildPayload = (): CreateCashClosePayload => ({
     close_date: dateStr,
-    payment_methods: paymentMethods,
+    payment_methods: paymentMethods.map((m) =>
+      m.name === 'efectivo' ? { ...m, counted_amount: totalCashCounted } : m
+    ),
     denominations,
+    advisor_notes: advisorNotes.trim() === '' ? null : advisorNotes.trim(),
   });
-
-  const totalCounted = paymentMethods.reduce((s, m) => s + m.counted_amount, 0);
-  const totalCashCounted = denominations.reduce((s, d) => s + d.denomination * d.quantity, 0);
   const isReadOnly = !!existingClose && existingClose.status !== 'draft';
 
   /**
@@ -119,6 +131,9 @@ export function useCashClose(closeDate: Date) {
       : await cashRegisterCloseService.create(payload);
     const saved: CashClose = resp?.data ?? resp;
     setExistingClose(saved);
+    if (saved.advisor_notes !== undefined) {
+      setAdvisorNotes(saved.advisor_notes ?? '');
+    }
     return saved;
   };
 
@@ -141,10 +156,10 @@ export function useCashClose(closeDate: Date) {
   };
 
   const handleSubmit = async () => {
-    if (totalCounted <= 0 && totalCashCounted <= 0) {
+    if (totalCounted <= 0) {
       sonnerToast.error('No se puede enviar el cierre', {
         description:
-          'Ingresa al menos un valor contado en medios de pago o completa el arqueo de efectivo.',
+          'Ingresa al menos un valor en otros medios de pago o completa el arqueo de efectivo.',
       });
       return;
     }
@@ -183,5 +198,7 @@ export function useCashClose(closeDate: Date) {
     totalCounted,
     totalCashCounted,
     isReadOnly,
+    advisorNotes,
+    setAdvisorNotes,
   };
 }

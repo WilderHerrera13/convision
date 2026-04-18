@@ -14,8 +14,14 @@ class AddPausedStatusToAppointmentsTable extends Migration
      */
     public function up()
     {
-        // Modify the status ENUM to include 'paused' status
-        DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'paused', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        // Ampliar los valores válidos de status para incluir 'paused'
+        $driver = DB::getDriverName();
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'paused', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check');
+            DB::statement("ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'in_progress', 'paused', 'completed', 'cancelled'))");
+        }
     }
 
     /**
@@ -25,7 +31,13 @@ class AddPausedStatusToAppointmentsTable extends Migration
      */
     public function down()
     {
-        // Revert the status ENUM to remove 'paused' status
-        DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        // Revertir la eliminación del status 'paused'
+        $driver = DB::getDriverName();
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check');
+            DB::statement("ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled'))");
+        }
     }
 } 

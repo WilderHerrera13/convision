@@ -31,9 +31,7 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate, parseLocalDatetime } from '@/lib/utils';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDate, parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import { appointmentsService } from '@/services/appointmentsService';
 import AppointmentEvolutionForm from '@/components/clinical/AppointmentEvolutionForm';
 import AppointmentEvolutionsList from '@/components/clinical/AppointmentEvolutionsList';
@@ -426,7 +424,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
               {appointment.patient.first_name} {appointment.patient.last_name}
             </h1>
             <p className="text-sm text-gray-600">
-              {formatDate(appointment.scheduled_at)} - {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'h:mm a')}
+              {formatDate(appointment.scheduled_at)} - {formatTime12h(parseLocalDatetime(appointment.scheduled_at) ?? new Date())}
             </p>
           </div>
         </div>

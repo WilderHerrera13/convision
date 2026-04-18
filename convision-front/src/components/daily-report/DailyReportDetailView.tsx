@@ -1,8 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { DailyActivityReport } from '@/services/dailyActivityReportService';
+import { defaultRecepcionesDinero, type DailyActivityReport } from '@/services/dailyActivityReportService';
 import DailyReportAttentionTable from '@/components/daily-report/DailyReportAttentionTable';
+import DailyReportRecepcionesSection from '@/components/daily-report/DailyReportRecepcionesSection';
 
 const formatCOP = (v: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
@@ -36,6 +37,11 @@ const DailyReportDetailView: React.FC<{
   return (
     <div className="daily-report-detail-print space-y-5 pb-24">
       <DailyReportAttentionTable customerAttention={report.customer_attention} operations={op} />
+
+      <DailyReportRecepcionesSection
+        recepciones={report.recepciones_dinero ?? defaultRecepcionesDinero()}
+        variant="compact"
+      />
 
       <div className="overflow-hidden rounded-lg border border-[#e5e5e9] bg-white p-6 pt-0">
         <div className="-mx-6 mb-4 border-b border-[#a3d9b8] bg-[#ebf5ef] px-4 py-3">

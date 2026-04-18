@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, ArrowRightLeft, XCircle, Search, SlidersHorizontal, X } from 'lucide-react';
-import { cn, parseLocalDatetime } from '@/lib/utils';
+import { cn, parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import { appointmentsService } from '@/services/appointmentsService';
 import { format } from 'date-fns';
 import AppointmentFilterModal, { AppointmentFilters } from './AppointmentFilterModal';
@@ -202,7 +202,7 @@ const AppointmentsSection: React.FC<Props> = ({ basePath = '/admin' }) => {
         ) : (
           appointments.map((a, idx) => {
             const status = statusConfig[a.status] ?? statusConfig.scheduled;
-            const timeStr = format(parseLocalDatetime(a.scheduled_at) ?? new Date(), 'H:mm');
+            const timeStr = formatTime12h(parseLocalDatetime(a.scheduled_at) ?? new Date());
             const isOdd = idx % 2 === 0;
             return (
               <div key={a.id} className={cn('flex h-12 border-b border-[#ececef]', isOdd ? 'bg-white' : 'bg-convision-row-alt')}>

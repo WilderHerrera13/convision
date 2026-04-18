@@ -50,7 +50,7 @@ import PrescriptionForm from '@/components/PrescriptionForm';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { translateGender, formatDate, formatCurrency, parseLocalDatetime } from '@/lib/utils';
+import { translateGender, formatDate, formatCurrency, parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import { lensService, type Lens } from '@/services/lensService';
 import { SessionLensPriceAdjustmentModal } from '@/components/sales/SessionLensPriceAdjustmentModal';
 import { SessionLensPriceDisplay } from '@/components/sales/SessionLensPriceDisplay';
@@ -552,12 +552,8 @@ const AppointmentDetail: React.FC = () => {
     ? formatDate(appointment.scheduled_at)
     : '—';
   
-  const appointmentTime = appointment.scheduled_at 
-    ? (parseLocalDatetime(appointment.scheduled_at)?.toLocaleTimeString('es-CO', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      }) ?? '—')
+  const appointmentTime = appointment.scheduled_at
+    ? formatTime12h(parseLocalDatetime(appointment.scheduled_at) ?? new Date(appointment.scheduled_at))
     : '—';
 
   // Get status text and color

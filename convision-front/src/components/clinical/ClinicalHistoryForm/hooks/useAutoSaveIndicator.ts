@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatDateTime12h } from '@/lib/utils';
 import { useClinicalHistoryContext } from '../context/ClinicalHistoryContext';
 
 /**
@@ -67,7 +68,7 @@ export const useAutoSaveIndicator = () => {
     saveStatus,
     timeSinceLastSave,
     isAutoSaveEnabled,
-    lastSaved: formData.lastSaved ? new Date(formData.lastSaved).toLocaleString() : null,
+    lastSaved: formData.lastSaved ? formatDateTime12h(formData.lastSaved) : null,
   };
 };
 

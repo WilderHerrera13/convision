@@ -6,6 +6,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class SupplierService
 {
@@ -54,8 +55,9 @@ class SupplierService
     {
         DB::beginTransaction();
         try {
-            if ($supplier->lenses()->exists() || $supplier->inventoryItems()->exists()) {
-                throw new \Exception('No se puede eliminar el proveedor porque tiene lentes o artículos de inventario relacionados.');
+            $hasLenses = Schema::hasTable('lenses') && $supplier->lenses()->exists();
+            if ($hasLenses) {
+                throw new \Exception('No se puede eliminar el proveedor porque tiene lentes relacionados.');
             }
             $supplier->delete();
             DB::commit();

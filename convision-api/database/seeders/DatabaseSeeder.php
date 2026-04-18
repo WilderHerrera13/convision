@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             DemoStaffSeeder::class,      // Médicos, recepcionistas, laboratorio
             DemoPatientsSeeder::class,   // 15 pacientes colombianos
             InventorySeeder::class,      // Bodega, productos y stock
+            AdminNotificationsSeeder::class,
         ]);
     }
 }

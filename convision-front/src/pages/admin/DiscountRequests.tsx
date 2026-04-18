@@ -55,6 +55,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { format } from 'date-fns';
+import { formatDateTime12h } from '@/lib/utils';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
 import PageLayout from '@/components/layouts/PageLayout';
@@ -503,7 +504,7 @@ const DiscountRequests: React.FC = () => {
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-sm">{request.user?.name}</span>
-                      <span className="text-xs text-gray-500">{format(new Date(request.created_at), 'dd/MM/yyyy HH:mm')}</span>
+                      <span className="text-xs text-gray-500">{formatDateTime12h(request.created_at)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

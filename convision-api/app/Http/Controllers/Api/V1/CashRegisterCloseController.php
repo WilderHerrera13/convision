@@ -10,7 +10,10 @@ use App\Http\Requests\Api\V1\CashRegisterClose\UpdateCashRegisterCloseRequest;
 use App\Http\Resources\V1\CashRegisterClose\CashRegisterCloseCollection;
 use App\Http\Resources\V1\CashRegisterClose\CashRegisterCloseResource;
 use App\Models\CashRegisterClose;
+use App\Models\User;
 use App\Services\CashRegisterCloseService;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 
 class CashRegisterCloseController extends Controller
@@ -30,6 +33,24 @@ class CashRegisterCloseController extends Controller
 
         if (auth()->user()->role !== 'admin') {
             $query->where('user_id', auth()->id());
+        } else {
+            if ($request->filled('user_id')) {
+                $query->where('user_id', (int) $request->query('user_id'));
+            }
+            if ($request->filled('date_from')) {
+                $query->whereDate('close_date', '>=', $request->query('date_from'));
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('close_date', '<=', $request->query('date_to'));
+            }
+        }
+
+        if ($request->filled('close_date')) {
+            $query->whereDate('close_date', $request->query('close_date'));
+        }
+
+        if (!$request->has('sort')) {
+            $query->orderByDesc('close_date')->orderByDesc('id');
         }
 
         $perPage = min(max(1, (int) $request->get('per_page', 15)), 100);
@@ -158,5 +179,150 @@ class CashRegisterCloseController extends Controller
         })->values();
 
         return response()->json(['data' => $grouped]);
+    }
+
+    public function calendarForAdvisor(Request $request)
+    {
+        $userId = (int) $request->query('user_id');
+        abort_unless($userId > 0, 422, 'user_id es requerido.');
+
+        $today = CarbonImmutable::today();
+        $to = $request->filled('date_to')
+            ? CarbonImmutable::parse($request->query('date_to'))->startOfDay()
+            : $today;
+        $from = $request->filled('date_from')
+            ? CarbonImmutable::parse($request->query('date_from'))->startOfDay()
+            : $to->subDays(13);
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $advisor = User::findOrFail($userId);
+
+        $closes = CashRegisterClose::with(['user', 'payments', 'denominations', 'actualPayments', 'approvedBy'])
+            ->where('user_id', $userId)
+            ->whereBetween('close_date', [$from->toDateString(), $to->toDateString()])
+            ->orderBy('close_date', 'asc')
+            ->get();
+
+        $byDate = $closes->keyBy(fn ($c) => $c->close_date?->format('Y-m-d'));
+
+        $locale = 'es';
+        $days = [];
+        foreach (CarbonPeriod::create($from, $to) as $day) {
+            $dateKey = $day->format('Y-m-d');
+            $close = $byDate->get($dateKey);
+            $days[] = [
+                'date' => $dateKey,
+                'day_number' => $day->format('d'),
+                'day_name' => ucfirst(mb_substr($day->locale($locale)->isoFormat('ddd'), 0, 3)),
+                'month_name' => ucfirst(mb_substr($day->locale($locale)->isoFormat('MMM'), 0, 3)),
+                'is_today' => $day->isSameDay($today),
+                'close' => $close ? $this->formatCloseForCalendar($close) : null,
+            ];
+        }
+
+        $approved = $closes->where('status', CashRegisterClose::STATUS_APPROVED);
+        $pending = $closes->where('status', CashRegisterClose::STATUS_SUBMITTED);
+
+        $approvedDays = $approved->values()->map(function (CashRegisterClose $c, int $i) {
+            $advisorTotal = (float) $c->total_counted;
+            if ($c->admin_actuals_recorded_at !== null) {
+                $actualTotal = (float) $c->total_actual_amount;
+                $variance = round($advisorTotal - $actualTotal, 2);
+            } else {
+                $actualTotal = null;
+                $variance = null;
+            }
+
+            return [
+                'id' => $c->id,
+                'index' => $i + 1,
+                'close_date' => $c->close_date?->format('Y-m-d'),
+                'total_counted' => $advisorTotal,
+                'total_actual_amount' => $actualTotal,
+                'variance' => $variance,
+            ];
+        })->all();
+
+        $approvedTotal = array_sum(array_column($approvedDays, 'total_counted'));
+        if ($approvedDays === []) {
+            $approvedActualTotal = 0;
+            $approvedVarianceTotal = 0;
+        } else {
+            $nonNullActuals = array_values(array_filter(
+                array_column($approvedDays, 'total_actual_amount'),
+                static fn ($v) => $v !== null
+            ));
+            $approvedActualTotal = $nonNullActuals === []
+                ? null
+                : array_sum($nonNullActuals);
+
+            $nonNullVariances = array_values(array_filter(
+                array_column($approvedDays, 'variance'),
+                static fn ($v) => $v !== null
+            ));
+            $approvedVarianceTotal = $nonNullVariances === []
+                ? null
+                : round(array_sum($nonNullVariances), 2);
+        }
+
+        return response()->json([
+            'data' => [
+                'advisor' => [
+                    'id' => $advisor->id,
+                    'name' => $advisor->name,
+                    'last_name' => $advisor->last_name,
+                    'role' => $advisor->role,
+                ],
+                'date_from' => $from->format('Y-m-d'),
+                'date_to' => $to->format('Y-m-d'),
+                'days' => $days,
+                'summary' => [
+                    'approved_count' => $approved->count(),
+                    'pending_count' => $pending->count(),
+                    'approved_total' => $approvedTotal,
+                    'approved_actual_total' => $approvedActualTotal === null ? null : round($approvedActualTotal, 2),
+                    'approved_variance_total' => $approvedVarianceTotal === null ? null : round($approvedVarianceTotal, 2),
+                    'approved_days' => $approvedDays,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function formatCloseForCalendar(CashRegisterClose $close): array
+    {
+        $advisorTotal = (float) $close->total_counted;
+        $variance = $close->admin_actuals_recorded_at !== null
+            ? round($advisorTotal - (float) $close->total_actual_amount, 2)
+            : null;
+
+        return [
+            'id' => $close->id,
+            'status' => $close->status,
+            'total_counted' => $advisorTotal,
+            'total_actual_amount' => $close->admin_actuals_recorded_at !== null
+                ? (float) $close->total_actual_amount
+                : null,
+            'cash_counted' => (float) $close->denominations->sum('subtotal'),
+            'variance' => $variance,
+            'advisor_notes' => $close->advisor_notes,
+            'admin_notes' => $close->admin_notes,
+            'approved_at' => $close->approved_at?->toIso8601String(),
+            'submitted_at' => $close->updated_at?->toIso8601String(),
+            'payment_methods' => $close->payments->map(fn ($p) => [
+                'name' => $p->payment_method_name,
+                'counted_amount' => (float) $p->counted_amount,
+            ])->values()->all(),
+            'denominations' => $close->denominations->map(fn ($d) => [
+                'denomination' => (int) $d->denomination,
+                'quantity' => (int) $d->quantity,
+                'subtotal' => (float) $d->subtotal,
+            ])->values()->all(),
+        ];
     }
 }

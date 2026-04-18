@@ -20,31 +20,30 @@ version: '3.8'
 
 services:
 
-  # ── MySQL 8 ──────────────────────────────────────────────────────────────
-  mysql:
-    image: mysql:8.0
+  # ── PostgreSQL 16 ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16
     platform: ${DOCKER_PLATFORM:-linux/amd64}
-    container_name: convision-mysql
+    container_name: convision-postgres
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-convision}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_USER: ${DB_USERNAME:-convision}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-convision}
+      POSTGRES_DB: ${DB_DATABASE:-convision}
+      POSTGRES_USER: ${DB_USERNAME:-convision}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-convision}
       TZ: America/Bogota
+      PGTZ: America/Bogota
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "${DB_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - convision_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD:-root}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-convision} -d ${DB_DATABASE:-convision}"]
       interval: 10s
       timeout: 5s
       retries: 8
-      start_period: 40s
+      start_period: 20s
 
   # ── Laravel API (backend) ─────────────────────────────────────────────────
   app:
@@ -62,7 +61,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     entrypoint: ["/var/www/html/docker/entrypoint.sh"]
 
@@ -88,24 +87,20 @@ services:
       - app
     command: npm run dev -- --host 0.0.0.0
 
-  # ── phpMyAdmin ────────────────────────────────────────────────────────────
-  phpmyadmin:
-    image: phpmyadmin:latest
+  # ── Adminer (gestor web de BD — soporta PostgreSQL) ───────────────────────
+  adminer:
+    image: adminer:latest
     platform: ${DOCKER_PLATFORM:-linux/amd64}
-    container_name: convision-phpmyadmin
+    container_name: convision-adminer
     restart: unless-stopped
     environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      PMA_ARBITRARY: 1
-      UPLOAD_LIMIT: 128M
+      ADMINER_DEFAULT_SERVER: postgres
     ports:
-      - "${PMA_PORT:-8080}:80"
+      - "${ADMINER_PORT:-8080}:8080"
     networks:
       - convision_network
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
 
 networks:
@@ -113,5 +108,5 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local

@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { PaymentMethodName } from '@/services/cashRegisterCloseService';
 import CashPaymentMethodRow from '@/components/cashClose/CashPaymentMethodRow';
 import CashCloseSummary from '@/components/cashClose/CashCloseSummary';
@@ -21,6 +22,7 @@ interface Props {
   totalCounted: number;
   totalCashCounted: number;
   currentStatus: string;
+  advisorNotes: string;
 }
 
 const AdvisorCashCloseReviewPanel: React.FC<Props> = ({
@@ -28,6 +30,7 @@ const AdvisorCashCloseReviewPanel: React.FC<Props> = ({
   totalCounted,
   totalCashCounted,
   currentStatus,
+  advisorNotes,
 }) => (
   <div className="space-y-6">
     <CashCloseSummary
@@ -36,6 +39,13 @@ const AdvisorCashCloseReviewPanel: React.FC<Props> = ({
       status={currentStatus}
       showStatusRow={false}
     />
+
+    {advisorNotes.trim() !== '' && (
+      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
+        <Label className="text-[12px] font-semibold text-muted-foreground">Observaciones</Label>
+        <p className="whitespace-pre-wrap text-sm text-foreground">{advisorNotes}</p>
+      </div>
+    )}
 
     <div className="space-y-2">
       <h2 className="text-[13px] font-semibold text-[#7d7d87]">Desglose por medio de pago</h2>

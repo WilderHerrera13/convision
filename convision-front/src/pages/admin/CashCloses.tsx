@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Eye, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
@@ -122,7 +123,7 @@ const AdminCashCloses: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
 
-  const { data: users = [] } = useQuery<User[]>({
+  const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['users-list'],
     queryFn: () => userService.getAll(),
   });
@@ -138,6 +139,54 @@ const AdminCashCloses: React.FC = () => {
     enabled: viewMode === 'by_advisor',
   });
 
+  const mergedAdvisors = useMemo((): AdvisorPendingGroup[] => {
+    const byId = new Map(advisorGroups.map((g) => [g.user_id, g]));
+    const rows = advisors.map((u) => {
+      const hit = byId.get(u.id);
+      if (hit) {
+        return hit;
+      }
+      const lastName = (u as { last_name?: string | null }).last_name ?? '';
+      return {
+        user_id: u.id,
+        user_name: `${u.name} ${lastName}`.trim(),
+        pending_count: 0,
+        close_dates: [],
+        total_today: 0,
+        total_yesterday: null,
+        accumulated_variance: null,
+        latest_status: 'approved',
+        closes: [],
+      };
+    });
+    return [...rows].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
+  }, [advisors, advisorGroups]);
+
+  const filteredAdvisors = useMemo(() => {
+    let rows = mergedAdvisors;
+    if (selectedAdvisorId !== 'all') {
+      rows = rows.filter((g) => String(g.user_id) === selectedAdvisorId);
+    }
+    if (selectedStatus !== 'all') {
+      rows = rows.filter((g) => g.closes.some((c) => c.status === selectedStatus));
+    }
+    if (dateFrom || dateTo) {
+      const fromStr = dateFrom ? format(dateFrom, 'yyyy-MM-dd') : null;
+      const toStr = dateTo ? format(dateTo, 'yyyy-MM-dd') : null;
+      rows = rows.filter((g) => {
+        if (g.pending_count === 0) {
+          return !fromStr && !toStr;
+        }
+        return g.close_dates.some((d) => {
+          if (fromStr && d < fromStr) return false;
+          if (toStr && d > toStr) return false;
+          return true;
+        });
+      });
+    }
+    return rows;
+  }, [mergedAdvisors, selectedAdvisorId, selectedStatus, dateFrom, dateTo]);
+
   const periodLabel = useMemo(() => {
     if (dateFrom) {
       return format(dateFrom, 'MMMM yyyy', { locale: es });
@@ -146,7 +195,30 @@ const AdminCashCloses: React.FC = () => {
   }, [dateFrom]);
 
   const stats = useMemo<PeriodStats>(() => {
-    const pending = tableData.filter((r) => r.status === 'submitted').length;
+    const label = periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
+    const pendingFromTable = tableData.filter(
+      (r) => r.status === 'submitted' || r.status === 'draft',
+    ).length;
+    const pendingFromAdvisors = filteredAdvisors.reduce((acc, g) => acc + g.pending_count, 0);
+
+    if (viewMode === 'by_advisor') {
+      const variance = filteredAdvisors
+        .filter((g) => g.accumulated_variance != null)
+        .reduce((acc, g) => acc + Number(g.accumulated_variance), 0);
+      const hasAnyVariance = filteredAdvisors.some((g) => g.accumulated_variance != null);
+      const totalAdvisorSum = filteredAdvisors.reduce(
+        (acc, g) => acc + (g.pending_count > 0 ? Number(g.total_today) : 0),
+        0,
+      );
+      return {
+        totalCount: filteredAdvisors.length,
+        pendingCount: pendingFromAdvisors,
+        accumulatedVariance: hasAnyVariance ? variance : null,
+        periodLabel: label,
+        totalAdvisorSum,
+      };
+    }
+
     const variance = tableData
       .filter((r) => r.admin_actuals_recorded_at != null && r.reconciliation?.totals?.variance_total != null)
       .reduce((acc, r) => acc + Number(r.reconciliation!.totals!.variance_total!), 0);
@@ -157,12 +229,12 @@ const AdminCashCloses: React.FC = () => {
 
     return {
       totalCount: tableData.length,
-      pendingCount: pending,
+      pendingCount: pendingFromTable,
       accumulatedVariance: hasAnyVariance ? variance : null,
-      periodLabel: periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1),
+      periodLabel: label,
       totalAdvisorSum,
     };
-  }, [tableData, periodLabel]);
+  }, [tableData, periodLabel, viewMode, filteredAdvisors]);
 
   const columns: DataTableColumnDef<CashCloseRow>[] = [
     {
@@ -244,9 +316,14 @@ const AdminCashCloses: React.FC = () => {
           className="size-8 shrink-0 rounded-[8px] border-0 bg-[#eff1ff] text-[#3a71f7] hover:bg-blue-100"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/admin/cash-closes/${item.id}`);
+            const userId = item.user?.id;
+            if (userId) {
+              navigate(`/admin/cash-closes/advisor/${userId}?date=${item.close_date}`);
+            } else {
+              navigate(`/admin/cash-closes/${item.id}`);
+            }
           }}
-          aria-label="Ver detalle"
+          aria-label="Ver calendario de cierres"
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -285,11 +362,7 @@ const AdminCashCloses: React.FC = () => {
   };
 
   const handleAdvisorReview = (advisor: AdvisorPendingGroup) => {
-    if (advisor.closes.length === 1) {
-      navigate(`/admin/cash-closes/${advisor.closes[0].id}`);
-    } else {
-      navigate(`/admin/cash-closes/advisor/${advisor.user_id}`);
-    }
+    navigate(`/admin/cash-closes/advisor/${advisor.user_id}`);
   };
 
   const totalVarianceForPeriod = stats.accumulatedVariance;
@@ -305,6 +378,7 @@ const AdminCashCloses: React.FC = () => {
           variant="outline"
           size="sm"
           className="h-9 gap-1.5 border-[#e5e5e9] text-[13px] font-semibold text-[#121215]"
+          onClick={() => toast.info('Exportación disponible próximamente')}
         >
           <Download className="h-3.5 w-3.5" />
           Exportar
@@ -341,9 +415,9 @@ const AdminCashCloses: React.FC = () => {
 
         <div className="flex gap-4">
           <StatCard
-            label="Cierres del Período"
+            label={viewMode === 'by_advisor' ? 'Asesores en vista' : 'Cierres del Período'}
             value={<span className="text-[#0f0f12]">{stats.totalCount}</span>}
-            sub={stats.periodLabel}
+            sub={viewMode === 'by_advisor' ? 'Lista actual' : stats.periodLabel}
             accentColor="#3a71f7"
             bgColor="white"
             borderColor="#e5e5e9"
@@ -424,22 +498,26 @@ const AdminCashCloses: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7d7d87]">
-                Asesores con cierres pendientes hoy
+                Asesores comerciales
               </p>
-              {isLoadingAdvisors ? (
+              {isLoadingAdvisors || isLoadingUsers ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {[1, 2, 3, 4].map((i) => (
                     <Skeleton key={i} className="h-[180px] rounded-[12px]" />
                   ))}
                 </div>
-              ) : advisorGroups.length === 0 ? (
+              ) : advisors.length === 0 ? (
                 <div className="flex items-center justify-center rounded-[12px] border border-[#e5e5e9] bg-white py-16">
-                  <p className="text-[13px] text-[#7d7d87]">No hay asesores con cierres pendientes</p>
+                  <p className="text-[13px] text-[#7d7d87]">No hay asesores comerciales registrados</p>
+                </div>
+              ) : filteredAdvisors.length === 0 ? (
+                <div className="flex items-center justify-center rounded-[12px] border border-[#e5e5e9] bg-white py-16">
+                  <p className="text-[13px] text-[#7d7d87]">Ningún asesor coincide con los filtros</p>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {advisorGroups.map((advisor) => (
+                    {filteredAdvisors.map((advisor) => (
                       <AdvisorCashCloseCard
                         key={advisor.user_id}
                         advisor={advisor}
@@ -448,8 +526,8 @@ const AdminCashCloses: React.FC = () => {
                     ))}
                   </div>
                   <p className="text-[12px] text-[#7d7d87]">
-                    {advisorGroups.length} asesore{advisorGroups.length !== 1 ? 's' : ''} ·{' '}
-                    {advisorGroups.filter((a) => a.pending_count > 1).length} con más de 1 día pendiente
+                    {filteredAdvisors.length} {filteredAdvisors.length === 1 ? 'asesor' : 'asesores'} ·{' '}
+                    {filteredAdvisors.filter((a) => a.pending_count > 1).length} con más de 1 día pendiente
                   </p>
                 </>
               )}

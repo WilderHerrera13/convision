@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatDateTime12h } from '@/lib/utils';
 import { Box, Typography, Button, TextField, Checkbox, FormControlLabel, Chip } from '@mui/material';
 import { Add, Edit } from '@mui/icons-material';
 import { SectionProps, FieldDefinition } from '../../types';
@@ -77,7 +78,7 @@ const SubjetivoSection: React.FC<SectionProps> = ({ form, serverErrors, renderFi
   };
 
   const handleSaveMotiliad = (motiliadData: { [key: string]: string | boolean }) => {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime12h(new Date());
     
     // Always update the single saved item or create new one
     const savedEntry: MotiliadData = {

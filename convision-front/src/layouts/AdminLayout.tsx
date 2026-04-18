@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import {
   ClipboardList, BarChart3,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
+import { AdminTopBar } from '@/components/admin/AdminTopBar';
 
 type NavItem = { title: string; path: string; icon: React.ComponentType<{ className?: string }> };
 type NavSection = { label: string | null; items: NavItem[] };
@@ -115,8 +116,18 @@ const AdminLayout: React.FC = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, toggleSidebar } = useSidebar();
-  const isCollapsed = state === 'collapsed';
+  const { state, toggleSidebar, setOpen, setOpenMobile, isMobile, openMobile } = useSidebar();
+  const isCollapsed = isMobile ? !openMobile : state === 'collapsed';
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    const apply = () => {
+      if (mql.matches) setOpen(false);
+    };
+    apply();
+    mql.addEventListener('change', apply);
+    return () => mql.removeEventListener('change', apply);
+  }, [setOpen]);
 
   const path = location.pathname;
   let navSections = adminNav;
@@ -140,16 +151,29 @@ const AdminLayout: React.FC = () => {
       {isCollapsed && (
         <button
           onClick={toggleSidebar}
-          className="fixed top-4 left-3 z-50 bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-convision-background transition-colors"
+          className="fixed top-4 left-3 z-[70] bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-convision-background transition-colors"
           aria-label="Expandir sidebar"
         >
           <Menu className="size-4 text-convision-text-secondary" />
         </button>
       )}
 
-      {/* Sidebar */}
+      {isMobile && openMobile && (
+        <button
+          type="button"
+          className="fixed inset-0 z-[55] bg-black/40"
+          aria-label="Cerrar menú"
+          onClick={() => setOpenMobile(false)}
+        />
+      )}
+
       {!isCollapsed && (
-        <aside className="bg-convision-sidebar border-r border-convision-border w-[240px] h-screen flex flex-col shrink-0 z-40">
+        <aside
+          className={cn(
+            'bg-convision-sidebar border-r border-convision-border w-[240px] h-screen flex flex-col shrink-0 z-40',
+            isMobile && 'fixed inset-y-0 left-0 z-[60] shadow-lg',
+          )}
+        >
           {/* Logo */}
           <div className="bg-white border-b border-convision-border-subtle h-[60px] flex items-center px-[14px] gap-2 shrink-0">
             <div className="flex items-center gap-[6px]">
@@ -185,7 +209,10 @@ const AdminLayout: React.FC = () => {
                   return (
                     <button
                       key={item.path}
-                      onClick={() => navigate(item.path)}
+                      onClick={() => {
+                        navigate(item.path);
+                        if (isMobile) setOpenMobile(false);
+                      }}
                       className={cn(
                         'w-full flex items-center gap-2 h-9 px-[10px] rounded-[6px] text-left transition-colors',
                         isActive
@@ -232,6 +259,7 @@ const AdminLayout: React.FC = () => {
 
       {/* Main content — no wrapper padding, pages handle their own layout */}
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden h-screen">
+        <AdminTopBar />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <Outlet />
         </div>

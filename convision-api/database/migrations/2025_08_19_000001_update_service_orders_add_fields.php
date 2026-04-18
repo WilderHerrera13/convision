@@ -27,19 +27,31 @@ return new class extends Migration
             }
         });
 
-        // Expand status enum to include 'delivered' when using MySQL
+        // Ampliar status para incluir 'delivered'
         try {
-            DB::statement("ALTER TABLE service_orders MODIFY COLUMN status ENUM('pending','in_progress','completed','delivered','cancelled') NOT NULL DEFAULT 'pending'");
+            $driver = DB::getDriverName();
+            if ($driver === 'mysql') {
+                DB::statement("ALTER TABLE service_orders MODIFY COLUMN status ENUM('pending','in_progress','completed','delivered','cancelled') NOT NULL DEFAULT 'pending'");
+            } elseif ($driver === 'pgsql') {
+                DB::statement('ALTER TABLE service_orders DROP CONSTRAINT IF EXISTS service_orders_status_check');
+                DB::statement("ALTER TABLE service_orders ADD CONSTRAINT service_orders_status_check CHECK (status IN ('pending','in_progress','completed','delivered','cancelled'))");
+            }
         } catch (\Throwable $e) {
-            // Ignore if database doesn't support this operation (e.g., sqlite in tests)
+            // Ignorar si el motor de BD no soporta esta operación
         }
     }
 
     public function down(): void
     {
-        // Revert enum change if possible
+        // Revertir enum change
         try {
-            DB::statement("ALTER TABLE service_orders MODIFY COLUMN status ENUM('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending'");
+            $driver = DB::getDriverName();
+            if ($driver === 'mysql') {
+                DB::statement("ALTER TABLE service_orders MODIFY COLUMN status ENUM('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending'");
+            } elseif ($driver === 'pgsql') {
+                DB::statement('ALTER TABLE service_orders DROP CONSTRAINT IF EXISTS service_orders_status_check');
+                DB::statement("ALTER TABLE service_orders ADD CONSTRAINT service_orders_status_check CHECK (status IN ('pending','in_progress','completed','cancelled'))");
+            }
         } catch (\Throwable $e) {
         }
 

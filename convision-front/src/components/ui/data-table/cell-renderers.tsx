@@ -1,7 +1,7 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime12h } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Phone, Check, X } from 'lucide-react';
 import { StatusBadge } from '@/lib/status-utils';
@@ -37,7 +37,7 @@ export const DateCellRenderer = ({
 // DateTime cell renderer
 export const DateTimeCellRenderer = ({ 
   value, 
-  format: customFormat = 'dd/MM/yyyy HH:mm' 
+  format: customFormat 
 }: { 
   value: string | Date | null; 
   format?: string;
@@ -46,7 +46,10 @@ export const DateTimeCellRenderer = ({
   
   try {
     const date = typeof value === 'string' ? parseISO(value) : value;
-    return format(date, customFormat, { locale: es });
+    if (customFormat) {
+      return format(date, customFormat, { locale: es });
+    }
+    return formatDateTime12h(date);
   } catch (error) {
     console.error('Error formatting datetime:', error);
     return '—';

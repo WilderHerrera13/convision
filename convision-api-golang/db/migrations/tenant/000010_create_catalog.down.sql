@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS product_brands;
+DROP TABLE IF EXISTS product_categories;
+DROP TABLE IF EXISTS lenses;
+DROP TABLE IF EXISTS lens_brands;
+DROP TABLE IF EXISTS lens_photochromics;
+DROP TABLE IF EXISTS lens_treatments;
+DROP TABLE IF EXISTS lens_materials;
+DROP TABLE IF EXISTS lens_classes;
+DROP TABLE IF EXISTS lens_types;

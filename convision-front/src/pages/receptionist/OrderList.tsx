@@ -41,6 +41,7 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { formatDateTime12h } from '@/lib/utils';
 import { Order, PaginatedOrdersResponse, orderService } from '@/services/orderService';
 
 const OrderList: React.FC = () => {
@@ -370,7 +371,7 @@ const OrderList: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(order.created_at), 'dd/MM/yyyy HH:mm')}
+                          {formatDateTime12h(order.created_at)}
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(order.status)}

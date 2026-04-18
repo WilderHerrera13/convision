@@ -3,12 +3,11 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const CASH_CLOSE_STEPS = [
-  { title: 'Medios de Pago', subtitle: 'Registro por tipo' },
-  { title: 'Conteo de Efectivo', subtitle: 'Arqueo físico' },
+  { title: 'Datos del cierre', subtitle: 'Efectivo, medios de pago y observaciones' },
   { title: 'Resumen', subtitle: 'Confirmar y enviar' },
 ] as const;
 
-export type CashCloseStepIndex = 0 | 1 | 2;
+export type CashCloseStepIndex = 0 | 1;
 
 interface Props {
   activeStep: CashCloseStepIndex;

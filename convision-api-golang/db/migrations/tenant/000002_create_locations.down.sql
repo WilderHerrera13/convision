@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS districts;
+DROP TABLE IF EXISTS cities;
+DROP TABLE IF EXISTS departments;
+DROP TABLE IF EXISTS countries;

@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import DenominationCountRow from '@/components/cashClose/DenominationCountRow';
-import CashMismatchAlert from '@/components/cashClose/CashMismatchAlert';
 import type { DenominationState } from '@/hooks/useCashClose';
 
 const formatCOP = (v: number) =>
@@ -22,7 +21,6 @@ interface Props {
   handleDenominationChange: (denomination: number, quantity: number) => void;
   isReadOnly: boolean;
   totalCashCounted: number;
-  efectivoRegistrado: number;
 }
 
 const AdvisorCashCloseCashPanel: React.FC<Props> = ({
@@ -30,14 +28,7 @@ const AdvisorCashCloseCashPanel: React.FC<Props> = ({
   handleDenominationChange,
   isReadOnly,
   totalCashCounted,
-  efectivoRegistrado,
-}) => {
-  const hasMismatch =
-    efectivoRegistrado > 0 &&
-    totalCashCounted > 0 &&
-    efectivoRegistrado !== totalCashCounted;
-
-  return (
+}) => (
     <div className="space-y-4">
       <Alert className="border-[#c5d3f8] bg-[#eff1ff] text-[#3a71f7]" role="note">
         <Info className="h-4 w-4 shrink-0" aria-hidden />
@@ -81,15 +72,7 @@ const AdvisorCashCloseCashPanel: React.FC<Props> = ({
           </TableBody>
         </Table>
       </Card>
-
-      {hasMismatch && !isReadOnly && (
-        <CashMismatchAlert
-          registered={efectivoRegistrado}
-          counted={totalCashCounted}
-        />
-      )}
     </div>
-  );
-};
+);
 
 export default AdvisorCashCloseCashPanel;

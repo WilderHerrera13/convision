@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/components/ui/use-toast';
 import { Search, Plus, X, Loader2 } from 'lucide-react';
 import api from '@/lib/axios';
+import { formatTimeFrom24hClock } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -464,7 +465,7 @@ const Appointments: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Hora:</span>
-                    <p>{appointment.time}</p>
+                    <p>{formatTimeFrom24hClock(appointment.time)}</p>
                   </div>
                 </div>
                 

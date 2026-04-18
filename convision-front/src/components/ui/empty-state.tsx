@@ -68,6 +68,9 @@ export interface EmptyStateProps {
   secondaryLabel?: string;
   onSecondary?: () => void;
   className?: string;
+  accentColor?: string;
+  leadingIcon?: React.ElementType;
+  actionLeftIcon?: React.ReactNode;
 }
 
 const DOT_PATTERN: React.CSSProperties = {
@@ -84,12 +87,16 @@ export function EmptyState({
   secondaryLabel,
   onSecondary,
   className,
+  accentColor,
+  leadingIcon: LeadingIconOverride,
+  actionLeftIcon,
 }: EmptyStateProps) {
   const roleTheme = useRoleTheme();
   const cfg = VARIANT_CONFIG[variant];
-  const IconComp = ICON_BY_VARIANT[variant];
+  const IconComp = LeadingIconOverride ?? ICON_BY_VARIANT[variant];
 
-  const color = cfg.useRoleColor ? roleTheme.primary : (cfg.fixedColor ?? '#7d7d87');
+  const color =
+    accentColor ?? (cfg.useRoleColor ? roleTheme.primary : (cfg.fixedColor ?? '#7d7d87'));
 
   const resolvedTitle = title ?? cfg.title;
   const resolvedDescription = description ?? cfg.description;
@@ -134,9 +141,10 @@ export function EmptyState({
         <Button
           onClick={onAction}
           size="sm"
-          className="mt-5 text-xs font-semibold text-white"
+          className="mt-5 flex h-[34px] items-center justify-center gap-1.5 rounded-[7px] px-4 text-[12px] font-semibold text-white"
           style={{ background: color, boxShadow: `0 4px 12px ${color}4d`, border: 'none' }}
         >
+          {actionLeftIcon ? <span className="flex shrink-0 items-center">{actionLeftIcon}</span> : null}
           {resolvedActionLabel}
         </Button>
       )}

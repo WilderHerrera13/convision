@@ -16,6 +16,7 @@ class CashRegisterCloseResource extends JsonResource
             'status' => $this->status,
             'total_counted' => $this->total_counted,
             'admin_notes' => $this->admin_notes,
+            'advisor_notes' => $this->advisor_notes,
             'approved_at' => $this->approved_at?->toIso8601String(),
             'user' => $this->when($this->relationLoaded('user'), fn () => [
                 'id' => $this->user->id,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatDateTime12h } from '@/lib/utils';
 import { Box, Typography, Button, Chip, TextField } from '@mui/material';
 import { Add, Edit } from '@mui/icons-material';
 import { SectionProps, FieldDefinition } from '../../types';
@@ -64,7 +65,7 @@ const LensometriaSection: React.FC<SectionProps> = ({ form, serverErrors, render
   };
 
   const handleSaveBiomicroscopia = (biomicroscopyData: { [key: string]: string }) => {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime12h(new Date());
     
     setSavedBiomicroscopyData({
         data: biomicroscopyData,
@@ -97,7 +98,7 @@ const LensometriaSection: React.FC<SectionProps> = ({ form, serverErrors, render
   };
 
   const handleSaveOftalmoscopia = (oftalmoscopiaData: { [key: string]: string }) => {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime12h(new Date());
     
     setSavedOftalmoscopiaData({
         data: oftalmoscopiaData,

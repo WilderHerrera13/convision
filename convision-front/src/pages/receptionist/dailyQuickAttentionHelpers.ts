@@ -1,6 +1,7 @@
 import { isValid, parseISO } from 'date-fns';
 import { isAxiosError } from 'axios';
 import type { QuickAttentionItem } from '@/services/dailyActivityReportService';
+import { RECEPCIONES_DINERO_META } from '@/services/dailyActivityReportService';
 
 export const NOTE_MAX = 500;
 
@@ -12,6 +13,10 @@ export const QUICK_PROFILE_OPTIONS = [
 
 export function quickAttentionNeedsProfile(item: QuickAttentionItem): boolean {
   return ['preguntas', 'cotizaciones', 'consultas_efectivas'].includes(item);
+}
+
+export function quickAttentionNeedsAmount(item: QuickAttentionItem): boolean {
+  return RECEPCIONES_DINERO_META.some((m) => m.key === item);
 }
 
 export const SHIFT_SET = new Set(['morning', 'afternoon', 'full']);

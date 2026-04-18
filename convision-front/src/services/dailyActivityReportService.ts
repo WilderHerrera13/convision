@@ -44,6 +44,50 @@ export interface SocialMedia {
   bonos_fidelizacion: number;
 }
 
+export type RecepcionDineroKey =
+  | 'voucher'
+  | 'bancolombia'
+  | 'daviplata'
+  | 'nequi'
+  | 'addi_recibido'
+  | 'sistecredito_recibido'
+  | 'compras'
+  | 'anticipos_recibidos'
+  | 'anticipos_por_cru'
+  | 'bono_regalo_recibido'
+  | 'pago_sistecredito';
+
+export type RecepcionesDinero = Record<RecepcionDineroKey, number>;
+
+export const RECEPCIONES_DINERO_META: { key: RecepcionDineroKey; label: string }[] = [
+  { key: 'voucher', label: 'Voucher' },
+  { key: 'bancolombia', label: 'Bancolombia' },
+  { key: 'daviplata', label: 'Daviplata' },
+  { key: 'nequi', label: 'Nequi' },
+  { key: 'addi_recibido', label: 'Addi' },
+  { key: 'sistecredito_recibido', label: 'Sistecrédito' },
+  { key: 'compras', label: 'Compras' },
+  { key: 'anticipos_recibidos', label: 'Anticipos recibidos' },
+  { key: 'anticipos_por_cru', label: 'Anticipos por cruces' },
+  { key: 'bono_regalo_recibido', label: 'Bono regalo' },
+  { key: 'pago_sistecredito', label: 'Pago Sistecrédito' },
+];
+
+export const defaultRecepcionesDinero = (): RecepcionesDinero =>
+  RECEPCIONES_DINERO_META.reduce(
+    (acc, { key }) => {
+      acc[key] = 0;
+      return acc;
+    },
+    {} as RecepcionesDinero,
+  );
+
+export const sumRecepcionesDinero = (r: Partial<RecepcionesDinero> | RecepcionesDinero): number =>
+  RECEPCIONES_DINERO_META.reduce((s, { key }) => {
+    const n = Number(r[key]);
+    return s + (Number.isFinite(n) ? n : 0);
+  }, 0);
+
 export interface DailyActivityReport {
   id: number;
   report_date: string;
@@ -51,6 +95,7 @@ export interface DailyActivityReport {
   customer_attention: CustomerAttention;
   operations: Operations;
   social_media: SocialMedia;
+  recepciones_dinero?: RecepcionesDinero;
   observations?: string;
   created_at: string;
   updated_at: string;
@@ -127,6 +172,17 @@ export const QUICK_ATTENTION_ITEMS = [
   { value: 'bonos_redimidos', label: 'Bonos redimidos' },
   { value: 'sistecreditos_realizados', label: 'Sistecréditos realizados' },
   { value: 'addi_realizados', label: 'Addi realizados' },
+  { value: 'voucher', label: 'Voucher' },
+  { value: 'bancolombia', label: 'Bancolombia' },
+  { value: 'daviplata', label: 'Daviplata' },
+  { value: 'nequi', label: 'Nequi' },
+  { value: 'addi_recibido', label: 'Addi (dinero)' },
+  { value: 'sistecredito_recibido', label: 'Sistecrédito (dinero)' },
+  { value: 'compras', label: 'Compras' },
+  { value: 'anticipos_recibidos', label: 'Anticipos recibidos' },
+  { value: 'anticipos_por_cru', label: 'Anticipos por cruces' },
+  { value: 'bono_regalo_recibido', label: 'Bono regalo' },
+  { value: 'pago_sistecredito', label: 'Pago Sistecrédito' },
 ] as const;
 
 export type QuickAttentionItem = (typeof QUICK_ATTENTION_ITEMS)[number]['value'];
@@ -189,6 +245,16 @@ export function normalizeDailyActivityReport(raw: Record<string, unknown>): Dail
     bonos_fidelizacion: Number(redes.bonos_fidelizacion_enviados ?? 0),
   };
 
+  const baseRecepciones = defaultRecepcionesDinero();
+  const rawRec = raw.recepciones_dinero as Record<string, unknown> | undefined;
+  if (rawRec && typeof rawRec === 'object') {
+    for (const { key } of RECEPCIONES_DINERO_META) {
+      if (key in rawRec && rawRec[key] != null) {
+        baseRecepciones[key] = Number(rawRec[key]);
+      }
+    }
+  }
+
   const userRaw = raw.user as { id?: number; name?: string; last_name?: string } | undefined;
 
   return {
@@ -198,6 +264,7 @@ export function normalizeDailyActivityReport(raw: Record<string, unknown>): Dail
     customer_attention,
     operations,
     social_media,
+    recepciones_dinero: baseRecepciones,
     observations: (raw.observations as string) ?? undefined,
     created_at: String(raw.created_at ?? ''),
     updated_at: String(raw.updated_at ?? ''),
@@ -311,6 +378,7 @@ const dailyActivityReportService = {
     shift: string;
     item: QuickAttentionItem;
     profile?: 'hombre' | 'mujer' | 'nino';
+    amount?: number;
     note?: string;
   }) => {
     const response = await api.post('/api/v1/daily-activity-reports/quick-attention', payload);

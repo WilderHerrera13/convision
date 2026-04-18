@@ -8,6 +8,20 @@ use InvalidArgumentException;
 
 class DailyActivityReportService
 {
+    private const AMOUNT_ITEMS = [
+        'voucher',
+        'bancolombia',
+        'daviplata',
+        'nequi',
+        'addi_recibido',
+        'sistecredito_recibido',
+        'compras',
+        'anticipos_recibidos',
+        'anticipos_por_cru',
+        'bono_regalo_recibido',
+        'pago_sistecredito',
+    ];
+
     public function create(array $validated, int $userId): DailyActivityReport
     {
         $validated['user_id'] = $userId;
@@ -18,7 +32,7 @@ class DailyActivityReportService
     /**
      * Incrementa en 1 el contador correspondiente al ítem y perfil (registro rápido de atención).
      *
-     * @param  array{item: string, report_date: string, shift: string, profile?: string|null, note?: string|null}  $data
+     * @param  array{item: string, report_date: string, shift: string, profile?: string|null, note?: string|null, amount?: string|float|null}  $data
      */
     public function quickAttentionIncrement(array $data, int $userId): DailyActivityReport
     {
@@ -35,8 +49,12 @@ class DailyActivityReportService
             ]
         );
 
-        $column = $this->resolveQuickAttentionColumn($data['item'], $data['profile'] ?? null);
-        $report->increment($column);
+        if ($this->isAmountItem($data['item'])) {
+            $this->incrementRecepcionDinero($report, $data['item'], (string) $data['amount']);
+        } else {
+            $column = $this->resolveQuickAttentionColumn($data['item'], $data['profile'] ?? null);
+            $report->increment($column);
+        }
 
         if (! empty($data['note'])) {
             $note = trim(strip_tags($data['note']));
@@ -48,6 +66,23 @@ class DailyActivityReportService
         }
 
         return $report->fresh();
+    }
+
+    public function isAmountItem(string $item): bool
+    {
+        return in_array($item, self::AMOUNT_ITEMS, true);
+    }
+
+    private function incrementRecepcionDinero(DailyActivityReport $report, string $key, string $amount): void
+    {
+        $current = $report->recepciones_dinero;
+        if (! is_array($current)) {
+            $current = [];
+        }
+        $prev = isset($current[$key]) ? (string) $current[$key] : '0';
+        $current[$key] = bcadd($prev, $amount, 2);
+        $report->recepciones_dinero = $current;
+        $report->save();
     }
 
     private function resolveQuickAttentionColumn(string $item, ?string $profile): string

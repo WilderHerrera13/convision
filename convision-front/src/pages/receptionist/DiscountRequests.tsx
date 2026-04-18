@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { format } from 'date-fns';
+import { formatDateTime12h } from '@/lib/utils';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -202,7 +203,7 @@ const DiscountRequests: React.FC = () => {
       type: 'text',
       cell: (request) => (
           <div>
-            <span className="text-xs text-gray-500">{format(new Date(request.created_at), 'dd/MM/yyyy HH:mm')}</span>
+            <span className="text-xs text-gray-500">{formatDateTime12h(request.created_at)}</span>
             {request.status === 'rejected' && request.rejection_reason && (
               <div className="mt-1 text-xs text-red-500">
                 Razón: {request.rejection_reason}

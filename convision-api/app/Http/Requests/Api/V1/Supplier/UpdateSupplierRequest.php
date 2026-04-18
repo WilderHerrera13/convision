@@ -22,6 +22,8 @@ class UpdateSupplierRequest extends FormRequest
             'legal_name' => 'nullable|string|max:255',
             'legal_representative' => 'nullable|string|max:255',
             'legal_representative_id' => 'nullable|string|max:255',
+            'person_type' => 'nullable|in:natural,juridica',
+            'responsible_person' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'email' => ['nullable', 'email', 'max:255', Rule::unique('suppliers')->ignore($supplierId)],

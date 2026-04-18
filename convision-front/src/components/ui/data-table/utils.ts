@@ -1,4 +1,4 @@
-import { formatCurrency as formatCurrencyUtil } from '@/lib/utils';
+import { formatCurrency as formatCurrencyUtil, formatDateTime12h } from '@/lib/utils';
 
 /**
  * Status label mappings for Spanish translations
@@ -85,19 +85,7 @@ export const formatDate = (dateString: string) => {
  */
 export const formatDateTime = (dateString: string) => {
   if (!dateString) return '—';
-  
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (error) {
-    return '—';
-  }
+  return formatDateTime12h(dateString);
 };
 
 /**

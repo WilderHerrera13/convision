@@ -30,12 +30,13 @@ class DailyActivityReport extends Model
         'bonos_regalo_enviados', 'bonos_fidelizacion_enviados',
         'mensajes_facebook', 'mensajes_instagram', 'mensajes_whatsapp',
         'entregas_realizadas', 'etiquetas_clientes', 'cotizaciones_trabajo', 'ordenes_trabajo',
-        'observations',
+        'observations', 'recepciones_dinero',
     ];
 
     protected $casts = [
         'report_date' => 'date',
         'valor_ordenes' => 'decimal:2',
+        'recepciones_dinero' => 'array',
     ];
 
     public function user()

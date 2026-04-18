@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { saleService, Sale, PaymentMethod } from '@/services/saleService';
 import { toast } from '@/components/ui/use-toast';
-import { formatCurrency, safeDateFormat } from '@/lib/utils';
+import { formatCurrency, formatDateTime12h, safeDateFormat } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -326,7 +326,7 @@ const SaleDetail: React.FC = () => {
               
               <div>
                 <p className="text-sm text-muted-foreground">Fecha</p>
-                <p className="text-base">{safeDateFormat(sale.created_at, 'dd/MM/yyyy HH:mm')}</p>
+                <p className="text-base">{formatDateTime12h(sale.created_at)}</p>
               </div>
               
               <div>

@@ -13,6 +13,7 @@ import cashRegisterCloseService, {
   PaymentMethodName,
 } from '@/services/cashRegisterCloseService';
 import { formatCOP } from '@/pages/admin/cashClosesConfig';
+import { formatDateTime12h } from '@/lib/utils';
 
 function buildAmountsFromClose(close: CashClose): Record<PaymentMethodName, number> {
   const rows = close.reconciliation?.payment_methods;
@@ -231,7 +232,7 @@ function AdminCashCloseActualsSection({ close, onUpdated }: Props) {
               {close.admin_actuals_recorded_at ? (
                 <>
                   Último registro:{' '}
-                  {new Date(close.admin_actuals_recorded_at).toLocaleString('es-CO')}
+                  {formatDateTime12h(close.admin_actuals_recorded_at)}
                 </>
               ) : (
                 'Aún no hay totales reales guardados.'

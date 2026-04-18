@@ -1,293 +1,184 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { BookOpen, Calendar, ChevronRight, CheckCircle2, User, ShoppingBag, AlertCircle, RefreshCw, DollarSign, Percent } from 'lucide-react';
-import { appointmentsService } from '@/services/appointmentsService';
-import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { parseLocalDatetime } from '@/lib/utils';
-import { toast } from '@/components/ui/use-toast';
-
-interface Appointment {
-  id: number;
-  patient: {
-    id: number;
-    first_name: string;
-    last_name: string;
-    identification: string;
-  };
-  specialist: {
-    id: number;
-    name: string;
-  };
-  scheduled_at: string;
-  status: 'scheduled' | 'in_progress' | 'paused' | 'completed';
-  notes?: string;
-
-}
+import { es } from 'date-fns/locale';
+import { ShoppingBag } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { appointmentsService, type Appointment } from '@/services/appointmentsService';
+import { saleService } from '@/services/saleService';
+import { useToast } from '@/hooks/use-toast';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
+import { buildReceptionistSalesQueueColumns } from './receptionistDashboardColumns';
+import {
+  ReceptionistDashboardHeader,
+  ReceptionistMetricStrip,
+  ReceptionistQuickActionsStrip,
+} from './ReceptionistDashboardWidgets';
+import { ReceptionistTodayAgendaAside } from './ReceptionistTodayAgendaAside';
 
 const ReceptionistDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [completedAppointments, setCompletedAppointments] = useState<Appointment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-
-
-  // Function to check if an appointment is truly completed
-  const isAppointmentTrulyCompleted = (appointment: Appointment): boolean => {
-    // Ensure status is explicitly completed
-    if (appointment.status !== 'completed') {
-      return false;
-    }
-    
-      // Appointment is completed - no prescription check needed for receptionists
-    
-    return true;
-  };
-
-  // Use useCallback to be able to call this function from different places
-  const fetchCompletedAppointments = useCallback(async (showLoading = true) => {
-    try {
-      if (showLoading) {
-        setIsLoading(true);
-      } else {
-        setIsRefreshing(true);
-      }
-      
-      // Make the API request with explicit filtering for completed status
-      // Add a cache-busting timestamp to ensure fresh data
-      const timestamp = new Date().getTime();
-      const response = await appointmentsService.getAppointments({
-        filters: { status: 'completed' },
-        perPage: 20,
-        sort: 'updated_at,desc',
-        view: `${timestamp}` // Add as a query param to bust cache
-      });
-      
-      // Apply strict filtering to ensure only truly completed appointments are shown
-      const strictlyCompletedAppointments = response.data.filter(appointment => 
-        isAppointmentTrulyCompleted(appointment)
-      );
-      
-      // Set only the truly completed appointments
-      setCompletedAppointments(strictlyCompletedAppointments);
-
-      if (!showLoading) {
-        toast({
-          title: "Lista actualizada",
-          description: `Se han cargado ${strictlyCompletedAppointments.length} citas completadas.`,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching completed appointments:', error);
-      if (!showLoading) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudieron cargar las citas completadas. Intente de nuevo.",
-        });
-      }
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
+  const { toast } = useToast();
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const dateLabel = useMemo(() => {
+    const raw = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es });
+    return `Hoy · ${raw.charAt(0).toUpperCase() + raw.slice(1)}`;
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    fetchCompletedAppointments();
-  }, [fetchCompletedAppointments]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [queueNonce, setQueueNonce] = useState(0);
+  const [queueTotalCount, setQueueTotalCount] = useState(0);
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
+  const [todayTotal, setTodayTotal] = useState(0);
+  const [todayPending, setTodayPending] = useState(0);
+  const [salesTotal, setSalesTotal] = useState(0);
+  const [salesTxCount, setSalesTxCount] = useState(0);
 
-  // Auto-refresh mechanism to check for completed sales
+  const columns = useMemo(() => buildReceptionistSalesQueueColumns(navigate), [navigate]);
+
+  type LoadMode = 'initial' | 'silent' | 'manual';
+
+  const loadSummary = useCallback(
+    async (mode: LoadMode) => {
+      try {
+        if (mode === 'initial') setLoadingSummary(true);
+        if (mode === 'manual') setIsRefreshing(true);
+
+        const [todayRes, stats, queuePeek] = await Promise.all([
+          appointmentsService.getAppointments({
+            startDate: todayStr,
+            endDate: todayStr,
+            perPage: 200,
+            sort: 'scheduled_at,asc',
+          }),
+          saleService.getTodayStats().catch(() => null),
+          appointmentsService.getReceptionistSalesQueueTable({ page: 1, per_page: 1 }),
+        ]);
+
+        const list = Array.isArray(todayRes.data) ? todayRes.data : [];
+        const meta = todayRes.meta as { total?: number | number[] } | undefined;
+        let totalFromMeta = list.length;
+        if (typeof meta?.total === 'number') totalFromMeta = meta.total;
+        else if (Array.isArray(meta?.total) && meta.total.length) totalFromMeta = Number(meta.total[0]);
+
+        const pending = list.filter((a) => a.status !== 'completed' && a.status !== 'cancelled').length;
+
+        setTodayAppointments(list);
+        setTodayTotal(totalFromMeta);
+        setTodayPending(pending);
+        setQueueTotalCount(queuePeek.total ?? 0);
+
+        if (stats) {
+          const inner = (stats as { data?: Record<string, unknown> }).data ?? stats;
+          const amount = Number(inner.today_amount ?? inner.total_revenue ?? 0);
+          const count = Number(inner.today_sales ?? inner.total_sales ?? 0);
+          setSalesTotal(amount);
+          setSalesTxCount(count);
+        } else {
+          setSalesTotal(0);
+          setSalesTxCount(0);
+        }
+
+        if (mode === 'manual') {
+          toast({ title: 'Lista actualizada', description: 'Datos del panel actualizados.' });
+        }
+      } catch (e) {
+        console.error(e);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No se pudieron cargar los datos del panel.',
+        });
+      } finally {
+        setLoadingSummary(false);
+        setIsRefreshing(false);
+      }
+    },
+    [todayStr, toast],
+  );
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Auto-refresh every 30 seconds to check for completed sales
-      fetchCompletedAppointments(false);
+    void loadSummary('initial');
+  }, [loadSummary]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      void loadSummary('silent');
     }, 30000);
+    return () => clearInterval(id);
+  }, [loadSummary]);
 
-    return () => clearInterval(interval);
-  }, [fetchCompletedAppointments]);
-
-  // Add a refresh button to the UI
   const handleRefresh = () => {
-    fetchCompletedAppointments(false);
+    setQueueNonce((n) => n + 1);
+    void loadSummary('manual');
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-start bg-gray-50 p-8">
-      <h1 className="text-3xl font-bold mb-6">Panel de Recepcionista</h1>
-      
-      {/* Completed Appointments Banner */}
-      {isLoading ? (
-        <div className="w-full mb-8 bg-white p-8 rounded-lg shadow-sm border">
-          <div className="h-8 w-8 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-center mt-2 text-gray-500">Cargando citas completadas...</p>
-        </div>
-      ) : completedAppointments.length > 0 ? (
-        <div className="w-full mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Citas Completadas Recientes</h2>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                <AlertCircle className="h-3.5 w-3.5 mr-1" />
-                Requieren atención
-              </Badge>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefresh} 
-                disabled={isRefreshing}
-                className="h-8 gap-1"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Actualizando...' : 'Actualizar'}
-              </Button>
-            </div>
-          </div>
-          
-          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-0 shadow-md mb-4">
-            <CardHeader className="pb-2 border-b border-green-100">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-green-800 flex items-center gap-2">
-                  <ShoppingBag className="h-5 w-5 text-green-600" /> 
-                  Citas listas para Ventas
-                </CardTitle>
-              </div>
-              <CardDescription className="text-green-700">
-                Las siguientes citas han sido completadas por especialistas y requieren que inicies el proceso de venta
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-4 w-full">
-                {completedAppointments.map(appointment => (
-                  <div 
-                    key={appointment.id}
-                    onClick={() => navigate(`/receptionist/appointments/${appointment.id}`)}
-                    className="cursor-pointer transition-transform hover:scale-[1.01]"
-                  >
-                    <Card className="border-2 border-green-500 bg-white shadow-sm">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="bg-green-500 text-white p-1.5 rounded-full">
-                              <CheckCircle2 className="h-5 w-5" />
-                            </div>
-                            <CardTitle className="text-lg text-green-800">Cita Completada</CardTitle>
-                          </div>
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 px-3">
-                            Completada
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <div className="text-sm text-gray-500">Paciente</div>
-                            <div className="font-medium flex items-center">
-                              <User className="h-4 w-4 mr-1 text-gray-400" />
-                              {appointment.patient.first_name} {appointment.patient.last_name}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-gray-500">Fecha</div>
-                            <div className="font-medium">
-                              {format(parseLocalDatetime(appointment.scheduled_at) ?? new Date(), 'dd/MM/yyyy HH:mm')}
-                            </div>
-                          </div>
-                        </div>
-                        
+    <div className="flex min-h-0 flex-1 flex-col bg-convision-background">
+      <ReceptionistDashboardHeader
+        userName={user?.name}
+        dateLabel={dateLabel}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+      />
 
-                        
-                        <div className="flex justify-end items-center">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="border-green-500/40 text-green-700 hover:bg-green-100 flex items-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/receptionist/appointments/${appointment.id}`);
-                            }}
-                          >
-                            <ShoppingBag className="mr-2 h-4 w-4" />
-                            Iniciar venta <ChevronRight className="ml-1 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="w-full mb-8 bg-blue-50 p-6 rounded-lg border border-blue-100">
-          <div className="flex items-center mb-2">
-            <div className="bg-blue-100 p-2 rounded-full mr-3">
-              <AlertCircle className="h-5 w-5 text-blue-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-blue-800">Sin Citas Completadas Pendientes</h2>
-          </div>
-          <p className="text-blue-700 ml-12">No hay citas completadas recientes que requieran iniciar una venta.</p>
-        </div>
-      )}
-      
-      {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
-        <Card className="hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/receptionist/catalog')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-convision-primary" /> Catálogo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Consulta y gestiona el catálogo de productos ópticos.</p>
-            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/catalog'); }}>Ir al catálogo</Button>
-          </CardContent>
-        </Card>
-        <Card className="hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/receptionist/appointments')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-convision-primary" /> Citas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Gestiona las citas de los pacientes y agenda nuevas citas.</p>
-            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/appointments'); }}>Ir a Citas</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="flex flex-1 flex-col gap-4 px-6 py-6">
+        <ReceptionistMetricStrip
+          loading={loadingSummary}
+          todayTotal={todayTotal}
+          todayPending={todayPending}
+          queueTotal={queueTotalCount}
+          salesTotal={salesTotal}
+          salesTxCount={salesTxCount}
+        />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl mt-6">
-        <Card className="hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/receptionist/sales')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-6 h-6 text-convision-primary" /> Ventas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Gestiona ventas y consulta el historial de transacciones.</p>
-            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/sales'); }}>Ir a Ventas</Button>
-          </CardContent>
-        </Card>
-        <Card className="hover:shadow-lg transition cursor-pointer" onClick={() => navigate('/receptionist/discount-requests')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Percent className="w-6 h-6 text-convision-primary" /> Descuentos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Consulta y gestiona los descuentos disponibles en el sistema.</p>
-            <Button className="mt-4 w-full" variant="outline" onClick={e => { e.stopPropagation(); navigate('/receptionist/discount-requests'); }}>Ver Descuentos</Button>
-          </CardContent>
-        </Card>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+          <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+            <EntityTable<Appointment>
+              columns={columns}
+              queryKeyBase={`receptionist-sales-queue-${queueNonce}`}
+              fetcher={({ page, per_page, search }) =>
+                appointmentsService.getReceptionistSalesQueueTable({ page, per_page, search })
+              }
+              searchPlaceholder="Buscar paciente…"
+              paginationVariant="figma"
+              ledgerBorderMode="figma"
+              tableLayout="ledger"
+              tableClassName="table-fixed w-full min-w-[680px]"
+              enableSorting={false}
+              showPageSizeSelect={false}
+              initialPerPage={7}
+              tableAriaLabel="Cola de ventas"
+              tableScrollClassName="max-h-[280px] overflow-y-auto overscroll-contain"
+              toolbarLeading={
+                <div className="flex min-w-0 flex-col gap-0.5 leading-normal">
+                  <span className="text-[14px] font-semibold text-convision-text">Cola de ventas</span>
+                  <span className="text-[11px] text-convision-text-secondary">
+                    Consultas completadas listas para procesar
+                  </span>
+                </div>
+              }
+              onRowClick={(row) => navigate(`/receptionist/appointments/${row.id}`)}
+              emptyStateNode={
+                <EmptyState
+                  variant="default"
+                  title="Sin citas en cola"
+                  description="No hay consultas completadas pendientes de venta."
+                  leadingIcon={ShoppingBag}
+                />
+              }
+            />
+            <ReceptionistQuickActionsStrip />
+          </div>
+
+          <ReceptionistTodayAgendaAside appointments={todayAppointments} />
+        </div>
       </div>
     </div>
   );
 };
 
-export default ReceptionistDashboard; 
+export default ReceptionistDashboard;

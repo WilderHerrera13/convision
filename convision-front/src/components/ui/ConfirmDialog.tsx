@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -56,9 +57,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </button>
         </DialogHeader>
 
-        <p className="px-4 py-4 text-[12px] leading-relaxed text-[#7d7d87]">
-          {description}
-        </p>
+        <DialogDescription
+          asChild
+        >
+          <p className="px-4 py-4 text-[12px] leading-relaxed text-[#7d7d87]">
+            {description}
+          </p>
+        </DialogDescription>
 
         <div className="flex items-center justify-end gap-2 border-t border-[#e0e0e5] px-4 py-3">
           <Button

@@ -2926,3 +2926,36 @@ Sending Request to the Target: GET /api/v1/appointments/3
 Received Response from the Target: 200 /api/v1/appointments/3
 Sending Request to the Target: GET /api/v1/patients/2/clinical-history
 Received Response from the Target: 200 /api/v1/patients/2/clinical-history
+1:29:20 PM [vite] hmr update /src/index.css, /src/components/clinical/ClinicalHistoryForm/index.tsx
+1:29:20 PM [vite] page reload src/components/clinical/ClinicalHistoryForm/schema.ts
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/BasicDataSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/CompanionResponsibleSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/ConsultationInfoSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/Lensometria/BiomicroscopiaSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/Lensometria/LensometriaSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/Lensometria/OftalmoscopiaSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/index.css, /src/components/clinical/ClinicalHistoryForm/index.tsx
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/Queratometria/QueratometriaRefraccionSection.tsx, /src/index.css
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/sections/Queratometria/RefraccionModal.tsx, /src/index.css
+1:29:20 PM [vite] page reload src/components/clinical/ClinicalHistoryForm/types.ts
+1:29:20 PM [vite] hmr update /src/index.css, /src/components/clinical/ClinicalHistoryForm/index.tsx
+1:29:20 PM [vite] hmr update /src/index.css, /src/components/clinical/ClinicalHistoryForm/index.tsx
+1:29:20 PM [vite] hmr update /src/components/clinical/ClinicalHistoryForm/index.tsx, /src/index.css
+1:29:20 PM [vite] vite.config.ts changed, restarting server...
+1:29:20 PM [vite] vite.config.ts changed, restarting server...
+✘ [ERROR] Expected identifier but found "<<"
+
+    vite.config.ts:14:0:
+      14 │ <<<<<<< HEAD
+         ╵ ~~
+
+failed to load config from /Users/wilderherrera/Desktop/convision/convision-front/vite.config.ts
+1:29:20 PM [vite] Build failed with 1 error:
+vite.config.ts:14:0: ERROR: Expected identifier but found "<<"
+1:29:20 PM [vite] server restart failed
+1:29:30 PM [vite] vite.config.ts changed, restarting server...
+1:29:30 PM [vite] server restarted.
+
+  ➜  Local:   http://localhost:4300/
+  ➜  Network: http://192.168.1.17:4300/
+  ➜  Network: http://192.168.100.12:4300/

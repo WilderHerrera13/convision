@@ -17,6 +17,7 @@ import cashRegisterCloseService, {
   PaymentMethodName,
 } from '@/services/cashRegisterCloseService';
 import { formatCOP } from './cashClosesConfig';
+import { formatTime12h } from '@/lib/utils';
 
 interface CashCloseDetail extends CashClose {
   user?: { id: number; name: string; last_name: string };
@@ -117,7 +118,7 @@ const AdminCashCloseDetail: React.FC = () => {
     isAdmin && (close.status === 'submitted' || close.status === 'approved');
 
   const submittedLabel = close.updated_at
-    ? `Enviado el ${format(new Date(close.updated_at), 'dd/MM/yyyy')} a las ${format(new Date(close.updated_at), 'h:mm a')}`
+    ? `Enviado el ${format(new Date(close.updated_at), 'dd/MM/yyyy')} a las ${formatTime12h(close.updated_at)}`
     : null;
 
   return (
@@ -128,7 +129,7 @@ const AdminCashCloseDetail: React.FC = () => {
           className="flex items-center gap-1.5 text-[11px] font-medium text-[#3a71f7] bg-[#eff1ff] border border-[#c5d3f8] rounded-md px-3 py-1.5 hover:bg-[#dce5ff] transition-colors shrink-0"
         >
           <ArrowLeft className="h-3 w-3" />
-          Cierres de Caja
+          {isAdmin ? 'Cierres de Caja' : 'Historial de cierres'}
         </button>
 
         <div className="w-px h-9 bg-[#dcdce0] shrink-0" />
@@ -185,6 +186,15 @@ const AdminCashCloseDetail: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+
+        {close.advisor_notes && close.advisor_notes.trim() !== '' && (
+          <Card className="border-border">
+            <CardContent className="pt-5 pb-4">
+              <p className="text-sm font-semibold text-foreground">Observaciones del asesor</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{close.advisor_notes}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {showAdminReconciliation ? (
           <AdminCashCloseActualsSection

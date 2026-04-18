@@ -10,6 +10,8 @@ type Props = {
   item: QuickAttentionItem | '';
   profile: 'hombre' | 'mujer' | 'nino' | '';
   needsProfileFn: (item: QuickAttentionItem) => boolean;
+  needsAmountFn: (item: QuickAttentionItem) => boolean;
+  amountValid: boolean;
   dailyReportListPath: string;
   primaryCtaClass: string;
   submitting: boolean;
@@ -25,6 +27,8 @@ const DailyQuickAttentionActions: React.FC<Props> = ({
   item,
   profile,
   needsProfileFn,
+  needsAmountFn,
+  amountValid,
   dailyReportListPath,
   primaryCtaClass,
   submitting,
@@ -56,7 +60,10 @@ const DailyQuickAttentionActions: React.FC<Props> = ({
         </Button>
         <Button
           className={cn('rounded-lg px-4 py-2.5 font-semibold', primaryCtaClass)}
-          disabled={needsProfileFn(item as QuickAttentionItem) && !profile}
+          disabled={
+            (needsProfileFn(item as QuickAttentionItem) && !profile) ||
+            (needsAmountFn(item as QuickAttentionItem) && !amountValid)
+          }
           onClick={onContinueFrom2}
         >
           Continuar

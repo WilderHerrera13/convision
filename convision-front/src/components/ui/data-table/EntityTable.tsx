@@ -50,6 +50,9 @@ type EntityTableProps<T> = {
   ledgerBorderMode?: 'grid' | 'figma';
   /** Clases en `<table>` (p. ej. `table-fixed min-w-[1120px]`). */
   tableClassName?: string;
+  /** Con `tableLayout="ledger"`, fila superior dentro del card (título + acciones). */
+  toolbarLeading?: React.ReactNode;
+  toolbarTrailing?: React.ReactNode;
 };
 
 function EntityTable<T>({
@@ -72,6 +75,8 @@ function EntityTable<T>({
   tableScrollClassName,
   ledgerBorderMode = 'grid',
   tableClassName,
+  toolbarLeading,
+  toolbarTrailing,
 }: EntityTableProps<T>) {
   const [page, setPage] = React.useState<number>(1);
   const [perPage, setPerPage] = React.useState<number>(initialPerPage);
@@ -112,9 +117,53 @@ function EntityTable<T>({
         }
       : null;
 
+  const integratedLedgerToolbar =
+    tableLayout === 'ledger' && (toolbarLeading != null || toolbarTrailing != null);
+
+  const ledgerToolbar =
+    integratedLedgerToolbar ? (
+      <div className="flex h-[52px] w-full items-center justify-between gap-3 border-b border-[#e5e5e9] bg-white px-5">
+        <div className="min-w-0 flex-1">{toolbarLeading}</div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {enableSearch && (
+            <Input
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="h-[34px] w-[220px] shrink-0 rounded-[6px] border-[#e5e5e9] text-[12px] placeholder:text-[#b4b5bc]"
+            />
+          )}
+          {toolbarTrailing}
+          {showPageSizeSelect && (
+            <Select
+              value={String(perPage)}
+              onValueChange={(v) => {
+                setPerPage(Number(v));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-[34px] w-[120px] rounded-[6px] border-[#e5e5e9] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {perPageOptions.map((opt) => (
+                  <SelectItem key={opt} value={String(opt)}>
+                    {opt} por página
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
+    ) : undefined;
+
   return (
-    <div className="space-y-3">
-      {(enableSearch || showPageSizeSelect) && (
+    <div className={integratedLedgerToolbar ? 'w-full min-w-0' : 'space-y-3'}>
+      {!integratedLedgerToolbar && (enableSearch || showPageSizeSelect) && (
         <div className="flex items-center justify-between gap-2">
           {enableSearch && (
             <div className="flex-1 max-w-md">
@@ -174,6 +223,7 @@ function EntityTable<T>({
         tableScrollClassName={tableScrollClassName}
         ledgerBorderMode={ledgerBorderMode}
         tableClassName={tableClassName}
+        ledgerToolbar={ledgerToolbar}
       />
     </div>
   );

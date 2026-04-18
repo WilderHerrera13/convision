@@ -98,7 +98,11 @@ const Login: React.FC = () => {
                 <h1 className="text-[26px] leading-[1.21] font-bold text-[#121215]">Bienvenido</h1>
                 <p className="mt-[9px] text-[13px] leading-[1.21] text-[#7D7D87]">Ingresa tus credenciales para acceder al sistema</p>
                 <div className="mt-6 h-px bg-[#E5E5E9]" />
-                {loginError && <p className="mt-3 text-[12px] font-medium text-red-500">{loginError}</p>}
+                {loginError && (
+                  <p role="alert" className="mt-3 text-[12px] font-medium text-red-500">
+                    {loginError}
+                  </p>
+                )}
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="mt-[25px]">
                     <FormField

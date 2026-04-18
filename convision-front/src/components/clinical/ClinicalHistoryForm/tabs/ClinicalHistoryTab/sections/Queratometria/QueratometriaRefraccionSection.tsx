@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateTime12h } from '@/lib/utils';
 import { Box, Typography, Button, TextField, Chip } from '@mui/material';
 import { Add, Edit } from '@mui/icons-material';
 import { SectionProps, FieldDefinition } from '../../types';
@@ -299,7 +300,7 @@ const QueratometriaRefraccionSection: React.FC<SectionProps> = ({ form, serverEr
   };
 
   const handleSaveRefraccion = (refraccionData: { [key: string]: string | boolean }) => {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime12h(new Date());
     
     // Always update the single saved item or create new one
     const savedEntry: RefraccionData = {
@@ -347,7 +348,7 @@ const QueratometriaRefraccionSection: React.FC<SectionProps> = ({ form, serverEr
   };
 
   const handleSaveTest = (testData: { [key: string]: string | boolean }) => {
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime12h(new Date());
     
     // Always update the single saved item or create new one
     const savedEntry: TestData = {

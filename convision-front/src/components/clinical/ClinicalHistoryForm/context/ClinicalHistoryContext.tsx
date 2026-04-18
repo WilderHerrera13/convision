@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { formatTime12h } from '@/lib/utils';
 
 // Define the complete form data structure for all tabs
 export interface ClinicalHistoryFormData {
@@ -252,7 +253,7 @@ export const ClinicalHistoryProvider: React.FC<ClinicalHistoryProviderProps> = (
         ...prev,
         lastSaved: now,
       }));
-      console.log('✅ Auto-saved clinical history data to localStorage', new Date().toLocaleTimeString());
+      console.log('✅ Auto-saved clinical history data to localStorage', formatTime12h(new Date()));
     } catch (error) {
       console.error('❌ Error saving to localStorage:', error);
     } finally {

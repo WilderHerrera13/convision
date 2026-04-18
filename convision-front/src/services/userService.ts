@@ -6,8 +6,10 @@ export interface User {
   last_name: string;
   email: string;
   identification: string;
-  phone: string;
+  phone: string | null;
   role: 'admin' | 'specialist' | 'receptionist';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CreateUserData {
@@ -30,18 +32,46 @@ export interface UpdateUserData {
   role: 'admin' | 'specialist' | 'receptionist';
 }
 
+export type PaginatedUsers = {
+  data: User[];
+  last_page: number;
+  total: number;
+};
+
 class UserService {
   private readonly baseUrl = '/api/v1/users';
 
+  async getUsers(params: { page?: number; per_page?: number; search?: string }): Promise<PaginatedUsers> {
+    const { page = 1, per_page = 15, search } = params;
+    const query: Record<string, string | number> = {
+      page,
+      per_page,
+      sort: 'name,asc',
+    };
+    const t = search?.trim();
+    if (t) {
+      query.s_f = JSON.stringify(['name', 'email']);
+      query.s_v = JSON.stringify([`%${t}%`, `%${t}%`]);
+      query.s_o = 'or';
+    }
+    const response = await axios.get(this.baseUrl, { params: query });
+    const body = response.data;
+    return {
+      data: Array.isArray(body.data) ? body.data : [],
+      last_page: body.meta?.last_page ?? 1,
+      total: body.meta?.total ?? 0,
+    };
+  }
+
   async getAll(): Promise<User[]> {
-    const response = await axios.get(this.baseUrl);
-    // Support both { data: [...] } and [...] API responses
-    return Array.isArray(response.data) ? response.data : response.data.data;
+    const res = await this.getUsers({ page: 1, per_page: 100 });
+    return res.data;
   }
 
   async getById(id: number): Promise<User> {
-    const response = await axios.get<User>(`${this.baseUrl}/${id}`);
-    return response.data;
+    const response = await axios.get(`${this.baseUrl}/${id}`);
+    const body = response.data;
+    return (body?.data ?? body) as User;
   }
 
   async create(data: CreateUserData): Promise<void> {
@@ -57,4 +87,4 @@ class UserService {
   }
 }
 
-export const userService = new UserService(); 
+export const userService = new UserService();

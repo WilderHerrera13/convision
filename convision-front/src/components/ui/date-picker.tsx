@@ -1,5 +1,5 @@
 import * as React from "react";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Button } from "./button";
@@ -14,6 +14,8 @@ export interface DatePickerProps {
   placeholder?: string;
   disabled?: boolean;
   minDate?: Date;
+  /** Fechas posteriores a este día (00:00 local) quedan deshabilitadas. */
+  maxDate?: Date;
   error?: string;
   useInputTrigger?: boolean;
 }
@@ -25,6 +27,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   placeholder = "Seleccionar fecha",
   disabled,
   minDate,
+  maxDate,
   error,
   useInputTrigger = false,
 }) => {
@@ -65,7 +68,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               selected={dateValue}
               onSelect={onChange}
               initialFocus
-              disabled={minDate ? (date) => date < minDate : undefined}
+              disabled={
+                minDate || maxDate
+                  ? (date) => {
+                      const d = startOfDay(date);
+                      if (minDate && d < startOfDay(minDate)) return true;
+                      if (maxDate && d > startOfDay(maxDate)) return true;
+                      return false;
+                    }
+                  : undefined
+              }
             />
           </PopoverContent>
         </Popover>

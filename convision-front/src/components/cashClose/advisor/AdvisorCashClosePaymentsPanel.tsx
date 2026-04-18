@@ -34,7 +34,8 @@ const AdvisorCashClosePaymentsPanel: React.FC<Props> = ({
     <Alert className="border-[#c5d3f8] bg-[#eff1ff] text-[#3a71f7]" role="note">
       <Info className="h-4 w-4 shrink-0" aria-hidden />
       <AlertDescription className="text-[13px] font-medium text-[#3a71f7]">
-        Ingresa el valor contado físicamente en caja para cada medio de pago. Opera con total independencia.
+        El efectivo se toma del arqueo por denominación (panel izquierdo). Aquí registra solo los demás medios
+        de pago.
       </AlertDescription>
     </Alert>
 
@@ -51,15 +52,17 @@ const AdvisorCashClosePaymentsPanel: React.FC<Props> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paymentMethods.map((pm) => (
-            <CashPaymentMethodRow
-              key={pm.name}
-              name={pm.name as PaymentMethodName}
-              countedAmount={pm.counted_amount}
-              onChange={handlePaymentChange}
-              readOnly={isReadOnly}
-            />
-          ))}
+          {paymentMethods
+            .filter((pm) => pm.name !== 'efectivo')
+            .map((pm) => (
+              <CashPaymentMethodRow
+                key={pm.name}
+                name={pm.name as PaymentMethodName}
+                countedAmount={pm.counted_amount}
+                onChange={handlePaymentChange}
+                readOnly={isReadOnly}
+              />
+            ))}
           <TableRow className="border-t border-[#c5d3f8] bg-[#eff1ff] font-bold hover:bg-[#eff1ff]">
             <TableCell className="py-3 text-[11px] font-bold uppercase tracking-wide text-[#3a71f7]">TOTALES</TableCell>
             <TableCell className="py-3 text-[13px] font-bold text-[#0f0f12]">{formatCOP(totalCounted)}</TableCell>

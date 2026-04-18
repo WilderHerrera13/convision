@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\DailyActivityReport;
 
 use App\Models\User;
+use App\Services\DailyActivityReportService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -18,8 +19,9 @@ class QuickAttentionDailyActivityReportRequest extends FormRequest
         return [
             'report_date' => 'required|date_format:Y-m-d',
             'shift'       => 'required|in:morning,afternoon,full',
-            'item'        => 'required|string|in:preguntas,cotizaciones,consultas_efectivas,consulta_venta_formula,consultas_no_efectivas,bonos_entregados,bonos_redimidos,sistecreditos_realizados,addi_realizados',
+            'item'        => 'required|string|in:preguntas,cotizaciones,consultas_efectivas,consulta_venta_formula,consultas_no_efectivas,bonos_entregados,bonos_redimidos,sistecreditos_realizados,addi_realizados,voucher,bancolombia,daviplata,nequi,addi_recibido,sistecredito_recibido,compras,anticipos_recibidos,anticipos_por_cru,bono_regalo_recibido,pago_sistecredito',
             'profile'     => 'nullable|in:hombre,mujer,nino',
+            'amount'      => 'nullable|numeric|min:0.01|max:999999999999.99',
             'note'        => 'nullable|string|max:500',
         ];
     }
@@ -46,6 +48,13 @@ class QuickAttentionDailyActivityReportRequest extends FormRequest
             $needsProfile = in_array($item, ['preguntas', 'cotizaciones', 'consultas_efectivas'], true);
             if ($needsProfile && ! in_array($profile, ['hombre', 'mujer', 'nino'], true)) {
                 $validator->errors()->add('profile', 'El perfil es obligatorio para este ítem.');
+            }
+            $service = app(DailyActivityReportService::class);
+            if ($item && $service->isAmountItem($item)) {
+                $raw = $this->input('amount');
+                if ($raw === null || $raw === '') {
+                    $validator->errors()->add('amount', 'El monto es obligatorio para este tipo de atención.');
+                }
             }
         });
     }

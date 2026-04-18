@@ -37,10 +37,22 @@ import DiscountRequests from "./pages/receptionist/DiscountRequests";
 
 // Admin pages
 import Users from "./pages/admin/Users";
+import UserCreatePage from "./pages/admin/users/UserCreatePage";
+import UserEditPage from "./pages/admin/users/UserEditPage";
+import UserDetailPage from "./pages/admin/users/UserDetailPage";
+import AdminUsersOutlet from "./pages/admin/users/AdminUsersOutlet";
 import Inventory from "./pages/admin/Inventory";
 import Patients from "./pages/admin/Patients";
 import Suppliers from "./pages/admin/Suppliers";
+import AdminSuppliersOutlet from "./pages/admin/suppliers/AdminSuppliersOutlet";
+import SupplierCreatePage from "./pages/admin/suppliers/SupplierCreatePage";
+import SupplierEditPage from "./pages/admin/suppliers/SupplierEditPage";
+import SupplierDetailPage from "./pages/admin/suppliers/SupplierDetailPage";
 import Laboratories from "./pages/admin/Laboratories";
+import AdminLaboratoriesOutlet from "./pages/admin/laboratories/AdminLaboratoriesOutlet";
+import LaboratoryCreatePage from "./pages/admin/laboratories/LaboratoryCreatePage";
+import LaboratoryEditPage from "./pages/admin/laboratories/LaboratoryEditPage";
+import LaboratoryDetailPage from "./pages/admin/laboratories/LaboratoryDetailPage";
 import ClinicalHistory from "./pages/admin/ClinicalHistory";
 import Sales from "./pages/admin/Sales";
 import SaleDetail from "./pages/admin/SaleDetail";
@@ -66,7 +78,10 @@ import DailyReportDetailPage from './pages/DailyReportDetailPage';
 import AdminCashCloses from './pages/admin/CashCloses';
 import AdminCashCloseDetail from './pages/admin/CashCloseDetail';
 import AdminCashClosesByAdvisor from './pages/admin/CashClosesByAdvisor';
+import AdminCashCloseCalendar from './pages/admin/CashCloseCalendar';
+import AdminCashCloseDetailRedirector from './pages/admin/CashCloseDetailRedirector';
 import AdminDailyReports from './pages/admin/DailyReports';
+import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 
 // Import the laboratory orders components
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
@@ -228,8 +243,19 @@ const router = createBrowserRouter([
             element: <Dashboard />,
           },
           {
+            path: "notifications",
+            element: <AdminNotificationsPage />,
+          },
+          {
             path: "users",
-            element: <Users />,
+            element: <AdminUsersOutlet />,
+            children: [
+              { index: true, element: <Users /> },
+              { path: "new", element: <UserCreatePage /> },
+              { path: "create", element: <Navigate to="/admin/users/new" replace /> },
+              { path: ":id/edit", element: <UserEditPage /> },
+              { path: ":id", element: <UserDetailPage /> },
+            ],
           },
           {
             path: "patients",
@@ -249,7 +275,13 @@ const router = createBrowserRouter([
           },
           {
             path: "suppliers",
-            element: <Suppliers />,
+            element: <AdminSuppliersOutlet />,
+            children: [
+              { index: true, element: <Suppliers /> },
+              { path: "new", element: <SupplierCreatePage /> },
+              { path: ":id/edit", element: <SupplierEditPage /> },
+              { path: ":id", element: <SupplierDetailPage /> },
+            ],
           },
           {
             path: "purchases-dashboard",
@@ -281,7 +313,13 @@ const router = createBrowserRouter([
           },
           {
             path: "laboratories",
-            element: <Laboratories />,
+            element: <AdminLaboratoriesOutlet />,
+            children: [
+              { index: true, element: <Laboratories /> },
+              { path: "new", element: <LaboratoryCreatePage /> },
+              { path: ":id/edit", element: <LaboratoryEditPage /> },
+              { path: ":id", element: <LaboratoryDetailPage /> },
+            ],
           },
           {
             path: "appointments",
@@ -401,11 +439,19 @@ const router = createBrowserRouter([
           },
           {
             path: "cash-closes/advisor/:userId",
+            element: <AdminCashCloseCalendar />,
+          },
+          {
+            path: "cash-closes-legacy/advisor/:userId",
             element: <AdminCashClosesByAdvisor />,
           },
           {
-            path: "cash-closes/:id",
+            path: "cash-closes-legacy/:id",
             element: <AdminCashCloseDetail />,
+          },
+          {
+            path: "cash-closes/:id",
+            element: <AdminCashCloseDetailRedirector />,
           },
           {
             path: "daily-reports/quick-attention",

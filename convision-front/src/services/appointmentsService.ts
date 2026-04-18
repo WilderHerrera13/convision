@@ -18,18 +18,24 @@ type Patient = {
   gender?: string;
 };
 
-type Appointment = {
+export type Appointment = {
   id: number;
   patient: Patient;
   specialist: Specialist;
   scheduled_at: string;
   status: 'scheduled' | 'in_progress' | 'paused' | 'completed' | 'cancelled';
   notes?: string;
+  reason?: string | null;
   taken_by_id?: number;
   takenBy?: {
     id: number;
     name: string;
   };
+  taken_by?: {
+    id: number;
+    name: string;
+  };
+  prescription?: { id: number } | null;
 };
 
 type AppointmentsResponse = {
@@ -48,6 +54,12 @@ type AppointmentsResponse = {
     prev: (string | null)[]; 
     next: (string | null)[]; 
   };
+};
+
+export type PaginatedAppointmentsTable = {
+  data: Appointment[];
+  last_page: number;
+  total: number;
 };
 
 type GetAppointmentsParams = {
@@ -153,6 +165,94 @@ export const appointmentsService = {
     });
     
     return response.data;
+  },
+
+  /**
+   * Citas completadas (cola de ventas) para recepción — paginado, búsqueda vía API.
+   */
+  async getReceptionistSalesQueueTable(params: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+  }): Promise<PaginatedAppointmentsTable> {
+    const page = params.page ?? 1;
+    const per_page = params.per_page ?? 10;
+    const query: Record<string, string | number> = {
+      page,
+      per_page,
+      status: 'completed',
+      sort: 'updated_at,desc',
+    };
+    const t = params.search?.trim();
+    if (t) {
+      query.search = t;
+    }
+    const response = await api.get('/api/v1/appointments', {
+      params: query,
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
+    const body = response.data;
+    const meta = body.meta ?? {};
+    const last =
+      typeof meta.last_page === 'number'
+        ? meta.last_page
+        : Array.isArray(meta.last_page)
+          ? Number(meta.last_page[0])
+          : 1;
+    const total =
+      typeof meta.total === 'number'
+        ? meta.total
+        : Array.isArray(meta.total)
+          ? Number(meta.total[0])
+          : (Array.isArray(body.data) ? body.data.length : 0);
+    return {
+      data: Array.isArray(body.data) ? body.data : [],
+      last_page: last || 1,
+      total,
+    };
+  },
+
+  /**
+   * Agenda del especialista para un rango de fechas (paginado, búsqueda vía API).
+   */
+  async getSpecialistTodayAgendaTable(params: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<PaginatedAppointmentsTable> {
+    const page = params.page ?? 1;
+    const per_page = params.per_page ?? 10;
+    const query: Record<string, string | number> = {
+      page,
+      per_page,
+      sort: 'scheduled_at,asc',
+      start_date: params.startDate,
+      end_date: params.endDate,
+    };
+    const t = params.search?.trim();
+    if (t) {
+      query.search = t;
+    }
+    const response = await api.get('/api/v1/appointments', {
+      params: query,
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
+    const body = response.data;
+    return {
+      data: Array.isArray(body.data) ? body.data : [],
+      last_page: body.meta?.last_page ?? 1,
+      total: body.meta?.total ?? 0,
+    };
   },
 
   async searchPatients(query: string): Promise<Patient[]> {

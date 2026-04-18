@@ -17,11 +17,16 @@ class AddTakenByAndInProgressStatusToAppointmentsTable extends Migration
         Schema::table('appointments', function (Blueprint $table) {
             $table->unsignedBigInteger('taken_by_id')->nullable();
             $table->foreign('taken_by_id')->references('id')->on('users')->onDelete('set null');
-            
-            // Add a comment to remind that we're adding 'in_progress' as a valid status value
-            // The actual status field already exists, so we don't need to add it
-            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
         });
+
+        // Ampliar los valores válidos de status para incluir 'in_progress'
+        $driver = DB::getDriverName();
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check');
+            DB::statement("ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled'))");
+        }
     }
 
     /**
@@ -34,9 +39,15 @@ class AddTakenByAndInProgressStatusToAppointmentsTable extends Migration
         Schema::table('appointments', function (Blueprint $table) {
             $table->dropForeign(['taken_by_id']);
             $table->dropColumn('taken_by_id');
-            
-            // Revert status ENUM to original values
-            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
         });
+
+        // Revertir status a valores originales
+        $driver = DB::getDriverName();
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE appointments MODIFY COLUMN status ENUM('scheduled', 'completed', 'cancelled') NOT NULL DEFAULT 'scheduled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check');
+            DB::statement("ALTER TABLE appointments ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'completed', 'cancelled'))");
+        }
     }
 } 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,12 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 const CashRegisterClose: React.FC = () => {
-  const [closeDate] = useState(() => startOfDay(new Date()));
+  const [closeDate, setCloseDate] = useState(() => startOfDay(new Date()));
   const [step, setStep] = useState<CashCloseStepIndex>(0);
+
+  useEffect(() => {
+    setStep(0);
+  }, [closeDate]);
 
   const {
     paymentMethods,
@@ -33,6 +37,8 @@ const CashRegisterClose: React.FC = () => {
     totalCounted,
     totalCashCounted,
     isReadOnly,
+    advisorNotes,
+    setAdvisorNotes,
   } = useCashClose(closeDate);
 
   const currentStatus = existingClose?.status ?? 'draft';
@@ -52,15 +58,17 @@ const CashRegisterClose: React.FC = () => {
           </div>
           <div
             className="w-full max-w-[180px] sm:w-48"
-            title="El cierre de caja solo puede realizarse para el día actual."
+            title="Elige el día del cierre. No se permiten fechas futuras."
           >
             <DatePicker
               value={closeDate}
-              onChange={() => {}}
+              onChange={(d) => {
+                if (d) setCloseDate(startOfDay(d));
+              }}
               placeholder="Fecha de cierre"
-              disabled
+              maxDate={startOfDay(new Date())}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">Solo día actual</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Día del cierre (hasta hoy)</p>
           </div>
         </div>
       </header>
@@ -100,7 +108,7 @@ const CashRegisterClose: React.FC = () => {
             <Lock className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-700">Cierre aprobado — solo lectura</AlertTitle>
             <AlertDescription className="text-green-800">
-              El cierre de caja de hoy ya fue aprobado por administración. No es posible modificarlo.
+              El cierre de caja de esta fecha ya fue aprobado por administración. No es posible modificarlo.
               Puede consultar el detalle en{' '}
               <Link
                 to="/receptionist/cash-close-history"
@@ -134,6 +142,8 @@ const CashRegisterClose: React.FC = () => {
             totalCounted={totalCounted}
             totalCashCounted={totalCashCounted}
             currentStatus={currentStatus}
+            advisorNotes={advisorNotes}
+            onAdvisorNotesChange={setAdvisorNotes}
           />
         )}
       </div>
@@ -156,7 +166,7 @@ const CashRegisterClose: React.FC = () => {
                     className="bg-[#3a71f7] text-white hover:bg-[#2d5dcc]"
                     onClick={() => setStep(1)}
                   >
-                    Conteo de efectivo
+                    Ver resumen
                     <ChevronRight className="ml-1 h-4 w-4" aria-hidden />
                   </Button>
                   <Button
@@ -173,25 +183,6 @@ const CashRegisterClose: React.FC = () => {
               {step === 1 && (
                 <>
                   <Button type="button" variant="outline" onClick={() => setStep(0)}>
-                    Atrás
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => void handleSave()} disabled={isSaving}>
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-                    Guardar borrador
-                  </Button>
-                  <Button
-                    type="button"
-                    className="bg-[#3a71f7] text-white hover:bg-[#2d5dcc]"
-                    onClick={() => setStep(2)}
-                  >
-                    Ver resumen
-                    <ChevronRight className="ml-1 h-4 w-4" aria-hidden />
-                  </Button>
-                </>
-              )}
-              {step === 2 && (
-                <>
-                  <Button type="button" variant="outline" onClick={() => setStep(1)}>
                     Atrás
                   </Button>
                   <Button type="button" variant="outline" onClick={() => void handleSave()} disabled={isSaving}>

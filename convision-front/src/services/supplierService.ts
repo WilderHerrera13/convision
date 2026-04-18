@@ -7,10 +7,12 @@ export interface Supplier {
   legal_name?: string;
   legal_representative?: string;
   legal_representative_id?: string;
+  person_type?: 'natural' | 'juridica';
+  responsible_person?: string;
   address?: string;
   phone?: string;
   email?: string;
-  city?: string;
+  city?: string | null;
   state?: string;
   country?: string;
   postal_code?: string;
@@ -26,6 +28,8 @@ export interface CreateSupplierRequest {
   legal_name?: string;
   legal_representative?: string;
   legal_representative_id?: string;
+  person_type?: 'natural' | 'juridica';
+  responsible_person?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -43,6 +47,8 @@ export interface UpdateSupplierRequest {
   legal_name?: string;
   legal_representative?: string;
   legal_representative_id?: string;
+  person_type?: 'natural' | 'juridica';
+  responsible_person?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -89,17 +95,17 @@ class SupplierService {
 
   async getSupplier(id: number): Promise<Supplier> {
     const response = await api.get(`/api/v1/suppliers/${id}`);
-    return response.data;
+    return (response.data?.data ?? response.data) as Supplier;
   }
 
   async createSupplier(data: CreateSupplierRequest): Promise<Supplier> {
     const response = await api.post('/api/v1/suppliers', data);
-    return response.data;
+    return (response.data?.data ?? response.data) as Supplier;
   }
 
   async updateSupplier(id: number, data: UpdateSupplierRequest): Promise<Supplier> {
     const response = await api.put(`/api/v1/suppliers/${id}`, data);
-    return response.data;
+    return (response.data?.data ?? response.data) as Supplier;
   }
 
   async deleteSupplier(id: number): Promise<void> {

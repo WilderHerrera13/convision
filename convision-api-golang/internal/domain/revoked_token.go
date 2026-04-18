@@ -1,0 +1,16 @@
+package domain
+
+import "time"
+
+// RevokedToken tracks invalidated JWT tokens by their JTI (JWT ID) claim.
+// Used to implement logout and token rotation on refresh.
+type RevokedToken struct {
+	JTI       string    `gorm:"primaryKey;type:varchar(36)" json:"jti"`
+	RevokedAt time.Time `gorm:"not null"                   json:"revoked_at"`
+}
+
+// RevokedTokenRepository defines persistence operations for revoked tokens.
+type RevokedTokenRepository interface {
+	IsRevoked(jti string) (bool, error)
+	Revoke(jti string) error
+}

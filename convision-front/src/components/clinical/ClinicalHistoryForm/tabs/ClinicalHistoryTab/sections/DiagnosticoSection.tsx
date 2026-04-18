@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatDateTime12h } from '@/lib/utils';
 import { Box, Typography, Button, IconButton, Chip } from '@mui/material';
 import { Add, Remove, CursorDefault } from '@mui/icons-material';
 import { SectionProps, FieldDefinition } from '../types';
@@ -80,7 +81,7 @@ const DiagnosticoSection: React.FC<SectionProps> = ({ form, serverErrors, render
       id: `cie_${Date.now()}`,
       code: 'CIE10',
       description: 'Diagnóstico',
-      timestamp: new Date().toLocaleString()
+      timestamp: formatDateTime12h(new Date())
     };
     setDiagnosticosCIE([...diagnosticosCIE, newDiagnostico]);
   };

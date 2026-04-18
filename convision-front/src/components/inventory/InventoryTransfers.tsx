@@ -49,6 +49,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
+import { formatDateTime12h } from '@/lib/utils';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 
@@ -506,7 +507,7 @@ const InventoryTransfers: React.FC = () => {
                 return (
                   <TableRow key={transfer.id}>
                     <TableCell>
-                      {format(new Date(transfer.created_at), 'dd/MM/yyyy HH:mm')}
+                      {formatDateTime12h(transfer.created_at)}
                     </TableCell>
                     <TableCell className="font-medium">
                       {lens ? lens.identifier : `Lente ID: ${transfer.lens_id}`}

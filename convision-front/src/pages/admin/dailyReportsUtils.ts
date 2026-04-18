@@ -1,5 +1,7 @@
 import { format, parseISO, isValid } from 'date-fns';
 import type { DailyActivityReport } from '@/services/dailyActivityReportService';
+import { sumRecepcionesDinero } from '@/services/dailyActivityReportService';
+import { formatTime12h } from '@/lib/utils';
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -63,6 +65,7 @@ function sumSocial(r: DailyActivityReport): number {
 export function hasReportData(r: DailyActivityReport): boolean {
   if ((r.observations ?? '').trim().length > 0) return true;
   if ((r.operations?.valor_ordenes ?? 0) > 0) return true;
+  if (sumRecepcionesDinero(r.recepciones_dinero ?? {}) > 0) return true;
   return sumAttention(r) + sumOps(r) + sumSocial(r) > 0;
 }
 
@@ -86,7 +89,7 @@ export function formatDetalle(r: DailyActivityReport): string {
   if (!isValid(updated)) return '—';
   if (format(updated, 'yyyy-MM-dd') === rd) {
     if (rd === today) return 'Última edición hoy';
-    return `Última edición ${format(updated, 'HH:mm')}`;
+    return `Última edición ${formatTime12h(updated)}`;
   }
   return '—';
 }
@@ -96,5 +99,5 @@ export function formatFechaHora(r: DailyActivityReport): string {
   if (!r.updated_at) return `${datePart} · —`;
   const d = parseISO(r.updated_at);
   if (!isValid(d)) return `${datePart} · —`;
-  return `${datePart} · ${format(d, 'HH:mm')}`;
+  return `${datePart} · ${formatTime12h(d)}`;
 }

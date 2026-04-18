@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Calendar as UiCalendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatTimeFrom24hClock } from '@/lib/utils';
 import { appointmentsService } from '@/services/appointmentsService';
 import ApiService from '@/services/ApiService';
 
@@ -558,7 +558,7 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
                                 : 'bg-white border-[#e5e5e9] text-[#59687a] hover:border-convision-primary hover:text-convision-primary',
                           )}
                         >
-                          {slot}
+                          {formatTimeFrom24hClock(padTime(slot))}
                         </button>
                         );
                       })}
@@ -567,7 +567,7 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
                   {selectedTime && selectedDate && !isTimeInPast(selectedDate, selectedTime) && (
                     <div className="bg-convision-light border border-convision-primary/30 rounded-lg px-3 py-2.5 text-[12px] text-[#1e3a6e]">
                       <CheckCircle2 className="inline h-3.5 w-3.5 mr-1.5 text-convision-primary" />
-                      {format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", { locale: es })} a las {selectedTime}
+                      {format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", { locale: es })} a las {formatTimeFrom24hClock(selectedTime)}
                     </div>
                   )}
                   {selectedTime && selectedDate && isTimeInPast(selectedDate, selectedTime) && (
@@ -605,7 +605,7 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
                     <p className="text-[14px] font-semibold text-[#121215]">
                       {format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
                     </p>
-                    <p className="text-[12px] text-[#7d7d87]">{selectedTime}</p>
+                    <p className="text-[12px] text-[#7d7d87]">{formatTimeFrom24hClock(selectedTime)}</p>
                   </div>
                   {notes && (
                     <div className="px-5 py-4">

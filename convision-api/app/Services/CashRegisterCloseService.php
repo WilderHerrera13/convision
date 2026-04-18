@@ -19,6 +19,7 @@ class CashRegisterCloseService
                 'close_date' => $validated['close_date'],
                 'status' => CashRegisterClose::STATUS_DRAFT,
                 'total_counted' => 0,
+                'advisor_notes' => $validated['advisor_notes'] ?? null,
             ]);
 
             foreach ($validated['payment_methods'] as $method) {
@@ -66,6 +67,12 @@ class CashRegisterCloseService
 
             if (isset($validated['close_date'])) {
                 $close->update(['close_date' => $validated['close_date']]);
+            }
+
+            if (array_key_exists('advisor_notes', $validated)) {
+                $close->update([
+                    'advisor_notes' => $validated['advisor_notes'] === '' ? null : $validated['advisor_notes'],
+                ]);
             }
 
             if (isset($validated['payment_methods'])) {

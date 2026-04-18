@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, ArrowLeft } from 'lucide-react';
 import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOrderService';
-import { formatDate, safeDateFormat } from '@/lib/utils';
+import { formatDate, formatDateTime12h } from '@/lib/utils';
 
 const getStatusVariant = (status: string) => {
   if (status === 'pending') return 'warning';
@@ -193,7 +193,7 @@ const LaboratoryOrderDetail: React.FC = () => {
               <TableBody>
                 {order.statusHistory.map((h) => (
                   <TableRow key={h.id}>
-                    <TableCell>{safeDateFormat(h.created_at, 'dd/MM/yyyy HH:mm')}</TableCell>
+                    <TableCell>{formatDateTime12h(h.created_at)}</TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(h.status)}>{getStatusLabel(h.status)}</Badge>
                     </TableCell>

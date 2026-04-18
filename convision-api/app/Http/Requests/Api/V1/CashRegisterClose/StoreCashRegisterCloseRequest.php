@@ -14,13 +14,14 @@ class StoreCashRegisterCloseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'close_date' => 'required|date|date_format:Y-m-d',
+            'close_date' => 'required|date|date_format:Y-m-d|before_or_equal:today',
             'payment_methods' => 'required|array',
             'payment_methods.*.name' => 'required|string|in:efectivo,voucher,bancolombia,daviplata,nequi,addi,sistecredito,anticipo,bono,pago_sistecredito',
             'payment_methods.*.counted_amount' => 'required|numeric|min:0',
             'denominations' => 'nullable|array',
             'denominations.*.denomination' => 'required_with:denominations|integer|in:100000,50000,20000,10000,5000,2000,1000,500,200,100,50',
             'denominations.*.quantity' => 'required_with:denominations|integer|min:0',
+            'advisor_notes' => 'nullable|string|max:2000',
         ];
     }
 }

@@ -42,9 +42,9 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 section() { echo -e "\n${BOLD}${CYAN}━━━  $1  ━━━${NC}\n"; }
 
-pick_mysql_port() {
-  local preferred_port=3306
-  local fallback_port=3307
+pick_postgres_port() {
+  local preferred_port=5432
+  local fallback_port=5433
 
   if ! lsof -nP -iTCP:"$preferred_port" -sTCP:LISTEN >/dev/null 2>&1; then
     echo "$preferred_port"
@@ -52,17 +52,17 @@ pick_mysql_port() {
   fi
 
   local port
-  for port in $(seq "$fallback_port" 3399); do
+  for port in $(seq "$fallback_port" 5499); do
     if ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "$port"
       return
     fi
   done
 
-  error "No se encontró un puerto libre para MySQL entre 3307 y 3399"
+  error "No se encontró un puerto libre para PostgreSQL entre 5433 y 5499"
 }
 
-pick_phpmyadmin_port() {
+pick_adminer_port() {
   local preferred_port=8080
   local fallback_port=8081
 
@@ -79,7 +79,7 @@ pick_phpmyadmin_port() {
     fi
   done
 
-  error "No se encontró un puerto libre para phpMyAdmin entre 8081 y 8999"
+  error "No se encontró un puerto libre para Adminer entre 8081 y 8999"
 }
 
 # ── Detener todo ──────────────────────────────────────────────────────────────
@@ -135,61 +135,61 @@ if [[ "$ARCH" == "arm64" ]]; then
   log "Arquitectura Apple Silicon detectada → usando linux/arm64/v8"
 fi
 
-MYSQL_RUNNING=$(docker ps --filter "name=convision_mysql" --filter "status=running" --format "{{.Names}}" 2>/dev/null)
-PHPMYADMIN_RUNNING=$(docker ps --filter "name=convision_phpmyadmin" --filter "status=running" --format "{{.Names}}" 2>/dev/null)
+POSTGRES_RUNNING=$(docker ps --filter "name=convision-postgres" --filter "status=running" --format "{{.Names}}" 2>/dev/null)
+ADMINER_RUNNING=$(docker ps --filter "name=convision-adminer" --filter "status=running" --format "{{.Names}}" 2>/dev/null)
 
-if [[ -n "$MYSQL_RUNNING" ]]; then
-  EXISTING_DB_PORT=$(docker port convision_mysql 3306/tcp 2>/dev/null | head -n 1 | awk -F: '{print $NF}')
-  SELECTED_DB_PORT=${EXISTING_DB_PORT:-3306}
+if [[ -n "$POSTGRES_RUNNING" ]]; then
+  EXISTING_DB_PORT=$(docker port convision-postgres 5432/tcp 2>/dev/null | head -n 1 | awk -F: '{print $NF}')
+  SELECTED_DB_PORT=${EXISTING_DB_PORT:-5432}
 else
-  SELECTED_DB_PORT=$(pick_mysql_port)
+  SELECTED_DB_PORT=$(pick_postgres_port)
 fi
 
-if [[ -n "$PHPMYADMIN_RUNNING" ]]; then
-  EXISTING_PMA_PORT=$(docker port convision_phpmyadmin 80/tcp 2>/dev/null | head -n 1 | awk -F: '{print $NF}')
-  SELECTED_PMA_PORT=${EXISTING_PMA_PORT:-8080}
+if [[ -n "$ADMINER_RUNNING" ]]; then
+  EXISTING_ADMINER_PORT=$(docker port convision-adminer 8080/tcp 2>/dev/null | head -n 1 | awk -F: '{print $NF}')
+  SELECTED_ADMINER_PORT=${EXISTING_ADMINER_PORT:-8080}
 else
-  SELECTED_PMA_PORT=$(pick_phpmyadmin_port)
+  SELECTED_ADMINER_PORT=$(pick_adminer_port)
 fi
 
 export DB_PORT="$SELECTED_DB_PORT"
-export PMA_PORT="$SELECTED_PMA_PORT"
+export ADMINER_PORT="$SELECTED_ADMINER_PORT"
 
-if [[ "$SELECTED_DB_PORT" == "3306" ]]; then
-  log "Usando puerto MySQL por defecto: 3306"
+if [[ "$SELECTED_DB_PORT" == "5432" ]]; then
+  log "Usando puerto PostgreSQL por defecto: 5432"
 else
-  warn "Puerto 3306 ocupado. Usando puerto alternativo para MySQL: $SELECTED_DB_PORT"
+  warn "Puerto 5432 ocupado. Usando puerto alternativo para PostgreSQL: $SELECTED_DB_PORT"
 fi
 
-if [[ "$SELECTED_PMA_PORT" == "8080" ]]; then
-  log "Usando puerto phpMyAdmin por defecto: 8080"
+if [[ "$SELECTED_ADMINER_PORT" == "8080" ]]; then
+  log "Usando puerto Adminer por defecto: 8080"
 else
-  warn "Puerto 8080 ocupado. Usando puerto alternativo para phpMyAdmin: $SELECTED_PMA_PORT"
+  warn "Puerto 8080 ocupado. Usando puerto alternativo para Adminer: $SELECTED_ADMINER_PORT"
 fi
 
-if [[ -n "$MYSQL_RUNNING" ]]; then
-  success "MySQL ya está corriendo"
+if [[ -n "$POSTGRES_RUNNING" ]]; then
+  success "PostgreSQL ya está corriendo"
 else
   log "Iniciando contenedores Docker..."
-  docker compose -f "$DOCKER_COMPOSE" up -d mysql 2>&1 | tail -5
+  docker compose -f "$DOCKER_COMPOSE" up -d postgres 2>&1 | tail -5
 
-  log "Esperando que MySQL esté healthy..."
+  log "Esperando que PostgreSQL esté healthy..."
   retries=0
-  until docker exec convision_mysql mysqladmin ping -h 127.0.0.1 -uroot -proot --silent 2>/dev/null; do
+  until docker exec convision-postgres pg_isready -U convision -d convision --quiet 2>/dev/null; do
     retries=$((retries + 1))
     if [[ $retries -ge 30 ]]; then
-      error "MySQL no respondió después de 60s. Revisa: docker logs convision_mysql"
+      error "PostgreSQL no respondió después de 60s. Revisa: docker logs convision-postgres"
     fi
     sleep 2
   done
-  success "MySQL healthy y listo"
+  success "PostgreSQL healthy y listo"
 fi
 
-if [[ -n "$PHPMYADMIN_RUNNING" ]]; then
-  success "phpMyAdmin ya está corriendo"
+if [[ -n "$ADMINER_RUNNING" ]]; then
+  success "Adminer ya está corriendo"
 else
-  log "Iniciando phpMyAdmin..."
-  docker compose -f "$DOCKER_COMPOSE" up -d phpmyadmin 2>&1 | tail -5
+  log "Iniciando Adminer..."
+  docker compose -f "$DOCKER_COMPOSE" up -d adminer 2>&1 | tail -5
 fi
 
 # ── 2. Backend (Laravel) ──────────────────────────────────────────────────────
@@ -203,7 +203,12 @@ if [[ ! -f ".env" ]]; then
   cp .env.example .env
   sed -i '' 's/DB_DATABASE=laravel/DB_DATABASE=convision/' .env
   sed -i '' 's/DB_USERNAME=root/DB_USERNAME=convision/' .env
-  sed -i '' 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
+  sed -i '' 's/DB_PASSWORD=/DB_PASSWORD=convision/' .env
+fi
+
+# Actualizar DB_CONNECTION a pgsql si todavía apunta a mysql
+if grep -q '^DB_CONNECTION=mysql' .env; then
+  sed -i '' 's/^DB_CONNECTION=mysql/DB_CONNECTION=pgsql/' .env
 fi
 
 if grep -q '^DB_PORT=' .env; then
@@ -283,8 +288,8 @@ fi
 # ── Resumen ───────────────────────────────────────────────────────────────────
 section "Todo listo"
 
-echo -e "  ${GREEN}●${NC} MySQL        → localhost:$SELECTED_DB_PORT"
-echo -e "  ${GREEN}●${NC} phpMyAdmin   → http://localhost:$SELECTED_PMA_PORT   (user: convision / pass: root)"
+echo -e "  ${GREEN}●${NC} PostgreSQL   → localhost:$SELECTED_DB_PORT"
+echo -e "  ${GREEN}●${NC} Adminer      → http://localhost:$SELECTED_ADMINER_PORT   (servidor: postgres / user: convision / pass: convision)"
 echo -e "  ${GREEN}●${NC} Backend API  → http://localhost:8000"
 echo -e "  ${GREEN}●${NC} Frontend     → http://localhost:4300"
 echo ""

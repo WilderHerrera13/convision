@@ -134,6 +134,45 @@ class DailyActivityReportQuickAttentionTest extends TestCase
         $response->assertJsonPath('errors.note.0', 'La observación no puede superar 500 caracteres.');
     }
 
+    public function test_quick_attention_adds_recepcion_dinero_for_voucher(): void
+    {
+        $token = $this->receptionistToken();
+        $date = now()->format('Y-m-d');
+
+        $response = $this->postJson(
+            '/api/v1/daily-activity-reports/quick-attention',
+            [
+                'report_date' => $date,
+                'shift' => 'morning',
+                'item' => 'voucher',
+                'amount' => 125000.5,
+            ],
+            ['Authorization' => 'Bearer '.$token]
+        );
+
+        $response->assertStatus(200);
+        $v = $response->json('data.recepciones_dinero.voucher');
+        $this->assertEqualsWithDelta(125000.5, (float) $v, 0.01);
+    }
+
+    public function test_quick_attention_amount_item_requires_amount(): void
+    {
+        $token = $this->receptionistToken();
+        $date = now()->format('Y-m-d');
+
+        $response = $this->postJson(
+            '/api/v1/daily-activity-reports/quick-attention',
+            [
+                'report_date' => $date,
+                'shift' => 'morning',
+                'item' => 'voucher',
+            ],
+            ['Authorization' => 'Bearer '.$token]
+        );
+
+        $response->assertStatus(422);
+    }
+
     public function test_quick_attention_note_strips_html_tags_from_observations(): void
     {
         $token = $this->receptionistToken();

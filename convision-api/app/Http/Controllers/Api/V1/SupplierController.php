@@ -69,7 +69,7 @@ class SupplierController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Supplier::apiFilter($request);
+        $query = Supplier::apiFilter($request)->with('city');
         
         $perPage = $request->get('per_page', 15);
         $perPage = min(max(1, (int)$perPage), 100);
@@ -173,6 +173,8 @@ class SupplierController extends Controller
      */
     public function show(Supplier $supplier)
     {
+        $supplier->load('city');
+
         return new SupplierResource($supplier);
     }
 

@@ -60,6 +60,10 @@ const VarianceChip: React.FC<{ value: number | null }> = ({ value }) => {
 };
 
 const URGENCY = {
+  neutral: {
+    badge: 'border-[#dcdce0] bg-[#f7f7f8] text-[#7d7d87]',
+    cardBorder: 'border-[#e5e5e9]',
+  },
   warning: {
     badge: 'border-[#f4c678] bg-[#fff6e3] text-[#b57218]',
     cardBorder: 'border-[#f4c678]',
@@ -71,10 +75,13 @@ const URGENCY = {
 };
 
 const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
+  const isClear = advisor.pending_count === 0;
   const hasMultiple = advisor.pending_count > 1;
-  const reviewLabel = hasMultiple ? 'Revisar cierres' : 'Revisar cierre';
-  const pendingLabel = `${advisor.pending_count} día${advisor.pending_count > 1 ? 's' : ''} pendiente${advisor.pending_count > 1 ? 's' : ''}`;
-  const urgency = hasMultiple ? URGENCY.critical : URGENCY.warning;
+  const reviewLabel = isClear ? 'Ver calendario' : hasMultiple ? 'Revisar cierres' : 'Revisar cierre';
+  const pendingLabel = isClear
+    ? 'Sin pendientes'
+    : `${advisor.pending_count} día${advisor.pending_count > 1 ? 's' : ''} pendiente${advisor.pending_count > 1 ? 's' : ''}`;
+  const urgency = isClear ? URGENCY.neutral : hasMultiple ? URGENCY.critical : URGENCY.warning;
 
   return (
     <div className={`flex flex-col rounded-[12px] border bg-white overflow-hidden ${urgency.cardBorder}`}>
@@ -106,7 +113,9 @@ const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
           <p className="text-[10px] uppercase tracking-wide text-[#7d7d87] font-semibold mb-1">
             Total hoy
           </p>
-          <p className="text-[13px] font-bold text-[#3a71f7]">{formatCOP(advisor.total_today)}</p>
+          <p className="text-[13px] font-bold text-[#3a71f7]">
+            {isClear ? '—' : formatCOP(advisor.total_today)}
+          </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wide text-[#7d7d87] font-semibold mb-1">
@@ -120,32 +129,40 @@ const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
           <p className="text-[10px] uppercase tracking-wide text-[#7d7d87] font-semibold mb-1">
             Diferencia acum.
           </p>
-          <VarianceChip value={advisor.accumulated_variance} />
+          {isClear ? <span className="text-[13px] text-[#7d7d87]">—</span> : <VarianceChip value={advisor.accumulated_variance} />}
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wide text-[#7d7d87] font-semibold mb-1">
             Estado
           </p>
-          <span className={`text-[13px] font-semibold ${STATUS_COLORS[advisor.latest_status] ?? 'text-[#0f0f12]'}`}>
-            {STATUS_LABELS[advisor.latest_status] ?? advisor.latest_status}
+          <span
+            className={`text-[13px] font-semibold ${isClear ? 'text-[#7d7d87]' : STATUS_COLORS[advisor.latest_status] ?? 'text-[#0f0f12]'}`}
+          >
+            {isClear ? '—' : STATUS_LABELS[advisor.latest_status] ?? advisor.latest_status}
           </span>
         </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-[#f0f0f2] px-4 py-3 gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {advisor.close_dates.slice(0, 4).map((d) => (
-            <span
-              key={d}
-              className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f0f12]"
-            >
-              {formatDate(d)}
-            </span>
-          ))}
-          {advisor.close_dates.length > 4 && (
-            <span className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#7d7d87]">
-              +{advisor.close_dates.length - 4}
-            </span>
+          {isClear ? (
+            <span className="text-[11px] font-medium text-[#7d7d87]">Sin cierres pendientes de revisión</span>
+          ) : (
+            <>
+              {advisor.close_dates.slice(0, 4).map((d) => (
+                <span
+                  key={d}
+                  className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f0f12]"
+                >
+                  {formatDate(d)}
+                </span>
+              ))}
+              {advisor.close_dates.length > 4 && (
+                <span className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#7d7d87]">
+                  +{advisor.close_dates.length - 4}
+                </span>
+              )}
+            </>
           )}
         </div>
         <Button

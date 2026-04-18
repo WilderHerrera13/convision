@@ -37,6 +37,7 @@ class CashRegisterClose extends Model
         'total_actual_amount',
         'admin_actuals_recorded_at',
         'admin_notes',
+        'advisor_notes',
         'approved_by',
         'approved_at',
     ];

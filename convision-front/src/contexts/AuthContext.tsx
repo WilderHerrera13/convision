@@ -109,11 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigate('/catalog');
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error de inicio de sesión",
-        description: (error instanceof Error) ? error.message : "Credenciales incorrectas o problema de conexión.",
-      });
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Credenciales incorrectas o problema de conexión.';
+      throw new Error(message);
     } finally {
       setIsLoggingIn(false);
     }

@@ -40,6 +40,8 @@ export interface CashClose {
   denominations?: DenominationEntry[];
   total_counted: number;
   admin_notes?: string;
+  /** Notas del asesor al registrar el cierre (borrador / envío). */
+  advisor_notes?: string | null;
   /** Totales reales ingresados por admin (contabilidad manual). */
   total_actual_amount?: number | null;
   admin_actuals_recorded_at?: string | null;
@@ -73,10 +75,59 @@ export interface AdvisorPendingGroup {
   closes: AdvisorPendingClose[];
 }
 
+export interface CashCloseCalendarClose {
+  id: number;
+  status: 'draft' | 'submitted' | 'approved';
+  total_counted: number;
+  total_actual_amount: number | null;
+  cash_counted: number;
+  variance: number | null;
+  advisor_notes: string | null;
+  admin_notes: string | null;
+  approved_at: string | null;
+  submitted_at: string | null;
+  payment_methods: { name: string; counted_amount: number }[];
+  denominations: { denomination: number; quantity: number; subtotal: number }[];
+}
+
+export interface CashCloseCalendarDay {
+  date: string;
+  day_number: string;
+  day_name: string;
+  month_name: string;
+  is_today: boolean;
+  close: CashCloseCalendarClose | null;
+}
+
+export interface CashCloseCalendarApprovedDay {
+  id: number;
+  index: number;
+  close_date: string;
+  total_counted: number;
+  total_actual_amount: number | null;
+  variance: number | null;
+}
+
+export interface CashCloseCalendarPayload {
+  advisor: { id: number; name: string; last_name: string | null; role: string };
+  date_from: string;
+  date_to: string;
+  days: CashCloseCalendarDay[];
+  summary: {
+    approved_count: number;
+    pending_count: number;
+    approved_total: number;
+    approved_actual_total: number | null;
+    approved_variance_total: number | null;
+    approved_days: CashCloseCalendarApprovedDay[];
+  };
+}
+
 export interface CreateCashClosePayload {
   close_date: string;
   payment_methods: PaymentMethodEntry[];
   denominations?: DenominationEntry[];
+  advisor_notes?: string | null;
 }
 
 export const PAYMENT_METHODS = [
@@ -146,6 +197,15 @@ const cashRegisterCloseService = {
   listAdvisorsWithPending: async (): Promise<AdvisorPendingGroup[]> => {
     const response = await api.get('/api/v1/cash-register-closes-advisors-pending');
     return response.data?.data ?? [];
+  },
+
+  getCalendarForAdvisor: async (params: {
+    user_id: number | string;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<CashCloseCalendarPayload> => {
+    const response = await api.get('/api/v1/cash-register-closes-calendar', { params });
+    return response.data?.data;
   },
 };
 

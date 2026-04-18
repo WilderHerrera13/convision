@@ -16,12 +16,15 @@ import dailyActivityReportService, {
   SHIFT_OPTIONS,
   defaultCustomerAttention,
   defaultOperations,
+  defaultRecepcionesDinero,
   defaultSocialMedia,
   normalizeDailyActivityReport,
   CustomerAttention,
   Operations,
+  RecepcionesDinero,
   SocialMedia,
 } from '@/services/dailyActivityReportService';
+import DailyReportRecepcionesSection from '@/components/daily-report/DailyReportRecepcionesSection';
 import { Link } from 'react-router-dom';
 import CustomerAttentionMatrix from '@/components/cashClose/CustomerAttentionMatrix';
 import DailyReportSection from '@/components/cashClose/DailyReportSection';
@@ -59,6 +62,7 @@ const DailyReport: React.FC = () => {
   const [customerAttention, setCustomerAttention] = useState<CustomerAttention>(defaultCustomerAttention());
   const [operations, setOperations] = useState<Operations>(defaultOperations());
   const [socialMedia, setSocialMedia] = useState<SocialMedia>(defaultSocialMedia());
+  const [recepcionesDinero, setRecepcionesDinero] = useState<RecepcionesDinero>(defaultRecepcionesDinero());
   const [observations, setObservations] = useState('');
   const [existingId, setExistingId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,12 +81,14 @@ const DailyReport: React.FC = () => {
           setCustomerAttention(r.customer_attention);
           setOperations(r.operations);
           setSocialMedia(r.social_media);
+          setRecepcionesDinero(r.recepciones_dinero);
           setObservations(r.observations ?? '');
         } else {
           setExistingId(null);
           setCustomerAttention(defaultCustomerAttention());
           setOperations(defaultOperations());
           setSocialMedia(defaultSocialMedia());
+          setRecepcionesDinero(defaultRecepcionesDinero());
           setObservations('');
         }
       } catch {
@@ -162,6 +168,8 @@ const DailyReport: React.FC = () => {
         values={customerAttention}
         onChange={(key, value) => setCustomerAttention((prev) => ({ ...prev, [key]: value }))}
       />
+
+      <DailyReportRecepcionesSection recepciones={recepcionesDinero} />
 
       <DailyReportSection
         title="Operaciones"

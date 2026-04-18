@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { format } from "date-fns"
+import { enUS } from "date-fns/locale"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -86,6 +87,45 @@ export function parseLocalDatetime(value: string | undefined | null): Date | nul
   const naive = value.replace('T', ' ').replace(/Z$/, '').replace(/\+00:00$/, '').slice(0, 16);
   const d = new Date(naive);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/** 12-hour clock with AM/PM (consistent across the app). */
+export function formatTime12h(date: Date | string | undefined | null): string {
+  if (!date) return '—';
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '—';
+    return format(dateObj, 'h:mm a', { locale: enUS });
+  } catch {
+    return '—';
+  }
+}
+
+/** Date (dd/MM/yyyy) + 12-hour time with AM/PM. */
+export function formatDateTime12h(date: Date | string | undefined | null): string {
+  if (!date) return '—';
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '—';
+    return format(dateObj, 'dd/MM/yyyy h:mm a', { locale: enUS });
+  } catch {
+    return '—';
+  }
+}
+
+/**
+ * Formats a wall-clock time from `HH:mm` (e.g. `<input type="time" />`) for display as 12h AM/PM.
+ */
+export function formatTimeFrom24hClock(hhmm: string | undefined | null): string {
+  if (!hhmm) return '—';
+  const match = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim());
+  if (!match) return hhmm;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return hhmm;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return formatTime12h(d);
 }
 
 /**

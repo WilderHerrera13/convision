@@ -67,6 +67,7 @@ class DailyActivityReportResource extends JsonResource
                 'ordenes_trabajo'              => $this->ordenes_trabajo,
             ],
             'observations' => $this->observations,
+            'recepciones_dinero' => $this->recepciones_dinero ?? [],
             'totales' => [
                 'total_preguntas'           => $this->getTotalPreguntas(),
                 'total_consultas_efectivas' => $this->getTotalConsultasEfectivas(),

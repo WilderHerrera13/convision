@@ -52,21 +52,22 @@ function StepCircle({
 }
 
 export type QuickAttentionStepperProps = {
-  /** Paso actual del flujo (1–3). */
   phase: 1 | 2 | 3;
-  /** Si el ítem no requiere perfil, el paso 2 se muestra como omitido/hecho al estar en observación (solo si `omitProfileStep` es false). */
   profileSkipped: boolean;
-  /**
-   * Si es true, el ítem elegido no pide género: la barra muestra solo 2 pasos (tipo → observación)
-   * y no aparece el paso “Perfil” para evitar el salto confuso 1 → 3.
-   */
   omitProfileStep: boolean;
+  middleVariant?: 'profile' | 'amount';
   accent: Accent;
 };
 
-const STEPS_3 = [
+const STEPS_3_PROFILE = [
   { title: 'Tipo de atención', sub: 'Elige el ítem' },
   { title: 'Perfil', sub: 'Hombre · Mujer · Niño' },
+  { title: 'Observación', sub: 'Nota breve' },
+] as const;
+
+const STEPS_3_AMOUNT = [
+  { title: 'Tipo de atención', sub: 'Elige el ítem' },
+  { title: 'Monto recibido', sub: 'Pesos COP' },
   { title: 'Observación', sub: 'Nota breve' },
 ] as const;
 
@@ -82,9 +83,11 @@ const QuickAttentionStepsBar: React.FC<QuickAttentionStepperProps> = ({
   phase,
   profileSkipped,
   omitProfileStep,
+  middleVariant = 'profile',
   accent,
 }) => {
   const a = accentMap[accent];
+  const steps3 = middleVariant === 'amount' ? STEPS_3_AMOUNT : STEPS_3_PROFILE;
 
   if (omitProfileStep) {
     const s1: StepState = phase === 1 ? 'active' : 'done';
@@ -163,9 +166,9 @@ const QuickAttentionStepsBar: React.FC<QuickAttentionStepperProps> = ({
   return (
     <Card className="rounded-lg border-[#e5e5e9] bg-white shadow-none">
       <div className="flex w-full items-start px-3 pb-4 pt-3 sm:px-6">
-        {STEPS_3.map((step, index) => {
+        {steps3.map((step, index) => {
           const i = index as 0 | 1 | 2;
-          const isLast = index === STEPS_3.length - 1;
+          const isLast = index === steps3.length - 1;
           const segmentDone = index === 0 ? line1Done : line2Done;
 
           return (
