@@ -158,10 +158,11 @@ const AdminCashCloseCalendar: React.FC = () => {
 
   const matrixScrollRef = React.useRef<HTMLDivElement | null>(null);
   const todayColumnRef = React.useRef<HTMLDivElement | null>(null);
+  const focusColumnRef = React.useRef<HTMLDivElement | null>(null);
 
-  const scrollTodayIntoView = React.useCallback(() => {
+  const scrollTargetIntoView = React.useCallback(() => {
     const container = matrixScrollRef.current;
-    const target = todayColumnRef.current;
+    const target = focusColumnRef.current || todayColumnRef.current;
     if (!container || !target) return;
     const offset =
       target.offsetLeft - container.clientWidth / 2 + target.offsetWidth / 2;
@@ -172,18 +173,18 @@ const AdminCashCloseCalendar: React.FC = () => {
     const freshToday = new Date();
     setDateFrom(subDays(freshToday, 7));
     setDateTo(addDays(freshToday, 6));
-    setTimeout(() => scrollTodayIntoView(), 50);
+    setTimeout(() => scrollTargetIntoView(), 50);
   };
 
   React.useEffect(() => {
     if (!data) return;
-    const t = window.setTimeout(() => scrollTodayIntoView(), 30);
+    const t = window.setTimeout(() => scrollTargetIntoView(), 30);
     return () => window.clearTimeout(t);
-  }, [data, scrollTodayIntoView]);
+  }, [data, scrollTargetIntoView]);
 
   const advisorName = data
     ? `${data.advisor.name} ${data.advisor.last_name ?? ''}`.trim()
-    : 'Asesor';
+    : '';
 
   const advisorRoleLabel = useMemo(() => {
     const role = data?.advisor.role;
@@ -207,7 +208,7 @@ const AdminCashCloseCalendar: React.FC = () => {
   return (
     <PageLayout
       title="Cierre de Caja"
-      subtitle={`Calendario de Cierres — ${advisorName}`}
+      subtitle={advisorName ? `Calendario de Cierres — ${advisorName}` : 'Calendario de Cierres'}
       contentClassName="bg-[#f5f5f6] p-0"
       topbarClassName="min-h-[60px] h-auto py-2"
       titleStackClassName="gap-1"
@@ -233,13 +234,25 @@ const AdminCashCloseCalendar: React.FC = () => {
             Volver
           </button>
           <div className="flex h-10 items-center gap-2.5 rounded-[10px] border border-[#e5e5e9] bg-white px-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eff1ff] text-[11px] font-semibold text-[#3a71f7]">
-              {avatarInitials}
-            </div>
-            <div className="leading-tight">
-              <p className="text-[12px] font-semibold text-[#0f0f12]">{advisorName}</p>
-              <p className="text-[10px] text-[#7d7d87]">{advisorRoleLabel}</p>
-            </div>
+            {isLoading && !data ? (
+              <>
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <div className="leading-tight flex flex-col gap-1">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-2.5 w-20" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eff1ff] text-[11px] font-semibold text-[#3a71f7]">
+                  {avatarInitials}
+                </div>
+                <div className="leading-tight">
+                  <p className="text-[12px] font-semibold text-[#0f0f12]">{advisorName}</p>
+                  <p className="text-[10px] text-[#7d7d87]">{advisorRoleLabel}</p>
+                </div>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-[#7d7d87]">Desde</span>
@@ -268,7 +281,30 @@ const AdminCashCloseCalendar: React.FC = () => {
           </Button>
         </div>
 
-        <ApprovedResumePanel summary={summary} loading={isLoading} />
+        {summary && summary.pending_count > 0 && (
+          <div className="flex items-center gap-3 rounded-[10px] border border-[#f4c778] bg-[#fff6e3] px-4 py-3 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fce0a2] text-[#b57218]">
+              <span className="font-bold">{summary.pending_count}</span>
+            </div>
+            <div>
+              <h4 className="text-[13px] font-bold text-[#b57218]">
+                {summary.pending_count} cierre{summary.pending_count !== 1 ? 's' : ''} pendiente{summary.pending_count !== 1 ? 's' : ''} de revisión
+              </h4>
+              <p className="text-[12px] text-[#b57218]/80">
+                Revisa el calendario abajo y haz clic en "Aprobar" para procesarlos.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={scrollTargetIntoView}
+              className="ml-auto bg-[#b57218] text-white hover:bg-[#9a6014]"
+            >
+              Ver pendientes
+            </Button>
+          </div>
+        )}
+
+        <ApprovedResumePanel summary={summary} loading={isLoading} days={days} />
 
         <CalendarMatrix
           days={days}
@@ -277,6 +313,8 @@ const AdminCashCloseCalendar: React.FC = () => {
           onReturn={(close, date) => setPendingReturn({ id: close.id, date })}
           scrollRef={matrixScrollRef}
           todayRef={todayColumnRef}
+          focusDate={focusDate}
+          focusRef={focusColumnRef}
         />
       </div>
 
@@ -316,7 +354,8 @@ const AdminCashCloseCalendar: React.FC = () => {
 const ApprovedResumePanel: React.FC<{
   summary: CashCloseCalendarPayload['summary'] | undefined;
   loading: boolean;
-}> = ({ summary, loading }) => {
+  days: CashCloseCalendarDay[];
+}> = ({ summary, loading, days }) => {
   if (loading && !summary) {
     return <Skeleton className="h-[180px] w-full rounded-[12px]" />;
   }
@@ -358,34 +397,46 @@ const ApprovedResumePanel: React.FC<{
           <table className="w-full text-sm">
             <thead className="border-b border-[#e5e5e9] bg-[#f7f7f8] text-[11px] font-semibold text-[#7d7d87]">
               <tr>
-                <th className="px-4 py-2 text-left font-semibold">#</th>
-                <th className="px-4 py-2 text-left font-semibold">Fecha</th>
-                <th className="px-4 py-2 text-right font-semibold">Total declarado</th>
-                <th className="px-4 py-2 text-right font-semibold">Efectivo contado</th>
-                <th className="px-4 py-2 text-right font-semibold">(−) Sobra (+) Falta</th>
+                <th className="px-4 py-2 text-left font-semibold min-w-[40px]">#</th>
+                <th className="px-4 py-2 text-left font-semibold min-w-[90px]">Fecha</th>
+                <th className="px-4 py-2 text-right font-semibold min-w-[130px]">Total declarado</th>
+                <th className="px-4 py-2 text-right font-semibold min-w-[130px]">Efectivo contado</th>
+                <th className="px-4 py-2 text-right font-semibold min-w-[150px] whitespace-normal">(−) Sobra (+) Falta</th>
               </tr>
             </thead>
             <tbody>
-              {approvedDays.map((day, idx) => (
-                <tr
-                  key={day.id}
-                  className={`border-b border-[#f0f0f2] ${idx % 2 === 1 ? 'bg-[#fafafa]' : 'bg-white'}`}
-                >
-                  <td className="px-4 py-2 text-[12px] text-[#7d7d87]">{day.index}</td>
-                  <td className="px-4 py-2 text-[13px] font-medium text-[#0f0f12]">
-                    {format(new Date(`${day.close_date}T12:00:00`), 'dd MMM', { locale: es })}
-                  </td>
-                  <td className="px-4 py-2 text-right text-[13px] font-medium tabular-nums text-[#0f0f12]">
-                    {formatCOP(day.total_counted)}
-                  </td>
-                  <td className="px-4 py-2 text-right text-[13px] font-medium tabular-nums text-[#0f0f12]">
-                    {day.total_actual_amount != null ? formatCOP(day.total_actual_amount) : '—'}
-                  </td>
-                  <td className={`px-4 py-2 text-right text-[13px] font-semibold tabular-nums ${varianceTextClass(day.variance)}`}>
-                    {formatVariance(day.variance)}
-                  </td>
-                </tr>
-              ))}
+              {approvedDays.map((day, idx) => {
+                const dayInMatrix = days.find((d) => d.date === day.close_date);
+                const hasPendingOverride = dayInMatrix?.close?.status === 'submitted';
+
+                return (
+                  <tr
+                    key={day.id}
+                    className={`border-b border-[#f0f0f2] ${idx % 2 === 1 ? 'bg-[#fafafa]' : 'bg-white'}`}
+                  >
+                    <td className="px-4 py-2 text-[12px] text-[#7d7d87]">{day.index}</td>
+                    <td className="px-4 py-2 text-[13px] font-medium text-[#0f0f12]">
+                      <div className="flex items-center gap-2">
+                        {format(new Date(`${day.close_date}T12:00:00`), 'dd MMM', { locale: es })}
+                        {hasPendingOverride && (
+                          <Badge variant="outline" className="border-[#f4c778] bg-[#fff6e3] px-1.5 py-0 text-[9px] font-bold text-[#b57218]">
+                            NUEVO PENDIENTE
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`px-4 py-2 text-right text-[13px] font-medium tabular-nums ${hasPendingOverride ? 'text-[#b4b5bc] line-through' : 'text-[#0f0f12]'}`}>
+                      {formatCOP(day.total_counted)}
+                    </td>
+                    <td className={`px-4 py-2 text-right text-[13px] font-medium tabular-nums ${hasPendingOverride ? 'text-[#b4b5bc] line-through' : 'text-[#0f0f12]'}`}>
+                      {day.total_actual_amount != null ? formatCOP(day.total_actual_amount) : '—'}
+                    </td>
+                    <td className={`px-4 py-2 text-right text-[13px] font-semibold tabular-nums ${hasPendingOverride ? 'text-[#b4b5bc] line-through' : varianceTextClass(day.variance)}`}>
+                      {formatVariance(day.variance)}
+                    </td>
+                  </tr>
+                );
+              })}
               <tr className="border-t-2 border-[#3a71f7] bg-[#eff1ff]">
                 <td className="px-4 py-2.5 text-[12px] font-bold text-[#3a71f7]">—</td>
                 <td className="px-4 py-2.5 text-[12px] font-bold uppercase tracking-wide text-[#3a71f7]">
@@ -424,7 +475,9 @@ const CalendarMatrix: React.FC<{
   onReturn: (close: NonNullable<CloseSnapshot>, date: string) => void;
   scrollRef?: React.RefObject<HTMLDivElement>;
   todayRef?: React.RefObject<HTMLDivElement>;
-}> = ({ days, loading, onApprove, onReturn, scrollRef, todayRef }) => {
+  focusDate?: string | null;
+  focusRef?: React.RefObject<HTMLDivElement>;
+}> = ({ days, loading, onApprove, onReturn, scrollRef, todayRef, focusDate, focusRef }) => {
   if (loading && days.length === 0) {
     return <Skeleton className="h-[500px] w-full rounded-[12px]" />;
   }
@@ -444,24 +497,28 @@ const CalendarMatrix: React.FC<{
   return (
     <div
       ref={scrollRef}
-      className="overflow-x-auto rounded-[12px] border border-[#e5e5e9] bg-white shadow-[0px_2px_12px_0px_rgba(0,0,0,0.04)]"
+      className="overflow-x-auto [overflow-y:visible] rounded-[12px] border border-[#e5e5e9] bg-white shadow-[0px_2px_12px_0px_rgba(0,0,0,0.04)]"
     >
       <div className="min-w-max">
         {/* Header row */}
-        <div className="grid border-b border-[#e5e5e9]" style={gridTemplate}>
-          <div className="sticky left-0 z-10 flex items-end bg-white px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#7d7d87]">
+        <div className="sticky top-0 z-20 grid border-b border-[#e5e5e9] bg-white shadow-[0px_1px_0px_0px_rgba(0,0,0,0.04)]" style={gridTemplate}>
+          <div className="sticky left-0 z-30 flex items-end bg-white px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#7d7d87]">
             Concepto \ Fecha
           </div>
           {days.map((day) => {
             const kind = dayStatusKind(day);
             const cfg = STATUS_STYLES[kind];
             const isCurrent = day.is_today;
+            const isFocused = day.date === focusDate;
+            const isFirstPending = !focusDate && kind === 'submitted' && days.find(d => dayStatusKind(d) === 'submitted') === day;
             const isEmpty = kind === 'empty';
+            const shouldRef = isFocused || isFirstPending || (isCurrent && !focusDate && !days.some(d => dayStatusKind(d) === 'submitted'));
+            
             return (
               <div
                 key={day.date}
-                ref={isCurrent ? todayRef : undefined}
-                className={`relative flex flex-col items-start gap-2 border-l border-[#f0f0f2] px-4 py-4 ${cfg.column} ${isEmpty ? 'opacity-60' : ''}`}
+                ref={shouldRef ? focusRef || todayRef : undefined}
+                className={`relative flex flex-col items-start gap-2 border-l border-[#f0f0f2] px-4 py-4 ${cfg.column} ${isEmpty ? 'opacity-60' : ''} ${isFocused ? 'ring-2 ring-inset ring-[#3a71f7] bg-[#f5f7ff]' : ''}`}
               >
                 <div className="flex items-baseline gap-1.5">
                   <span className={`text-[24px] font-bold leading-none ${isCurrent ? 'text-[#3a71f7]' : 'text-[#0f0f12]'}`}>

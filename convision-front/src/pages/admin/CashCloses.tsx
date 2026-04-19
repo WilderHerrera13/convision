@@ -50,7 +50,7 @@ const StatCard: React.FC<{
   shadowColor: string;
 }> = ({ label, value, sub, accentColor, bgColor, borderColor, shadowColor }) => (
   <div
-    className="relative overflow-hidden rounded-[12px] border-[1.5px] h-[100px] flex-1"
+    className="relative overflow-hidden rounded-[12px] border-[1.5px] min-h-[100px] flex-1"
     style={{
       backgroundColor: bgColor,
       borderColor,
