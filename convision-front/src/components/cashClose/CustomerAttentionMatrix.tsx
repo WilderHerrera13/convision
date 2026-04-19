@@ -14,9 +14,11 @@ interface Props {
   values: CustomerAttention;
   onChange: (key: string, value: number) => void;
   readOnly?: boolean;
+  errors?: Record<string, string[]>;
+  errorPrefix?: string;
 }
 
-const CustomerAttentionMatrix: React.FC<Props> = ({ values, onChange, readOnly }) => {
+const CustomerAttentionMatrix: React.FC<Props> = ({ values, onChange, readOnly, errors, errorPrefix = '' }) => {
   return (
     <div className="rounded-lg border overflow-hidden">
       <div className="bg-[#eff1ff] border-b border-[#c5d3f8] px-4 py-3">
@@ -27,9 +29,9 @@ const CustomerAttentionMatrix: React.FC<Props> = ({ values, onChange, readOnly }
         <thead>
           <tr className="bg-[#f5f5f7] border-b border-[#dcdce0]">
             <th className="text-left px-3 py-2 font-semibold text-[11px] text-[#7d7d87] w-[240px]">Item</th>
-            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center">Hombres</th>
-            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center">Mujeres</th>
-            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center">Niños</th>
+            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center min-w-[90px] w-[90px]">Hombres</th>
+            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center min-w-[90px] w-[90px]">Mujeres</th>
+            <th className="px-3 py-2 font-semibold text-[11px] text-[#7d7d87] border-l border-[#dcdce0] text-center min-w-[90px] w-[90px]">Niños</th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +49,10 @@ const CustomerAttentionMatrix: React.FC<Props> = ({ values, onChange, readOnly }
                       value={values[field] || ''}
                       onChange={(e) => onChange(field, parseInt(e.target.value) || 0)}
                       placeholder="0"
-                      className="h-7 text-sm text-center w-full max-w-[120px] mx-auto"
+                      title={errors?.[`${errorPrefix}${field}`]?.[0]}
+                      className={`h-7 text-sm text-center w-full max-w-[120px] mx-auto ${
+                        errors?.[`${errorPrefix}${field}`] ? 'border-red-500 bg-red-50' : ''
+                      }`}
                     />
                   )}
                 </td>
