@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import PageLayout from '@/components/layouts/PageLayout';
 import CashClosesFiltersBar from '@/components/admin/CashClosesFiltersBar';
 import AdvisorCashCloseCard from '@/components/admin/AdvisorCashCloseCard';
+import CashClosesConsolidated from '@/components/admin/CashClosesConsolidated';
 import { formatCurrency } from '@/lib/utils';
 import cashRegisterCloseService, { type AdvisorPendingGroup } from '@/services/cashRegisterCloseService';
 import { userService, User } from '@/services/userService';
@@ -29,7 +30,7 @@ const copFmtOpts = {
   maximumFractionDigits: 0,
 };
 
-type ViewMode = 'all' | 'by_advisor';
+type ViewMode = 'consolidated' | 'all' | 'by_advisor';
 
 interface PeriodStats {
   totalCount: number;
@@ -120,7 +121,7 @@ const AdminCashCloses: React.FC = () => {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('consolidated');
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
 
   const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
@@ -323,7 +324,7 @@ const AdminCashCloses: React.FC = () => {
               navigate(`/admin/cash-closes/${item.id}`);
             }
           }}
-          aria-label="Ver calendario de cierres"
+          aria-label={`Ver cierres de ${item.user?.name ?? 'asesor'} del ${item.close_date}`}
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -365,8 +366,8 @@ const AdminCashCloses: React.FC = () => {
     navigate(`/admin/cash-closes/advisor/${advisor.user_id}`);
   };
 
-  const totalVarianceForPeriod = stats.accumulatedVariance;
-  const variancePositive = totalVarianceForPeriod != null && totalVarianceForPeriod >= 0;
+  const totalVarianceForPeriod = stats.accumulatedVariance ?? 0;
+  const variancePositive = totalVarianceForPeriod >= 0;
 
   return (
     <PageLayout
@@ -388,6 +389,17 @@ const AdminCashCloses: React.FC = () => {
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
         <div className="flex items-center gap-2">
           <div className="flex h-9 overflow-hidden rounded-[8px] border border-[#dcdce0] bg-[#f7f7f8]">
+            <button
+              type="button"
+              onClick={() => setViewMode('consolidated')}
+              className={`flex h-full w-[120px] items-center justify-center rounded-[6px] px-3 text-[12px] whitespace-nowrap transition-colors ${
+                viewMode === 'consolidated'
+                  ? 'm-[3px] h-[calc(100%-6px)] bg-[#eff1ff] font-semibold text-[#3a71f7]'
+                  : 'font-normal text-[#7d7d87]'
+              }`}
+            >
+              Consolidado
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('all')}
@@ -413,6 +425,10 @@ const AdminCashCloses: React.FC = () => {
           </div>
         </div>
 
+        {viewMode === 'consolidated' && <CashClosesConsolidated />}
+
+        {viewMode !== 'consolidated' && (
+        <>
         <div className="flex gap-4">
           <StatCard
             label={viewMode === 'by_advisor' ? 'Asesores en vista' : 'Cierres del Período'}
@@ -435,14 +451,10 @@ const AdminCashCloses: React.FC = () => {
           <StatCard
             label="Diferencia Acumulada"
             value={
-              totalVarianceForPeriod != null ? (
-                <span className={variancePositive ? 'text-[#0f0f12]' : 'text-[#b82626]'}>
-                  {totalVarianceForPeriod >= 0 ? '' : '-'}
-                  {formatCurrency(Math.abs(totalVarianceForPeriod), 'COP', copFmtOpts)}
-                </span>
-              ) : (
-                <span className="text-[#7d7d87] text-[20px]">—</span>
-              )
+              <span className={variancePositive ? 'text-[#0f0f12]' : 'text-[#b82626]'}>
+                {totalVarianceForPeriod >= 0 ? '' : '-'}
+                {formatCurrency(Math.abs(totalVarianceForPeriod), 'COP', copFmtOpts)}
+              </span>
             }
             sub="Acumulado del período"
             accentColor="#b82626"
@@ -534,6 +546,8 @@ const AdminCashCloses: React.FC = () => {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </PageLayout>
   );
