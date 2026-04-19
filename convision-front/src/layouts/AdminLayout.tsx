@@ -258,7 +258,7 @@ const AdminLayout: React.FC = () => {
       )}
 
       {/* Main content — no wrapper padding, pages handle their own layout */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden h-screen">
+      <main className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden h-screen", isCollapsed && !isMobile && "pl-12")}>
         <AdminTopBar />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <Outlet />
