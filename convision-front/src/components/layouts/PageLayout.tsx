@@ -38,7 +38,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({
         topbarClassName ?? 'h-[56px]',
       )}
     >
-      <div className={cn('flex flex-col min-w-0 pr-4', titleStackClassName ?? 'gap-[3px]')}>
+      <div className={cn('flex flex-col min-w-0 flex-1 pr-4', titleStackClassName ?? 'gap-[3px]')}>
         <span className="text-[16px] font-semibold text-[#0f0f12] leading-none">{title}</span>
         {subtitle && (
           <span
