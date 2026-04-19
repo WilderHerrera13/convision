@@ -89,7 +89,7 @@ function EntityTable<T>({
   });
 
   const items = data?.data ?? [];
-  const totalPages = (data as any)?.last_page ?? (data as any)?.meta?.last_page ?? 1;
+  const totalPages = Math.max(1, (data as any)?.last_page ?? (data as any)?.meta?.last_page ?? 1);
   const totalCount =
     (data as PaginatedResult<T> | undefined)?.total ??
     (data as { meta?: { total?: number } } | undefined)?.meta?.total;

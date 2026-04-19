@@ -89,7 +89,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <button
           type="button"
           aria-label="Página siguiente"
-          disabled={currentPage === totalPages}
+          disabled={currentPage >= totalPages}
           onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#e5e5e9] bg-white text-[13px] text-[#121215] disabled:pointer-events-none disabled:opacity-40"
         >
@@ -148,7 +148,7 @@ const Pagination: React.FC<PaginationProps> = ({
         variant="outline"
         size="sm"
         onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-        disabled={currentPage === totalPages}
+        disabled={currentPage >= totalPages}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -156,7 +156,7 @@ const Pagination: React.FC<PaginationProps> = ({
         variant="outline"
         size="sm"
         onClick={() => onPageChange(totalPages)}
-        disabled={currentPage === totalPages}
+        disabled={currentPage >= totalPages}
       >
         <ChevronRight className="h-4 w-4 ml-1" />
         <ChevronRight className="h-4 w-4 -mr-2" />

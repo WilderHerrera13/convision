@@ -192,6 +192,8 @@ const DataTable = <T extends Record<string, any>>({
 }: DataTableProps<T>) => {
   // Use either loading or isLoading for backward compatibility
   const isLoadingData = isLoading !== undefined ? isLoading : loading;
+  // Guard against undefined data (e.g. API returning wrong shape)
+  const safeData = data ?? [];
   
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -244,7 +246,7 @@ const DataTable = <T extends Record<string, any>>({
   const ledgerFigmaShellClass = ledgerFigma ? 'w-full' : '';
 
   const table = useReactTable({
-    data,
+    data: safeData,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -508,11 +510,11 @@ const DataTable = <T extends Record<string, any>>({
                   {error}
                 </TableCell>
               </TableRow>
-            ) : data.length === 0 ? (
+            ) : safeData.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columns.length} className="p-0">
                   {emptyStateContent ?? (
-                    <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
+                    <div className="h-24 flex items-center justify-center text-sm text-muted-foreground text-center px-4 whitespace-normal">
                       {emptyState.message}
                     </div>
                   )}
