@@ -279,7 +279,7 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Esperado:** `{"data":[], "meta": {"total":N, "last_page":N, "current_page":N, "per_page":N}}` — userService.ts lee `body.meta?.last_page ?? 1` y `body.meta?.total ?? 0`
 - **Observado:** ✅ **RESUELTO** — `GET /api/v1/users` ahora devuelve estructura completa con `meta: {total, last_page, current_page, per_page}` junto con paginación en root.
 - **Impacto:** userService.ts obtiene correctamente `last_page` y `total` desde `meta`. Paginación de usuarios funciona.
-- **Estado:** ✅ resuelto
+- **Estado:** ✅ resueluelto
 
 ---
 
@@ -289,9 +289,9 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** POST /api/v1/auth/login (credencial inválida)
 - **Esperado:** `{"message": "..."}` (clave `message` — consistente con el resto: middleware retorna `{"message":"unauthenticated"}`, 403 retorna `{"message":"forbidden: insufficient role"}`)
-- **Observado:** `{"error": "Unauthorized"}` — clave `error` diferente al estándar
-- **Impacto:** Si el front maneja errores buscando `error.response.data.message`, el mensaje de credencial inválida no se mostrará correctamente.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — POST /api/v1/auth/login ahora retorna `{"message": "Credenciales incorrectas"}` con clave `message` consistente.
+- **Impacto:** Error de credencial inválida es consistente con el estándar del API. Frontend puede manejar correctamente.
+- **Estado:** ✅ resuelto
 
 ---
 
@@ -369,8 +369,9 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET `/api/v1/laboratories`
 - **Esperado:** `{data[], meta: {last_page, total, current_page, per_page}}` — `laboratoryService.getLaboratoriesTable()` lee `body.meta?.last_page ?? 1` y `body.meta?.total ?? 0`
-- **Observado:** `{data[], total:1, current_page:1, last_page:1, per_page:15}` — paginación en root sin `meta`. El front siempre reportará `total=0` y `last_page=1` en la tabla de laboratorios. (Mismo patrón sistémico que GOQA-005)
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — GET /api/v1/laboratories ahora retorna estructura completa con `meta: {last_page, total, current_page, per_page}` junto con paginación en root.
+- **Impacto:** Front obtiene correctamente `last_page` y `total` desde `meta`. Tabla de laboratorios funciona.
+- **Estado:** ✅ resuelto
 
 ---
 
