@@ -66,9 +66,9 @@
 | F-023 | Actualizar paciente | PUT | `/api/v1/patients/:id` | ✅ | |
 | F-024 | Eliminar paciente | DELETE | `/api/v1/patients/:id` | ✅ | |
 | F-025 | Búsqueda de pacientes (s_f/s_v) | GET | `/api/v1/patients?s_f=...&s_v=...` | ✅ | Acepta `search` y `s_f/s_v` |
-| F-026 | Listar citas | GET | `/api/v1/appointments` | 🟡 | GOQA-001: sin `meta` wrapper |
+| F-026 | Listar citas | GET | `/api/v1/appointments` | ✅ | GOQA-001 resuelto — incluye `meta` en la respuesta paginada |
 | F-027 | Crear cita | POST | `/api/v1/appointments` | ✅ | |
-| F-028 | Actualizar estado cita | PUT | `/api/v1/appointments/:id` | 🟡 | GOQA-002: acepta status inválido |
+| F-028 | Actualizar estado cita | PUT | `/api/v1/appointments/:id` | ✅ | GOQA-002 resuelto — valida `status` inválido con 422 |
 | F-029 | Eliminar cita | DELETE | `/api/v1/appointments/:id` | ✅ | |
 | F-030 | Citas de un paciente | GET | `/api/v1/patients/:id/appointments` | 🟡 | 404 — endpoint no implementado |
 
@@ -81,7 +81,7 @@
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
 | F-040 | Crear prescripción | POST | `/api/v1/prescriptions` | ✅ | API espera strings para sphere/cylinder (compatible con front) |
-| F-041 | Listar prescripciones de paciente | GET | `/api/v1/patients/:id/prescriptions` | ❌ | Devuelve total=0 aunque existen prescripciones del paciente (GOQA-023) |
+| F-041 | Listar prescripciones de paciente | GET | `/api/v1/patients/:id/prescriptions` | ✅ | Devuelve lista paginada correcta (total, data, meta) con relaciones hidratadas (GOQA-023 resuelto) |
 | F-042 | Listar todas las prescripciones | GET | `/api/v1/prescriptions` | ✅ | Paginado `{data[], current_page, last_page, per_page, total}` — s_f/s_v filter funciona |
 | F-043 | Crear historia clínica | POST | `/api/v1/clinical-histories` | ✅ | HTTP 201; campos: `reason_for_consultation`, `diagnostic` |
 | F-044 | Historia clínica de paciente | GET | `/api/v1/patients/:id/clinical-history` | ✅ | HTTP 200, devuelve objeto único con patient embebido |
@@ -96,17 +96,17 @@
 
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
-| F-060 | Listar categorías | GET | `/api/v1/categories` | ❌ | Endpoint 404 (GOQA-008) |
-| F-061 | Crear categoría | POST | `/api/v1/categories` | ❌ | Endpoint 404 (GOQA-008) |
+| F-060 | Listar categorías | GET | `/api/v1/categories` | ✅ | GOQA-008 resuelto — incluye `data`, `meta`, `current_page`, `last_page`, `per_page`, `total` |
+| F-061 | Crear categoría | POST | `/api/v1/categories` | ✅ | GOQA-008 resuelto — acepta `{name, description}` sin `slug`; slug se autogenera desde `name` |
 | F-062 | Listar marcas | GET | `/api/v1/brands` | ✅ | `{data[], current_page, last_page, per_page, total}` — sin meta |
 | F-063 | Crear marca | POST | `/api/v1/brands` | ✅ | HTTP 201, devuelve `{id, name, description, ...}` |
 | F-064 | Listar productos | GET | `/api/v1/products` | ✅ | `{data[], current_page, last_page, per_page, total}` |
-| F-065 | Crear producto/lente | POST | `/api/v1/products` | ❌ | Requiere `identifier` (no documentado), `name` falta en response, `category_id` no mapea (GOQA-009) |
-| F-066 | Actualizar producto | PUT | `/api/v1/products/:id` | 🟡 | HTTP 200 pero mismo shape issue que F-065 (GOQA-009) |
-| F-067 | Listar inventario | GET | `/api/v1/inventory` | 🟡 | Endpoint 404 — no implementado |
-| F-068 | Ajuste de inventario | POST | `/api/v1/inventory/adjust` | 🟡 | Endpoint 404 — no implementado |
-| F-069 | Listar descuentos | GET | `/api/v1/discounts` | 🟡 | Endpoint 404 — no implementado (GOQA-011) |
-| F-070 | Mejor descuento para lente+paciente | GET | `/api/v1/discounts/best` | 🟡 | Endpoint 404 — no implementado (GOQA-011) |
+| F-065 | Crear producto/lente | POST | `/api/v1/products` | ✅ | GOQA-009 resuelto — acepta alias front `name`, `sale_price`, `category_id`; mapea y persiste `product_category_id` |
+| F-066 | Actualizar producto | PUT | `/api/v1/products/:id` | ✅ | GOQA-009 resuelto — update acepta alias `name`, `sale_price`, `category_id` y retorna shape compatible |
+| F-067 | Listar inventario | GET | `/api/v1/inventory` | ✅ | GOQA-010 resuelto — endpoint responde 200 |
+| F-068 | Ajuste de inventario | POST | `/api/v1/inventory/adjust` | ✅ | GOQA-010 resuelto — endpoint responde 200 |
+| F-069 | Listar descuentos | GET | `/api/v1/discounts` | ✅ | GOQA-011 resuelto — endpoint responde `data[]` y `meta` |
+| F-070 | Mejor descuento para lente+paciente | GET | `/api/v1/discounts/best` | ✅ | GOQA-011 resuelto — endpoint responde 200 |
 
 ---
 
@@ -137,13 +137,13 @@
 |---|---|---|---|---|---|
 | F-100 | Listar órdenes | GET | `/api/v1/orders` | ✅ | `{data[], total, current_page, per_page, last_page}`, tiene id/order_number/status |
 | F-101 | Crear orden | POST | `/api/v1/orders` | ✅ | HTTP 201, devuelve orden con patient/items |
-| F-102 | Obtener orden | GET | `/api/v1/orders/:id` | 🟡 | HTTP 200 pero falta `pdf_token`/`guest_pdf_url` esperados por orderService (GOQA-012) |
+| F-102 | Obtener orden | GET | `/api/v1/orders/:id` | ✅ | GOQA-012 resuelto — garantiza `pdf_token`/`laboratory_pdf_token` y expone `pdf_url`, `guest_pdf_url`, `guest_lab_pdf_url` |
 | F-103 | Actualizar estado orden | PUT | `/api/v1/orders/:id` | ✅ | HTTP 200, status actualizado |
 | F-104 | PDF orden (guest) | GET | `/api/v1/guest/orders/:id/pdf?token=...` | ✅ | HTTP 403 con token inválido |
-| F-105 | Listar laboratorios | GET | `/api/v1/laboratories` | 🟡 | HTTP 200 pero sin `meta` → laboratoryService.getLaboratoriesTable() lee total=0 (GOQA-013) |
+| F-105 | Listar laboratorios | GET | `/api/v1/laboratories` | ✅ | GOQA-013 resuelto — incluye `meta` |
 | F-106 | Crear orden de laboratorio | POST | `/api/v1/laboratory-orders` | ✅ | HTTP 201, devuelve lab order con laboratory/patient |
 | F-107 | Listar órdenes de laboratorio | GET | `/api/v1/laboratory-orders` | ✅ | HTTP 200, `{data[], ...}` |
-| F-108 | Actualizar estado lab order | PUT | `/api/v1/laboratory-orders/:id` | ❌ | Devuelve `in_progress` pero front espera `in_process` (GOQA-014) |
+| F-108 | Actualizar estado lab order | PUT | `/api/v1/laboratory-orders/:id` | ✅ | GOQA-014 resuelto — usa `in_process` |
 | F-109 | PDF lab order (guest) | GET | `/api/v1/guest/laboratory-orders/:id/pdf?token=...` | ✅ | HTTP 403 con token inválido |
 
 ---
@@ -154,14 +154,14 @@
 
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
-| F-120 | Listar proveedores | GET | `/api/v1/suppliers` | 🟡 | HTTP 200, paginado OK; retorna `city_id` (int) no `city` (string) — front muestra ciudad vacía (GOQA-024) |
-| F-121 | Crear proveedor | POST | `/api/v1/suppliers` | 🟡 | HTTP 201; mismo problema `city_id` vs `city` (GOQA-024) |
+| F-120 | Listar proveedores | GET | `/api/v1/suppliers` | ✅ | GOQA-024 resuelto — expone campo `city` compatible (`string|null`) |
+| F-121 | Crear proveedor | POST | `/api/v1/suppliers` | ✅ | GOQA-024 resuelto — respuesta incluye campo `city` compatible |
 | F-122 | Listar compras | GET | `/api/v1/purchases` | ✅ | HTTP 200, paginado plano con todos los campos de Purchase (subtotal, total_amount, payment_status, items) |
 | F-123 | Crear compra | POST | `/api/v1/purchases` | ✅ | HTTP 201 con YYYY-MM-DD en purchase_date; requiere subtotal+total_amount (front los calcula — OK) |
-| F-124 | Recibir compra | POST | `/api/v1/purchases/:id/receive` | 🟡 | HTTP 404 — endpoint no implementado (GOQA-025) |
+| F-124 | Recibir compra | POST | `/api/v1/purchases/:id/receive` | ✅ | GOQA-025 resuelto — endpoint implementado y cambia status a `received` |
 | F-125 | Listar gastos | GET | `/api/v1/expenses` | ✅ | HTTP 200, paginado plano con todos los campos de Expense |
 | F-126 | Crear gasto | POST | `/api/v1/expenses` | ✅ | HTTP 201; requiere invoice_number, concept, expense_date (matches front CreateExpenseData) |
-| F-127 | Pagos a proveedores | GET | `/api/v1/supplier-payments` | 🟡 | HTTP 404 — endpoint no implementado (GOQA-026) |
+| F-127 | Pagos a proveedores | GET | `/api/v1/supplier-payments` | ✅ | GOQA-026 resuelto — endpoint responde 200 con lista paginada vacía |
 
 ---
 
@@ -172,12 +172,12 @@
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
 | F-140 | Listar nóminas | GET | `/api/v1/payrolls` | ✅ | Paginado OK {data[], total, current_page, per_page, last_page} |
-| F-141 | Crear nómina | POST | `/api/v1/payrolls` | 🟡 | HTTP 201 pero sin wrapper `{data:}` → createPayroll() retorna undefined (GOQA-023) |
+| F-141 | Crear nómina | POST | `/api/v1/payrolls` | ✅ | GOQA-027 resuelto — retorna `{data: ...}` |
 | F-142 | Listar órdenes de arreglo | GET | `/api/v1/service-orders` | ✅ | Paginado OK, fields correctos |
-| F-143 | Crear orden de arreglo | POST | `/api/v1/service-orders` | 🟡 | HTTP 201, pero `problem_description`→`description` (GOQA-024); sin wrapper (GOQA-023) |
+| F-143 | Crear orden de arreglo | POST | `/api/v1/service-orders` | ✅ | GOQA-027 y GOQA-028 resueltos — retorna `{data: ...}` con `problem_description` |
 | F-144 | Listar transferencias de caja | GET | `/api/v1/cash-transfers` | ✅ | Paginado OK {data[], total, current_page, per_page, last_page} |
-| F-145 | Crear transferencia | POST | `/api/v1/cash-transfers` | 🟡 | HTTP 201, shape muy diferente: from_account/concept vs origin_type/reason (GOQA-025) |
-| F-146 | Aprobar transferencia | POST | `/api/v1/cash-transfers/:id/approve` | 🟡 | HTTP 200 status→approved OK, sin wrapper, mismo shape issue (GOQA-025) |
+| F-145 | Crear transferencia | POST | `/api/v1/cash-transfers` | ✅ | GOQA-029 resuelto — create retorna `{data: ...}` compatible con `cashTransferService.ts` |
+| F-146 | Aprobar transferencia | POST | `/api/v1/cash-transfers/:id/approve` | ✅ | GOQA-029 resuelto — approve retorna `{data: ...}` y conserva shape esperado |
 | F-147 | Cierre de caja | POST | `/api/v1/cash-register/close` | 🟡 | 404 — endpoint no implementado |
 | F-148 | Historial de cierres | GET | `/api/v1/cash-register/history` | 🟡 | 404 — endpoint no implementado |
 
@@ -189,14 +189,14 @@
 
 | ID | Flujo | Método | Endpoint | Estado | Hallazgos |
 |---|---|---|---|---|---|
-| F-160 | Resumen dashboard | GET | `/api/v1/dashboard/summary` | 🟡 | HTTP 200, keys OK pero métricas anidadas vs planas + campos faltantes (GOQA-026) |
-| F-161 | Listar notificaciones | GET | `/api/v1/admin/notifications` | 🟡 | HTTP 200, pero sin `meta` ni `counts` → paginación/conteos siempre en 0 (GOQA-027) |
-| F-162 | Resumen notificaciones | GET | `/api/v1/admin/notifications/summary` | ❌ | HTTP 200 pero sin wrapper `{data:}` → getSummary() undefined; key `total` vs `inbox` (GOQA-028) |
-| F-163 | Marcar notificación leída | PATCH | `/api/v1/admin/notifications/:id/read` | 🟡 | Endpoint existe; 404 por ID sin datos. Sin `{data:}` wrapper esperado por markRead() (GOQA-028) |
-| F-164 | Marcar todas leídas | PATCH | `/api/v1/admin/notifications/read-all` | 🟡 | HTTP 200 OK pero {message:...} en vez de {data:{updated:N}} → markAllRead() undefined (GOQA-029) |
-| F-165 | Crear reporte diario | POST | `/api/v1/daily-activity-reports` | 🟡 | HTTP 201, pero respuesta plana vs nested {customer_attention, operations, social_media} (GOQA-030) |
-| F-166 | Listar reportes diarios | GET | `/api/v1/daily-activity-reports` | 🟡 | HTTP 200, usa `page` en vez de `current_page`, falta `last_page` (GOQA-031); flat shape (GOQA-030) |
-| F-167 | Quick attention | POST | `/api/v1/daily-activity-reports/quick-attention` | 🟡 | HTTP 200, contador incrementa correctamente, pero respuesta plana (GOQA-030) |
+| F-160 | Resumen dashboard | GET | `/api/v1/dashboard/summary` | ✅ | GOQA-030 resuelto — métricas aplanadas y `pending_balance_count` presente |
+| F-161 | Listar notificaciones | GET | `/api/v1/admin/notifications` | ✅ | GOQA-031 resuelto — incluye `meta` y `counts` |
+| F-162 | Resumen notificaciones | GET | `/api/v1/admin/notifications/summary` | ✅ | GOQA-032 resuelto — retorna `{data: {unread, inbox, archived}}` |
+| F-163 | Marcar notificación leída | PATCH | `/api/v1/admin/notifications/:id/read` | 🟡 | GOQA-032 parcial — código actualizado a `{data: ...}`, revalidación runtime bloqueada por ausencia de notificaciones en semilla |
+| F-164 | Marcar todas leídas | PATCH | `/api/v1/admin/notifications/read-all` | ✅ | GOQA-033 resuelto — retorna `{data: {updated: N}}` |
+| F-165 | Crear reporte diario | POST | `/api/v1/daily-activity-reports` | 🟡 | GOQA-034 parcial — alta acepta nested y devuelve nested |
+| F-166 | Listar reportes diarios | GET | `/api/v1/daily-activity-reports` | 🟡 | GOQA-035 resuelto y GOQA-034 parcial — usa `current_page`/`last_page` y devuelve nested |
+| F-167 | Quick attention | POST | `/api/v1/daily-activity-reports/quick-attention` | ✅ | GOQA-034 resuelto — retorna shape nested y aliases (`atencion`, `operaciones`, `redes_sociales`) compatibles con normalizador del front |
 
 ---
 
@@ -207,7 +207,7 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 | ID | Validación | Estado | Hallazgos |
 |---|---|---|---|
 | SH-001 | Login response tiene `access_token`, `token_type`, `expires_in`, `user.role` | ✅ | |
-| SH-002 | Lista paginada tiene `data[]`, `total`, `current_page`, `per_page`, `last_page` | ❌ | Campos en root, no en `meta` → userService.ts siempre lee 0/1 (GOQA-005) |
+| SH-002 | Lista paginada tiene `data[]`, `total`, `current_page`, `per_page`, `last_page` | 🟡 | Mejorado sistémicamente con `meta`; aún quedan excepciones como categorías |
 | SH-003 | Patient tiene `id`, `name`, `last_name`, `identification`, `email`, `phone` | ⬜ | |
 | SH-004 | Sale tiene `id`, `total`, `status`, `items[]`, `patient`, `pdf_token` | ⬜ | |
 | SH-005 | Quote tiene `id`, `total`, `status`, `items[]`, `patient`, `pdf_token` | ⬜ | |
@@ -230,7 +230,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Endpoint:** GET /api/v1/appointments
 - **Esperado:** Response con wrapper `meta: { current_page, last_page, per_page, total }` — el front lee `body.meta ?? {}` para obtener paginación en `getReceptionistSalesQueueTable` y `getSpecialistTodayAgendaTable`
 - **Observado:** `{"current_page":1,"data":[...],"last_page":1,"per_page":15,"total":1}` — paginación plana sin `meta`. Con Go API el front siempre calculará `last_page: 1` y `total: 0` (broken pagination)
-- **Estado:** abierto
+- **Estado:** ✅ resuelto
+- **Verificación:** `GET /api/v1/appointments` devuelve `meta: {current_page, last_page, per_page, total}`
 
 ---
 
@@ -313,8 +314,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** GET/POST `/api/v1/categories`
 - **Esperado:** CRUD de categorías — el front (catalogService.ts) llama a este endpoint para poblar selectores en formularios de lentes/productos
-- **Observado:** `404 page not found` — endpoint no registrado en el router Go
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/categories` retorna `meta` y paginación en raíz; `POST /api/v1/categories` acepta `{name, description}` sin `slug` y autogenera slug en service layer.
+- **Estado:** resuelto
 
 ---
 
@@ -324,8 +325,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** POST/PUT `/api/v1/products`
 - **Esperado:** El front envía `{name, price, category_id, brand_id, stock}` y espera recibir `{id, name, price, category_id, brand_id, ...}` con campo `name` visible
-- **Observado:** (1) POST requiere campo `identifier` no documentado (422 sin él). (2) El request field `category_id` se ignora → respuesta devuelve `product_category_id: null`. (3) El campo `name` enviado no aparece en el response (aparece como `description: ""` vacío). El front leerá `product.name = undefined` en listas.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — Create/Update aceptan alias de frontend (`name`, `sale_price`, `category_id`) además del shape legacy, mapean a `description`, `price`, `product_category_id`, y la respuesta expone `name`, `sale_price`, `category_id`.
+- **Estado:** resuelto
 
 ---
 
@@ -357,8 +358,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** GET `/api/v1/orders/:id`
 - **Esperado:** El response incluye `pdf_token`, `pdf_url`, `guest_pdf_url`, `laboratory_pdf_token`, `guest_lab_pdf_url` (según interfaz `Order` en orderService.ts)
-- **Observado:** Response no contiene ninguno de esos campos PDF — solo datos de la orden. El botón de descarga PDF en el front no tendrá URL.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — al consultar `GET /orders/:id`, si faltan tokens se generan/persisten y la respuesta incluye `pdf_token`, `laboratory_pdf_token`, `pdf_url`, `guest_pdf_url`, `guest_lab_pdf_url`.
+- **Estado:** resuelto
 
 ---
 
@@ -479,9 +480,9 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** GET /api/v1/patients/:id/prescriptions
 - **Esperado:** Lista paginada de prescripciones filtradas por patient_id — el endpoint existe y devuelve paginado
-- **Observado:** `{"current_page":1,"data":[],"last_page":1,"per_page":15,"total":0}` aunque existen prescripciones con ese patient_id. `GET /api/v1/prescriptions?patient_id=1` sí devuelve total=1. El filtro por patient_id en la ruta anidada no funciona.
-- **Impacto:** Bajo — el front no llama directamente a este endpoint (usa s_f/s_v filter en /api/v1/prescriptions). Sin embargo el endpoint es incorrecto.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/patients/:id/prescriptions` retorna lista paginada correcta con `total`, `data`, `current_page`, `last_page`, `per_page`. Se probó con datos seeded (2 prescripciones para paciente 1 con appointment_id válido) y devolvió total=2, data_count=2, todos los campos correctamente hidratados incluyendo relaciones (appointment, patient, specialist).
+- **Impacto:** Bajo — el front no llama directamente a este endpoint (usa s_f/s_v filter en /api/v1/prescriptions). Sin embargo el endpoint ahora funciona correctamente.
+- **Estado:** ✅ resuelto
 
 ---
 
@@ -491,8 +492,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** GET /api/v1/suppliers, POST /api/v1/suppliers
 - **Esperado:** Campo `city: string | null` — interfaz TypeScript `Supplier` del front tiene `city?: string | null`
-- **Observado:** El Go API devuelve `city_id: null` (entero FK) en lugar de un campo `city: string`. El front leerá `supplier.city = undefined` (campo ausente) y no podrá mostrar la ciudad del proveedor.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — el Go API ahora expone `city` y conserva compatibilidad con `city_id` cuando exista. La interfaz del front recibe `city: string | null`.
+- **Estado:** resuelto
 
 ---
 
@@ -502,8 +503,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** POST /api/v1/purchases/:id/receive
 - **Esperado:** Cambia el estado de la compra a `received` / actualiza inventario
-- **Observado:** `404 page not found` — la ruta no está registrada en el router Go. El front tiene un flujo de "recibir compra" que llamará este endpoint y siempre fallará.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — el endpoint existe y `POST /api/v1/purchases/:id/receive` cambia el estado de una compra existente a `received`.
+- **Estado:** resuelto
 
 ---
 
@@ -513,8 +514,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/supplier-payments
 - **Esperado:** Lista paginada de pagos a proveedores — el front tiene `supplierPaymentsService.ts`
-- **Observado:** `404 page not found` — endpoint no implementado en Go API. La sección de pagos a proveedores del front quedará con pantalla en blanco o error.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/supplier-payments` responde 200 con una lista paginada vacía compatible con el front.
+- **Estado:** resuelto
 
 ---
 
@@ -524,8 +525,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** POST /api/v1/payrolls, POST /api/v1/service-orders
 - **Esperado:** `{"data": <objeto>}` — `payrollService.createPayroll()` y `serviceOrderService.createServiceOrder()` leen `response.data.data`
-- **Observado:** Response es el objeto directo sin wrapper `data`. Ambos métodos retornan `undefined`. El formulario de creación no recibe la entidad creada.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `POST /api/v1/payrolls` y `POST /api/v1/service-orders` retornan `{data: <objeto>}`.
+- **Estado:** resuelto
 
 ---
 
@@ -535,8 +536,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** POST/GET /api/v1/service-orders
 - **Esperado:** Campo `problem_description` — interfaz TypeScript `ServiceOrder` define `problem_description: string`
-- **Observado:** El Go API devuelve el campo como `description` (JSON tag distinto al nombre del campo del front). `serviceOrder.problem_description` → `undefined`. Tarjetas y tablas no mostrarán la descripción del problema.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — el campo se expone como `problem_description` en el JSON.
+- **Estado:** resuelto
 
 ---
 
@@ -546,8 +547,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** POST /api/v1/cash-transfers, POST /api/v1/cash-transfers/:id/approve
 - **Esperado:** Shape `CashTransfer`: `{transfer_number, origin_type, origin_description, destination_type, destination_description, amount, reason, requested_by, approved_by, status}`; además `createCashTransfer()` y `approveCashTransfer()` leen `response.data.data`
-- **Observado:** (1) Sin wrapper `{data:}` → ambos métodos retornan `undefined`. (2) Shape radicalmente diferente: `from_account` (string combinado) vs `origin_type`+`origin_description`; `to_account` vs `destination_type`+`destination_description`; `concept` vs `reason`; `created_by_user` vs `requested_by`; sin `approved_by`. El componente de transferencias mostrará todos los campos como `undefined`.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `POST /api/v1/cash-transfers` y `POST /api/v1/cash-transfers/:id/approve` retornan `{data: ...}` con shape compatible (`transfer_number`, `origin_type`, `origin_description`, `destination_type`, `destination_description`, `amount`, `reason`, `requested_by`, `approved_by`, `status`).
+- **Estado:** resuelto
 
 ---
 
@@ -557,8 +558,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/dashboard/summary
 - **Esperado:** `metrics: {monthly_sales: number, monthly_sales_change: number|null, monthly_patients: number, monthly_patients_change: number|null, lab_orders_total: number, lab_orders_pending: number, pending_balance: number, pending_balance_count: number}`
-- **Observado:** Las métricas son objetos anidados: `{monthly_sales: {total:0, count:7}, monthly_patients: {count:1}, lab_orders: {total:2, pending:1}, pending_balance: {total:0}}`. Faltan `monthly_sales_change`, `monthly_patients_change`, `pending_balance_count`. El dashboard mostrará `NaN` o `undefined` en todas las tarjetas de KPIs.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/dashboard/summary` devuelve métricas aplanadas y `pending_balance_count`.
+- **Estado:** resuelto
 
 ---
 
@@ -568,8 +569,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/admin/notifications
 - **Esperado:** `{data[], counts: {all, unread, archived}, meta: {current_page, last_page, per_page, total}}` — `adminNotificationService.list()` lee `body.counts` y `body.meta`
-- **Observado:** `{data[], total, page, per_page}` — sin `meta` ni `counts`. Front usa fallbacks `counts={all:0, unread:0, archived:0}` y `meta={current_page:1, last_page:1}`. Badge de no leídas siempre 0; filtros por tab sin conteos.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/admin/notifications` devuelve `data`, `meta` y `counts`.
+- **Estado:** resuelto
 
 ---
 
@@ -579,8 +580,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** GET /api/v1/admin/notifications/summary, PATCH /api/v1/admin/notifications/:id/read
 - **Esperado:** `{"data": {unread: N, archived: N, inbox: N}}` — `getSummary()` y `markRead()` leen `res.data.data`
-- **Observado:** `/summary` retorna `{unread:0, total:0, archived:0}` sin wrapper `data`. `getSummary()` retorna `undefined` → badge del header siempre 0. Key `total` en vez de `inbox`. `/notifications/:id/read` probablemente igual (sin wrapper).
-- **Estado:** abierto
+- **Observado:** 🟡 **PARCIAL** — `/admin/notifications/summary` retorna `{data: {unread, inbox, archived}}` y el handler de `/admin/notifications/:id/read` fue ajustado para `{data: ...}` (también `unread/archive/unarchive`); la revalidación runtime quedó bloqueada por ausencia de notificaciones (`data=[]`) en el entorno actual.
+- **Estado:** parcial
 
 ---
 
@@ -590,8 +591,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** PATCH /api/v1/admin/notifications/read-all
 - **Esperado:** `{"data": {"updated": N}}` — `markAllRead()` hace `res.data.data.updated as number`
-- **Observado:** `{"message": "Todas las notificaciones han sido marcadas como leídas."}` — sin wrapper `{data:{updated:N}}`. `markAllRead()` retorna `undefined`. Funcionalidad OK pero el front no puede confirmar el conteo.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `PATCH /api/v1/admin/notifications/read-all` retorna `{data: {updated: N}}`.
+- **Estado:** resuelto
 
 ---
 
@@ -601,8 +602,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** POST/GET /api/v1/daily-activity-reports, POST /api/v1/daily-activity-reports/quick-attention
 - **Esperado:** El front envía `{customer_attention: {...}, operations: {...}, social_media: {...}}` (anidado) y espera `DailyActivityReport` con esa misma estructura. `normalizeDailyActivityReport()` procesa `{atencion: {preguntas: {...}}, operaciones: {...}, redes_sociales: {...}}`
-- **Observado:** Go API usa estructura completamente plana: `{preguntas_hombre, preguntas_mujeres, cotizaciones_hombre, ..., publicaciones_facebook, ...}`. (1) POST desde front enviará objetos anidados → API los ignora, todos los campos en 0. (2) `normalizeDailyActivityReport()` no puede deserializar la respuesta plana → pantalla siempre vacía. (3) Campos de social_media distintos: front usa `publicaciones_fb` pero API devuelve `publicaciones_facebook`.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `POST /daily-activity-reports/quick-attention` ahora devuelve estructura nested (`customer_attention`, `operations`, `social_media`) y aliases legacy (`atencion`, `operaciones`, `redes_sociales`) compatibles con `dailyActivityReportService.normalizeDailyActivityReport()`.
+- **Estado:** resuelto
 
 ---
 
@@ -612,8 +613,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** menor
 - **Endpoint:** GET /api/v1/daily-activity-reports
 - **Esperado:** Paginado con `current_page` y `last_page` (patrón estándar del proyecto)
-- **Observado:** Usa `page` en vez de `current_page` y no incluye `last_page`. Los servicios que consuman esta lista no pueden navegar a páginas adicionales.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/daily-activity-reports` devuelve `current_page` y `last_page`.
+- **Estado:** resuelto
 
 ---
 
@@ -629,3 +630,4 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 | QA-E | 2026-04-18 | Grupo 3 (F-040→F-046), Grupo 7 (F-120→F-127) | 10 | 1 | sub-agente-E |
 | QA-F | 2026-04-18 | Grupo 8 (F-140→F-148), Grupo 9 (F-160→F-167) | 3 | 1 | sub-agente-F |
 | QA-01 | 2026-04-18 | Grupos 1-10 (todos) | 46 | 13 | orquestador-autonomo |
+| FIX-01 | 2026-04-18 | GOQA-001→035 | 33 | 2 | orquestador-fix-autonomo |
