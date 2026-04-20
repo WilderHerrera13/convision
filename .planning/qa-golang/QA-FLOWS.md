@@ -265,9 +265,9 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/auth/me
 - **Esperado:** `{"data": {"id":1,"name":"Carlos",...}}` — auth.ts hace `ApiService.get<{data:User}>('/api/v1/auth/me')` y `return response.data`
-- **Observado:** `{"id":1,"name":"Carlos","email":"admin@convision.com","role":"admin",...}` — objeto directo sin wrapper `data`
-- **Impacto:** `getCurrentUser()` retorna `undefined` → AuthContext pierde estado en recargas de página. Rompe la autenticación persistente.
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/auth/me` ahora devuelve `{"data": {...}}` con estructura correcta.
+- **Impacto:** `getCurrentUser()` funciona correctamente y AuthContext mantiene estado en recargas de página.
+- **Estado:** ✅ resuelto
 
 ---
 
@@ -277,9 +277,9 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** mayor
 - **Endpoint:** GET /api/v1/users (y posiblemente todos los listados paginados del Grupo 1)
 - **Esperado:** `{"data":[], "meta": {"total":N, "last_page":N, "current_page":N, "per_page":N}}` — userService.ts lee `body.meta?.last_page ?? 1` y `body.meta?.total ?? 0`
-- **Observado:** `{"data":[], "total":3, "last_page":1, "current_page":1, "per_page":15}` — paginación en root, sin `meta`
-- **Impacto:** userService.ts siempre obtiene `last_page=1` y `total=0` (fallback). Paginación de usuarios rota. (Mismo patrón que GOQA-001 para appointments — problema sistémico)
-- **Estado:** abierto
+- **Observado:** ✅ **RESUELTO** — `GET /api/v1/users` ahora devuelve estructura completa con `meta: {total, last_page, current_page, per_page}` junto con paginación en root.
+- **Impacto:** userService.ts obtiene correctamente `last_page` y `total` desde `meta`. Paginación de usuarios funciona.
+- **Estado:** ✅ resuelto
 
 ---
 
