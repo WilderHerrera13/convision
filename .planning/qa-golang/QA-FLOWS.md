@@ -191,8 +191,8 @@
 |---|---|---|---|---|---|
 | F-160 | Resumen dashboard | GET | `/api/v1/dashboard/summary` | ✅ | GOQA-030 resuelto — métricas aplanadas y `pending_balance_count` presente |
 | F-161 | Listar notificaciones | GET | `/api/v1/admin/notifications` | ✅ | GOQA-031 resuelto — incluye `meta` y `counts` |
-| F-162 | Resumen notificaciones | GET | `/api/v1/admin/notifications/summary` | ✅ | GOQA-032 resuelto — retorna `{data: {unread, inbox, archived}}` |
-| F-163 | Marcar notificación leída | PATCH | `/api/v1/admin/notifications/:id/read` | 🟡 | GOQA-032 parcial — código actualizado a `{data: ...}`, revalidación runtime bloqueada por ausencia de notificaciones en semilla |
+| F-162 | Resumen notificaciones | GET | `/api/v1/admin/notifications/summary` | ✅ | GOQA-032 resuelto — retorna `{data: {unread, inbox, archived}}` con valores correctos |
+| F-163 | Marcar notificación leída | PATCH | `/api/v1/admin/notifications/:id/read` | ✅ | GOQA-032 resuelto — devuelve notificación actualizada con read_at timestamp |
 | F-164 | Marcar todas leídas | PATCH | `/api/v1/admin/notifications/read-all` | ✅ | GOQA-033 resuelto — retorna `{data: {updated: N}}` |
 | F-165 | Crear reporte diario | POST | `/api/v1/daily-activity-reports` | 🟡 | GOQA-034 parcial — alta acepta nested y devuelve nested |
 | F-166 | Listar reportes diarios | GET | `/api/v1/daily-activity-reports` | 🟡 | GOQA-035 resuelto y GOQA-034 parcial — usa `current_page`/`last_page` y devuelve nested |
@@ -580,8 +580,8 @@ Estos flujos validan que el **shape del JSON** que devuelve el Go API sea compat
 - **Severidad:** bloqueante
 - **Endpoint:** GET /api/v1/admin/notifications/summary, PATCH /api/v1/admin/notifications/:id/read
 - **Esperado:** `{"data": {unread: N, archived: N, inbox: N}}` — `getSummary()` y `markRead()` leen `res.data.data`
-- **Observado:** 🟡 **PARCIAL** — `/admin/notifications/summary` retorna `{data: {unread, inbox, archived}}` y el handler de `/admin/notifications/:id/read` fue ajustado para `{data: ...}` (también `unread/archive/unarchive`); la revalidación runtime quedó bloqueada por ausencia de notificaciones (`data=[]`) en el entorno actual.
-- **Estado:** parcial
+- **Observado:** ✅ **RESUELTO** — `/admin/notifications/summary` retorna `{data: {unread, inbox, archived}}` con valores correctos (probado con 3 notificaciones: 1 unread, 1 archived). `PATCH /api/v1/admin/notifications/:id/read` actualiza correctamente y devuelve la notificación con `read_at` timestamp.
+- **Estado:** ✅ resuelto
 
 ---
 
