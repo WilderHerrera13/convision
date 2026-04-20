@@ -66,7 +66,7 @@ const KpiCard: React.FC<{
   accentColor: string;
   valueColor?: string;
 }> = ({ label, value, sub, accentColor, valueColor = '#0f0f12' }) => (
-  <div className="relative h-[100px] min-w-0 flex-1 overflow-hidden rounded-[8px] border border-[#e0e0e4] bg-white">
+  <div className="relative h-[100px] min-w-0 overflow-hidden rounded-[8px] border border-[#e0e0e4] bg-white">
     <div
       className="absolute left-0 top-0 h-full w-[4px] rounded-l-[8px]"
       style={{ backgroundColor: accentColor }}
@@ -74,7 +74,7 @@ const KpiCard: React.FC<{
     <div className="px-[15px] pt-[13px]">
       <p className="text-[11px] font-semibold text-[#7d7d87]">{label}</p>
       <p
-        className="mt-[8px] truncate text-[20px] font-semibold leading-none"
+        className="mt-[8px] truncate text-[18px] font-semibold leading-none tabular-nums xl:text-[20px]"
         style={{ color: valueColor }}
       >
         {value}
@@ -232,7 +232,14 @@ const CashClosesConsolidated: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-[16px]">
+      {!isLoading && data && data.kpis.total_closes === 0 && (
+        <div className="flex items-center gap-[10px] rounded-[8px] border border-[#b8d4f8] bg-[#eff6ff] px-[16px] py-[12px] text-[13px] text-[#1d4ed8]">
+          <span className="text-[16px]">ℹ️</span>
+          <span>Sin cierres en el período seleccionado. Selecciona un rango diferente o crea un nuevo cierre.</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-[16px] md:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Cierres del período"
           value={isLoading ? '—' : data?.kpis.total_closes ?? 0}
