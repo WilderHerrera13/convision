@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-plan-milestone-gaps//SKILL.md
+../../../.codex/skills/gsd-plan-milestone-gaps/SKILL.md

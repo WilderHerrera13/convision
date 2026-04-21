@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-plant-seed//SKILL.md
+../../../.codex/skills/gsd-plant-seed/SKILL.md

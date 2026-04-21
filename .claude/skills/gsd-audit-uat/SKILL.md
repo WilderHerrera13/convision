@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-audit-uat//SKILL.md
+../../../.codex/skills/gsd-audit-uat/SKILL.md

@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-analyze-dependencies//SKILL.md
+../../../.codex/skills/gsd-analyze-dependencies/SKILL.md

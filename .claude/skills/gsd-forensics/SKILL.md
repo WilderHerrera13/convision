@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-forensics//SKILL.md
+../../../.codex/skills/gsd-forensics/SKILL.md

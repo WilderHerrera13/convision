@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-insert-phase//SKILL.md
+../../../.codex/skills/gsd-insert-phase/SKILL.md

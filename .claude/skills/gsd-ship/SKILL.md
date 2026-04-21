@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-ship//SKILL.md
+../../../.codex/skills/gsd-ship/SKILL.md

@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-pause-work//SKILL.md
+../../../.codex/skills/gsd-pause-work/SKILL.md

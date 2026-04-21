@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-validate-phase//SKILL.md
+../../../.codex/skills/gsd-validate-phase/SKILL.md

@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-join-discord//SKILL.md
+../../../.codex/skills/gsd-join-discord/SKILL.md

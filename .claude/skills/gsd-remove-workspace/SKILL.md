@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-remove-workspace//SKILL.md
+../../../.codex/skills/gsd-remove-workspace/SKILL.md

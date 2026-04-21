@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-manager//SKILL.md
+../../../.codex/skills/gsd-manager/SKILL.md

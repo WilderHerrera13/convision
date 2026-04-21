@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-complete-milestone//SKILL.md
+../../../.codex/skills/gsd-complete-milestone/SKILL.md

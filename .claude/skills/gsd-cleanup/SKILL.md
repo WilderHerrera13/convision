@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-cleanup//SKILL.md
+../../../.codex/skills/gsd-cleanup/SKILL.md

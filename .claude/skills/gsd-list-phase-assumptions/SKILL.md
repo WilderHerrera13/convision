@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-list-phase-assumptions//SKILL.md
+../../../.codex/skills/gsd-list-phase-assumptions/SKILL.md

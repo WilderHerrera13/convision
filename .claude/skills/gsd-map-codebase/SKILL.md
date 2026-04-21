@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-map-codebase//SKILL.md
+../../../.codex/skills/gsd-map-codebase/SKILL.md

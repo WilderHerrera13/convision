@@ -1,1 +1,1 @@
-/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-add-backlog//SKILL.md
+../../../.codex/skills/gsd-add-backlog/SKILL.md
