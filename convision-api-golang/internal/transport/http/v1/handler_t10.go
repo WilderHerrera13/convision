@@ -12,7 +12,7 @@ import (
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	notesvc "github.com/convision/api/internal/note"
 	notificationsvc "github.com/convision/api/internal/notification"
-	mysqlplatform "github.com/convision/api/internal/platform/storage/mysql"
+	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 )
 
@@ -34,7 +34,7 @@ type DailyActivityNestedResponse struct {
 	CustomerAttention map[string]interface{} `json:"customer_attention"`
 	Operations      map[string]interface{} `json:"operations"`
 	SocialMedia     map[string]interface{} `json:"social_media"`
-	Recepciones     map[string]interface{} `json:"recepciones_dinero,omitempty"`
+	MoneyReceiptsData     map[string]interface{} `json:"recepciones_dinero,omitempty"`
 	Observations    string      `json:"observations"`
 	CreatedAt       string      `json:"created_at"`
 	UpdatedAt       string      `json:"updated_at"`
@@ -51,51 +51,51 @@ func flattenDailyActivityInput(nested DailyActivityNestedInput) dailyactivitysvc
 	
 	// Flatten customer_attention
 	if nested.CustomerAttention != nil {
-		flat.PreguntasHombre = getIntVal(nested.CustomerAttention, "preguntas_hombre", "questions_men")
-		flat.PreguntasMujeres = getIntVal(nested.CustomerAttention, "preguntas_mujeres", "questions_women")
-		flat.PreguntasNinos = getIntVal(nested.CustomerAttention, "preguntas_ninos", "questions_children")
-		flat.CotizacionesHombre = getIntVal(nested.CustomerAttention, "cotizaciones_hombre", "quotes_men")
-		flat.CotizacionesMujeres = getIntVal(nested.CustomerAttention, "cotizaciones_mujeres", "quotes_women")
-		flat.CotizacionesNinos = getIntVal(nested.CustomerAttention, "cotizaciones_ninos", "quotes_children")
-		flat.ConsultasEfectivasHombre = getIntVal(nested.CustomerAttention, "consultas_efectivas_hombre", "effective_consultations_men")
-		flat.ConsultasEfectivasMujeres = getIntVal(nested.CustomerAttention, "consultas_efectivas_mujeres", "effective_consultations_women")
-		flat.ConsultasEfectivasNinos = getIntVal(nested.CustomerAttention, "consultas_efectivas_ninos", "effective_consultations_children")
-		flat.ConsultaVentaFormula = getIntVal(nested.CustomerAttention, "consulta_venta_formula", "formula_sale_consultations_men")
-		flat.ConsultasNoEfectivas = getIntVal(nested.CustomerAttention, "consultas_no_efectivas", "non_effective_consultations_men")
+		flat.InquiriesMale = getIntVal(nested.CustomerAttention, "preguntas_hombre", "questions_men")
+		flat.InquiriesFemale = getIntVal(nested.CustomerAttention, "preguntas_mujeres", "questions_women")
+		flat.InquiriesChildren = getIntVal(nested.CustomerAttention, "preguntas_ninos", "questions_children")
+		flat.QuotesMale = getIntVal(nested.CustomerAttention, "cotizaciones_hombre", "quotes_men")
+		flat.QuotesFemale = getIntVal(nested.CustomerAttention, "cotizaciones_mujeres", "quotes_women")
+		flat.QuotesChildren = getIntVal(nested.CustomerAttention, "cotizaciones_ninos", "quotes_children")
+		flat.EffectiveConsultationsMale = getIntVal(nested.CustomerAttention, "consultas_efectivas_hombre", "effective_consultations_men")
+		flat.EffectiveConsultationsFemale = getIntVal(nested.CustomerAttention, "consultas_efectivas_mujeres", "effective_consultations_women")
+		flat.EffectiveConsultationsChildren = getIntVal(nested.CustomerAttention, "consultas_efectivas_ninos", "effective_consultations_children")
+		flat.FormulaConsultations = getIntVal(nested.CustomerAttention, "consulta_venta_formula", "formula_sale_consultations_men")
+		flat.NonEffectiveConsultations = getIntVal(nested.CustomerAttention, "consultas_no_efectivas", "non_effective_consultations_men")
 	}
 	
 	// Flatten operations
 	if nested.Operations != nil {
-		flat.BonosEntregados = getIntFromMap(nested.Operations, "bonos_entregados")
-		flat.BonosRedimidos = getIntFromMap(nested.Operations, "bonos_redimidos")
-		flat.SistecreditosRealizados = getIntFromMap(nested.Operations, "sistecreditos_realizados")
-		flat.AddiRealizados = getIntFromMap(nested.Operations, "addi_realizados")
-		flat.ControlSeguimiento = getIntFromMap(nested.Operations, "control_seguimiento")
-		flat.SeguimientoGarantias = getIntFromMap(nested.Operations, "seguimiento_garantias")
-		flat.Ordenes = getIntFromMap(nested.Operations, "ordenes")
-		flat.PlanSepare = getIntFromMap(nested.Operations, "plan_separe")
-		flat.OtrasVentas = getIntFromMap(nested.Operations, "otras_ventas")
-		flat.Entregas = getIntFromMap(nested.Operations, "entregas")
-		flat.SistecreditosAbonos = getIntFromMap(nested.Operations, "sistecreditos_abonos")
-		flat.ValorOrdenes = getFloatFromMap(nested.Operations, "valor_ordenes")
+		flat.BonusesDelivered = getIntFromMap(nested.Operations, "bonos_entregados")
+		flat.BonusesRedeemed = getIntFromMap(nested.Operations, "bonos_redimidos")
+		flat.SistecreditsDone = getIntFromMap(nested.Operations, "sistecreditos_realizados")
+		flat.AddiDone = getIntFromMap(nested.Operations, "addi_realizados")
+		flat.FollowUpControl = getIntFromMap(nested.Operations, "control_seguimiento")
+		flat.WarrantyFollowUp = getIntFromMap(nested.Operations, "seguimiento_garantias")
+		flat.Orders = getIntFromMap(nested.Operations, "ordenes")
+		flat.LayawayPlan = getIntFromMap(nested.Operations, "plan_separe")
+		flat.OtherSales = getIntFromMap(nested.Operations, "otras_ventas")
+		flat.Deliveries = getIntFromMap(nested.Operations, "entregas")
+		flat.SistecreditsPayments = getIntFromMap(nested.Operations, "sistecreditos_abonos")
+		flat.OrdersValue = getFloatFromMap(nested.Operations, "valor_ordenes")
 	}
 	
 	// Flatten social_media (support both publicaciones_fb and publicaciones_facebook)
 	if nested.SocialMedia != nil {
-		flat.PublicacionesFacebook = getIntFromMapAlt(nested.SocialMedia, "publicaciones_facebook", "publicaciones_fb")
-		flat.PublicacionesInstagram = getIntFromMapAlt(nested.SocialMedia, "publicaciones_instagram", "publicaciones_ig")
-		flat.PublicacionesWhatsapp = getIntFromMapAlt(nested.SocialMedia, "publicaciones_whatsapp", "publicaciones_wa")
-		flat.PublicacionesCompartidasFB = getIntFromMap(nested.SocialMedia, "publicaciones_compartidas_fb")
-		flat.TiktokRealizados = getIntFromMapAlt(nested.SocialMedia, "tiktok_realizados", "tiktoks")
-		flat.BonosRegaloEnviados = getIntFromMap(nested.SocialMedia, "bonos_regalo_enviados")
-		flat.BonosFidelizacionEnviados = getIntFromMap(nested.SocialMedia, "bonos_fidelizacion_enviados")
-		flat.MensajesFacebook = getIntFromMap(nested.SocialMedia, "mensajes_facebook")
-		flat.MensajesInstagram = getIntFromMap(nested.SocialMedia, "mensajes_instagram")
-		flat.MensajesWhatsapp = getIntFromMap(nested.SocialMedia, "mensajes_whatsapp")
-		flat.EntregasRealizadas = getIntFromMap(nested.SocialMedia, "entregas_realizadas")
-		flat.EtiquetasClientes = getIntFromMap(nested.SocialMedia, "etiquetas_clientes")
-		flat.CotizacionesTrabajo = getIntFromMap(nested.SocialMedia, "cotizaciones_trabajo")
-		flat.OrdenesTrabajo = getIntFromMap(nested.SocialMedia, "ordenes_trabajo")
+		flat.FacebookPosts = getIntFromMapAlt(nested.SocialMedia, "publicaciones_facebook", "publicaciones_fb")
+		flat.InstagramPosts = getIntFromMapAlt(nested.SocialMedia, "publicaciones_instagram", "publicaciones_ig")
+		flat.WhatsappPosts = getIntFromMapAlt(nested.SocialMedia, "publicaciones_whatsapp", "publicaciones_wa")
+		flat.FacebookSharedPosts = getIntFromMap(nested.SocialMedia, "publicaciones_compartidas_fb")
+		flat.TiktokVideos = getIntFromMapAlt(nested.SocialMedia, "tiktok_realizados", "tiktoks")
+		flat.GiftBonusesSent = getIntFromMap(nested.SocialMedia, "bonos_regalo_enviados")
+		flat.LoyaltyBonusesSent = getIntFromMap(nested.SocialMedia, "bonos_fidelizacion_enviados")
+		flat.FacebookMessages = getIntFromMap(nested.SocialMedia, "mensajes_facebook")
+		flat.InstagramMessages = getIntFromMap(nested.SocialMedia, "mensajes_instagram")
+		flat.WhatsappMessages = getIntFromMap(nested.SocialMedia, "mensajes_whatsapp")
+		flat.DeliveriesCompleted = getIntFromMap(nested.SocialMedia, "entregas_realizadas")
+		flat.CustomerTags = getIntFromMap(nested.SocialMedia, "etiquetas_clientes")
+		flat.WorkQuotes = getIntFromMap(nested.SocialMedia, "cotizaciones_trabajo")
+		flat.WorkOrders = getIntFromMap(nested.SocialMedia, "ordenes_trabajo")
 	}
 	
 	return flat
@@ -116,54 +116,54 @@ func nestDailyActivityResponse(r *domain.DailyActivityReport) DailyActivityNeste
 		CreatedAt:   r.CreatedAt.UTC().Format(timeFormat) + "Z",
 		UpdatedAt:   r.UpdatedAt.UTC().Format(timeFormat) + "Z",
 		CustomerAttention: map[string]interface{}{
-			"preguntas_hombre": r.PreguntasHombre,
-			"preguntas_mujeres": r.PreguntasMujeres,
-			"preguntas_ninos": r.PreguntasNinos,
-			"cotizaciones_hombre": r.CotizacionesHombre,
-			"cotizaciones_mujeres": r.CotizacionesMujeres,
-			"cotizaciones_ninos": r.CotizacionesNinos,
-			"consultas_efectivas_hombre": r.ConsultasEfectivasHombre,
-			"consultas_efectivas_mujeres": r.ConsultasEfectivasMujeres,
-			"consultas_efectivas_ninos": r.ConsultasEfectivasNinos,
-			"consulta_venta_formula": r.ConsultaVentaFormula,
-			"consultas_no_efectivas": r.ConsultasNoEfectivas,
+			"preguntas_hombre": r.InquiriesMale,
+			"preguntas_mujeres": r.InquiriesFemale,
+			"preguntas_ninos": r.InquiriesChildren,
+			"cotizaciones_hombre": r.QuotesMale,
+			"cotizaciones_mujeres": r.QuotesFemale,
+			"cotizaciones_ninos": r.QuotesChildren,
+			"consultas_efectivas_hombre": r.EffectiveConsultationsMale,
+			"consultas_efectivas_mujeres": r.EffectiveConsultationsFemale,
+			"consultas_efectivas_ninos": r.EffectiveConsultationsChildren,
+			"consulta_venta_formula": r.FormulaConsultations,
+			"consultas_no_efectivas": r.NonEffectiveConsultations,
 		},
 		Operations: map[string]interface{}{
-			"bonos_entregados": r.BonosEntregados,
-			"bonos_redimidos": r.BonosRedimidos,
-			"sistecreditos_realizados": r.SistecreditosRealizados,
-			"addi_realizados": r.AddiRealizados,
-			"control_seguimiento": r.ControlSeguimiento,
-			"seguimiento_garantias": r.SeguimientoGarantias,
-			"ordenes": r.Ordenes,
-			"plan_separe": r.PlanSepare,
-			"otras_ventas": r.OtrasVentas,
-			"entregas": r.Entregas,
-			"sistecreditos_abonos": r.SistecreditosAbonos,
-			"valor_ordenes": r.ValorOrdenes,
+			"bonos_entregados": r.BonusesDelivered,
+			"bonos_redimidos": r.BonusesRedeemed,
+			"sistecreditos_realizados": r.SistecreditsDone,
+			"addi_realizados": r.AddiDone,
+			"control_seguimiento": r.FollowUpControl,
+			"seguimiento_garantias": r.WarrantyFollowUp,
+			"ordenes": r.Orders,
+			"plan_separe": r.LayawayPlan,
+			"otras_ventas": r.OtherSales,
+			"entregas": r.Deliveries,
+			"sistecreditos_abonos": r.SistecreditsPayments,
+			"valor_ordenes": r.OrdersValue,
 		},
 		SocialMedia: map[string]interface{}{
-			"publicaciones_fb": r.PublicacionesFacebook,
-			"publicaciones_ig": r.PublicacionesInstagram,
-			"publicaciones_wa": r.PublicacionesWhatsapp,
-			"publicaciones_compartidas_fb": r.PublicacionesCompartidasFB,
-			"tiktoks": r.TiktokRealizados,
-			"bonos_regalo": r.BonosRegaloEnviados,
-			"bonos_fidelizacion": r.BonosFidelizacionEnviados,
-			"mensajes_fb": r.MensajesFacebook,
-			"mensajes_ig": r.MensajesInstagram,
-			"mensajes_wa": r.MensajesWhatsapp,
-			"entregas_realizadas": r.EntregasRealizadas,
-			"etiquetas_clientes": r.EtiquetasClientes,
-			"cotizaciones_trabajo": r.CotizacionesTrabajo,
-			"ordenes_trabajo": r.OrdenesTrabajo,
+			"publicaciones_fb": r.FacebookPosts,
+			"publicaciones_ig": r.InstagramPosts,
+			"publicaciones_wa": r.WhatsappPosts,
+			"publicaciones_compartidas_fb": r.FacebookSharedPosts,
+			"tiktoks": r.TiktokVideos,
+			"bonos_regalo": r.GiftBonusesSent,
+			"bonos_fidelizacion": r.LoyaltyBonusesSent,
+			"mensajes_fb": r.FacebookMessages,
+			"mensajes_ig": r.InstagramMessages,
+			"mensajes_wa": r.WhatsappMessages,
+			"entregas_realizadas": r.DeliveriesCompleted,
+			"etiquetas_clientes": r.CustomerTags,
+			"cotizaciones_trabajo": r.WorkQuotes,
+			"ordenes_trabajo": r.WorkOrders,
 		},
 	}
 	
-	if len(r.RecepcionesDinero) > 0 {
+	if len(r.MoneyReceipts) > 0 {
 		var dinero map[string]interface{}
-		_ = json.Unmarshal(r.RecepcionesDinero, &dinero)
-		res.Recepciones = dinero
+		_ = json.Unmarshal(r.MoneyReceipts, &dinero)
+		res.MoneyReceiptsData = dinero
 	}
 	
 	if r.User != nil {
@@ -222,6 +222,75 @@ func getFloatFromMap(m map[string]interface{}, key string) float64 {
 		}
 	}
 	return 0
+}
+
+func intFromAny(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+func dailyActivityResponseWithLegacyAliases(nested DailyActivityNestedResponse) gin.H {
+	response := toMap(nested)
+	response["atencion"] = gin.H{
+		"preguntas": gin.H{
+			"hombre":  intFromAny(nested.CustomerAttention["preguntas_hombre"]),
+			"mujeres": intFromAny(nested.CustomerAttention["preguntas_mujeres"]),
+			"ninos":   intFromAny(nested.CustomerAttention["preguntas_ninos"]),
+		},
+		"cotizaciones": gin.H{
+			"hombre":  intFromAny(nested.CustomerAttention["cotizaciones_hombre"]),
+			"mujeres": intFromAny(nested.CustomerAttention["cotizaciones_mujeres"]),
+			"ninos":   intFromAny(nested.CustomerAttention["cotizaciones_ninos"]),
+		},
+		"consultas_efectivas": gin.H{
+			"hombre":  intFromAny(nested.CustomerAttention["consultas_efectivas_hombre"]),
+			"mujeres": intFromAny(nested.CustomerAttention["consultas_efectivas_mujeres"]),
+			"ninos":   intFromAny(nested.CustomerAttention["consultas_efectivas_ninos"]),
+		},
+		"consulta_venta_formula": intFromAny(nested.CustomerAttention["consulta_venta_formula"]),
+		"consultas_no_efectivas": intFromAny(nested.CustomerAttention["consultas_no_efectivas"]),
+	}
+	response["operaciones"] = gin.H{
+		"bonos_entregados":        intFromAny(nested.Operations["bonos_entregados"]),
+		"bonos_redimidos":         intFromAny(nested.Operations["bonos_redimidos"]),
+		"sistecreditos_realizados": intFromAny(nested.Operations["sistecreditos_realizados"]),
+		"addi_realizados":         intFromAny(nested.Operations["addi_realizados"]),
+		"control_seguimiento":     intFromAny(nested.Operations["control_seguimiento"]),
+		"seguimiento_garantias":   intFromAny(nested.Operations["seguimiento_garantias"]),
+		"ordenes":                 intFromAny(nested.Operations["ordenes"]),
+		"plan_separe":             intFromAny(nested.Operations["plan_separe"]),
+		"otras_ventas":            intFromAny(nested.Operations["otras_ventas"]),
+		"entregas":                intFromAny(nested.Operations["entregas"]),
+		"sistecreditos_abonos":    intFromAny(nested.Operations["sistecreditos_abonos"]),
+		"valor_ordenes":           nested.Operations["valor_ordenes"],
+	}
+	response["redes_sociales"] = gin.H{
+		"publicaciones_facebook":         intFromAny(nested.SocialMedia["publicaciones_fb"]),
+		"publicaciones_instagram":        intFromAny(nested.SocialMedia["publicaciones_ig"]),
+		"publicaciones_whatsapp":         intFromAny(nested.SocialMedia["publicaciones_wa"]),
+		"publicaciones_compartidas_fb":   intFromAny(nested.SocialMedia["publicaciones_compartidas_fb"]),
+		"tiktok_realizados":              intFromAny(nested.SocialMedia["tiktoks"]),
+		"bonos_regalo_enviados":          intFromAny(nested.SocialMedia["bonos_regalo"]),
+		"bonos_fidelizacion_enviados":    intFromAny(nested.SocialMedia["bonos_fidelizacion"]),
+		"mensajes_facebook":              intFromAny(nested.SocialMedia["mensajes_fb"]),
+		"mensajes_instagram":             intFromAny(nested.SocialMedia["mensajes_ig"]),
+		"mensajes_whatsapp":              intFromAny(nested.SocialMedia["mensajes_wa"]),
+		"entregas_realizadas":            intFromAny(nested.SocialMedia["entregas_realizadas"]),
+		"etiquetas_clientes":             intFromAny(nested.SocialMedia["etiquetas_clientes"]),
+		"cotizaciones_trabajo":           intFromAny(nested.SocialMedia["cotizaciones_trabajo"]),
+		"ordenes_trabajo":                intFromAny(nested.SocialMedia["ordenes_trabajo"]),
+	}
+	return response
 }
 
 // ---------- Dashboard ----------
@@ -327,7 +396,7 @@ func (h *Handler) MarkNotificationRead(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, n)
+	c.JSON(http.StatusOK, gin.H{"data": n})
 }
 
 func (h *Handler) MarkNotificationUnread(c *gin.Context) {
@@ -341,15 +410,24 @@ func (h *Handler) MarkNotificationUnread(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, n)
+	c.JSON(http.StatusOK, gin.H{"data": n})
 }
 
 func (h *Handler) MarkAllNotificationsRead(c *gin.Context) {
+	summary, err := h.notification.Summary()
+	if err != nil {
+		summary = &domain.NotificationSummary{}
+	}
+
 	if err := h.notification.ReadAll(); err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Todas las notificaciones han sido marcadas como leídas."})
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"updated": summary.Unread,
+		},
+	})
 }
 
 func (h *Handler) ArchiveNotification(c *gin.Context) {
@@ -363,7 +441,7 @@ func (h *Handler) ArchiveNotification(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, n)
+	c.JSON(http.StatusOK, gin.H{"data": n})
 }
 
 func (h *Handler) UnarchiveNotification(c *gin.Context) {
@@ -377,7 +455,7 @@ func (h *Handler) UnarchiveNotification(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, n)
+	c.JSON(http.StatusOK, gin.H{"data": n})
 }
 
 func (h *Handler) DeleteNotification(c *gin.Context) {
@@ -601,11 +679,11 @@ func (h *Handler) QuickAttentionDailyActivity(c *gin.Context) {
 		return
 	}
 	nested := nestDailyActivityResponse(report)
-	c.JSON(http.StatusOK, nested)
+	c.JSON(http.StatusOK, dailyActivityResponseWithLegacyAliases(nested))
 }
 
 // ensure service type references compile
 var _ *notificationsvc.Service
 var _ *notesvc.Service
 var _ *dailyactivitysvc.Service
-var _ *mysqlplatform.DashboardRepository
+var _ *postgresplatform.DashboardRepository

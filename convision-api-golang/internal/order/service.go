@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/google/uuid"
 )
 
 // Service handles order use-cases.
@@ -77,7 +78,26 @@ type PaymentStatusInput struct {
 // --- Methods ---
 
 func (s *Service) GetByID(id uint) (*domain.Order, error) {
-	return s.repo.GetByID(id)
+	o, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	changed := false
+	if o.PdfToken == "" {
+		o.PdfToken = uuid.New().String()
+		changed = true
+	}
+	if o.LaboratoryPdfToken == "" {
+		o.LaboratoryPdfToken = uuid.New().String()
+		changed = true
+	}
+	if changed {
+		if err := s.repo.Update(o); err != nil {
+			return nil, err
+		}
+		return s.repo.GetByID(id)
+	}
+	return o, nil
 }
 
 func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
@@ -149,17 +169,19 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Order, error) 
 	total := subtotal + tax
 
 	o := &domain.Order{
-		PatientID:     input.PatientID,
-		AppointmentID: input.AppointmentID,
-		LaboratoryID:  input.LaboratoryID,
-		Subtotal:      subtotal,
-		Tax:           tax,
-		Total:         total,
-		Status:        domain.OrderStatus(status),
-		PaymentStatus: paymentStatus,
-		Notes:         input.Notes,
-		CreatedBy:     &userID,
-		Items:         items,
+		PatientID:           input.PatientID,
+		AppointmentID:       input.AppointmentID,
+		LaboratoryID:        input.LaboratoryID,
+		Subtotal:            subtotal,
+		Tax:                 tax,
+		Total:               total,
+		Status:              domain.OrderStatus(status),
+		PaymentStatus:       paymentStatus,
+		Notes:               input.Notes,
+		CreatedBy:           &userID,
+		Items:               items,
+		PdfToken:            uuid.New().String(),
+		LaboratoryPdfToken:  uuid.New().String(),
 	}
 
 	if err := s.repo.Create(o); err != nil {

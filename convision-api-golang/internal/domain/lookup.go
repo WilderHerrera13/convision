@@ -52,6 +52,15 @@ type EducationLevel struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// PatientLookupRepository defines read-only catalog queries for patient form dropdowns.
+type PatientLookupRepository interface {
+	ListIdentificationTypes() ([]*IdentificationType, error)
+	ListHealthInsuranceProviders() ([]*HealthInsuranceProvider, error)
+	ListAffiliationTypes() ([]*AffiliationType, error)
+	ListCoverageTypes() ([]*CoverageType, error)
+	ListEducationLevels() ([]*EducationLevel, error)
+}
+
 // PaymentMethod represents a payment method accepted in transactions.
 type PaymentMethod struct {
 	ID                uint      `json:"id"                gorm:"primaryKey;autoIncrement"`

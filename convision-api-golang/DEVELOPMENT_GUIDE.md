@@ -35,7 +35,7 @@
 |---|---|---|
 | Lenguaje | Go | 1.22 |
 | Router HTTP | `github.com/gin-gonic/gin` | v1.10 |
-| ORM / DB | `gorm.io/gorm` + `gorm.io/driver/mysql` | v1.25 |
+| ORM / DB | `gorm.io/gorm` + `gorm.io/driver/postgres` | v1.25 |
 | JWT | `github.com/golang-jwt/jwt/v5` | v5 |
 | Logging | `go.uber.org/zap` | v1.27 |
 | Validación | `github.com/go-playground/validator/v10` | v10 (bundled con Gin) |
@@ -67,7 +67,7 @@ convision-api-golang/
 │   │
 │   ├── platform/                ← Implementaciones técnicas (nunca lógica de negocio)
 │   │   ├── storage/
-│   │   │   └── mysql/
+│   │   │   └── postgres/
 │   │   │       ├── db.go        ← Conexión GORM y AutoMigrate
 │   │   │       └── <entidad>_repository.go
 │   │   └── auth/
@@ -112,12 +112,12 @@ Service (casos de uso)
 Domain (entidades e interfaces)
     ▲
     │  implementa ↑
-Platform (MySQL, JWT)
+Platform (PostgreSQL, JWT)
 ```
 
 **La dirección de dependencia es SIEMPRE hacia adentro (hacia `domain`).**
 
-- `platform/storage/mysql` implementa interfaces de `domain` → OK  
+- `platform/storage/postgres` implementa interfaces de `domain` → OK  
 - `domain` importa algo de `platform` → **PROHIBIDO**  
 - `transport` llama directamente a `platform` → **PROHIBIDO**  
 - `transport` contiene lógica de negocio → **PROHIBIDO**
@@ -401,7 +401,7 @@ appointments := protected.Group("/appointments")
 
 ## 7. Platform (Infraestructura)
 
-### Repositorios MySQL — reglas
+### Repositorios PostgreSQL — reglas
 
 1. El `struct` del repositorio solo tiene `db *gorm.DB`.
 2. Implementa **exactamente** la interfaz definida en `domain`.
@@ -436,8 +436,8 @@ appointments := protected.Group("/appointments")
 ### Plantilla de repositorio
 
 ```go
-// internal/platform/storage/mysql/appointment_repository.go
-package mysql
+// internal/platform/storage/postgres/appointment_repository.go
+package postgres
 
 import (
     "errors"
@@ -529,7 +529,7 @@ func (r *AppointmentRepository) Delete(id uint) error {
 }
 ```
 
-### AutoMigrate — `internal/platform/storage/mysql/db.go`
+### AutoMigrate — `internal/platform/storage/postgres/db.go`
 
 Agrega el nuevo modelo a la lista de `AutoMigrate` en `db.go`:
 
@@ -558,9 +558,9 @@ Ejemplo al agregar la feature `appointment`:
 
 ```go
 // ---- Repositories ----
-userRepo        := mysqlplatform.NewUserRepository(db)
-patientRepo     := mysqlplatform.NewPatientRepository(db)
-appointmentRepo := mysqlplatform.NewAppointmentRepository(db)  // ← nuevo
+userRepo        := postgresplatform.NewUserRepository(db)
+patientRepo     := postgresplatform.NewPatientRepository(db)
+appointmentRepo := postgresplatform.NewAppointmentRepository(db)  // ← nuevo
 
 // ---- Services ----
 authService        := authsvc.NewService(userRepo, logger)
@@ -637,7 +637,7 @@ Handler → llama respondError(c, err) que mapea a HTTP
   if errors.As(err, &notFound) { ... }  // ✅ — funciona incluso con errores envueltos (%w)
   ```
 - Los errores inesperados de DB (no `ErrRecordNotFound`) se propagan como-están y el handler devuelve `500`.
-- **Nunca** expongas mensajes de error internos de MySQL al cliente.
+- **Nunca** expongas mensajes de error internos de PostgreSQL al cliente.
 
 ### Transacciones de BD
 
@@ -649,8 +649,8 @@ func (s *Service) CreateSaleWithInventory(input CreateSaleInput) (*domain.Sale, 
     var result *domain.Sale
     err := s.db.Transaction(func(tx *gorm.DB) error {
         // Repositorios temporales que usan el tx
-        saleRepo := mysql.NewSaleRepository(tx)
-        invRepo  := mysql.NewInventoryRepository(tx)
+        saleRepo := postgres.NewSaleRepository(tx)
+        invRepo  := postgres.NewInventoryRepository(tx)
 
         sale, err := saleRepo.Create(&domain.Sale{...})
         if err != nil {
@@ -874,7 +874,7 @@ Esto evita duplicar cláusulas `Where` en `List`, `ListByPatient`, `Count`, etc.
     sqlDB.SetMaxIdleConns(10)     // conexiones mantenidas en el pool
     sqlDB.SetConnMaxLifetime(5 * time.Minute) // rota conexiones viejas
     ```
-    Sin esto, GORM usa los defaults de `database/sql` (ilimitado), lo que puede agotar conexiones MySQL bajo carga.
+    Sin esto, GORM usa los defaults de `database/sql` (ilimitado), lo que puede agotar conexiones PostgreSQL bajo carga.
 
 ---
 
@@ -889,7 +889,7 @@ internal/
 │   └── service_test.go    ← Tests unitarios del servicio
 └── platform/
     └── storage/
-        └── mysql/
+        └── postgres/
             └── patient_repository_test.go  ← Tests de integración (opcional)
 ```
 
@@ -1017,7 +1017,7 @@ make test           # Tests + reporte de cobertura
 make lint           # golangci-lint (requiere instalación previa)
 make tidy           # go mod tidy
 make clean          # Elimina bin/ y coverage.out
-make docker-up      # Levanta MySQL + API con Docker Compose
+make docker-up      # Levanta PostgreSQL + API con Docker Compose
 make docker-down    # Baja el stack Docker
 ```
 
@@ -1047,7 +1047,7 @@ Cuando un agente o desarrollador implemente una nueva entidad/endpoint, seguir e
 - [ ] Agregar errores de dominio específicos si son necesarios (normalmente los existentes son suficientes)
 
 ### Paso 2 — Repositorio
-- [ ] Crear `internal/platform/storage/mysql/<entity>_repository.go`
+- [ ] Crear `internal/platform/storage/postgres/<entity>_repository.go`
 - [ ] Implementar todos los métodos de la interfaz
 - [ ] Convertir `gorm.ErrRecordNotFound` → `*domain.ErrNotFound`
 - [ ] Agregar el modelo a `AutoMigrate` en `db.go`
@@ -1116,17 +1116,17 @@ logger.Info("server exited")
 |---|---|
 | Lógica de negocio en handlers | Mover al servicio |
 | Queries SQL directas con `db.Raw` para lógica de negocio | Usar GORM ORM con repositorio |
-| Importar `gorm` desde `domain` o `transport` | Solo `platform/storage/mysql` usa GORM |
+| Importar `gorm` desde `domain` o `transport` | Solo `platform/storage/postgres` usa GORM |
 | Crear una nueva conexión DB por request | Inyectar `*gorm.DB` al repositorio vía constructor |
 | Strings de roles hardcodeados: `"admin"` | Usar `domain.RoleAdmin` |
 | `fmt.Println` para debugging | `logger.Debug(...)` con Zap |
 | Ignorar errores con `_` en lógica de negocio | Siempre manejar o propagar |
 | Handler con más de ~30 líneas útiles | Extraer lógica al servicio |
 | Validar reglas de negocio con `binding` tags | `binding` solo para formato; lógica en el servicio |
-| Exponer errores internos de MySQL al cliente | Usar `respondError` que devuelve mensajes genéricos |
+| Exponer errores internos de PostgreSQL al cliente | Usar `respondError` que devuelve mensajes genéricos |
 | `init()` globales para configuración | Inyección explícita desde `main.go` |
 | Campos de dominio opcionales como `string` vacío | Usar punteros `*string` o `*uint` para nulabilidad |
-| Tests que dependen de una BD MySQL real | Mocks de interfaces para tests unitarios |
+| Tests que dependen de una BD PostgreSQL real | Mocks de interfaces para tests unitarios |
 | Rutas sin versionado (`/patients`) | Siempre `/api/v1/patients` |
 | Mezclar español e inglés en nombres de código | Todo el código en **inglés**; UI/logs en español si aplica |
 | `db.Save(entity)` en Update | `db.Model(&entity).Updates(map[string]any{...})` — solo campos del input |

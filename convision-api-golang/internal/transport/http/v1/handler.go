@@ -10,31 +10,33 @@ import (
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
+	"github.com/convision/api/internal/bulkimport"
+	cashsvc "github.com/convision/api/internal/cash"
+	cashclosesvc "github.com/convision/api/internal/cashclose"
 	"github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
+	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	"github.com/convision/api/internal/discount"
 	"github.com/convision/api/internal/domain"
 	expensesvc "github.com/convision/api/internal/expense"
 	"github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	"github.com/convision/api/internal/location"
+	notesvc "github.com/convision/api/internal/note"
+	notificationsvc "github.com/convision/api/internal/notification"
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
+	payrollsvc "github.com/convision/api/internal/payroll"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	"github.com/convision/api/internal/product"
 	purchasesvc "github.com/convision/api/internal/purchase"
 	quotesvc "github.com/convision/api/internal/quote"
 	salesvc "github.com/convision/api/internal/sale"
-	suppliersvc "github.com/convision/api/internal/supplier"
-	payrollsvc "github.com/convision/api/internal/payroll"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
-	cashsvc "github.com/convision/api/internal/cash"
+	suppliersvc "github.com/convision/api/internal/supplier"
 	usersvc "github.com/convision/api/internal/user"
-	notificationsvc "github.com/convision/api/internal/notification"
-	notesvc "github.com/convision/api/internal/note"
-	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
-	mysqlplatform "github.com/convision/api/internal/platform/storage/mysql"
 )
 
 // timeFormat matches Laravel's Carbon microsecond UTC format.
@@ -77,6 +79,18 @@ func toUserResources(users []*domain.User) []UserResource {
 	return out
 }
 
+func toMap(v interface{}) gin.H {
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		return gin.H{}
+	}
+	out := gin.H{}
+	if err := json.Unmarshal(bytes, &out); err != nil {
+		return gin.H{}
+	}
+	return out
+}
+
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
 	auth          *authsvc.Service
@@ -101,10 +115,13 @@ type Handler struct {
 	payroll       *payrollsvc.Service
 	serviceOrder  *serviceordersvc.Service
 	cashTransfer  *cashsvc.Service
+	cashClose     *cashclosesvc.Service
 	notification  *notificationsvc.Service
 	note          *notesvc.Service
 	dailyActivity *dailyactivitysvc.Service
-	dashboard     *mysqlplatform.DashboardRepository
+	dashboard     *postgresplatform.DashboardRepository
+	bulkImport    *bulkimport.Service
+	bulkImportLog domain.BulkImportLogRepository
 	revokedTokens domain.RevokedTokenRepository
 }
 
@@ -132,11 +149,14 @@ func NewHandler(
 	payrollSvc *payrollsvc.Service,
 	serviceOrderSvc *serviceordersvc.Service,
 	cashSvc *cashsvc.Service,
+	cashCloseSvc *cashclosesvc.Service,
 	notificationSvc *notificationsvc.Service,
 	noteSvc *notesvc.Service,
 	dailyActivitySvc *dailyactivitysvc.Service,
-	dashboardRepo *mysqlplatform.DashboardRepository,
-	revokedTokens domain.RevokedTokenRepository,
+	dashboardRepo *postgresplatform.DashboardRepository,
+	bulkImportSvc    *bulkimport.Service,
+	bulkImportLogRepo domain.BulkImportLogRepository,
+	revokedTokens    domain.RevokedTokenRepository,
 ) *Handler {
 	return &Handler{
 		auth:          auth,
@@ -161,10 +181,13 @@ func NewHandler(
 		payroll:       payrollSvc,
 		serviceOrder:  serviceOrderSvc,
 		cashTransfer:  cashSvc,
+		cashClose:     cashCloseSvc,
 		notification:  notificationSvc,
 		note:          noteSvc,
 		dailyActivity: dailyActivitySvc,
 		dashboard:     dashboardRepo,
+		bulkImport:    bulkImportSvc,
+		bulkImportLog: bulkImportLogRepo,
 		revokedTokens: revokedTokens,
 	}
 }
@@ -355,6 +378,18 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ListSpecialists godoc
+// GET /api/v1/specialists
+// Returns all specialist-role users. Accessible to all authenticated roles.
+func (h *Handler) ListSpecialists(c *gin.Context) {
+	users, err := h.user.GetSpecialists()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": toUserResources(users)})
+}
+
 // ---------- Patients ----------
 
 // PatientResource is the JSON shape returned for every patient response.
@@ -391,23 +426,23 @@ type PatientResource struct {
 
 func toPatientResource(p *domain.Patient) PatientResource {
 	r := PatientResource{
-		ID:           p.ID,
-		FirstName:    p.FirstName,
-		LastName:     p.LastName,
-		Email:        p.Email,
-		Phone:        p.Phone,
+		ID:             p.ID,
+		FirstName:      p.FirstName,
+		LastName:       p.LastName,
+		Email:          p.Email,
+		Phone:          p.Phone,
 		Identification: p.Identification,
-		Gender:       p.Gender,
-		Address:      p.Address,
-		Neighborhood: p.Neighborhood,
-		PostalCode:   p.PostalCode,
-		Occupation:   p.Occupation,
-		Position:     p.Position,
-		Company:      p.Company,
-		Notes:        p.Notes,
-		Status:       p.Status,
-		CreatedAt:    p.CreatedAt.UTC().Format(timeFormat) + "Z",
-		UpdatedAt:    p.UpdatedAt.UTC().Format(timeFormat) + "Z",
+		Gender:         p.Gender,
+		Address:        p.Address,
+		Neighborhood:   p.Neighborhood,
+		PostalCode:     p.PostalCode,
+		Occupation:     p.Occupation,
+		Position:       p.Position,
+		Company:        p.Company,
+		Notes:          p.Notes,
+		Status:         p.Status,
+		CreatedAt:      p.CreatedAt.UTC().Format(timeFormat) + "Z",
+		UpdatedAt:      p.UpdatedAt.UTC().Format(timeFormat) + "Z",
 	}
 	if p.BirthDate != nil {
 		d := p.BirthDate.UTC().Format("2006-01-02")
@@ -455,6 +490,8 @@ func toPatientResources(patients []*domain.Patient) []PatientResource {
 }
 
 // parseApiFilters parses s_f/s_v query params (JSON arrays) into a filters map.
+// When s_o=or is present it adds the special key "_or_mode"="true" so repositories
+// can apply OR logic instead of AND across the provided fields.
 func parseApiFilters(c *gin.Context) map[string]any {
 	sf := c.Query("s_f")
 	sv := c.Query("s_v")
@@ -468,11 +505,14 @@ func parseApiFilters(c *gin.Context) map[string]any {
 	if err := json.Unmarshal([]byte(sv), &values); err != nil {
 		return nil
 	}
-	filters := make(map[string]any, len(fields))
+	filters := make(map[string]any, len(fields)+1)
 	for i, f := range fields {
 		if i < len(values) {
 			filters[f] = values[i]
 		}
+	}
+	if c.Query("s_o") == "or" {
+		filters["_or_mode"] = "true"
 	}
 	return filters
 }

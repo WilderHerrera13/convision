@@ -70,6 +70,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			users.DELETE("/:id", h.DeleteUser)
 		}
 
+		// Specialists list — all authenticated roles (needed for appointment creation)
+		protected.GET("/specialists", h.ListSpecialists)
+
 		// Patients — all authenticated roles can read; only admin and receptionist can write
 		patients := protected.Group("/patients")
 		{
@@ -151,6 +154,41 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			)
 		}
 
+		// Management report ("Informe de gestión") — specialist writes their own
+		// report; admin can read any.
+		managementReport := protected.Group("/management-report")
+		{
+			managementReport.GET("",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				h.ListManagementReport,
+			)
+			managementReport.GET("/:id",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				h.GetManagementReport,
+			)
+			managementReport.POST("/:id",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.SaveManagementReport,
+			)
+		}
+
+		// Specialist reports — admin-only consolidated and detail views.
+		specialistReports := protected.Group("/specialist-reports")
+		{
+			specialistReports.GET("/consolidated",
+				jwtauth.RequireRole(domain.RoleAdmin),
+				h.GetConsolidatedSpecialistReport,
+			)
+			specialistReports.GET("/specialists/:id",
+				jwtauth.RequireRole(domain.RoleAdmin),
+				h.GetSpecialistReportDetail,
+			)
+			specialistReports.POST("/bulk-upload",
+				jwtauth.RequireRole(domain.RoleAdmin),
+				h.UploadBulkExcel,
+			)
+		}
+
 		// Catalog — read: all roles; write: admin only
 		brands := protected.Group("/brands")
 		{
@@ -218,6 +256,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		// Lookup / Locations — all authenticated roles, read-only
 		lookup := protected.Group("/lookup")
 		{
+			lookup.GET("/patient-data", h.LookupPatientData)
 			lookup.GET("/countries", h.LookupCountries)
 			lookup.GET("/departments", h.LookupDepartments)
 			lookup.GET("/cities", h.LookupCities)
@@ -501,6 +540,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			purchases.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreatePurchase)
 			purchases.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdatePurchase)
 			purchases.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeletePurchase)
+			purchases.POST("/:id/receive", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ReceivePurchase)
 		}
 
 		// Expenses — admin + receptionist; delete: admin only
@@ -512,6 +552,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			expenses.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreateExpense)
 			expenses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdateExpense)
 			expenses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteExpense)
+		}
+
+		// Supplier Payments — admin + receptionist (stub endpoint)
+		supplierPayments := protected.Group("/supplier-payments")
+		{
+			supplierPayments.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListSupplierPayments)
 		}
 
 		// Payrolls — admin only
@@ -549,6 +595,23 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			cashTransfers.POST("/:id/cancel", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CancelCashTransfer)
 		}
 
+		// Cash Register Closes — admin + specialist + receptionist
+		cashRegisterCloses := protected.Group("/cash-register-closes")
+		{
+			cashRegisterCloses.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListCashRegisterCloses)
+			cashRegisterCloses.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetCashRegisterClose)
+			cashRegisterCloses.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.CreateCashRegisterClose)
+			cashRegisterCloses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.UpdateCashRegisterClose)
+			cashRegisterCloses.POST("/:id/submit", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.SubmitCashRegisterClose)
+			cashRegisterCloses.POST("/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveCashRegisterClose)
+			cashRegisterCloses.POST("/:id/return", jwtauth.RequireRole(domain.RoleAdmin), h.ReturnCashRegisterCloseToDraft)
+			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequireRole(domain.RoleAdmin), h.PutCashRegisterCloseAdminActuals)
+		}
+
+		protected.GET("/cash-register-closes-advisors-pending", jwtauth.RequireRole(domain.RoleAdmin), h.ListCashRegisterClosesAdvisorsPending)
+		protected.GET("/cash-register-closes-calendar", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesCalendar)
+		protected.GET("/cash-register-closes-consolidated", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesConsolidated)
+
 		// Dashboard — all authenticated roles
 		dashboard := protected.Group("/dashboard")
 		{
@@ -575,6 +638,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			notes.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.CreateNote)
 		}
 
+		// Bulk Import — admin only
+		// Single polymorphic endpoint: POST /bulk-import  (form field "type" selects the importer)
+		// Typed convenience routes are kept for backwards compatibility.
+		bulkImportGroup := protected.Group("/bulk-import")
+		bulkImportGroup.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		{
+			bulkImportGroup.POST("", h.BulkImport)
+			bulkImportGroup.POST("/patients", h.BulkImportPatients)
+			bulkImportGroup.POST("/doctors", h.BulkImportDoctors)
+			bulkImportGroup.POST("/scheduled-appointments", h.BulkImportScheduledAppointments)
+			bulkImportGroup.GET("/history", h.BulkImportHistory)
+		}
+
 		// Daily Activity Reports — all authenticated roles
 		dailyActivity := protected.Group("/daily-activity-reports")
 		{
@@ -586,4 +662,3 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 	}
 }
-

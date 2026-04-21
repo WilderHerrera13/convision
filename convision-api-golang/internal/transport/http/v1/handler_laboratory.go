@@ -28,7 +28,19 @@ func (h *Handler) ListLaboratories(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, gin.H{
+		"data": out.Data,
+		"meta": gin.H{
+			"current_page": out.Page,
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+		},
+		"current_page": out.Page,
+		"last_page":    out.LastPage,
+		"per_page":     out.PerPage,
+		"total":        out.Total,
+	})
 }
 
 // GetLaboratory godoc

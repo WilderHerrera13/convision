@@ -11,33 +11,35 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	authsvc "github.com/convision/api/internal/auth"
 	appointmentsvc "github.com/convision/api/internal/appointment"
+	authsvc "github.com/convision/api/internal/auth"
+	"github.com/convision/api/internal/bulkimport"
+	cashsvc "github.com/convision/api/internal/cash"
+	cashclosesvc "github.com/convision/api/internal/cashclose"
 	catalogsvc "github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
+	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
+	notesvc "github.com/convision/api/internal/note"
+	notificationsvc "github.com/convision/api/internal/notification"
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
+	payrollsvc "github.com/convision/api/internal/payroll"
+	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	productsvc "github.com/convision/api/internal/product"
 	purchasesvc "github.com/convision/api/internal/purchase"
 	quotesvc "github.com/convision/api/internal/quote"
 	salesvc "github.com/convision/api/internal/sale"
-	suppliersvc "github.com/convision/api/internal/supplier"
-	payrollsvc "github.com/convision/api/internal/payroll"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
-	cashsvc "github.com/convision/api/internal/cash"
-	notificationsvc "github.com/convision/api/internal/notification"
-	notesvc "github.com/convision/api/internal/note"
-	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
-	mysqlplatform "github.com/convision/api/internal/platform/storage/mysql"
-	usersvc "github.com/convision/api/internal/user"
+	suppliersvc "github.com/convision/api/internal/supplier"
 	"github.com/convision/api/internal/transport/http/middleware"
 	v1 "github.com/convision/api/internal/transport/http/v1"
+	usersvc "github.com/convision/api/internal/user"
 )
 
 func main() {
@@ -48,72 +50,77 @@ func main() {
 	defer logger.Sync() //nolint:errcheck
 
 	// ---- Database ----
-	db, err := mysqlplatform.Open(logger)
+	db, err := postgresplatform.Open(logger)
 	if err != nil {
 		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 
 	if os.Getenv("APP_ENV") == "local" {
-		if err := mysqlplatform.Migrate(db); err != nil {
+		if err := postgresplatform.Migrate(db); err != nil {
 			logger.Fatal("auto-migration failed", zap.Error(err))
+		}
+		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
+			logger.Fatal("failed to ensure local dev users", zap.Error(err))
 		}
 	}
 
 	// ---- Repositories (platform layer) ----
-	userRepo := mysqlplatform.NewUserRepository(db)
-	patientRepo := mysqlplatform.NewPatientRepository(db)
-	appointmentRepo := mysqlplatform.NewAppointmentRepository(db)
-	revokedTokenRepo := mysqlplatform.NewRevokedTokenRepository(db)
-	prescriptionRepo := mysqlplatform.NewPrescriptionRepository(db)
-	clinicalHistoryRepo := mysqlplatform.NewClinicalHistoryRepository(db)
-	clinicalEvolutionRepo := mysqlplatform.NewClinicalEvolutionRepository(db)
+	userRepo := postgresplatform.NewUserRepository(db)
+	patientRepo := postgresplatform.NewPatientRepository(db)
+	appointmentRepo := postgresplatform.NewAppointmentRepository(db)
+	revokedTokenRepo := postgresplatform.NewRevokedTokenRepository(db)
+	prescriptionRepo := postgresplatform.NewPrescriptionRepository(db)
+	clinicalHistoryRepo := postgresplatform.NewClinicalHistoryRepository(db)
+	clinicalEvolutionRepo := postgresplatform.NewClinicalEvolutionRepository(db)
 
 	// Catalog repos
-	brandRepo := mysqlplatform.NewBrandRepository(db)
-	lensTypeRepo := mysqlplatform.NewLensTypeRepository(db)
-	materialRepo := mysqlplatform.NewMaterialRepository(db)
-	lensClassRepo := mysqlplatform.NewLensClassRepository(db)
-	treatmentRepo := mysqlplatform.NewTreatmentRepository(db)
-	photochromicRepo := mysqlplatform.NewPhotochromicRepository(db)
-	paymentMethodRepo := mysqlplatform.NewPaymentMethodRepository(db)
+	brandRepo := postgresplatform.NewBrandRepository(db)
+	lensTypeRepo := postgresplatform.NewLensTypeRepository(db)
+	materialRepo := postgresplatform.NewMaterialRepository(db)
+	lensClassRepo := postgresplatform.NewLensClassRepository(db)
+	treatmentRepo := postgresplatform.NewTreatmentRepository(db)
+	photochromicRepo := postgresplatform.NewPhotochromicRepository(db)
+	paymentMethodRepo := postgresplatform.NewPaymentMethodRepository(db)
 
 	// Location repo
-	locationRepo := mysqlplatform.NewLocationRepository(db)
+	locationRepo := postgresplatform.NewLocationRepository(db)
+	patientLookupRepo := postgresplatform.NewPatientLookupRepository(db)
 
 	// Product repos
-	productRepo := mysqlplatform.NewProductRepository(db)
-	productCategoryRepo := mysqlplatform.NewProductCategoryRepository(db)
+	productRepo := postgresplatform.NewProductRepository(db)
+	productCategoryRepo := postgresplatform.NewProductCategoryRepository(db)
 
 	// Inventory repos
-	warehouseRepo := mysqlplatform.NewWarehouseRepository(db)
-	warehouseLocationRepo := mysqlplatform.NewWarehouseLocationRepository(db)
-	inventoryItemRepo := mysqlplatform.NewInventoryItemRepository(db)
-	inventoryTransferRepo := mysqlplatform.NewInventoryTransferRepository(db)
+	warehouseRepo := postgresplatform.NewWarehouseRepository(db)
+	warehouseLocationRepo := postgresplatform.NewWarehouseLocationRepository(db)
+	inventoryItemRepo := postgresplatform.NewInventoryItemRepository(db)
+	inventoryTransferRepo := postgresplatform.NewInventoryTransferRepository(db)
 
 	// Discount repo
-	discountRepo := mysqlplatform.NewDiscountRepository(db)
+	discountRepo := postgresplatform.NewDiscountRepository(db)
 
 	// Quote & Sale repos
-	quoteRepo := mysqlplatform.NewQuoteRepository(db)
-	saleRepo := mysqlplatform.NewSaleRepository(db)
-	saleLensAdjRepo := mysqlplatform.NewSaleLensPriceAdjustmentRepository(db)
+	quoteRepo := postgresplatform.NewQuoteRepository(db)
+	saleRepo := postgresplatform.NewSaleRepository(db)
+	saleLensAdjRepo := postgresplatform.NewSaleLensPriceAdjustmentRepository(db)
 
 	// Order & Laboratory repos
-	orderRepo := mysqlplatform.NewOrderRepository(db)
-	laboratoryRepo := mysqlplatform.NewLaboratoryRepository(db)
-	laboratoryOrderRepo := mysqlplatform.NewLaboratoryOrderRepository(db)
+	orderRepo := postgresplatform.NewOrderRepository(db)
+	laboratoryRepo := postgresplatform.NewLaboratoryRepository(db)
+	laboratoryOrderRepo := postgresplatform.NewLaboratoryOrderRepository(db)
 
 	// Supplier, Purchase, Expense repos
-	supplierRepo := mysqlplatform.NewSupplierRepository(db)
-	purchaseRepo := mysqlplatform.NewPurchaseRepository(db)
-	expenseRepo := mysqlplatform.NewExpenseRepository(db)
-	payrollRepo := mysqlplatform.NewPayrollRepository(db)
-	serviceOrderRepo := mysqlplatform.NewServiceOrderRepository(db)
-	cashTransferRepo := mysqlplatform.NewCashTransferRepository(db)
-	notificationRepo := mysqlplatform.NewNotificationRepository(db)
-	noteRepo := mysqlplatform.NewNoteRepository(db)
-	dailyActivityRepo := mysqlplatform.NewDailyActivityRepository(db)
-	dashboardRepo := mysqlplatform.NewDashboardRepository(db)
+	supplierRepo := postgresplatform.NewSupplierRepository(db)
+	purchaseRepo := postgresplatform.NewPurchaseRepository(db)
+	expenseRepo := postgresplatform.NewExpenseRepository(db)
+	payrollRepo := postgresplatform.NewPayrollRepository(db)
+	serviceOrderRepo := postgresplatform.NewServiceOrderRepository(db)
+	cashTransferRepo := postgresplatform.NewCashTransferRepository(db)
+	cashRegisterCloseRepo := postgresplatform.NewCashRegisterCloseRepository(db)
+	notificationRepo := postgresplatform.NewNotificationRepository(db)
+	noteRepo := postgresplatform.NewNoteRepository(db)
+	dailyActivityRepo := postgresplatform.NewDailyActivityRepository(db)
+	dashboardRepo := postgresplatform.NewDashboardRepository(db)
 
 	// ---- Services (use-case layer) ----
 	authService := authsvc.NewService(userRepo, revokedTokenRepo, logger)
@@ -126,7 +133,7 @@ func main() {
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,
 	)
-	locationService := locationsvc.NewService(locationRepo, logger)
+	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
 	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
@@ -141,9 +148,12 @@ func main() {
 	payrollService := payrollsvc.NewService(payrollRepo, logger)
 	serviceOrderService := serviceordersvc.NewService(serviceOrderRepo, logger)
 	cashService := cashsvc.NewService(cashTransferRepo, logger)
+	cashCloseService := cashclosesvc.NewService(cashRegisterCloseRepo, logger)
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
+	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, logger)
+	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
@@ -161,7 +171,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, notificationService, noteService, dailyActivityService, dashboardRepo, revokedTokenRepo)
+	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----

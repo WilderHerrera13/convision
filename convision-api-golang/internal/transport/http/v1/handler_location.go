@@ -102,3 +102,68 @@ func (h *Handler) LookupDistricts(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, items)
 }
+
+type LookupItem struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code,omitempty"`
+}
+
+// GET /api/v1/lookup/patient-data
+// Returns all reference tables needed by the patient form in a single request.
+func (h *Handler) LookupPatientData(c *gin.Context) {
+	idTypes, err := h.location.ListIdentificationTypes()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	eps, err := h.location.ListHealthInsuranceProviders()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	aff, err := h.location.ListAffiliationTypes()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	cov, err := h.location.ListCoverageTypes()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	edu, err := h.location.ListEducationLevels()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	itItems := make([]LookupItem, len(idTypes))
+	for i, v := range idTypes {
+		itItems[i] = LookupItem{ID: v.ID, Name: v.Name, Code: v.Code}
+	}
+	epsItems := make([]LookupItem, len(eps))
+	for i, v := range eps {
+		epsItems[i] = LookupItem{ID: v.ID, Name: v.Name, Code: v.Code}
+	}
+	affItems := make([]LookupItem, len(aff))
+	for i, v := range aff {
+		affItems[i] = LookupItem{ID: v.ID, Name: v.Name, Code: v.Code}
+	}
+	covItems := make([]LookupItem, len(cov))
+	for i, v := range cov {
+		covItems[i] = LookupItem{ID: v.ID, Name: v.Name, Code: v.Code}
+	}
+	eduItems := make([]LookupItem, len(edu))
+	for i, v := range edu {
+		eduItems[i] = LookupItem{ID: v.ID, Name: v.Name, Code: v.Code}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"identification_types":       itItems,
+		"health_insurance_providers": epsItems,
+		"affiliation_types":          affItems,
+		"coverage_types":             covItems,
+		"education_levels":           eduItems,
+	})
+}

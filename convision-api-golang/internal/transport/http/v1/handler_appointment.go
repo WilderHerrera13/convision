@@ -38,6 +38,8 @@ type AppointmentResource struct {
 	RightEyeAnnotationImageURL *string       `json:"right_eye_annotation_image_url"`
 	LensAnnotationImage      *string         `json:"lens_annotation_image"`
 	LensAnnotationPaths      json.RawMessage `json:"lens_annotation_paths"`
+	ConsultationType         *string         `json:"consultation_type"`
+	ReportNotes              *string         `json:"report_notes"`
 }
 
 func parseRawJSON(s string) json.RawMessage {
@@ -75,6 +77,8 @@ func toAppointmentResource(a *domain.Appointment) AppointmentResource {
 		RightEyeAnnotationPaths: parseRawJSON(a.RightEyeAnnotationPaths),
 		LensAnnotationPaths:     parseRawJSON(a.LensAnnotationPaths),
 		LensAnnotationImage:     nullableString(a.LensAnnotationImage),
+		ConsultationType:        nullableString(a.ConsultationType),
+		ReportNotes:             nullableString(a.ReportNotes),
 		CreatedAt:               a.CreatedAt.UTC().Format(timeFormat) + "Z",
 		UpdatedAt:               a.UpdatedAt.UTC().Format(timeFormat) + "Z",
 	}
@@ -140,6 +144,13 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseAppointmentApiFilters(c)
+
+	if v := c.Query("start_date"); v != "" {
+		filters["_start_date"] = v
+	}
+	if v := c.Query("end_date"); v != "" {
+		filters["_end_date"] = v
+	}
 
 	out, err := h.appointment.List(filters, page, perPage)
 	if err != nil {

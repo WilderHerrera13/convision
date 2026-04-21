@@ -87,6 +87,12 @@ func (s *Service) GetByID(id uint) (*domain.User, error) {
 	return s.repo.GetByID(id)
 }
 
+// GetSpecialists returns all active users with the specialist role (no pagination cap).
+func (s *Service) GetSpecialists() ([]*domain.User, error) {
+	users, _, err := s.repo.List(map[string]any{"role": string(domain.RoleSpecialist)}, 1, 200)
+	return users, err
+}
+
 // Create creates a new user with a bcrypt-hashed password.
 func (s *Service) Create(input CreateInput) (*domain.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)

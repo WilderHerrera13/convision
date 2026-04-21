@@ -6,8 +6,46 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/convision/api/internal/domain"
 	"github.com/convision/api/internal/product"
 )
+
+func productResponse(p *domain.Product) gin.H {
+	if p == nil {
+		return gin.H{}
+	}
+	return gin.H{
+		"id":                  p.ID,
+		"internal_code":       p.InternalCode,
+		"identifier":          p.Identifier,
+		"description":         p.Description,
+		"name":                p.Description,
+		"cost":                p.Cost,
+		"price":               p.Price,
+		"sale_price":          p.Price,
+		"product_category_id": p.ProductCategoryID,
+		"category_id":         p.ProductCategoryID,
+		"brand_id":            p.BrandID,
+		"supplier_id":         p.SupplierID,
+		"status":              p.Status,
+		"created_at":          p.CreatedAt,
+		"updated_at":          p.UpdatedAt,
+		"deleted_at":          p.DeletedAt,
+		"category":            p.Category,
+		"brand":               p.Brand,
+		"lens_attributes":     p.LensAttributes,
+		"frame_attributes":    p.FrameAttributes,
+		"contact_lens_attributes": p.ContactLensAttributes,
+	}
+}
+
+func productResponseSlice(data []*domain.Product) []gin.H {
+	out := make([]gin.H, len(data))
+	for i, p := range data {
+		out[i] = productResponse(p)
+	}
+	return out
+}
 
 // ======== Products ========
 
@@ -33,7 +71,19 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, gin.H{
+		"current_page": out.CurrentPage,
+		"data":         productResponseSlice(out.Data),
+		"last_page":    out.LastPage,
+		"per_page":     out.PerPage,
+		"total":        out.Total,
+		"meta": gin.H{
+			"current_page": out.CurrentPage,
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+		},
+	})
 }
 
 func (h *Handler) GetProduct(c *gin.Context) {
@@ -46,7 +96,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	c.JSON(http.StatusOK, productResponse(p))
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {
@@ -60,7 +110,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, p)
+	c.JSON(http.StatusCreated, productResponse(p))
 }
 
 func (h *Handler) UpdateProduct(c *gin.Context) {
@@ -78,7 +128,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	c.JSON(http.StatusOK, productResponse(p))
 }
 
 func (h *Handler) DeleteProduct(c *gin.Context) {
@@ -205,7 +255,19 @@ func (h *Handler) ListProductCategories(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, gin.H{
+		"current_page": out.CurrentPage,
+		"data":         out.Data,
+		"last_page":    out.LastPage,
+		"per_page":     out.PerPage,
+		"total":        out.Total,
+		"meta": gin.H{
+			"current_page": out.CurrentPage,
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+		},
+	})
 }
 
 func (h *Handler) GetProductCategory(c *gin.Context) {

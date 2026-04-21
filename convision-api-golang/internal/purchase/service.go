@@ -227,6 +227,20 @@ func (s *Service) Delete(id uint) error {
 	return s.repo.Delete(id)
 }
 
+// Receive marks a purchase as received.
+func (s *Service) Receive(id uint) (*domain.Purchase, error) {
+	p, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	p.Status = "received"
+	if err := s.repo.Update(p); err != nil {
+		return nil, err
+	}
+	s.logger.Info("purchase received", zap.Uint("id", p.ID))
+	return s.repo.GetByID(id)
+}
+
 // GeneratePurchaseNumber generates a sequential purchase number like PUR-0001.
 func GeneratePurchaseNumber(id uint) string {
 	return fmt.Sprintf("PUR-%04d", id)

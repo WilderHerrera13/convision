@@ -66,7 +66,7 @@ func (h *Handler) CreatePayroll(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, p)
+	c.JSON(http.StatusCreated, gin.H{"data": p})
 }
 
 func (h *Handler) UpdatePayroll(c *gin.Context) {
@@ -155,7 +155,7 @@ func (h *Handler) CreateServiceOrder(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, o)
+	c.JSON(http.StatusCreated, gin.H{"data": o})
 }
 
 func (h *Handler) UpdateServiceOrder(c *gin.Context) {
@@ -244,7 +244,7 @@ func (h *Handler) CreateCashTransfer(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, t)
+	c.JSON(http.StatusCreated, gin.H{"data": t})
 }
 
 func (h *Handler) UpdateCashTransfer(c *gin.Context) {
@@ -298,7 +298,7 @@ func (h *Handler) ApproveCashTransfer(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	c.JSON(http.StatusOK, gin.H{"data": t})
 }
 
 func (h *Handler) CancelCashTransfer(c *gin.Context) {

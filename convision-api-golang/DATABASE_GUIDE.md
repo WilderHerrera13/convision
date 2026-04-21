@@ -1178,7 +1178,7 @@ VACUUM ANALYZE appointments;
 | Contraseñas en texto plano | Hash bcrypt en la aplicación | La BD no es el único control de seguridad |
 | Conectar con usuario `postgres` desde la app | Usuario dedicado con permisos mínimos (`convision_app`) | Principio de mínimo privilegio |
 | Cadena de conexión sin `sslmode=require` en producción | `sslmode=require` o `sslmode=verify-full` | Tráfico de BD en texto plano |
-| Pool sin `SetMaxOpenConns` | Configurar siempre (ver §2) | GORM usa ilimitado por defecto; agota conexiones MySQL |
+| Pool sin `SetMaxOpenConns` | Configurar siempre (ver §2) | GORM usa ilimitado por defecto; agota conexiones PostgreSQL |
 | Transacciones de larga duración | Transacciones cortas y específicas | Mantienen locks que bloquean otras queries |
 | Lógica de negocio en stored procedures | Lógica en la capa de servicio Go | Dificulta testing, versionado y portabilidad |
 | `TEXT` para todos los campos | `VARCHAR(n)` con límite apropiado al dominio | Sin límite acepta datos inválidos silenciosamente |

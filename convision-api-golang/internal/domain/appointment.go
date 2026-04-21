@@ -13,6 +13,31 @@ const (
 	AppointmentStatusCancelled  AppointmentStatus = "cancelled"
 )
 
+// ConsultationType enumerates the clinical typification values captured in the
+// specialist management report ("Informe de gestión").
+type ConsultationType string
+
+const (
+	ConsultationTypeEffective         ConsultationType = "effective"
+	ConsultationTypeFormulaSale       ConsultationType = "formula_sale"
+	ConsultationTypeIneffective       ConsultationType = "ineffective"
+	ConsultationTypeFollowUp          ConsultationType = "follow_up"
+	ConsultationTypeWarrantyFollowUp  ConsultationType = "warranty_follow_up"
+)
+
+// IsValidConsultationType reports whether v is a recognized ConsultationType.
+func IsValidConsultationType(v string) bool {
+	switch ConsultationType(v) {
+	case ConsultationTypeEffective,
+		ConsultationTypeFormulaSale,
+		ConsultationTypeIneffective,
+		ConsultationTypeFollowUp,
+		ConsultationTypeWarrantyFollowUp:
+		return true
+	}
+	return false
+}
+
 // Appointment represents a scheduled patient visit.
 type Appointment struct {
 	ID                      uint              `json:"id"                        gorm:"primaryKey;autoIncrement"`
@@ -40,6 +65,8 @@ type Appointment struct {
 	RightEyeAnnotationImage string            `json:"right_eye_annotation_image" gorm:"type:text"`
 	LensAnnotationImage     string            `json:"lens_annotation_image"      gorm:"type:text"`
 	LensAnnotationPaths     string            `json:"lens_annotation_paths"      gorm:"type:text"`
+	ConsultationType        string            `json:"consultation_type"          gorm:"column:consultation_type;type:varchar(30)"`
+	ReportNotes             string            `json:"report_notes"               gorm:"column:report_notes;type:text"`
 	CreatedAt               time.Time         `json:"created_at"`
 	UpdatedAt               time.Time         `json:"updated_at"`
 
@@ -51,6 +78,20 @@ type Appointment struct {
 	Prescription *Prescription `json:"prescription,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
+// SpecialistReportSummary holds aggregated consultation counts for one specialist
+// within a date range (used by the consolidated admin report).
+type SpecialistReportSummary struct {
+	SpecialistID     uint   `json:"specialist_id"`
+	SpecialistName   string `json:"specialist_name"`
+	Effective        int64  `json:"effective"`
+	FormulaSale      int64  `json:"formula_sale"`
+	Ineffective      int64  `json:"ineffective"`
+	FollowUp         int64  `json:"follow_up"`
+	WarrantyFollowUp int64  `json:"warranty_follow_up"`
+	Total            int64  `json:"total"`
+	Observation      string `json:"observation"`
+}
+
 // AppointmentRepository defines persistence operations for Appointment.
 type AppointmentRepository interface {
 	GetByID(id uint) (*Appointment, error)
@@ -60,4 +101,7 @@ type AppointmentRepository interface {
 	Update(a *Appointment) error
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*Appointment, int64, error)
+	SaveManagementReport(id uint, consultationType, reportNotes string) error
+	GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*SpecialistReportSummary, error)
+	ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error)
 }

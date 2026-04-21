@@ -26,43 +26,43 @@ type CreateInput struct {
 	ReportDate  string `json:"report_date"  binding:"required"`
 	Shift       string `json:"shift"        binding:"required,oneof=morning afternoon full"`
 
-	PreguntasHombre            int     `json:"preguntas_hombre"`
-	PreguntasMujeres           int     `json:"preguntas_mujeres"`
-	PreguntasNinos             int     `json:"preguntas_ninos"`
-	CotizacionesHombre         int     `json:"cotizaciones_hombre"`
-	CotizacionesMujeres        int     `json:"cotizaciones_mujeres"`
-	CotizacionesNinos          int     `json:"cotizaciones_ninos"`
-	ConsultasEfectivasHombre   int     `json:"consultas_efectivas_hombre"`
-	ConsultasEfectivasMujeres  int     `json:"consultas_efectivas_mujeres"`
-	ConsultasEfectivasNinos    int     `json:"consultas_efectivas_ninos"`
-	ConsultaVentaFormula       int     `json:"consulta_venta_formula"`
-	ConsultasNoEfectivas       int     `json:"consultas_no_efectivas"`
-	BonosEntregados            int     `json:"bonos_entregados"`
-	BonosRedimidos             int     `json:"bonos_redimidos"`
-	SistecreditosRealizados    int     `json:"sistecreditos_realizados"`
-	AddiRealizados             int     `json:"addi_realizados"`
-	ControlSeguimiento         int     `json:"control_seguimiento"`
-	SeguimientoGarantias       int     `json:"seguimiento_garantias"`
-	Ordenes                    int     `json:"ordenes"`
-	PlanSepare                 int     `json:"plan_separe"`
-	OtrasVentas                int     `json:"otras_ventas"`
-	Entregas                   int     `json:"entregas"`
-	SistecreditosAbonos        int     `json:"sistecreditos_abonos"`
-	ValorOrdenes               float64 `json:"valor_ordenes"`
-	PublicacionesFacebook      int     `json:"publicaciones_facebook"`
-	PublicacionesInstagram     int     `json:"publicaciones_instagram"`
-	PublicacionesWhatsapp      int     `json:"publicaciones_whatsapp"`
-	PublicacionesCompartidasFB int     `json:"publicaciones_compartidas_fb"`
-	TiktokRealizados           int     `json:"tiktok_realizados"`
-	BonosRegaloEnviados        int     `json:"bonos_regalo_enviados"`
-	BonosFidelizacionEnviados  int     `json:"bonos_fidelizacion_enviados"`
-	MensajesFacebook           int     `json:"mensajes_facebook"`
-	MensajesInstagram          int     `json:"mensajes_instagram"`
-	MensajesWhatsapp           int     `json:"mensajes_whatsapp"`
-	EntregasRealizadas         int     `json:"entregas_realizadas"`
-	EtiquetasClientes          int     `json:"etiquetas_clientes"`
-	CotizacionesTrabajo        int     `json:"cotizaciones_trabajo"`
-	OrdenesTrabajo             int     `json:"ordenes_trabajo"`
+	InquiriesMale            int     `json:"preguntas_hombre"`
+	InquiriesFemale           int     `json:"preguntas_mujeres"`
+	InquiriesChildren             int     `json:"preguntas_ninos"`
+	QuotesMale         int     `json:"cotizaciones_hombre"`
+	QuotesFemale        int     `json:"cotizaciones_mujeres"`
+	QuotesChildren          int     `json:"cotizaciones_ninos"`
+	EffectiveConsultationsMale   int     `json:"consultas_efectivas_hombre"`
+	EffectiveConsultationsFemale  int     `json:"consultas_efectivas_mujeres"`
+	EffectiveConsultationsChildren    int     `json:"consultas_efectivas_ninos"`
+	FormulaConsultations       int     `json:"consulta_venta_formula"`
+	NonEffectiveConsultations       int     `json:"consultas_no_efectivas"`
+	BonusesDelivered            int     `json:"bonos_entregados"`
+	BonusesRedeemed             int     `json:"bonos_redimidos"`
+	SistecreditsDone    int     `json:"sistecreditos_realizados"`
+	AddiDone             int     `json:"addi_realizados"`
+	FollowUpControl         int     `json:"control_seguimiento"`
+	WarrantyFollowUp       int     `json:"seguimiento_garantias"`
+	Orders                    int     `json:"ordenes"`
+	LayawayPlan                 int     `json:"plan_separe"`
+	OtherSales                int     `json:"otras_ventas"`
+	Deliveries                   int     `json:"entregas"`
+	SistecreditsPayments        int     `json:"sistecreditos_abonos"`
+	OrdersValue               float64 `json:"valor_ordenes"`
+	FacebookPosts      int     `json:"publicaciones_facebook"`
+	InstagramPosts     int     `json:"publicaciones_instagram"`
+	WhatsappPosts      int     `json:"publicaciones_whatsapp"`
+	FacebookSharedPosts int     `json:"publicaciones_compartidas_fb"`
+	TiktokVideos           int     `json:"tiktok_realizados"`
+	GiftBonusesSent        int     `json:"bonos_regalo_enviados"`
+	LoyaltyBonusesSent  int     `json:"bonos_fidelizacion_enviados"`
+	FacebookMessages           int     `json:"mensajes_facebook"`
+	InstagramMessages          int     `json:"mensajes_instagram"`
+	WhatsappMessages           int     `json:"mensajes_whatsapp"`
+	DeliveriesCompleted         int     `json:"entregas_realizadas"`
+	CustomerTags          int     `json:"etiquetas_clientes"`
+	WorkQuotes        int     `json:"cotizaciones_trabajo"`
+	WorkOrders             int     `json:"ordenes_trabajo"`
 	Observations               string  `json:"observations"`
 }
 
@@ -142,7 +142,7 @@ func (s *Service) Update(id uint, input UpdateInput, requestingUserID uint, isAd
 	}
 	updated := buildReport(input, existing.UserID, reportDate)
 	updated.ID = existing.ID
-	updated.RecepcionesDinero = existing.RecepcionesDinero
+	updated.MoneyReceipts = existing.MoneyReceipts
 	if err := s.repo.Update(updated); err != nil {
 		return nil, err
 	}
@@ -185,12 +185,12 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 			return nil, &domain.ErrValidation{Message: "amount es requerido para items monetarios"}
 		}
 		dinero := make(map[string]float64)
-		if len(report.RecepcionesDinero) > 0 {
-			_ = json.Unmarshal(report.RecepcionesDinero, &dinero)
+		if len(report.MoneyReceipts) > 0 {
+			_ = json.Unmarshal(report.MoneyReceipts, &dinero)
 		}
 		dinero[input.Item] += input.Amount
 		raw, _ := json.Marshal(dinero)
-		report.RecepcionesDinero = raw
+		report.MoneyReceipts = raw
 	} else {
 		// Counter item — increment by 1
 		if err := incrementReportField(report, input.Item, input.Profile); err != nil {
@@ -217,43 +217,43 @@ func buildReport(input CreateInput, userID uint, reportDate time.Time) *domain.D
 		UserID:                     userID,
 		ReportDate:                 &reportDate,
 		Shift:                      domain.DailyShift(input.Shift),
-		PreguntasHombre:            input.PreguntasHombre,
-		PreguntasMujeres:           input.PreguntasMujeres,
-		PreguntasNinos:             input.PreguntasNinos,
-		CotizacionesHombre:         input.CotizacionesHombre,
-		CotizacionesMujeres:        input.CotizacionesMujeres,
-		CotizacionesNinos:          input.CotizacionesNinos,
-		ConsultasEfectivasHombre:   input.ConsultasEfectivasHombre,
-		ConsultasEfectivasMujeres:  input.ConsultasEfectivasMujeres,
-		ConsultasEfectivasNinos:    input.ConsultasEfectivasNinos,
-		ConsultaVentaFormula:       input.ConsultaVentaFormula,
-		ConsultasNoEfectivas:       input.ConsultasNoEfectivas,
-		BonosEntregados:            input.BonosEntregados,
-		BonosRedimidos:             input.BonosRedimidos,
-		SistecreditosRealizados:    input.SistecreditosRealizados,
-		AddiRealizados:             input.AddiRealizados,
-		ControlSeguimiento:         input.ControlSeguimiento,
-		SeguimientoGarantias:       input.SeguimientoGarantias,
-		Ordenes:                    input.Ordenes,
-		PlanSepare:                 input.PlanSepare,
-		OtrasVentas:                input.OtrasVentas,
-		Entregas:                   input.Entregas,
-		SistecreditosAbonos:        input.SistecreditosAbonos,
-		ValorOrdenes:               input.ValorOrdenes,
-		PublicacionesFacebook:      input.PublicacionesFacebook,
-		PublicacionesInstagram:     input.PublicacionesInstagram,
-		PublicacionesWhatsapp:      input.PublicacionesWhatsapp,
-		PublicacionesCompartidasFB: input.PublicacionesCompartidasFB,
-		TiktokRealizados:           input.TiktokRealizados,
-		BonosRegaloEnviados:        input.BonosRegaloEnviados,
-		BonosFidelizacionEnviados:  input.BonosFidelizacionEnviados,
-		MensajesFacebook:           input.MensajesFacebook,
-		MensajesInstagram:          input.MensajesInstagram,
-		MensajesWhatsapp:           input.MensajesWhatsapp,
-		EntregasRealizadas:         input.EntregasRealizadas,
-		EtiquetasClientes:          input.EtiquetasClientes,
-		CotizacionesTrabajo:        input.CotizacionesTrabajo,
-		OrdenesTrabajo:             input.OrdenesTrabajo,
+		InquiriesMale:            input.InquiriesMale,
+		InquiriesFemale:           input.InquiriesFemale,
+		InquiriesChildren:             input.InquiriesChildren,
+		QuotesMale:         input.QuotesMale,
+		QuotesFemale:        input.QuotesFemale,
+		QuotesChildren:          input.QuotesChildren,
+		EffectiveConsultationsMale:   input.EffectiveConsultationsMale,
+		EffectiveConsultationsFemale:  input.EffectiveConsultationsFemale,
+		EffectiveConsultationsChildren:    input.EffectiveConsultationsChildren,
+		FormulaConsultations:       input.FormulaConsultations,
+		NonEffectiveConsultations:       input.NonEffectiveConsultations,
+		BonusesDelivered:            input.BonusesDelivered,
+		BonusesRedeemed:             input.BonusesRedeemed,
+		SistecreditsDone:    input.SistecreditsDone,
+		AddiDone:             input.AddiDone,
+		FollowUpControl:         input.FollowUpControl,
+		WarrantyFollowUp:       input.WarrantyFollowUp,
+		Orders:                    input.Orders,
+		LayawayPlan:                 input.LayawayPlan,
+		OtherSales:                input.OtherSales,
+		Deliveries:                   input.Deliveries,
+		SistecreditsPayments:        input.SistecreditsPayments,
+		OrdersValue:               input.OrdersValue,
+		FacebookPosts:      input.FacebookPosts,
+		InstagramPosts:     input.InstagramPosts,
+		WhatsappPosts:      input.WhatsappPosts,
+		FacebookSharedPosts: input.FacebookSharedPosts,
+		TiktokVideos:           input.TiktokVideos,
+		GiftBonusesSent:        input.GiftBonusesSent,
+		LoyaltyBonusesSent:  input.LoyaltyBonusesSent,
+		FacebookMessages:           input.FacebookMessages,
+		InstagramMessages:          input.InstagramMessages,
+		WhatsappMessages:           input.WhatsappMessages,
+		DeliveriesCompleted:         input.DeliveriesCompleted,
+		CustomerTags:          input.CustomerTags,
+		WorkQuotes:        input.WorkQuotes,
+		WorkOrders:             input.WorkOrders,
 		Observations:               input.Observations,
 	}
 }
@@ -263,48 +263,48 @@ func incrementReportField(r *domain.DailyActivityReport, item, profile string) e
 	case "preguntas":
 		switch profile {
 		case "hombre":
-			r.PreguntasHombre++
+			r.InquiriesMale++
 		case "mujer":
-			r.PreguntasMujeres++
+			r.InquiriesFemale++
 		case "nino":
-			r.PreguntasNinos++
+			r.InquiriesChildren++
 		default:
 			return &domain.ErrValidation{Message: "profile requerido: hombre|mujer|nino"}
 		}
 	case "cotizaciones":
 		switch profile {
 		case "hombre":
-			r.CotizacionesHombre++
+			r.QuotesMale++
 		case "mujer":
-			r.CotizacionesMujeres++
+			r.QuotesFemale++
 		case "nino":
-			r.CotizacionesNinos++
+			r.QuotesChildren++
 		default:
 			return &domain.ErrValidation{Message: "profile requerido: hombre|mujer|nino"}
 		}
 	case "consultas_efectivas":
 		switch profile {
 		case "hombre":
-			r.ConsultasEfectivasHombre++
+			r.EffectiveConsultationsMale++
 		case "mujer":
-			r.ConsultasEfectivasMujeres++
+			r.EffectiveConsultationsFemale++
 		case "nino":
-			r.ConsultasEfectivasNinos++
+			r.EffectiveConsultationsChildren++
 		default:
 			return &domain.ErrValidation{Message: "profile requerido: hombre|mujer|nino"}
 		}
 	case "consulta_venta_formula":
-		r.ConsultaVentaFormula++
+		r.FormulaConsultations++
 	case "consultas_no_efectivas":
-		r.ConsultasNoEfectivas++
+		r.NonEffectiveConsultations++
 	case "bonos_entregados":
-		r.BonosEntregados++
+		r.BonusesDelivered++
 	case "bonos_redimidos":
-		r.BonosRedimidos++
+		r.BonusesRedeemed++
 	case "sistecreditos_realizados":
-		r.SistecreditosRealizados++
+		r.SistecreditsDone++
 	case "addi_realizados":
-		r.AddiRealizados++
+		r.AddiDone++
 	default:
 		return &domain.ErrValidation{Message: fmt.Sprintf("item '%s' no reconocido", item)}
 	}

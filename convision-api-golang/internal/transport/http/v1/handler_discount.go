@@ -134,13 +134,51 @@ func (h *Handler) RejectDiscountRequest(c *gin.Context) {
 }
 
 func (h *Handler) ListActiveDiscounts(c *gin.Context) {
+	page, perPage := parsePagination(c)
+	filters := map[string]any{}
+	if v := c.Query("patient_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["patient_id"] = uint(id)
+		}
+	}
+
 	var productID *uint
 	if v := c.Query("product_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			uid := uint(id)
 			productID = &uid
+			filters["product_id"] = uid
+		}
+	} else if v := c.Query("lens_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			uid := uint(id)
+			productID = &uid
+			filters["product_id"] = uid
 		}
 	}
+
+	if productID == nil {
+		out, err := h.discount.List(filters, page, perPage)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"data": out.Data,
+			"meta": gin.H{
+				"current_page": out.CurrentPage,
+				"last_page":    out.LastPage,
+				"per_page":     out.PerPage,
+				"total":        out.Total,
+			},
+			"current_page": out.CurrentPage,
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+		})
+		return
+	}
+
 	discounts, err := h.discount.ListActive(productID, nil)
 	if err != nil {
 		respondError(c, err)

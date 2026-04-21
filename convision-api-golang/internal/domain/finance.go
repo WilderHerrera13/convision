@@ -45,7 +45,7 @@ type ServiceOrder struct {
 	CustomerPhone         string     `json:"customer_phone"`
 	CustomerEmail         string     `json:"customer_email"`
 	ServiceType           string     `json:"service_type"            gorm:"type:varchar(50)"`
-	Description           string     `json:"description"             gorm:"type:text"`
+	Description           string     `json:"problem_description"     gorm:"type:text"`
 	LensHorizontalAxis    float64    `json:"lens_horizontal_axis"    gorm:"type:decimal(5,2)"`
 	LensVerticalAxis      float64    `json:"lens_vertical_axis"      gorm:"type:decimal(5,2)"`
 	LensDistance          float64    `json:"lens_distance"           gorm:"type:decimal(5,2)"`

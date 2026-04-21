@@ -1,10 +1,15 @@
 package product
 
 import (
+	"regexp"
+	"strings"
+
 	"go.uber.org/zap"
 
 	"github.com/convision/api/internal/domain"
 )
+
+var categorySlugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
 
 // CategoryService handles product category use-cases.
 type CategoryService struct {
@@ -22,7 +27,7 @@ func NewCategoryService(repo domain.ProductCategoryRepository, logger *zap.Logge
 // CategoryCreateInput holds validated fields for creating a product category.
 type CategoryCreateInput struct {
 	Name        string   `json:"name"        binding:"required"`
-	Slug        string   `json:"slug"        binding:"required"`
+	Slug        string   `json:"slug"`
 	Description string   `json:"description"`
 	Icon        string   `json:"icon"`
 	IsActive    bool     `json:"is_active"`
@@ -68,9 +73,17 @@ func (s *CategoryService) GetByID(id uint) (*domain.ProductCategory, error) {
 }
 
 func (s *CategoryService) Create(input CategoryCreateInput) (*domain.ProductCategory, error) {
+	slug := normalizeCategorySlug(input.Slug)
+	if slug == "" {
+		slug = normalizeCategorySlug(input.Name)
+	}
+	if slug == "" {
+		return nil, &domain.ErrValidation{Field: "name", Message: "must produce a valid slug"}
+	}
+
 	c := &domain.ProductCategory{
 		Name:        input.Name,
-		Slug:        input.Slug,
+		Slug:        slug,
 		Description: input.Description,
 		Icon:        input.Icon,
 		IsActive:    input.IsActive,
@@ -90,7 +103,7 @@ func (s *CategoryService) Update(id uint, input CategoryUpdateInput) (*domain.Pr
 		c.Name = input.Name
 	}
 	if input.Slug != "" {
-		c.Slug = input.Slug
+		c.Slug = normalizeCategorySlug(input.Slug)
 	}
 	c.Description = input.Description
 	c.Icon = input.Icon
@@ -100,6 +113,13 @@ func (s *CategoryService) Update(id uint, input CategoryUpdateInput) (*domain.Pr
 		return nil, err
 	}
 	return s.repo.GetByID(id)
+}
+
+func normalizeCategorySlug(raw string) string {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	s = categorySlugSanitizer.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	return s
 }
 
 func (s *CategoryService) Delete(id uint) error {

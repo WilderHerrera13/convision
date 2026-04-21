@@ -49,10 +49,13 @@ func clampPage(page, perPage int) (int, int) {
 type CreateInput struct {
 	InternalCode      string  `json:"internal_code"`
 	Identifier        string  `json:"identifier"          binding:"omitempty"`
+	Name              string  `json:"name"`
 	Description       string  `json:"description"`
 	Cost              float64 `json:"cost"`
-	Price             float64 `json:"price"               binding:"required"`
+	Price             *float64 `json:"price"`
+	SalePrice         *float64 `json:"sale_price"`
 	ProductCategoryID *uint   `json:"product_category_id"`
+	CategoryID        *uint   `json:"category_id"`
 	BrandID           *uint   `json:"brand_id"`
 	SupplierID        *uint   `json:"supplier_id"`
 	Status            string  `json:"status"`
@@ -62,10 +65,13 @@ type CreateInput struct {
 type UpdateInput struct {
 	InternalCode      string  `json:"internal_code"`
 	Identifier        string  `json:"identifier"`
+	Name              string  `json:"name"`
 	Description       string  `json:"description"`
-	Cost              float64 `json:"cost"`
-	Price             float64 `json:"price"`
+	Cost              *float64 `json:"cost"`
+	Price             *float64 `json:"price"`
+	SalePrice         *float64 `json:"sale_price"`
 	ProductCategoryID *uint   `json:"product_category_id"`
+	CategoryID        *uint   `json:"category_id"`
 	BrandID           *uint   `json:"brand_id"`
 	SupplierID        *uint   `json:"supplier_id"`
 	Status            string  `json:"status"`
@@ -135,13 +141,34 @@ func (s *Service) Create(input CreateInput) (*domain.Product, error) {
 		status = domain.ProductStatusEnabled
 	}
 
+	price := 0.0
+	if input.Price != nil {
+		price = *input.Price
+	}
+	if input.SalePrice != nil {
+		price = *input.SalePrice
+	}
+	if price <= 0 {
+		return nil, &domain.ErrValidation{Field: "price", Message: "is required"}
+	}
+
+	description := input.Description
+	if description == "" {
+		description = input.Name
+	}
+
+	categoryID := input.ProductCategoryID
+	if categoryID == nil {
+		categoryID = input.CategoryID
+	}
+
 	p := &domain.Product{
 		InternalCode:      input.InternalCode,
 		Identifier:        input.Identifier,
-		Description:       input.Description,
+		Description:       description,
 		Cost:              input.Cost,
-		Price:             input.Price,
-		ProductCategoryID: input.ProductCategoryID,
+		Price:             price,
+		ProductCategoryID: categoryID,
 		BrandID:           input.BrandID,
 		SupplierID:        input.SupplierID,
 		Status:            status,
@@ -167,14 +194,23 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Product, error) {
 	if input.Description != "" {
 		p.Description = input.Description
 	}
-	if input.Price != 0 {
-		p.Price = input.Price
+	if input.Name != "" && input.Description == "" {
+		p.Description = input.Name
 	}
-	if input.Cost != 0 {
-		p.Cost = input.Cost
+	if input.Price != nil {
+		p.Price = *input.Price
+	}
+	if input.SalePrice != nil {
+		p.Price = *input.SalePrice
+	}
+	if input.Cost != nil {
+		p.Cost = *input.Cost
 	}
 	if input.ProductCategoryID != nil {
 		p.ProductCategoryID = input.ProductCategoryID
+	}
+	if input.CategoryID != nil {
+		p.ProductCategoryID = input.CategoryID
 	}
 	if input.BrandID != nil {
 		p.BrandID = input.BrandID

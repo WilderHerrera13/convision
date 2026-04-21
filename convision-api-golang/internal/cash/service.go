@@ -122,16 +122,20 @@ func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.Cash
 	now := time.Now()
 
 	t := &domain.CashTransfer{
-		TransferNumber:  transferNum,
-		Type:            domain.CashTransferTypeInternal,
-		FromAccount:     input.OriginType + ": " + input.OriginDescription,
-		ToAccount:       input.DestinationType + ": " + input.DestinationDescription,
-		Amount:          input.Amount,
-		TransferDate:    &now,
-		Concept:         input.Reason,
-		Description:     input.Notes,
-		Status:          "pending",
-		CreatedByUserID: createdByUserID,
+		TransferNumber:         transferNum,
+		OriginType:             input.OriginType,
+		OriginDescription:      input.OriginDescription,
+		DestinationType:        input.DestinationType,
+		DestinationDescription: input.DestinationDescription,
+		Type:                   domain.CashTransferTypeInternal,
+		FromAccount:            input.OriginType + ": " + input.OriginDescription,
+		ToAccount:              input.DestinationType + ": " + input.DestinationDescription,
+		Amount:                 input.Amount,
+		TransferDate:           &now,
+		Concept:                input.Reason,
+		Description:            input.Notes,
+		Status:                 "pending",
+		CreatedByUserID:        createdByUserID,
 	}
 
 	if err := s.repo.Create(t); err != nil {

@@ -6,9 +6,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	ordersvc "github.com/convision/api/internal/order"
 )
+
+type orderShowResponse struct {
+	*domain.Order
+	PDFURL        string `json:"pdf_url"`
+	GuestPDFURL   string `json:"guest_pdf_url"`
+	GuestLabPDFURL string `json:"guest_lab_pdf_url"`
+}
+
+func requestBaseURL(c *gin.Context) string {
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	if forwarded := c.GetHeader("X-Forwarded-Proto"); forwarded != "" {
+		scheme = forwarded
+	}
+	return scheme + "://" + c.Request.Host
+}
 
 // ListOrders godoc
 // GET /api/v1/orders
@@ -50,7 +69,14 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, o)
+	baseURL := requestBaseURL(c)
+	response := orderShowResponse{
+		Order:          o,
+		PDFURL:         baseURL + "/api/v1/orders/" + strconv.FormatUint(uint64(o.ID), 10) + "/pdf-download",
+		GuestPDFURL:    baseURL + "/api/v1/guest/orders/" + strconv.FormatUint(uint64(o.ID), 10) + "/pdf?token=" + o.PdfToken,
+		GuestLabPDFURL: baseURL + "/api/v1/guest/orders/" + strconv.FormatUint(uint64(o.ID), 10) + "/laboratory-pdf?token=" + o.LaboratoryPdfToken,
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // CreateOrder godoc
