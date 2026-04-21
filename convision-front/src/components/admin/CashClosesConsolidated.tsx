@@ -74,7 +74,7 @@ const KpiCard: React.FC<{
     <div className="px-[15px] pt-[13px]">
       <p className="text-[11px] font-semibold text-[#7d7d87]">{label}</p>
       <p
-        className="mt-[8px] truncate text-[18px] font-semibold leading-none tabular-nums xl:text-[20px]"
+        className="mt-[8px] truncate text-[16px] lg:text-[18px] xl:text-[20px] font-semibold leading-none tabular-nums"
         style={{ color: valueColor }}
       >
         {value}
@@ -239,7 +239,7 @@ const CashClosesConsolidated: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-[16px] md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-[16px] md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Cierres del período"
           value={isLoading ? '—' : data?.kpis.total_closes ?? 0}
@@ -295,7 +295,7 @@ const CashClosesConsolidated: React.FC = () => {
         />
       </div>
 
-      <div className="flex gap-[16px]">
+      <div className="grid grid-cols-1 gap-[16px] lg:grid-cols-3">
         <BreakdownCard
           label="Aprobados"
           count={data?.breakdown.approved_count ?? 0}

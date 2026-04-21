@@ -15,6 +15,8 @@ interface Props {
   onChange: (key: string, value: number) => void;
   readOnly?: boolean;
   gridCols?: number;
+  errors?: Record<string, string[]>;
+  errorPrefix?: string;
 }
 
 const DailyReportSection: React.FC<Props> = ({
@@ -25,6 +27,8 @@ const DailyReportSection: React.FC<Props> = ({
   onChange,
   readOnly,
   gridCols = 4,
+  errors,
+  errorPrefix = '',
 }) => {
   return (
     <div className="rounded-lg border overflow-hidden">
@@ -38,14 +42,24 @@ const DailyReportSection: React.FC<Props> = ({
             {readOnly ? (
               <p className="text-sm font-medium">{values[field.key] ?? 0}</p>
             ) : (
-              <Input
-                type="number"
-                min={0}
-                value={values[field.key] || ''}
-                onChange={(e) => onChange(field.key, parseInt(e.target.value) || 0)}
-                placeholder="0"
-                className="h-8 text-sm"
-              />
+              <>
+                <Input
+                  type="number"
+                  min={0}
+                  value={values[field.key] || ''}
+                  onChange={(e) => onChange(field.key, parseInt(e.target.value) || 0)}
+                  placeholder="0"
+                  title={errors?.[`${errorPrefix}${field.key}`]?.[0]}
+                  className={`h-8 text-sm ${
+                    errors?.[`${errorPrefix}${field.key}`] ? 'border-red-500 bg-red-50 focus-visible:ring-red-500' : ''
+                  }`}
+                />
+                {errors?.[`${errorPrefix}${field.key}`] && (
+                  <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                    {errors[`${errorPrefix}${field.key}`][0]}
+                  </p>
+                )}
+              </>
             )}
           </div>
         ))}

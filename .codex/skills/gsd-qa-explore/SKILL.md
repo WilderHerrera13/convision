@@ -5,6 +5,8 @@ metadata:
   short-description: "Browser QA exploration with structured FINDINGS output"
 ---
 
+Siempre reinicia el golang antes de empezar las validaciones.
+
 <codex_skill_adapter>
 ## A. Skill Invocation
 - This skill is invoked by mentioning `$gsd-qa-explore`.

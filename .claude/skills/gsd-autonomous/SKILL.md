@@ -1,0 +1,1 @@
+/Users/wilderherrera/Desktop/convision/.codex/skills/gsd-autonomous//SKILL.md

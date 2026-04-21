@@ -10,16 +10,16 @@
 
 Actualiza esta seccion durante la corrida. No la omitas.
 
-- Estado general: `pendiente | en_progreso | completado | bloqueado`
-- Wave 1: `pendiente | en_progreso | completada | bloqueada`
-- Wave 2: `pendiente | en_progreso | completada | bloqueada`
-- Wave 3: `pendiente | en_progreso | completada | bloqueada`
-- Build final: `pendiente | en_progreso | completado | bloqueado`
-- Ultimo sub-agente completado: `ninguno`
-- Ultimos GOQA cerrados: `[]`
-- Ultimos GOQA parciales: `[]`
-- Ultimos GOQA bloqueados: `[]`
-- Siguiente accion: `iniciar PASO 0`
+- Estado general: `completado`
+- Wave 1: `completada`
+- Wave 2: `completada`
+- Wave 3: `completada`
+- Build final: `completado`
+- Ultimo sub-agente completado: `sub-agente fixer autonomo (corrida final)`
+- Ultimos GOQA cerrados: `[001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 017, 018, 019, 020, 021, 022, 024, 025, 026, 027, 028, 029, 030, 031, 033, 034, 035]`
+- Ultimos GOQA parciales: `[032]`
+- Ultimos GOQA bloqueados: `[023]`
+- Siguiente accion: `ninguna`
 
 ## RECUPERACION TRAS RESET DE CONTEXTO
 

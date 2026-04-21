@@ -69,7 +69,7 @@ const ManagementReportDetail: React.FC = () => {
     onSuccess: () => {
       toast({ title: 'Registro guardado', description: 'El informe de gestión fue actualizado.' });
       queryClient.invalidateQueries({ queryKey: ['management-report'] });
-      navigate('/specialist/management-report');
+      navigate(isAdmin ? '/admin/management-report' : '/specialist/management-report');
     },
     onError: (err: unknown) => {
       const message =
@@ -112,7 +112,7 @@ const ManagementReportDetail: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => navigate('/specialist/management-report')}
+            onClick={() => navigate(isAdmin ? '/admin/management-report' : '/specialist/management-report')}
           >
             Volver
           </Button>

@@ -329,7 +329,7 @@ const InventoryStock: React.FC = () => {
       }
       
       const response = await inventoryService.getTotalStock(params);
-      setLenses(response.data);
+      setLenses(response.data ?? []);
     } catch (error) {
       toast({
         title: 'Error',

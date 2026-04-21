@@ -9,9 +9,9 @@ export default defineConfig(({ mode }) => ({
     port: 4300,
     cors: true,
     proxy: {
-      // Proxy all /api requests to the Laravel backend
+      // Proxy all /api requests to the Go backend
       '/api': {
-        target: process.env.VITE_API_URL || 'http://127.0.0.1:8000',
+        target: process.env.VITE_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

@@ -123,6 +123,70 @@ export interface CashCloseCalendarPayload {
   };
 }
 
+export interface ConsolidatedKPIs {
+  total_closes: number;
+  total_declared: number;
+  total_counted: number;
+  net_variance: number;
+  variance_pct: number;
+  advisors_count: number;
+  days_in_period: number;
+}
+
+export interface ConsolidatedBreakdown {
+  approved_count: number;
+  approved_total: number;
+  approved_pct: number;
+  pending_count: number;
+  pending_total: number;
+  with_variance_count: number;
+  net_variance: number;
+}
+
+export interface ConsolidatedAdvisorRow {
+  user_id: number;
+  user_name: string;
+  initials: string;
+  sede: string;
+  closes_count: number;
+  total_declared: number;
+  total_counted: number;
+  variance: number;
+  sobra_falta: number;
+  latest_status: 'draft' | 'submitted' | 'approved' | '';
+  has_reconciled: boolean;
+}
+
+export interface ConsolidatedReconRow {
+  id: number;
+  close_date: string;
+  user_id: number;
+  user_name: string;
+  total_declared: number;
+  total_counted: number;
+  variance: number;
+  sobra_falta: number;
+  status: string;
+}
+
+export interface ConsolidatedTotals {
+  closes_count: number;
+  total_declared: number;
+  total_counted: number;
+  variance: number;
+  sobra_falta: number;
+}
+
+export interface ConsolidatedPayload {
+  date_from: string;
+  date_to: string;
+  kpis: ConsolidatedKPIs;
+  breakdown: ConsolidatedBreakdown;
+  advisors: ConsolidatedAdvisorRow[];
+  totals: ConsolidatedTotals;
+  reconciliation: ConsolidatedReconRow[];
+}
+
 export interface CreateCashClosePayload {
   close_date: string;
   payment_methods: PaymentMethodEntry[];
@@ -197,6 +261,14 @@ const cashRegisterCloseService = {
   listAdvisorsWithPending: async (): Promise<AdvisorPendingGroup[]> => {
     const response = await api.get('/api/v1/cash-register-closes-advisors-pending');
     return response.data?.data ?? [];
+  },
+
+  getConsolidated: async (params?: {
+    date_from?: string;
+    date_to?: string;
+  }): Promise<ConsolidatedPayload> => {
+    const response = await api.get('/api/v1/cash-register-closes-consolidated', { params });
+    return response.data?.data;
   },
 
   getCalendarForAdvisor: async (params: {

@@ -11,7 +11,7 @@ import {
   IconButton
 } from '@mui/material';
 import { Save, Print, TouchApp } from '@mui/icons-material';
-import LensRecommendationModal from './ClinicalHistoryTab/sections/Diagnostico/LensRecommendationModal';
+import LensRecommendationModal from './ClinicalHistoryTab/sections/Diagnosis/LensRecommendationModal';
 import { useClinicalHistoryContext } from '../context/ClinicalHistoryContext';
 
 // Section Divider Component

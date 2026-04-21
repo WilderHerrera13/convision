@@ -1,0 +1,12 @@
+{
+  "name": "Pixel Bridge",
+  "id": "pixel-bridge-local",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Conexión local al agente de IA para construcción de UI."
+  }
+}

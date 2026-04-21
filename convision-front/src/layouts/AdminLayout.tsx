@@ -7,7 +7,7 @@ import {
   PackageOpen, FileText, ShoppingBag, FlaskConical, Archive,
   CreditCard, TrendingUp, LogOut, Menu, Eye,
   Wrench, Tag, ArrowLeftRight, Banknote, Users2, Building2,
-  ClipboardList, BarChart3,
+  ClipboardList, BarChart3, FileBarChart2, FlaskConical as LabIcon, Upload,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -58,6 +58,8 @@ const adminNav: NavSection[] = [
       { title: 'Usuarios', path: '/admin/users', icon: Users2 },
       { title: 'Proveedores', path: '/admin/suppliers', icon: Building2 },
       { title: 'Laboratorios', path: '/admin/laboratories', icon: FlaskConical },
+      { title: 'Informe Gestión Especialista', path: '/admin/specialist-reports', icon: FileBarChart2 },
+      { title: 'Carga Masiva', path: '/admin/bulk-import', icon: Upload },
     ],
   },
 ];
@@ -93,7 +95,20 @@ const receptionistNav: NavSection[] = [
 
 const specialistNav: NavSection[] = [
   { label: null, items: [{ title: 'Dashboard', path: '/specialist/dashboard', icon: LayoutDashboard }] },
-  { label: 'CLÍNICA', items: [{ title: 'Citas', path: '/specialist/appointments', icon: CalendarDays }] },
+  {
+    label: 'CLÍNICA',
+    items: [
+      { title: 'Pacientes', path: '/specialist/patients', icon: UserRound },
+      { title: 'Citas', path: '/specialist/appointments', icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'GESTIÓN',
+    items: [
+      { title: 'Informe de Gestión', path: '/specialist/management-report', icon: FileBarChart2 },
+      { title: 'Órdenes de Lab.', path: '/specialist/laboratory-orders', icon: LabIcon },
+    ],
+  },
 ];
 
 function getInitials(name: string) {

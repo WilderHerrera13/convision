@@ -5,10 +5,10 @@ import { Box, Tab, Tabs } from '@mui/material';
 import ClinicalHistoryTab from './ClinicalHistoryTab';
 import RxFinalTab from './RxFinalTab';
 import ContactologiaTab from './ContactologiaTab';
-import EvolucionesTab from './EvolucionesTab';
+import EvolutionsTab from './EvolutionsTab';
 import DocumentosTab from './DocumentosTab';
-import RemisionTab from './RemisionTab/RemisionTab';
-import ProtesisTab from './ProtesisTab';
+import ReferralTab from './ReferralTab/ReferralTab';
+import ProsthesisTab from './ProsthesisTab';
 
 // Import context provider and auto-save indicator
 import { ClinicalHistoryProvider } from '../context/ClinicalHistoryContext';
@@ -81,7 +81,7 @@ const ClinicalHistoryTabs: React.FC<ClinicalHistoryFormProps> = (props) => {
     },
     { 
       label: 'Evoluciones', 
-      component: <EvolucionesTab />
+      component: <EvolutionsTab />
     },
     { 
       label: 'Documentos', 
@@ -89,11 +89,11 @@ const ClinicalHistoryTabs: React.FC<ClinicalHistoryFormProps> = (props) => {
     },
     { 
       label: 'Remisión', 
-      component: <RemisionTab />
+      component: <ReferralTab />
     },
     { 
       label: 'Prótesis', 
-      component: <ProtesisTab />
+      component: <ProsthesisTab />
     },
   ];
 

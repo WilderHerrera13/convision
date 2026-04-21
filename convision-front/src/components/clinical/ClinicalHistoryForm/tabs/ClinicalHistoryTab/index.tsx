@@ -24,10 +24,10 @@ import { createFieldRenderer } from './utils/fieldHelpers';
 import BasicDataSection from './sections/BasicDataSection';
 import ConsultationInfoSection from './sections/ConsultationInfoSection';
 import CompanionResponsibleSection from './sections/CompanionResponsibleSection';
-import LensometriaSection from './sections/Lensometria';
-import QueratometriaRefraccionSection from './sections/Queratometria';
+import LensometrySection from './sections/Lensometry';
+import KeratometryRefraccionSection from './sections/Keratometry';
 import SubjetivoSection from './sections/Subjetivo/SubjetivoSection';
-import DiagnosticoSection from './sections/Diagnostico/DiagnosticoSection';
+import DiagnosisSection from './sections/Diagnosis/DiagnosisSection';
 import { useClinicalHistoryContext } from '../../context/ClinicalHistoryContext';
 
 // Section Divider Component
@@ -194,13 +194,13 @@ const ClinicalHistoryTab: React.FC<ClinicalHistoryFormProps> = (props) => {
       case "Información de Consulta":
         return <ConsultationInfoSection {...sectionProps} />;
       case "Lensometría":
-        return <LensometriaSection {...sectionProps} />;
+        return <LensometrySection {...sectionProps} />;
       case "Queratometría y Refracción":
-        return <QueratometriaRefraccionSection {...sectionProps} />;
+        return <KeratometryRefraccionSection {...sectionProps} />;
       case "Subjetivo":
         return <SubjetivoSection {...sectionProps} />;
       case "Diagnóstico":
-        return <DiagnosticoSection {...sectionProps} />;
+        return <DiagnosisSection {...sectionProps} />;
       case "Información Adicional":
         return <CompanionResponsibleSection {...sectionProps} />;
       default:

@@ -1,4 +1,11 @@
 .claude/settings.local.json
+.cursor/mcp.json
 convision-api-golang/api
 convision-api-golang/migrate
 convision-api-golang/convision-api-golang
+convision-front/.env
+.figma_token
+figma_token.txt
+.logs/
+.playwright-mcp/
+figma-bridge/mcp-server/node_modules/

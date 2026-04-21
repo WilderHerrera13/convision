@@ -75,14 +75,7 @@ type GetAppointmentsParams = {
 
 export const appointmentsService = {
   async getSpecialists(): Promise<Specialist[]> {
-    const response = await api.get('/api/v1/users', {
-      params: {
-        per_page: 100,
-        s_f: JSON.stringify(['role']),
-        s_v: JSON.stringify(['specialist']),
-        sort: 'name,asc',
-      },
-    });
+    const response = await api.get('/api/v1/specialists');
     return response.data.data;
   },
 
@@ -313,7 +306,8 @@ export const appointmentsService = {
 
   async getAppointmentById(id: number): Promise<Appointment> {
     const response = await api.get(`/api/v1/appointments/${id}`);
-    return response.data.data;
+    // Go backend returns the entity directly (no {data:…} wrapper)
+    return response.data as Appointment;
   },
 
   // Direct check of completed appointments count in the database

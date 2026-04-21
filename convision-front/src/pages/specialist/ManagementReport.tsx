@@ -24,6 +24,14 @@ import {
   type ConsultationType,
   type ManagementReportRecord,
 } from '@/services/managementReportService';
+import { userService, User } from '@/services/userService';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const PER_PAGE = 7;
 
@@ -47,14 +55,23 @@ const ManagementReport: React.FC = () => {
   const isAdmin = user?.role === 'admin';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [specialistId, setSpecialistId] = useState<string>('all');
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['users-list'],
+    queryFn: () => userService.getAll(),
+    enabled: isAdmin,
+  });
+  const specialists = useMemo(() => users.filter((u) => u.role === 'specialist'), [users]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['management-report', page, search],
+    queryKey: ['management-report', page, search, specialistId],
     queryFn: () =>
       managementReportService.list({
         page,
         perPage: PER_PAGE,
         search: search.trim() || undefined,
+        specialistId: specialistId !== 'all' ? specialistId : undefined,
       }),
     placeholderData: (prev) => prev,
   });
@@ -85,17 +102,34 @@ const ManagementReport: React.FC = () => {
                 {today}
               </span>
             </div>
-            <div className="relative w-[260px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-convision-text-muted" />
-              <Input
-                placeholder="Buscar paciente..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-9 h-9 text-[13px]"
-              />
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Select value={specialistId} onValueChange={setSpecialistId}>
+                  <SelectTrigger className="w-[200px] h-9 text-[13px]">
+                    <SelectValue placeholder="Todos los especialistas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los especialistas</SelectItem>
+                    {specialists.map((spec) => (
+                      <SelectItem key={spec.id} value={String(spec.id)}>
+                        {spec.name} {spec.last_name || ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="relative w-[260px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-convision-text-muted" />
+                <Input
+                  placeholder="Buscar paciente..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="pl-9 h-9 text-[13px]"
+                />
+              </div>
             </div>
           </div>
 
@@ -163,7 +197,7 @@ const ManagementReport: React.FC = () => {
                             <button
                               type="button"
                               aria-label="Ver"
-                              onClick={() => navigate(`/specialist/management-report/${row.id}`)}
+                              onClick={() => navigate(isAdmin ? `/admin/management-report/${row.id}` : `/specialist/management-report/${row.id}`)}
                               className="inline-flex size-8 items-center justify-center rounded-md bg-[#e5f0ff] text-[#3a71f7] hover:bg-[#d7e6ff] transition-colors"
                             >
                               <Eye className="size-3.5" />

@@ -6,6 +6,8 @@ import Dashboard from '@/pages/admin/Dashboard';
 import SpecialistDashboard from '@/pages/specialist/SpecialistDashboard';
 import SpecialistAppointmentDetail from '@/pages/specialist/SpecialistAppointmentDetail';
 import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
+import ManagementReport from '@/pages/specialist/ManagementReport';
+import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
 import Login from '@/pages/Login';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -105,6 +107,11 @@ import SupplierPayments from '@/pages/admin/SupplierPayments';
 import SupplierPaymentDetail from '@/pages/admin/SupplierPaymentDetail';
 import NewCashTransfer from '@/pages/admin/NewCashTransfer';
 import LaboratoryStatus from '@/pages/admin/LaboratoryStatus';
+import SpecialistManagementReport from '@/pages/admin/SpecialistManagementReport';
+import SpecialistManagementReportDetalle from '@/pages/admin/SpecialistManagementReportDetail';
+import ManagementReportBulkUpload from '@/pages/admin/ManagementReportBulkUpload';
+import ImportTypeSelectPage from '@/pages/admin/bulk-import/ImportTypeSelectPage';
+import BulkImportPage from '@/pages/admin/bulk-import/BulkImportPage';
 
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
@@ -465,6 +472,34 @@ const router = createBrowserRouter([
             path: "daily-reports/:id",
             element: <DailyReportDetailPage />,
           },
+          {
+            path: "management-report",
+            element: <ManagementReport />,
+          },
+          {
+            path: "management-report/:id",
+            element: <ManagementReportDetail />,
+          },
+          {
+            path: "specialist-reports",
+            element: <SpecialistManagementReport />,
+          },
+          {
+            path: "specialist-reports/bulk-upload",
+            element: <ManagementReportBulkUpload />,
+          },
+          {
+            path: "bulk-import",
+            element: <ImportTypeSelectPage />,
+          },
+          {
+            path: "bulk-import/:type",
+            element: <BulkImportPage />,
+          },
+          {
+            path: "specialist-reports/:id",
+            element: <SpecialistManagementReportDetalle />,
+          },
         ],
       },
       {
@@ -494,6 +529,14 @@ const router = createBrowserRouter([
           {
             path: "appointments/:id",
             element: <SpecialistAppointmentDetail />,
+          },
+          {
+            path: "management-report",
+            element: <ManagementReport />,
+          },
+          {
+            path: "management-report/:id",
+            element: <ManagementReportDetail />,
           },
           {
             path: "prescriptions/create",

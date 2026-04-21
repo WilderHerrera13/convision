@@ -293,7 +293,7 @@ const ContactologiaTab: React.FC = () => {
             {/* Table Headers */}
             <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
               <Box sx={{ flex: '0 0 120px' }}></Box>
-              {['Esfera', 'Cilindro', 'Eje', 'Adición', 'AV Lejos', 'AV Cerca', 'Queratometria'].map((header) => (
+              {['Esfera', 'Cilindro', 'Eje', 'Adición', 'AV Lejos', 'AV Cerca', 'Keratometry'].map((header) => (
                 <Box key={header} sx={{ flex: '1 1 0' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'center', color: '#374151' }}>
                     {header}

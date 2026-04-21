@@ -66,6 +66,7 @@ const DailyReport: React.FC = () => {
   const [observations, setObservations] = useState('');
   const [existingId, setExistingId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const dateStr = format(reportDate, 'yyyy-MM-dd');
 
@@ -99,13 +100,21 @@ const DailyReport: React.FC = () => {
   }, [dateStr, shift]);
 
   const handleFieldChange = <T extends Record<string, number>>(
-    setter: React.Dispatch<React.SetStateAction<T>>
+    setter: React.Dispatch<React.SetStateAction<T>>,
+    prefix: string
   ) => (key: string, value: number) => {
     setter((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[`${prefix}.${key}`]) return prev;
+      const next = { ...prev };
+      delete next[`${prefix}.${key}`];
+      return next;
+    });
   };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setErrors({});
     try {
       const payload = {
         report_date: dateStr,
@@ -122,8 +131,14 @@ const DailyReport: React.FC = () => {
         setExistingId((created?.data ?? created)?.id ?? null);
       }
       toast({ title: 'Guardado', description: 'Reporte diario guardado correctamente.' });
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo guardar el reporte.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error(err);
+      if (err.response?.status === 422) {
+        setErrors(err.response.data.errors || {});
+        toast({ title: 'Error de Validación', description: 'Revisa los campos marcados en rojo.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: 'No se pudo guardar el reporte.', variant: 'destructive' });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +181,17 @@ const DailyReport: React.FC = () => {
 
       <CustomerAttentionMatrix
         values={customerAttention}
-        onChange={(key, value) => setCustomerAttention((prev) => ({ ...prev, [key]: value }))}
+        onChange={(key, value) => {
+          setCustomerAttention((prev) => ({ ...prev, [key]: value }));
+          setErrors((prev) => {
+            if (!prev[`customer_attention.${key}`]) return prev;
+            const next = { ...prev };
+            delete next[`customer_attention.${key}`];
+            return next;
+          });
+        }}
+        errors={errors}
+        errorPrefix="customer_attention."
       />
 
       <DailyReportRecepcionesSection recepciones={recepcionesDinero} />
@@ -176,7 +201,9 @@ const DailyReport: React.FC = () => {
         headerColor="bg-[#ebf5ef] text-[#228b52]"
         fields={OPERATIONS_FIELDS}
         values={operations as unknown as Record<string, number>}
-        onChange={handleFieldChange(setOperations as React.Dispatch<React.SetStateAction<Record<string, number>>>)}
+        onChange={handleFieldChange(setOperations as React.Dispatch<React.SetStateAction<Record<string, number>>>, 'operations')}
+        errors={errors}
+        errorPrefix="operations."
       />
 
       <DailyReportSection
@@ -184,17 +211,31 @@ const DailyReport: React.FC = () => {
         headerColor="bg-[#f1ebff] text-[#8753ef]"
         fields={SOCIAL_FIELDS}
         values={socialMedia as unknown as Record<string, number>}
-        onChange={handleFieldChange(setSocialMedia as React.Dispatch<React.SetStateAction<Record<string, number>>>)}
+        onChange={handleFieldChange(setSocialMedia as React.Dispatch<React.SetStateAction<Record<string, number>>>, 'social_media')}
+        errors={errors}
+        errorPrefix="social_media."
       />
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Observaciones</label>
         <Textarea
           value={observations}
-          onChange={(e) => setObservations(e.target.value)}
+          onChange={(e) => {
+            setObservations(e.target.value);
+            setErrors((prev) => {
+              if (!prev.observations) return prev;
+              const next = { ...prev };
+              delete next.observations;
+              return next;
+            });
+          }}
           placeholder="Escribe tus observaciones del día..."
           rows={4}
+          className={errors.observations ? 'border-red-500 focus-visible:ring-red-500' : ''}
         />
+        {errors.observations && (
+          <p className="text-[12px] text-red-500 mt-1">{errors.observations[0]}</p>
+        )}
       </div>
 
       <div className="flex justify-end">

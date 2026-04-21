@@ -330,7 +330,7 @@ const LaboratoryOrders: React.FC = () => {
         const token = localStorage.getItem('access_token');
         if (!token) return;
         
-        const response = await fetch('http://localhost:8000/api/v1/laboratory-orders', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/laboratory-orders`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

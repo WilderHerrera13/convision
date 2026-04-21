@@ -92,7 +92,7 @@ export interface ClinicalHistoryFormData {
     observacion?: string;
   };
   
-  // ProtesisTab data
+  // ProsthesisTab data
   protesisTab?: {
     protesis?: string;
     cascarilla?: string;
@@ -113,13 +113,13 @@ export interface ClinicalHistoryFormData {
     observaciones?: string;
   };
   
-  // EvolucionesTab data
+  // EvolutionsTab data
   evolucionesTab?: Record<string, any>;
   
   // DocumentosTab data
   documentosTab?: Record<string, any>;
   
-  // RemisionTab data
+  // ReferralTab data
   remisionTab?: {
     formData?: Record<string, any>;
     cupsData?: any[];

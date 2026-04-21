@@ -160,7 +160,8 @@ class ClinicalHistoryService {
   async getPatientHistory(patientId: number) {
     try {
       const response = await api.get(`/api/v1/patients/${patientId}/clinical-history`);
-      return (response.data.data ?? null) as ClinicalHistory | null;
+      // Go backend returns the entity directly (no {data:…} wrapper)
+      return (response.data ?? null) as ClinicalHistory | null;
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
       if (axiosError.response && (axiosError.response.status === 404 || axiosError.response.status === 403)) {
@@ -192,7 +193,8 @@ class ClinicalHistoryService {
    */
   async getClinicalHistory(id: number) {
     const response = await api.get(`/api/v1/clinical-histories/${id}`);
-    return response.data.data as ClinicalHistory;
+    // Go backend returns the entity directly (no {data:…} wrapper)
+    return response.data as ClinicalHistory;
   }
 
   /**

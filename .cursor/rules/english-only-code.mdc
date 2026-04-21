@@ -1,0 +1,67 @@
+---
+description: Regla de oro — todo el código debe estar en inglés. Se aplica a todos los archivos Go, TypeScript y React del monorepo.
+globs: "**/*.go,**/*.ts,**/*.tsx"
+alwaysApply: true
+---
+
+# Golden Rule — English-Only Code
+
+**All code identifiers, file names, directory names, URL paths, and comments must be written in English. No exceptions.**
+
+## What must be in English
+
+| Element | Examples |
+|---|---|
+| Function / method names | `getPatient`, `createAppointment`, `handleSearch` |
+| Variable names | `firstName`, `appointmentDate`, `isLoading` |
+| Struct / type / interface names | `DailyActivityReport`, `CreateInput`, `PatientRepository` |
+| File names | `appointment_repository.go`, `SpecialistManagementReport.tsx` |
+| Directory names | `ReferralTab/`, `Keratometry/`, `Diagnosis/` |
+| URL route paths | `/bulk-import/scheduled-appointments`, `/admin/patients` |
+| API endpoint segments | `/scheduled-appointments` not `/consultas-agendadas` |
+| Code comments | `// Returns the best available discount for the lens` |
+| Go package names | `package appointment`, `package bulkimport` |
+| React component names | `ProsthesisTab`, `EvolutionsTab`, `ManagementReportBulkUpload` |
+| Custom hook names | `usePatients`, `useAppointments` |
+| Constant names | `SCHEDULED_APPOINTMENTS_CONFIG`, `ImportTypePatients` |
+| CSS class names (custom) | `.patient-card`, `.modal-overlay` |
+
+## What MUST stay in Spanish (UI content)
+
+These are user-facing strings — they must stay in Spanish:
+
+- Text labels, placeholders, button labels visible to the user
+- Toast messages and error messages shown in the UI
+- Page titles and navigation labels
+- Validation messages returned by the API as HTTP response bodies
+- Excel column header strings used in bulk-import templates (data contract)
+
+```tsx
+// CORRECT — UI text in Spanish, identifiers in English
+const handleSearch = () => { ... }
+<button onClick={handleSearch}>Buscar paciente</button>
+toast({ title: 'Paciente creado', description: 'El paciente fue registrado.' })
+
+// WRONG — identifier in Spanish
+const handleBuscar = () => { ... }
+```
+
+## JSON tags / API contracts
+
+Existing JSON tags (`json:"preguntas_hombre"`) and API field names that are part of an active frontend↔backend contract **must not be changed unilaterally**. The Go struct field name must be in English but the tag stays as-is until a planned migration.
+
+```go
+// CORRECT — field name in English, json tag preserves existing contract
+InquiriesMale int `json:"preguntas_hombre" gorm:"not null;default:0"`
+
+// WRONG — field name in Spanish
+PreguntasHombre int `json:"preguntas_hombre"`
+```
+
+## Enforcement checklist before committing
+
+- [ ] No Spanish words in any function, variable, struct, or file name
+- [ ] No Spanish words in URL path segments (`/api/v1/...`)
+- [ ] No Spanish comments in any `.go`, `.ts`, or `.tsx` file
+- [ ] UI strings visible to the user are still in Spanish
+- [ ] New files follow English naming: `feature_name.go`, `FeatureName.tsx`

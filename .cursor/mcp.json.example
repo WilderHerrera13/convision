@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "MySQL": {
+      "command": "npx",
+      "args": [
+        "mcprunner",
+        "MYSQL_HOST=127.0.0.1",
+        "MYSQL_PORT=3306",
+        "MYSQL_USER=your_mysql_user",
+        "MYSQL_PASS=your_mysql_password",
+        "MYSQL_DB=your_database",
+        "ALLOW_INSERT_OPERATION=true",
+        "ALLOW_UPDATE_OPERATION=true",
+        "ALLOW_DELETE_OPERATION=false",
+        "--",
+        "npx",
+        "-y",
+        "@benborla29/mcp-server-mysql"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "Figma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-developer-mcp",
+        "--stdio",
+        "--no-telemetry"
+      ],
+      "env": {
+        "FIGMA_API_KEY": "your_figma_personal_access_token"
+      }
+    },
+    "PixelBridge": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/convision/figma-bridge/mcp-server/server.js"
+      ]
+    }
+  }
+}

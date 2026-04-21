@@ -1,0 +1,24 @@
+<script>
+    function connect() {
+        const ws = new WebSocket('ws://localhost:3000');
+        
+        ws.onopen = () => {
+            console.log("🟢 Pixel Bridge: Conectado al agente de IA (MCP)");
+        };
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'execute') {
+                // Enviar código al main thread de Figma (code.js)
+                parent.postMessage({ pluginMessage: { type: 'execute', script: data.script } }, '*');
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("🔴 Pixel Bridge: Desconectado. Reintentando en 3s...");
+            setTimeout(connect, 3000);
+        };
+    }
+    
+    connect();
+</script>

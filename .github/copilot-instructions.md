@@ -10,6 +10,43 @@
 
 # Convision — GitHub Copilot Instructions
 
+## Golden Rule — English-Only Code
+
+**Every code identifier, file name, directory name, URL path segment, and comment must be written in English. This rule has no exceptions.**
+
+| Must be in English | Must stay in Spanish |
+|---|---|
+| Function, variable, struct, type, interface names | UI text visible to the user (labels, toasts, placeholders, page titles) |
+| File names and directory names | API error/validation messages returned in HTTP response bodies |
+| URL route path segments (`/scheduled-appointments`) | Excel column header strings in bulk-import templates (data contract) |
+| API endpoint segments | |
+| All code comments | |
+| React component names, custom hook names | |
+| Go package names, constant names | |
+
+```go
+// CORRECT
+func (s *Service) GetScheduledAppointments(...) { ... }
+firstName := strings.TrimSpace(data["nombre"])
+
+// WRONG
+func (s *Service) ObtenerConsultasAgendadas(...) { ... }
+nombre := strings.TrimSpace(data["nombre"])
+```
+
+```tsx
+// CORRECT — identifier in English, UI text in Spanish
+const handleSearch = () => { ... }
+<button onClick={handleSearch}>Buscar paciente</button>
+
+// WRONG
+const handleBuscar = () => { ... }
+```
+
+**JSON tags with existing Spanish keys:** keep the tag value as-is (API contract), but the Go struct field name must be English.
+
+---
+
 ## Project Overview
 
 Monorepo para un sistema de gestión de clínica óptica:

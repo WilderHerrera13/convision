@@ -95,7 +95,7 @@ export const clinicalHistorySchema = z.object({
   antecedentes_personales: z.string().default('NO REFIERE'),
   antecedentes_laborales: z.string().default('NO REFIERE'),
   
-  // Lensometria fields
+  // Lensometry fields
   lensometria_od: z.string()
     .refine((val) => !val || val.length === 0 || val.length <= 50, {
       message: 'El valor de lensometría no debe exceder 50 caracteres'
