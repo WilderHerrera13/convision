@@ -9,7 +9,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   in_process: 'En proceso',
   in_progress: 'En proceso',
-  sent_to_lab: 'Enviado a laboratorio',
+  sent_to_lab: 'En laboratorio',
   in_transit: 'En tránsito',
   in_quality: 'En calidad',
   ready_for_delivery: 'Listo para entrega',
@@ -40,29 +40,42 @@ const LabOrderStatusTimeline: React.FC<LabOrderStatusTimelineProps> = ({ history
 
   return (
     <div className="flex flex-col">
+      <div className="flex gap-3 mb-3 pb-2 border-b border-[#f0f0f2]">
+        <div className="w-2.5 shrink-0" />
+        <div className="flex-1 grid grid-cols-[140px_1fr_1fr] gap-x-4">
+          <p className="text-[11px] font-semibold text-[#7d7d87] uppercase tracking-wide">Fecha</p>
+          <p className="text-[11px] font-semibold text-[#7d7d87] uppercase tracking-wide">Estado</p>
+          <p className="text-[11px] font-semibold text-[#7d7d87] uppercase tracking-wide">Observación</p>
+        </div>
+      </div>
       {sorted.map((entry: HistoryEntry, index: number) => {
         const isLast = index === sorted.length - 1;
         return (
           <div key={entry.id} className="flex gap-3">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center shrink-0">
               <div
-                className={`size-3 rounded-full mt-1 shrink-0 ${
-                  isLast ? 'bg-[#8753ef]' : 'bg-gray-300'
+                className={`size-2.5 rounded-full mt-1.5 shrink-0 ${
+                  isLast ? 'bg-[#8753ef]' : 'bg-[#d1d1d6]'
                 }`}
               />
-              {!isLast && <div className="w-0.5 bg-gray-200 flex-1 my-1 min-h-[20px]" />}
+              {!isLast && <div className="w-0.5 bg-[#e5e5e9] flex-1 my-1 min-h-[28px]" />}
             </div>
-            <div className={`flex-1 ${isLast ? 'pb-0' : 'pb-5'}`}>
-              <p className="text-xs text-muted-foreground">{formatDateTime12h(entry.created_at)}</p>
-              <div className="flex items-center gap-2 mt-1">
+
+            <div className={`flex-1 grid grid-cols-[140px_1fr_1fr] gap-x-4 items-start ${isLast ? 'pb-0' : 'pb-5'}`}>
+              <p className="text-xs text-[#7d7d87] leading-[1.6]">
+                {formatDateTime12h(entry.created_at)}
+              </p>
+              <div>
                 <Badge variant={getStatusVariant(entry.status)}>
                   {STATUS_LABELS[entry.status] ?? entry.status}
                 </Badge>
               </div>
-              {entry.notes && (
-                <p className="text-sm text-[#0f0f12] mt-1">{entry.notes}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-0.5">{entry.user?.name || '—'}</p>
+              <div>
+                {entry.notes && (
+                  <p className="text-sm text-[#0f0f12] leading-[1.5]">{entry.notes}</p>
+                )}
+                <p className="text-xs text-[#7d7d87] mt-0.5">{entry.user?.name || '—'}</p>
+              </div>
             </div>
           </div>
         );
