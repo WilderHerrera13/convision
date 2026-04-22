@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
 import { Plus, Eye, Search, FlaskConical } from 'lucide-react';
 import {
@@ -15,7 +13,7 @@ import {
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -42,18 +40,6 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   delivered: 'bg-gray-100 text-gray-600',
   cancelled: 'bg-red-100 text-red-700',
 };
-
-function getPaginationPages(current: number, total: number): (number | '...')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | '...')[] = [1];
-  if (current > 3) pages.push('...');
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
-    pages.push(i);
-  }
-  if (current < total - 2) pages.push('...');
-  pages.push(total);
-  return pages;
-}
 
 interface MetricCardProps {
   label: string;
@@ -115,11 +101,12 @@ const LabOrders: React.FC = () => {
   });
 
   const orders: LaboratoryOrder[] = data?.data ?? [];
-  const meta = data?.meta ?? {};
-  const total: number = meta.total ?? 0;
-  const lastPage: number = meta.last_page ?? 1;
-  const fromItem: number = meta.from ?? 0;
-  const toItem: number = meta.to ?? 0;
+  // Go API returns pagination fields at the top level (total, last_page, current_page).
+  // Laravel API wraps them under "meta". Support both shapes.
+  const total: number = (data?.total ?? data?.meta?.total ?? 0) as number;
+  const lastPage: number = (data?.last_page ?? data?.meta?.last_page ?? 1) as number;
+  const fromItem: number = (data?.from ?? data?.meta?.from ?? 0) as number;
+  const toItem: number = (data?.to ?? data?.meta?.to ?? 0) as number;
 
   const inLabCount =
     (statsData?.sent_to_lab ?? 0) + (statsData?.in_transit ?? 0) + (statsData?.in_quality ?? 0);
@@ -134,6 +121,67 @@ const LabOrders: React.FC = () => {
     }
     setPage(1);
   };
+
+  const columns: DataTableColumnDef<LaboratoryOrder>[] = [
+    {
+      id: 'order_number',
+      header: '# Orden',
+      type: 'text',
+      accessorKey: 'order_number',
+      cell: (order) => (
+        <div>
+          <p className="text-[13px] font-semibold text-[#121215]">{order.order_number}</p>
+          <p className="text-[11px] text-[#7d7d87]">{formatDate(order.created_at)}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'patient',
+      header: 'Paciente',
+      type: 'text',
+      cell: (order) => (
+        <span className="text-[13px] text-[#7d7d87]">
+          {order.patient ? `${order.patient.first_name} ${order.patient.last_name}` : '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'sede',
+      header: 'Sede',
+      type: 'text',
+      cell: () => <span className="text-[13px] text-[#7d7d87]">Sede Principal</span>,
+    },
+    {
+      id: 'status',
+      header: 'Estado',
+      type: 'text',
+      accessorKey: 'status',
+      cell: (order) => (
+        <span
+          className={cn(
+            'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
+            STATUS_BADGE_CLASS[order.status] ?? 'bg-gray-100 text-gray-600',
+          )}
+        >
+          {STATUS_LABELS[order.status] ?? order.status}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Acciones',
+      type: 'actions',
+      cell: (order) => (
+        <button
+          className="flex items-center justify-center size-8 rounded-[6px] bg-[#f1edff] border border-[#8753ef]/30 text-[#8753ef] hover:opacity-80 transition-colors"
+          onClick={(e) => { e.stopPropagation(); navigate(`/receptionist/lab-orders/${order.id}`); }}
+          title="Ver detalle"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+      ),
+    },
+  ];
 
   return (
     <PageLayout
@@ -180,11 +228,13 @@ const LabOrders: React.FC = () => {
           />
         </div>
 
-        <Card className="border border-[#e5e5e9] rounded-lg overflow-hidden shadow-none">
-          <div className="bg-white border-b border-[#e5e5e9] px-5 h-[52px] flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e5e9]">
             <div>
-              <p className="text-[14px] font-semibold text-[#121215]">Órdenes de laboratorio</p>
-              <p className="text-[11px] text-[#7d7d87]">{total} {total === 1 ? 'orden' : 'órdenes'}</p>
+              <h2 className="text-[15px] font-semibold text-[#121215]">Órdenes de laboratorio</h2>
+              <p className="text-[12px] text-[#b4b5bc] mt-0.5">
+                {total} {total === 1 ? 'orden' : 'órdenes'}
+              </p>
             </div>
             <div className="relative w-[260px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
@@ -197,131 +247,27 @@ const LabOrders: React.FC = () => {
             </div>
           </div>
 
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#f5f5f6] hover:bg-[#f5f5f6] border-0">
-                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-4 py-2"># Orden</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-4 py-2">Paciente</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-4 py-2">Sede</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-4 py-2">Estado</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-4 py-2 w-[90px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i} className="border-b border-[#e5e5e9]">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <TableCell key={j} className="px-4 py-3">
-                          <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : orders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-[#7d7d87] text-sm">
-                      <FlaskConical className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                      No hay órdenes para mostrar
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  orders.map((order) => (
-                    <TableRow
-                      key={order.id}
-                      className="border-b border-[#e5e5e9] hover:bg-slate-50/70 cursor-pointer"
-                      onClick={() => navigate(`/receptionist/lab-orders/${order.id}`)}
-                    >
-                      <TableCell className="px-4 py-3">
-                        <p className="text-[13px] font-semibold text-[#121215]">{order.order_number}</p>
-                        <p className="text-[11px] text-[#7d7d87]">{formatDate(order.created_at)}</p>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-[13px] text-[#7d7d87]">
-                        {order.patient
-                          ? `${order.patient.first_name} ${order.patient.last_name}`
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-[13px] text-[#7d7d87]">
-                        Sede Principal
-                      </TableCell>
-                      <TableCell className="px-4 py-3">
-                        <span
-                          className={cn(
-                            'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
-                            STATUS_BADGE_CLASS[order.status] ?? 'bg-gray-100 text-gray-600',
-                          )}
-                        >
-                          {STATUS_LABELS[order.status] ?? order.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="flex items-center justify-center size-8 rounded-[6px] bg-[#f1edff] border border-[#8753ef]/30 text-[#8753ef] hover:opacity-80 transition-colors"
-                          onClick={() => navigate(`/receptionist/lab-orders/${order.id}`)}
-                          title="Ver detalle"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-
-            {total > 0 && (
-              <div className="bg-white border-t border-[#e5e5e9] px-5 h-[48px] flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[12px] text-[#7d7d87]">
-                  <span>Mostrando</span>
-                  <span className="bg-[#f1edff] px-1.5 py-0.5 rounded text-[#8753ef] font-semibold text-[12px]">
-                    {fromItem}–{toItem}
-                  </span>
-                  <span>de {total} resultados</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  {getPaginationPages(page, lastPage).map((p, idx) =>
-                    p === '...' ? (
-                      <span
-                        key={`dot-${idx}`}
-                        className="h-8 w-8 flex items-center justify-center text-[13px] text-[#7d7d87]"
-                      >
-                        ···
-                      </span>
-                    ) : (
-                      <button
-                        key={p}
-                        className={cn(
-                          'h-8 w-8 flex items-center justify-center rounded-[6px] text-[13px] font-medium transition-colors',
-                          page === p
-                            ? 'bg-[#121212] text-white'
-                            : 'border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8]',
-                        )}
-                        onClick={() => setPage(Number(p))}
-                      >
-                        {p}
-                      </button>
-                    ),
-                  )}
-                  <button
-                    className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
-                    disabled={page === lastPage}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
+          <DataTable
+            columns={columns}
+            data={orders}
+            loading={isLoading}
+            onRowClick={(order) => navigate(`/receptionist/lab-orders/${order.id}`)}
+            enablePagination={total > 0}
+            currentPage={page}
+            totalPages={lastPage}
+            onPageChange={setPage}
+            paginationSummary={total > 0 ? { from: fromItem, to: toItem, total } : null}
+            paginationVariant="figma"
+            tableLayout="ledger"
+            ledgerBorderMode="figma"
+            emptyStateContent={
+              <div className="flex flex-col items-center justify-center py-12 text-[#7d7d87] text-sm">
+                <FlaskConical className="h-8 w-8 mb-2 text-gray-300" />
+                No hay órdenes para mostrar
               </div>
-            )}
-          </CardContent>
-        </Card>
+            }
+          />
+        </div>
       </div>
     </PageLayout>
   );
