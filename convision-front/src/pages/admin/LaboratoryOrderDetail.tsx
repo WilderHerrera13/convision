@@ -31,10 +31,10 @@ import {
 
 const ACTION_CONFIG: Record<string, { title: string; desc: string; btnLabel: string; nextStatus?: LabOrderStatus }> = {
   pending: {
-    title: 'Verificar y enviar a laboratorio',
-    desc: 'La orden está pendiente. Confirma datos y envíala al laboratorio para iniciar el proceso.',
+    title: 'Enviar al laboratorio',
+    desc: 'Revisa los datos de la orden y envíala al laboratorio externo para iniciar el proceso de fabricación.',
     btnLabel: 'Enviar a laboratorio',
-    nextStatus: 'in_process',
+    nextStatus: 'sent_to_lab',
   },
   in_process: {
     title: 'Despachar al laboratorio externo',
@@ -50,9 +50,26 @@ const ACTION_CONFIG: Record<string, { title: string; desc: string; btnLabel: str
   },
   sent_to_lab: {
     title: 'Esperando producto desde laboratorio',
-    desc: 'El laboratorio está fabricando. Marca como listo cuando llegue el producto a la sede.',
-    btnLabel: 'Marcar como listo',
-    nextStatus: 'ready_for_delivery',
+    desc: 'El laboratorio está fabricando. Marca como recibido cuando llegue el producto a la sede.',
+    btnLabel: 'Confirmar recepción en sede',
+    nextStatus: 'in_transit',
+  },
+  in_transit: {
+    title: 'Producto en tránsito hacia la sede',
+    desc: 'El producto fue enviado por el laboratorio. Confirma cuando lo hayas recibido físicamente en la sede.',
+    btnLabel: 'Confirmar llegada a sede',
+    nextStatus: 'received_from_lab',
+  },
+  received_from_lab: {
+    title: 'Producto recibido — Enviar a calidad',
+    desc: 'El producto llegó a la sede. Envíalo al especialista para la revisión de calidad antes de entregarlo al paciente.',
+    btnLabel: 'Enviar a control de calidad',
+    nextStatus: 'in_quality',
+  },
+  in_quality: {
+    title: 'En revisión de calidad',
+    desc: 'El especialista está revisando el producto. Esta etapa la completa el especialista desde su vista de órdenes de laboratorio.',
+    btnLabel: 'Esperando al especialista',
   },
   ready_for_delivery: {
     title: 'Coordinar entrega al paciente',
@@ -151,12 +168,12 @@ function OrderHeaderStrip({ order }: OrderHeaderStripProps) {
           <p className="text-[16px] text-[#7d7d87] mt-2">—</p>
         )}
       </div>
-      <div className="px-6 py-5 flex flex-col items-end justify-between w-[130px] shrink-0">
+      <div className="px-6 py-5 flex flex-col items-end justify-center gap-2 w-[130px] shrink-0">
+        <p className="text-[10px] font-semibold text-[#7d7d87] tracking-[0.8px] uppercase">PRIORIDAD</p>
         <div className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ backgroundColor: priorityToken.bg }}>
           <span className="size-1.5 rounded-full" style={{ backgroundColor: priorityToken.dot }} />
           <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: priorityToken.text }}>{priorityLabel}</span>
         </div>
-        <p className="text-[11px] text-[#7d7d87]">Prioridad</p>
       </div>
     </div>
   );
@@ -471,7 +488,10 @@ function OrderActionPanel({ order, onStatusUpdated, timelineRef }: OrderActionPa
       }
       return;
     }
-    if (!config.nextStatus) return;
+    if (!config.nextStatus) {
+      toast({ title: 'Sin acción disponible', description: 'Esta etapa la gestiona el especialista desde su panel.' });
+      return;
+    }
     setUpdating(true);
     try {
       await laboratoryOrderService.updateLaboratoryOrderStatus(order.id, { status: config.nextStatus, notes: '' });
@@ -493,9 +513,9 @@ function OrderActionPanel({ order, onStatusUpdated, timelineRef }: OrderActionPa
         <p className="text-[15px] font-semibold text-[#0f0f12] mt-2">{config.title}</p>
         <p className="text-[12px] text-[#7d7d87] mt-1.5 leading-relaxed">{config.desc}</p>
         <Button
-          className="w-full mt-4 h-10 bg-[#3a71f7] hover:bg-[#2558d4] text-white text-[13px] font-semibold rounded-md"
+          className="w-full mt-4 h-10 bg-[#3a71f7] hover:bg-[#2558d4] text-white text-[13px] font-semibold rounded-md disabled:opacity-60"
           onClick={handleAction}
-          disabled={updating}
+          disabled={updating || order.status === 'in_quality'}
         >
           {config.btnLabel}
         </Button>
