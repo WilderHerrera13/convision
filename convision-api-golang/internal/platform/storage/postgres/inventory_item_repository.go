@@ -9,6 +9,7 @@ import (
 )
 
 var inventoryItemFilterAllowlist = map[string]bool{
+	"clinic_id":             true,
 	"product_id":            true,
 	"warehouse_id":          true,
 	"warehouse_location_id": true,

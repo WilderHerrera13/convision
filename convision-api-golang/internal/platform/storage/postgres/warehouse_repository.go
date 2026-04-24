@@ -9,7 +9,8 @@ import (
 )
 
 var warehouseFilterAllowlist = map[string]bool{
-	"status": true,
+	"clinic_id": true,
+	"status":    true,
 }
 
 // WarehouseRepository is the PostgreSQL-backed implementation of domain.WarehouseRepository.
@@ -70,7 +71,7 @@ func (r *WarehouseRepository) List(filters map[string]any, page, perPage int) ([
 	}
 
 	offset := (page - 1) * perPage
-	err := q.Select("id, name, code, address, city, status, notes, created_at, updated_at").
+	err := q.Select("id, clinic_id, name, code, address, city, status, notes, created_at, updated_at").
 		Offset(offset).
 		Limit(perPage).
 		Order("warehouses.id asc").
@@ -85,7 +86,7 @@ func (r *WarehouseRepository) List(filters map[string]any, page, perPage int) ([
 func (r *WarehouseRepository) ListLocations(warehouseID uint) ([]*domain.WarehouseLocation, error) {
 	var locations []*domain.WarehouseLocation
 	err := r.db.
-		Select("id, warehouse_id, name, code, type, status, description, created_at, updated_at").
+		Select("id, clinic_id, warehouse_id, name, code, type, status, description, created_at, updated_at").
 		Where("warehouse_id = ?", warehouseID).
 		Order("id asc").
 		Find(&locations).Error

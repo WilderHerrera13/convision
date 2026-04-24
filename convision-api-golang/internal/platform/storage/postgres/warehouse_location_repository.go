@@ -9,6 +9,7 @@ import (
 )
 
 var warehouseLocationFilterAllowlist = map[string]bool{
+	"clinic_id":    true,
 	"warehouse_id": true,
 	"status":       true,
 	"type":         true,

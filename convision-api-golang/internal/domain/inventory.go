@@ -5,6 +5,7 @@ import "time"
 // Warehouse represents a physical storage location.
 type Warehouse struct {
 	ID        uint      `json:"id"         gorm:"primaryKey;autoIncrement"`
+	ClinicID  uint      `json:"clinic_id"  gorm:"not null;index"`
 	Name      string    `json:"name"       gorm:"not null"`
 	Code      string    `json:"code"       gorm:"uniqueIndex"`
 	Address   string    `json:"address"`
@@ -20,6 +21,7 @@ type Warehouse struct {
 // WarehouseLocation represents a specific shelf/zone within a warehouse.
 type WarehouseLocation struct {
 	ID          uint      `json:"id"           gorm:"primaryKey;autoIncrement"`
+	ClinicID    uint      `json:"clinic_id"    gorm:"not null;index"`
 	WarehouseID uint      `json:"warehouse_id" gorm:"not null;index"`
 	Name        string    `json:"name"         gorm:"not null;uniqueIndex:uq_location_name_warehouse"`
 	Code        string    `json:"code"         gorm:"index"`
@@ -47,6 +49,7 @@ const (
 // InventoryItem represents stock of a product at a specific warehouse location.
 type InventoryItem struct {
 	ID                  uint                `json:"id"                    gorm:"primaryKey;autoIncrement"`
+	ClinicID            uint                `json:"clinic_id"             gorm:"not null;index"`
 	ProductID           uint                `json:"product_id"            gorm:"not null;index"`
 	WarehouseID         uint                `json:"warehouse_id"          gorm:"not null;index"`
 	WarehouseLocationID *uint               `json:"warehouse_location_id" gorm:"column:warehouse_location_id"`
@@ -74,6 +77,7 @@ const (
 // InventoryTransfer represents a movement of stock between locations.
 type InventoryTransfer struct {
 	ID                    uint                    `json:"id"                      gorm:"primaryKey;autoIncrement"`
+	ClinicID              uint                    `json:"clinic_id"               gorm:"not null;index"`
 	ProductID             uint                    `json:"product_id"              gorm:"column:product_id;not null"`
 	SourceLocationID      uint                    `json:"source_location_id"      gorm:"not null;index"`
 	DestinationLocationID uint                    `json:"destination_location_id" gorm:"not null;index"`

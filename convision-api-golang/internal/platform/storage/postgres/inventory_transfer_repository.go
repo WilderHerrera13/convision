@@ -9,6 +9,7 @@ import (
 )
 
 var inventoryTransferFilterAllowlist = map[string]bool{
+	"clinic_id":               true,
 	"status":                  true,
 	"product_id":              true,
 	"source_location_id":      true,
