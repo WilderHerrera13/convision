@@ -274,21 +274,19 @@ func (h *Handler) GetTotalStock(c *gin.Context) {
 			filters["warehouse_location_id"] = uint(id)
 		}
 	}
-	if len(filters) == 0 {
-		out, err := h.inventory.TotalStock()
-		if err != nil {
-			respondError(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, out)
-		return
-	}
 	out, err := h.inventory.TotalStockPerProduct(filters)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": out})
+	var totalUnits int64
+	for _, e := range out {
+		totalUnits += e.TotalQuantity
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":        out,
+		"total_units": totalUnits,
+	})
 }
 
 func (h *Handler) ListLocationInventoryItems(c *gin.Context) {
