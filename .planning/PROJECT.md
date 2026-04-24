@@ -22,7 +22,7 @@ Clinic staff can complete core operational and sales workflows reliably in one i
 
 - [ ] Stabilize and complete new finance/operations modules (expenses, payroll, service/lab orders, supplier payments)
 - [ ] Improve frontend consistency and maintainability (table/date/form patterns)
-- [ ] Strengthen API correctness and cross-module consistency in brownfield changes
+- [x] Strengthen API correctness and cross-module consistency in brownfield changes — Validated in Phase 08: Go inventory backend audit & hardening (state machine, atomic stock, LensID→ProductID, guards)
 - [ ] Improve verification quality (tests + phase verification artifacts)
 
 ### Out of Scope
@@ -55,4 +55,4 @@ Clinic staff can complete core operational and sales workflows reliably in one i
 | Start with stabilization-oriented phases before new feature expansion | Current risk is consistency/regression in active modules | — Pending |
 
 ---
-*Last updated: 2026-04-13 after gsd-new-project bootstrap*
+*Last updated: 2026-04-24 — Phase 08 complete (Go inventory backend hardened)*
