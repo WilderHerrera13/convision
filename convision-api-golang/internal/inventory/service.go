@@ -355,12 +355,12 @@ type ItemCreateInput struct {
 
 // ItemUpdateInput holds validated fields for updating an inventory item.
 type ItemUpdateInput struct {
-	ProductID           uint   `json:"product_id"`
-	WarehouseID         uint   `json:"warehouse_id"`
-	WarehouseLocationID *uint  `json:"warehouse_location_id"`
-	Quantity            int    `json:"quantity"`
-	Status              string `json:"status"`
-	Notes               string `json:"notes"`
+	ProductID           uint    `json:"product_id"`
+	WarehouseID         uint    `json:"warehouse_id"`
+	WarehouseLocationID *uint   `json:"warehouse_location_id"`
+	Quantity            *int    `json:"quantity"`
+	Status              string  `json:"status"`
+	Notes               *string `json:"notes"`
 }
 
 // ItemListOutput is the paginated inventory item response.
@@ -469,7 +469,9 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 	}
 
 	i.WarehouseLocationID = newLocationID
-	i.Quantity = input.Quantity
+	if input.Quantity != nil {
+		i.Quantity = *input.Quantity
+	}
 	if input.Status != "" {
 		st, err := validateItemStatus(input.Status)
 		if err != nil {
@@ -477,7 +479,9 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		}
 		i.Status = st
 	}
-	i.Notes = input.Notes
+	if input.Notes != nil {
+		i.Notes = *input.Notes
+	}
 
 	if err := s.itemRepo.Update(i); err != nil {
 		return nil, err
