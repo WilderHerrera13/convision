@@ -46,24 +46,24 @@ docker-down:
 	docker compose -f docker/docker-compose.yml down
 ## migrate: run pending migrations on platform schema
 migrate:
-	go run ./cmd/migrate
+        go run ./cmd/migrate
 
 ## migrate-tenant: migrate a single tenant  (usage: make migrate-tenant TENANT=clinica-vision)
 migrate-tenant:
-	go run ./cmd/migrate -tenant $(TENANT)
+        go run ./cmd/migrate -tenant $(TENANT)
 
 ## migrate-all: migrate platform + all active tenants
 migrate-all:
-	go run ./cmd/migrate -all
+        go run ./cmd/migrate -all
 
 ## migrate-down: rollback last migration on platform (usage: make migrate-down TENANT=clinica-vision)
 migrate-down:
-	go run ./cmd/migrate -down $(if $(TENANT),-tenant $(TENANT)) -steps 1
+        go run ./cmd/migrate -down $(if $(TENANT),-tenant $(TENANT)) -steps 1
 
 ## migrate-list: list migration status (usage: make migrate-list [TENANT=clinica-vision])
 migrate-list:
-	go run ./cmd/migrate -list $(if $(TENANT),-tenant $(TENANT))
+        go run ./cmd/migrate -list $(if $(TENANT),-tenant $(TENANT))
 
 ## migration: create a new empty migration pair  (usage: make migration NAME=add_phone_to_patients [SCOPE=platform])
 migration:
-	go run ./cmd/migrate -new $(NAME) $(if $(filter platform,$(SCOPE)),,)
+        go run ./cmd/migrate -new $(NAME) $(if $(filter platform,$(SCOPE)),,)

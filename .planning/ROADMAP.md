@@ -112,64 +112,6 @@ Plans:
 - [x] 06-03: Frontend — Vistas del Asesor (formulario cierre, conteo efectivo, reporte diario, historiales)
 - [x] 06-04: Frontend — Vistas del Admin (lista cierres, detalle + aprobación, lista reportes)
 
-### Phase 7: Figma — Bodega & Inventory Module Design
-**Goal**: Design the complete Warehouse & Inventory module in Figma (page "bodega"), covering all views required by the Laravel backend: warehouses CRUD, warehouse locations CRUD, inventory items management, total stock view, product inventory summary, and inventory transfers workflow — all using Admin role palette and system components.
-**Depends on**: Phase 6
-**Requirements**: [BODEGA-01, BODEGA-02, BODEGA-03, BODEGA-04, BODEGA-05, BODEGA-06]
-**Success Criteria** (what must be TRUE):
-  1. Figma page "bodega" exists with all warehouse module screens designed
-  2. All screens use Admin role palette (#3A71F7), system components (Table/Frame 78:89, Sidebar 83:2), and Lucide icons
-  3. Bodegas: list view, create view, detail/edit view with locations tab
-  4. Ubicaciones: list within warehouse, create view, detail view with inventory items
-  5. Inventario: items list with filters, create item form, total stock view, product inventory summary
-  6. Transferencias: list view, create transfer form with pending/completed/cancelled states
-**Plans**: 4 plans
-
-Plans:
-- [ ] 07-01: Figma — Bodegas: Lista, Nueva Bodega, Detalle Bodega
-- [ ] 07-02: Figma — Ubicaciones: Lista en Bodega, Nueva Ubicación, Detalle Ubicación
-- [ ] 07-03: Figma — Inventario: Lista de Ítems, Nuevo Ítem, Stock Total, Resumen por Producto
-- [ ] 07-04: Figma — Transferencias: Lista, Nueva Transferencia (estados pending/completed/cancelled)
-
-### Phase 8: Go Inventory Backend Audit & Hardening
-**Goal**: Audit, fix, and validate all Go backend code for the warehouse and inventory module so that inventory math (quantities, transfers, stock totals) is provably correct, business rules match the Laravel reference, and all endpoints are coherent end-to-end.
-**Depends on**: Phase 6 (Phase 7 is independent Figma work — this runs in parallel or after)
-**Requirements**: [INV-01, INV-02, INV-03, INV-04, INV-05]
-**Success Criteria** (what must be TRUE):
-  1. Transfer completion atomically moves stock from source location to destination location
-  2. Transfer creation validates: source ≠ destination, source has sufficient stock, quantity ≥ 1
-  3. Transfer status transitions are enforced (pending→completed, pending→cancelled only; completed_at set on completion)
-  4. DeleteLocation is protected: returns validation error if location has active inventory items
-  5. AdjustStock operates on a specific InventoryItem by ID (not by product_id heuristic)
-  6. All inventory quantity operations use DB transactions with row-level locking to prevent race conditions
-  7. All critical inventory paths have integration-test verification evidence (Go test files or curl scripts)
-**Plans**: 4 plans
-
-Plans:
-- [ ] 08-01: Audit — full inventory backend gap analysis vs Laravel reference (domain, service, repos, handlers, routes)
-- [ ] 08-02: Fix — transfer business logic (atomic stock movement, state machine, validation guards)
-- [ ] 08-03: Fix — inventory item & warehouse data-integrity guards (location delete protection, AdjustStock, status enums)
-- [ ] 08-04: Validate — integration test suite for all critical inventory math paths
-
-### Phase 9: Go Backend Test Suite
-**Goal**: Write comprehensive unit and integration tests for all Go backend services and HTTP handlers so that every business rule, validation, and endpoint is verifiable in CI without relying on manual testing.
-**Depends on**: Phase 8 (or can run independently — tests exercise existing code)
-**Requirements**: [TEST-01, TEST-02, TEST-03, TEST-04, TEST-05]
-**Success Criteria** (what must be TRUE):
-  1. Every service package under `internal/` has a `service_test.go` with unit tests covering happy path and key error branches using mocked Repository interfaces
-  2. Every HTTP handler group has integration tests (httptest) covering 2xx success, 4xx validation errors, and 403 role guards
-  3. `make test` passes with ≥ 70% coverage across service packages
-  4. Tests use no real database (unit) or a dedicated test DB via `testcontainers-go` (integration)
-  5. All test helpers, fixtures, and mock factories live in `internal/testutil/` and are reusable across packages
-**Plans**: 5 plans
-
-Plans:
-- [ ] 09-01: Test infrastructure — testutil package, mock factories, httptest helpers, testcontainers setup
-- [ ] 09-02: Unit tests — auth, patient, appointment, prescription, clinical workflow services
-- [ ] 09-03: Unit tests — product, sale, quote, discount, commercial flow services
-- [ ] 09-04: Unit tests — inventory, laboratory, cash-close, finance services
-- [ ] 09-05: Integration tests — HTTP handler suites for all feature groups (role guards + contract validation)
-
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -180,6 +122,3 @@ Plans:
 | 4. Finance & Orders Consistency | 0/4 | Not started | - |
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
 | 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
-| 7. Figma — Bodega & Inventory Module Design | 0/4 | Not started | - |
-| 8. Go Inventory Backend Audit & Hardening | 0/4 | Not started | - |
-| 9. Go Backend Test Suite | 0/5 | Not started | - |
