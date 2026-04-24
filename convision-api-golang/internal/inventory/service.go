@@ -766,21 +766,21 @@ var allowedTransitions = map[domain.InventoryTransferStatus]map[domain.Inventory
 }
 
 func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.InventoryTransfer, error) {
-	t, err := s.transferRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	if t.Status == domain.InventoryTransferStatusCompleted || t.Status == domain.InventoryTransferStatusCancelled {
-		return nil, &domain.ErrValidation{
-			Field:   "status",
-			Message: "no se puede modificar una transferencia en estado terminal",
-		}
-	}
-
+	// Status-change paths delegate to CompleteTransfer/CancelTransfer which own their own transactions.
+	// The notes-only path wraps GetByID+Update in a transaction with FOR UPDATE to avoid stale updates.
 	if input.Status != "" {
 		if _, err := validateTransferStatus(input.Status); err != nil {
 			return nil, err
+		}
+		t, err := s.transferRepo.GetByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if t.Status == domain.InventoryTransferStatusCompleted || t.Status == domain.InventoryTransferStatusCancelled {
+			return nil, &domain.ErrValidation{
+				Field:   "status",
+				Message: "no se puede modificar una transferencia en estado terminal",
+			}
 		}
 		next := domain.InventoryTransferStatus(input.Status)
 		if !allowedTransitions[t.Status][next] {
@@ -797,11 +797,32 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 		}
 	}
 
-	t.Notes = input.Notes
-	if err := s.transferRepo.Update(t); err != nil {
+	var result *domain.InventoryTransfer
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var t domain.InventoryTransfer
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &domain.ErrNotFound{Resource: "inventory_transfer"}
+			}
+			return err
+		}
+		if t.Status == domain.InventoryTransferStatusCompleted || t.Status == domain.InventoryTransferStatusCancelled {
+			return &domain.ErrValidation{
+				Field:   "status",
+				Message: "no se puede modificar una transferencia en estado terminal",
+			}
+		}
+		t.Notes = input.Notes
+		if err := tx.Model(&t).Updates(map[string]any{"notes": t.Notes}).Error; err != nil {
+			return err
+		}
+		result = &t
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(id)
+	return s.transferRepo.GetByID(result.ID)
 }
 
 func (s *Service) DeleteTransfer(id uint) error {
