@@ -126,7 +126,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: Figma — Bodegas: Lista, Nueva Bodega, Detalle Bodega
+- [x] 07-01: Figma — Bodegas: Lista, Nueva Bodega, Detalle Bodega
 - [ ] 07-02: Figma — Ubicaciones: Lista en Bodega, Nueva Ubicación, Detalle Ubicación
 - [ ] 07-03: Figma — Inventario: Lista de Ítems, Nuevo Ítem, Stock Total, Resumen por Producto
 - [ ] 07-04: Figma — Transferencias: Lista, Nueva Transferencia (estados pending/completed/cancelled)
