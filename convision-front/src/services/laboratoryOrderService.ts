@@ -7,15 +7,11 @@ export interface LaboratoryOrder {
   sale_id: number | null;
   laboratory_id: number;
   patient_id: number;
-  status: 'pending' | 'crm_registered' | 'in_process' | 'sent_to_lab' | 'in_transit' | 'received_from_lab' | 'in_quality' | 'ready_for_delivery' | 'portfolio' | 'delivered' | 'in_collection' | 'collection_follow_up' | 'closed' | 'cancelled';
+  status: 'pending' | 'in_process' | 'sent_to_lab' | 'ready_for_delivery' | 'delivered' | 'cancelled';
   priority: 'low' | 'normal' | 'high' | 'urgent';
   estimated_completion_date: string | null;
   completion_date: string | null;
   notes: string | null;
-  description?: string | null;
-  product_code?: string | null;
-  lens_type?: string | null;
-  drawer_number?: string | null;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -81,7 +77,6 @@ export interface LaboratoryOrder {
   }>;
   pdf_token?: string;
   guest_pdf_url?: string;
-  evidence?: LaboratoryOrderEvidence[];
 }
 
 export interface LaboratoryOrderFilterParams {
@@ -90,7 +85,6 @@ export interface LaboratoryOrderFilterParams {
   patient_id?: number;
   priority?: string;
   search?: string;
-  overdue?: string;
   page?: number;
   per_page?: number;
   sort_field?: string;
@@ -99,20 +93,11 @@ export interface LaboratoryOrderFilterParams {
 
 export interface LaboratoryOrderStats {
   total: number;
-  overdue: number;
   pending: number;
-  crm_registered: number;
   in_process: number;
   sent_to_lab: number;
-  in_transit: number;
-  received_from_lab: number;
-  in_quality: number;
-  portfolio: number;
   ready_for_delivery: number;
   delivered: number;
-  in_collection: number;
-  collection_follow_up: number;
-  closed: number;
   cancelled: number;
 }
 
@@ -125,9 +110,6 @@ export interface CreateLaboratoryOrderRequest {
   priority?: string;
   estimated_completion_date?: string | null;
   notes?: string | null;
-  description?: string | null;
-  product_code?: string | null;
-  lens_type?: string | null;
 }
 
 export interface UpdateLaboratoryOrderStatusRequest {
@@ -135,51 +117,89 @@ export interface UpdateLaboratoryOrderStatusRequest {
   notes?: string;
 }
 
-export type LaboratoryEvidenceTransition = 'sent_to_lab' | 'received_from_lab';
-
-export interface LaboratoryOrderEvidence {
-  id: number;
-  laboratory_order_id: number;
-  transition_type: LaboratoryEvidenceTransition;
-  image_url: string;
-  filename: string;
-  uploaded_by?: number | null;
-  created_at: string;
-  user?: { id: number; name: string } | null;
-}
-
 const laboratoryOrderService = {
+  /**
+   * Get all laboratory orders with optional filtering
+   */
   async getLaboratoryOrders(params: LaboratoryOrderFilterParams = {}) {
+    // Build s_f and s_v arrays for all filters
+    const searchFields: string[] = [];
+    const searchValues: string[] = [];
+
+    if (params.status && params.status !== 'all') {
+      searchFields.push('status');
+      searchValues.push(params.status);
+    }
+    if (params.laboratory_id) {
+      searchFields.push('laboratory_id');
+      searchValues.push(params.laboratory_id.toString());
+    }
+    if (params.patient_id) {
+      searchFields.push('patient_id');
+      searchValues.push(params.patient_id.toString());
+    }
+    if (params.priority && params.priority !== 'all') {
+      searchFields.push('priority');
+      searchValues.push(params.priority);
+    }
+    if (params.search && params.search.trim() !== '') {
+      // You can add more fields for search if needed (e.g., patient.name)
+      searchFields.push('order_number');
+      searchValues.push(params.search.trim());
+    }
+
+    // Build query params
     const query: Record<string, string | number> = {
       page: params.page || 1,
       per_page: params.per_page || 10,
     };
-    if (params.status && params.status !== 'all') {
-      query.status = params.status;
+    if (searchFields.length > 0) {
+      query.s_f = JSON.stringify(searchFields);
+      query.s_v = JSON.stringify(searchValues);
     }
-    if (params.priority && params.priority !== 'all') {
-      query.priority = params.priority;
-    }
-    if (params.laboratory_id) {
-      query.laboratory_id = params.laboratory_id;
-    }
-    if (params.patient_id) {
-      query.patient_id = params.patient_id;
-    }
-    if (params.search && params.search.trim() !== '') {
-      query.search = params.search.trim();
-    }
+    // Sorting
     if (params.sort_field) {
       query.sort = `${params.sort_field},${params.sort_direction || 'desc'}`;
     }
-    if (params.overdue === 'true') {
-      query.overdue = 'true';
-    }
 
-    const response = await api.get('/api/v1/laboratory-orders', { params: query });
-    return response.data;
+    try {
+      console.log('Debug - API request params:', query);
+      
+      const response = await api.get('/api/v1/laboratory-orders', { params: query });
+      
+      console.log('Debug - Raw API response:', response);
+      console.log('Debug - API response data:', response.data);
+      
+      // Ensure proper data mapping
+      if (response.data && Array.isArray(response.data.data)) {
+        // Make sure all objects have the expected relationships
+        response.data.data = response.data.data.map((order: LaboratoryOrder) => {
+          // Ensure laboratory is initialized properly
+          if (order.laboratory_id && !order.laboratory) {
+            console.log('Debug - Missing laboratory object for ID:', order.laboratory_id);
+          }
+          
+          // Ensure patient is initialized properly
+          if (order.patient_id && !order.patient) {
+            console.log('Debug - Missing patient object for ID:', order.patient_id);
+          }
+          
+          return order;
+        });
+        
+        console.log('Debug - Processed data:', response.data.data);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Debug - Error fetching laboratory orders:', error);
+      throw error;
+    }
   },
 
+  /**
+   * Get a single laboratory order by ID
+   */
   async getLaboratoryOrder(id: number) {
     const response = await api.get(`/api/v1/laboratory-orders/${id}`);
     type RawStatusHistory = {
@@ -201,9 +221,6 @@ const laboratoryOrderService = {
       estimated_completion_date?: string | null;
       completion_date?: string | null;
       notes?: string | null;
-      description?: string | null;
-      product_code?: string | null;
-      lens_type?: string | null;
       created_by: number;
       created_at: string;
       updated_at: string;
@@ -215,7 +232,6 @@ const laboratoryOrderService = {
       status_history?: RawStatusHistory[];
       pdf_token?: string;
       guest_pdf_url?: string;
-      evidence?: LaboratoryOrderEvidence[];
     };
     const wrapped = response.data as { data?: RawOrder } | RawOrder;
     const raw: RawOrder = (wrapped as { data?: RawOrder }).data ?? (wrapped as RawOrder);
@@ -231,9 +247,6 @@ const laboratoryOrderService = {
       estimated_completion_date: raw.estimated_completion_date ?? null,
       completion_date: raw.completion_date ?? null,
       notes: raw.notes ?? null,
-      description: raw.description ?? null,
-      product_code: raw.product_code ?? null,
-      lens_type: raw.lens_type ?? null,
       created_by: raw.created_by,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
@@ -242,68 +255,59 @@ const laboratoryOrderService = {
       order: raw.order,
       sale: raw.sale,
       createdBy: raw.created_by_user ?? undefined,
-      statusHistory: raw.status_history as LaboratoryOrder['statusHistory'],
+      statusHistory: raw.status_history as any,
       pdf_token: raw.pdf_token,
       guest_pdf_url: raw.guest_pdf_url,
-      evidence: raw.evidence,
     };
     return normalized;
   },
 
+  /**
+   * Create a new laboratory order
+   */
   async createLaboratoryOrder(data: CreateLaboratoryOrderRequest) {
     const response = await api.post('/api/v1/laboratory-orders', data);
     return response.data;
   },
 
+  /**
+   * Update an existing laboratory order
+   */
   async updateLaboratoryOrder(id: number, data: Partial<CreateLaboratoryOrderRequest>) {
     const response = await api.put(`/api/v1/laboratory-orders/${id}`, data);
     return response.data;
   },
 
+  /**
+   * Update laboratory order status
+   */
   async updateLaboratoryOrderStatus(id: number, data: UpdateLaboratoryOrderStatusRequest) {
     const response = await api.post(`/api/v1/laboratory-orders/${id}/status`, data);
     return response.data;
   },
 
+  /**
+   * Delete a laboratory order
+   */
   async deleteLaboratoryOrder(id: number) {
     const response = await api.delete(`/api/v1/laboratory-orders/${id}`);
     return response.data;
   },
 
+  /**
+   * Get laboratory order statistics
+   */
   async getLaboratoryOrderStats() {
     const response = await api.get('/api/v1/laboratory-orders/stats');
     return (response.data?.data ?? response.data) as LaboratoryOrderStats;
   },
 
+  /**
+   * Get a laboratory order PDF download URL with token that can be shared
+   */
   getLaboratoryOrderPdfUrl(laboratoryOrderId: number, pdfToken: string): string {
     return `${import.meta.env.VITE_API_URL}/api/v1/guest/laboratory-orders/${laboratoryOrderId}/pdf?token=${pdfToken}`;
-  },
-
-  async uploadLaboratoryOrderEvidence(
-    orderId: number,
-    transitionType: LaboratoryEvidenceTransition,
-    file: File | Blob,
-    filename = 'evidence.jpg'
-  ): Promise<LaboratoryOrderEvidence> {
-    const form = new FormData();
-    form.append('type', transitionType);
-    if (file instanceof File) {
-      form.append('image', file);
-    } else {
-      form.append('image', file, filename);
-    }
-    const { data } = await api.post<LaboratoryOrderEvidence>(`/api/v1/laboratory-orders/${orderId}/evidence`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return data;
-  },
-
-  async getLaboratoryOrderEvidence(orderId: number, type?: LaboratoryEvidenceTransition): Promise<LaboratoryOrderEvidence[]> {
-    const { data } = await api.get<{ data: LaboratoryOrderEvidence[] }>(`/api/v1/laboratory-orders/${orderId}/evidence`, {
-      params: type ? { type } : {},
-    });
-    return data.data ?? [];
-  },
+  }
 };
 
 export { laboratoryOrderService }; 

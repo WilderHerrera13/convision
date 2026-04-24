@@ -160,7 +160,7 @@ const SpecialistManagementReportDetalle: React.FC = () => {
                   <td className="px-4 py-3">
                     <TypeBadge type={rec.consultation_type} />
                   </td>
-                  <td className="px-4 py-3 text-[#7d7d87]">Sede Principal</td>
+                  <td className="px-4 py-3 text-[#7d7d87]">—</td>
                   <td className="px-4 py-3 text-[#7d7d87] max-w-[400px]">
                     <span className="line-clamp-2 text-[12px]">{rec.report_notes || '—'}</span>
                   </td>

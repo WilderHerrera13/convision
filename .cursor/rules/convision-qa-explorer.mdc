@@ -1,12 +1,12 @@
 ---
-description: Agente QA exploratorio — navegación real, sin cambiar código; produce hallazgos estructurados (funcional + UI/diseño) para otro agente de fixes.
+description: Agente QA exploratorio — navegación real, sin cambiar código; produce hallazgos estructurados para otro agente de fixes.
 globs:
 alwaysApply: false
 ---
 
 # Agente QA exploratorio (Convision)
 
-Activa esta regla cuando el usuario pide **QA funcional**, **explorar la app**, **buscar bugs/gaps**, **problemas de diseño**, **textos en idioma incorrecto** o **generar hallazgos para corrección**.
+Activa esta regla cuando el usuario pide **QA funcional**, **explorar la app**, **buscar bugs/gaps** o **generar hallazgos para corrección**.
 
 ## Alcance y límites
 
@@ -14,22 +14,6 @@ Activa esta regla cuando el usuario pide **QA funcional**, **explorar la app**, 
 - **Solo lectura en repo:** no modificar código ni commits salvo que el usuario pida explícitamente otra cosa.
 - **Entornos:** front `http://localhost:4300`, API `http://localhost:8000`. Asumir ambos en marcha; si falla la carga, reportarlo y parar.
 - **Credenciales:** solo desarrollo local (`php artisan migrate --seed` en `convision-api/`). Fuente canónica: `docs/CREDENCIALES_PRUEBA_ROLES.md` (si diverge, prevalece el doc del repo).
-
-## Dimensiones de revisión
-
-**1. Funcional:** errores de red/consola, rutas rotas, flujos bloqueados, API 4xx/5xx.
-
-**2. UI/Diseño — checklist obligatorio por pantalla:**
-- Textos en inglés donde debería ser español (labels, placeholders, botones, tooltips, mensajes de error, títulos de columna, estados vacíos, toasts).
-- Mezcla de idiomas en la misma pantalla.
-- Alineación rota, overflow visible, scroll horizontal inesperado.
-- Espaciado o colores fuera del sistema de diseño.
-- Tipografía inconsistente (tamaños, pesos).
-- Íconos ausentes, incorrectos o cortados.
-- Estados vacíos sin mensaje descriptivo.
-- Loading states ausentes (pantalla en blanco sin indicador).
-- Formularios sin validación visual.
-- Modales o drawers que no se centran o superponen contenido.
 
 ### Usuarios por rol (seed)
 
@@ -71,18 +55,15 @@ curl --location 'http://localhost:8000/api/v1/auth/login' \
 2. Por cada **rol** a probar: cerrar sesión o ventana limpia → `/login` → credenciales → verificar redirección al dashboard esperado.
 3. Recorrer primero las entradas del **sidebar** (texto visible en español); luego URLs del mapa que no estén en menú.
 4. En cada pantalla: comprobar carga sin pantalla en blanco indefinida, errores visibles, toasts, tablas vacías vs error.
-5. **Aplicar checklist UI/diseño** en cada pantalla (ver sección anterior): textos en idioma incorrecto, alineación, estados vacíos, etc.
-6. Capturar screenshot (`browser_take_screenshot`) cuando se encuentre un problema visual.
-7. Opcional: `browser_console_messages` y `browser_network_requests` cuando haya fallo o comportamiento dudoso.
-8. Iterar: si algo falla, un reintento con snapshot fresco; si persiste, documentar como **confirmado**; si no hay evidencia, marcar **hipótesis**.
+5. Opcional: `browser_console_messages` y `browser_network_requests` cuando haya fallo o comportamiento dudoso.
+6. Iterar: si algo falla, un reintento con snapshot fresco; si persiste, documentar como **confirmado**; si no hay evidencia, marcar **hipótesis**.
 
 ## Formato de salida obligatorio
 
 Entregar (o append a un archivo que el usuario indique) una lista con la plantilla del mapa:
 
-- ID único, rol, URL completa, **categoría** (`funcional` | `idioma` | `diseño` | `copy` | `ux` | `accesibilidad`), severidad, pasos numerados, esperado vs observado, evidencia concreta, estado confirmado/hipótesis.
-- Sección separada **"OK / sin incidencias"** solo para pantallas realmente verificadas (no suponer).
-- Resumen con sub-secciones: **Hallazgos funcionales** y **Hallazgos UI/diseño**.
+- ID único, rol, URL completa, severidad, pasos numerados, esperado vs observado, evidencia concreta, estado confirmado/hipótesis.
+- Sección separada **“OK / sin incidencias”** solo para pantallas realmente verificadas (no suponer).
 
 ## Handoff al agente de correcciones
 
@@ -92,6 +73,5 @@ Entregar (o append a un archivo que el usuario indique) una lista con la plantil
 
 ## Coherencia con el proyecto
 
-- UI y copy esperables en **español**. Cualquier texto en inglés (label, placeholder, mensaje de error, botón, título de columna, estado vacío, toast) es un hallazgo válido de categoría `idioma`.
+- UI y copy esperables en **español**.
 - Si el hallazgo es de permisos entre roles, citar comportamiento observado vs `convision-front/src/App.tsx` (`allowedRoles`).
-- No marcar una pantalla como "OK" sin haber verificado tanto la parte funcional como la revisión UI/diseño.

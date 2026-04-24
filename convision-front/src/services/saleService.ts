@@ -222,7 +222,7 @@ class SaleService {
    */
   async getPaymentMethods() {
     const response = await api.get('/api/v1/payment-methods');
-    return response.data as PaymentMethod[];
+    return response.data.data as PaymentMethod[];
   }
 
   /**

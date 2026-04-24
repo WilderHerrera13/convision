@@ -96,7 +96,7 @@ const SaleDetail: React.FC = () => {
   const fetchPaymentMethods = async () => {
     try {
       const methods = await saleService.getPaymentMethods();
-      setPaymentMethods(Array.isArray(methods) ? methods : []);
+      setPaymentMethods(methods);
     } catch (error) {
       console.error('Error fetching payment methods:', error);
     }
@@ -105,7 +105,7 @@ const SaleDetail: React.FC = () => {
   const handleAddPayment = () => {
     if (!sale) return;
     
-    setPaymentAmount((sale.balance ?? 0).toString());
+    setPaymentAmount(sale.balance.toString());
     setPaymentDate(safeDateFormat(new Date(), 'yyyy-MM-dd'));
     setPaymentMethod('');
     setPaymentReference('');
@@ -414,24 +414,15 @@ const SaleDetail: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Array.isArray(sale.items) && sale.items.length > 0 ? (
-                    sale.items.map((item, index) => {
-                      const itemAny = item as Record<string, unknown>;
-                      const desc = (item as { description?: string; notes?: string }).description
-                        || (itemAny.notes as string)
-                        || (itemAny.product as { description?: string } | undefined)?.description
-                        || '—';
-                      const unitPrice = (item as { unit_price?: number; price?: number }).unit_price
-                        ?? (itemAny.price as number | undefined);
-                      return (
-                        <TableRow key={index}>
-                          <TableCell>{desc}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(unitPrice)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
-                        </TableRow>
-                      );
-                    })
+                  {sale.items && sale.items.length > 0 ? (
+                    sale.items.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
+                      </TableRow>
+                    ))
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-6">
@@ -458,11 +449,11 @@ const SaleDetail: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Array.isArray(sale.payments) && sale.payments.length > 0 ? (
+                  {sale.payments && sale.payments.length > 0 ? (
                     sale.payments.map((payment, index) => (
                       <TableRow key={index}>
                         <TableCell>{safeDateFormat(payment.payment_date)}</TableCell>
-                        <TableCell>{payment.payment_method?.name ?? '—'}</TableCell>
+                        <TableCell>{payment.payment_method.name}</TableCell>
                         <TableCell>{payment.reference_number || '—'}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(payment.amount)}</TableCell>
                       </TableRow>
@@ -502,7 +493,7 @@ const SaleDetail: React.FC = () => {
                   <SelectValue placeholder="Seleccionar método de pago" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Array.isArray(paymentMethods) ? paymentMethods : []).map((method) => (
+                  {paymentMethods.map((method) => (
                     <SelectItem key={method.id} value={method.id.toString()}>
                       {method.name}
                     </SelectItem>

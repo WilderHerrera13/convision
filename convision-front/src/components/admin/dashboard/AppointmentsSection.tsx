@@ -4,7 +4,6 @@ import { Eye, ArrowRightLeft, XCircle, Search, SlidersHorizontal, X } from 'luci
 import { cn, parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import { appointmentsService } from '@/services/appointmentsService';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import AppointmentFilterModal, { AppointmentFilters } from './AppointmentFilterModal';
 
 type Appointment = {
@@ -131,7 +130,7 @@ const AppointmentsSection: React.FC<Props> = ({ basePath = '/admin' }) => {
 
   const dateLabel = hasActiveFilters && (filters.startDate || filters.endDate)
     ? `${filters.startDate || '...'} → ${filters.endDate || '...'}`
-    : format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
+    : format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy");
 
   return (
     <>

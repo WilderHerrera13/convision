@@ -34,10 +34,6 @@ export interface Lens {
     id: number;
     name: string;
   };
-  lens_type?: {
-    id: number;
-    name: string;
-  };
   brand?: {
     id: number;
     name: string;
@@ -89,7 +85,6 @@ export interface LensSearchParams {
   perPage?: number;
   sortField?: string;
   sortDirection?: string;
-  categorySlug?: string;
 }
 
 interface PaginatedResponse<T> {
@@ -190,11 +185,9 @@ class LensService {
     const searchFields: string[] = []; 
     const searchValues: string[] = []; 
     
-    // Filter by category slug when specified; omit filter when 'all' is selected
-    if (params.categorySlug) {
-      searchFields.push('category.slug');
-      searchValues.push(params.categorySlug);
-    }
+    // Always filter by lens category - this is handled by ApiFilterable's dot notation
+    searchFields.push('category.slug');
+    searchValues.push('lens');
     
     // Add direct filter params that are actual columns on products table
     if (params.brandId) {

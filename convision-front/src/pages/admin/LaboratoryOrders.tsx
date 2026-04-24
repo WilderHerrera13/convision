@@ -1,646 +1,591 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Eye, Pencil, Trash2, Plus, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { laboratoryOrderService, LaboratoryOrder, LaboratoryOrderStats } from '@/services/laboratoryOrderService';
-import { laboratoryService, Laboratory } from '@/services/laboratoryService';
-import { cn, formatDate } from '@/lib/utils';
-import { useDebounce } from '@/hooks/useDebounce';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from '@/components/ui/use-toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import {
-  LAB_ORDER_PRIORITY_LABELS,
-  LAB_ORDER_PRIORITY_TOKENS,
-  LAB_ORDER_STATUS_LABELS,
-  LAB_ORDER_STATUS_TOKENS,
-  LabOrderPriority,
-  LabOrderStatus,
-} from '@/constants/laboratoryOrderStatus';
+import { format } from 'date-fns';
+import { 
+  Search, 
+  Plus, 
+  Filter, 
+  MoreVertical, 
+  Download, 
+  FileText, 
+  Calendar, 
+  Clock, 
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Eye,
+  ArrowUpDown,
+  Truck,
+  Loader,
+  Package
+} from 'lucide-react';
+import { laboratoryOrderService, LaboratoryOrder, LaboratoryOrderFilterParams, LaboratoryOrderStats } from '@/services/laboratoryOrderService';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatDate } from '@/lib/utils';
+import { Laboratory } from '@/services/laboratoryService';
+import { laboratoryService } from '@/services/laboratoryService';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { useDebounce } from '@/hooks/useDebounce.ts';
+import PageLayout from '@/components/layouts/PageLayout';
+import { CellContext } from '@tanstack/react-table';
 
-type StatCard = {
-  key: string;
-  label: string;
-  value: number;
-  valueColor: string;
+interface BadgeVariantProps {
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' | 'info';
+}
+
+// Map status to badge colors
+const getStatusBadge = (status: string) => {
+  const statusMap: Record<string, BadgeVariantProps['variant']> = {
+    'pending': 'warning',
+    'in_process': 'info',
+    'sent_to_lab': 'secondary',
+    'ready_for_delivery': 'success',
+    'delivered': 'success',
+    'cancelled': 'destructive',
+  };
+  
+  return statusMap[status] || 'default';
 };
 
-interface StatsCardsProps {
-  stats: LaboratoryOrderStats | null;
-}
+// Map status to human readable text
+const getStatusText = (status: string) => {
+  const statusMap: Record<string, string> = {
+    'pending': 'Pendiente',
+    'in_process': 'En proceso',
+    'sent_to_lab': 'Enviado a laboratorio',
+    'ready_for_delivery': 'Listo para entregar',
+    'delivered': 'Entregado',
+    'cancelled': 'Cancelado',
+  };
+  
+  return statusMap[status] || status;
+};
 
-function StatsCards({ stats }: StatsCardsProps) {
-  const cards: StatCard[] = [
-    { key: 'total', label: 'Total', value: stats?.total ?? 0, valueColor: '#0f0f12' },
-    { key: 'pending', label: 'Pendientes', value: stats?.pending ?? 0, valueColor: '#b57218' },
-    { key: 'in_transit', label: 'En tránsito', value: stats?.in_transit ?? 0, valueColor: '#0e7490' },
-    { key: 'in_quality', label: 'En calidad', value: stats?.in_quality ?? 0, valueColor: '#4338ca' },
-    { key: 'ready_for_delivery', label: 'Listos', value: stats?.ready_for_delivery ?? 0, valueColor: '#0f8f64' },
-  ];
+// Map priority to badge colors
+const getPriorityBadge = (priority: string) => {
+  const priorityMap: Record<string, BadgeVariantProps['variant']> = {
+    'low': 'outline',
+    'normal': 'default',
+    'high': 'warning',
+    'urgent': 'destructive',
+  };
+  
+  return priorityMap[priority] || 'default';
+};
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.key}
-          className="bg-white rounded-[10px] border border-[#ebebee] px-5 py-4"
-        >
-          <p className="text-[12px] font-medium text-[#7d7d87]">{card.label}</p>
-          <p
-            className="text-[28px] font-bold leading-tight mt-1"
-            style={{ color: card.valueColor }}
-          >
-            {card.value}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-interface FiltersProps {
-  statusFilter: string;
-  priorityFilter: string;
-  laboratoryFilter: number | undefined;
-  sedeFilter: string;
-  periodoFilter: string;
-  laboratories: Laboratory[];
-  onStatusChange: (v: string) => void;
-  onPriorityChange: (v: string) => void;
-  onLaboratoryChange: (v: number | undefined) => void;
-  onSedeChange: (v: string) => void;
-  onPeriodoChange: (v: string) => void;
-  onClear: () => void;
-  activeFilterCount: number;
-}
-
-function FilterSelect({
-  label,
-  value,
-  display,
-  onValueChange,
-  children,
-  width = 'w-44',
-  active = false,
-}: {
-  label: string;
-  value: string;
-  display: string;
-  onValueChange: (v: string) => void;
-  children: React.ReactNode;
-  width?: string;
-  active?: boolean;
-}) {
-  return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger
-        className={cn(
-          width,
-          'h-[52px] flex flex-col items-start justify-center gap-0.5 px-3 py-1.5 bg-white border-[#e5e5e9] text-left',
-          active && 'border-[#3a71f7]',
-        )}
-      >
-        <span className="text-[10px] text-[#7d7d87] leading-none font-medium">{label}</span>
-        <span
-          className={cn(
-            'text-[13px] font-semibold leading-none truncate w-full',
-            active ? 'text-[#3a71f7]' : 'text-[#0f0f12]',
-          )}
-        >
-          {display}
-        </span>
-      </SelectTrigger>
-      <SelectContent>{children}</SelectContent>
-    </Select>
-  );
-}
-
-function LabOrdersFilters({
-  statusFilter,
-  priorityFilter,
-  laboratoryFilter,
-  sedeFilter,
-  periodoFilter,
-  laboratories,
-  onStatusChange,
-  onPriorityChange,
-  onLaboratoryChange,
-  onSedeChange,
-  onPeriodoChange,
-  onClear,
-  activeFilterCount,
-}: FiltersProps) {
-  const sedeDisplay = sedeFilter || 'Todas las sedes';
-  const statusDisplay = statusFilter ? LAB_ORDER_STATUS_LABELS[statusFilter as LabOrderStatus] ?? statusFilter : 'Todos';
-  const priorityDisplay = priorityFilter
-    ? LAB_ORDER_PRIORITY_LABELS[priorityFilter as LabOrderPriority] ?? priorityFilter
-    : 'Todas';
-  const labDisplay = laboratoryFilter
-    ? laboratories.find((l) => l.id === laboratoryFilter)?.name ?? '—'
-    : 'Todos';
-  const periodoDisplay = (() => {
-    if (!periodoFilter) return 'Últimos 30 días';
-    const map: Record<string, string> = {
-      today: 'Hoy',
-      week: 'Esta semana',
-      month: 'Este mes',
-      last_month: 'Mes anterior',
-    };
-    return map[periodoFilter] ?? periodoFilter;
-  })();
-
-  return (
-    <div className="flex flex-wrap gap-3 items-center bg-white rounded-[10px] border border-[#ebebee] px-4 py-3">
-      <FilterSelect
-        label="Sede"
-        value={sedeFilter || 'all'}
-        display={sedeDisplay}
-        onValueChange={(v) => onSedeChange(v === 'all' ? '' : v)}
-        width="w-44"
-        active={!!sedeFilter}
-      >
-        <SelectItem value="all">Todas las sedes</SelectItem>
-        <SelectItem value="Sede Principal">Sede Principal</SelectItem>
-        <SelectItem value="Sede Norte">Sede Norte</SelectItem>
-        <SelectItem value="Sede Sur">Sede Sur</SelectItem>
-      </FilterSelect>
-
-      <FilterSelect
-        label="Estado"
-        value={statusFilter || 'all'}
-        display={statusDisplay}
-        onValueChange={(v) => onStatusChange(v === 'all' ? '' : v)}
-        width="w-48"
-        active={!!statusFilter}
-      >
-        <SelectItem value="all">Todos</SelectItem>
-        {(Object.keys(LAB_ORDER_STATUS_LABELS) as LabOrderStatus[]).map((s) => (
-          <SelectItem key={s} value={s}>
-            {LAB_ORDER_STATUS_LABELS[s]}
-          </SelectItem>
-        ))}
-      </FilterSelect>
-
-      <FilterSelect
-        label="Prioridad"
-        value={priorityFilter || 'all'}
-        display={priorityDisplay}
-        onValueChange={(v) => onPriorityChange(v === 'all' ? '' : v)}
-        width="w-40"
-        active={!!priorityFilter}
-      >
-        <SelectItem value="all">Todas</SelectItem>
-        {(Object.keys(LAB_ORDER_PRIORITY_LABELS) as LabOrderPriority[]).map((p) => (
-          <SelectItem key={p} value={p}>
-            {LAB_ORDER_PRIORITY_LABELS[p]}
-          </SelectItem>
-        ))}
-      </FilterSelect>
-
-      <FilterSelect
-        label="Laboratorio"
-        value={laboratoryFilter ? String(laboratoryFilter) : 'all'}
-        display={labDisplay}
-        onValueChange={(v) => onLaboratoryChange(v === 'all' ? undefined : Number(v))}
-        width="w-52"
-        active={!!laboratoryFilter}
-      >
-        <SelectItem value="all">Todos</SelectItem>
-        {laboratories.map((lab) => (
-          <SelectItem key={lab.id} value={String(lab.id)}>
-            {lab.name}
-          </SelectItem>
-        ))}
-      </FilterSelect>
-
-      <FilterSelect
-        label="Periodo"
-        value={periodoFilter || 'all'}
-        display={periodoDisplay}
-        onValueChange={(v) => onPeriodoChange(v === 'all' ? '' : v)}
-        width="w-44"
-        active={!!periodoFilter}
-      >
-        <SelectItem value="all">Últimos 30 días</SelectItem>
-        <SelectItem value="today">Hoy</SelectItem>
-        <SelectItem value="week">Esta semana</SelectItem>
-        <SelectItem value="month">Este mes</SelectItem>
-        <SelectItem value="last_month">Mes anterior</SelectItem>
-      </FilterSelect>
-
-      {activeFilterCount > 0 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-[#7d7d87] hover:text-[#0f0f12] h-9 ml-auto"
-          onClick={onClear}
-        >
-          × Limpiar filtros
-        </Button>
-      )}
-    </div>
-  );
-}
-
-interface EmptyStateProps {
-  hasFilters: boolean;
-  onClear: () => void;
-  onCreate: () => void;
-}
-
-function EmptyState({ hasFilters, onClear, onCreate }: EmptyStateProps) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-      <div className="w-16 h-16 rounded-full bg-[#eff1ff] flex items-center justify-center mb-4 ring-4 ring-[#f5f7ff]">
-        <Filter className="w-7 h-7 text-[#3a71f7]" />
-      </div>
-      {hasFilters ? (
-        <>
-          <h3 className="text-[15px] font-semibold text-[#0f0f12] mb-1">No hay resultados</h3>
-          <p className="text-[12px] text-[#7d7d87] max-w-sm mb-4">
-            Ninguna orden coincide con los filtros aplicados. Ajusta los filtros o límpialos para ver todos los resultados.
-          </p>
-          <Button onClick={onClear} className="bg-[#3a71f7] hover:bg-[#2558d4] text-white">
-            Limpiar filtros
-          </Button>
-          <p className="text-[12px] text-[#3a71f7] mt-3 underline-offset-2 underline">
-            Prueba con menos filtros activos.
-          </p>
-        </>
-      ) : (
-        <>
-          <h3 className="text-[15px] font-semibold text-[#0f0f12] mb-1">Sin órdenes registradas</h3>
-          <p className="text-[12px] text-[#7d7d87] max-w-sm mb-4">
-            Aún no has registrado órdenes de laboratorio. Empieza creando la primera.
-          </p>
-          <Button onClick={onCreate} className="bg-[#3a71f7] hover:bg-[#2558d4] text-white">
-            Crear orden
-          </Button>
-          <p className="text-[12px] text-[#3a71f7] mt-3 underline-offset-2 underline">
-            Las órdenes nuevas aparecerán aquí.
-          </p>
-        </>
-      )}
-    </div>
-  );
-}
+// Map priority to human readable text
+const getPriorityText = (priority: string) => {
+  const priorityMap: Record<string, string> = {
+    'low': 'Baja',
+    'normal': 'Normal',
+    'high': 'Alta',
+    'urgent': 'Urgente',
+  };
+  
+  return priorityMap[priority] || priority;
+};
 
 const LaboratoryOrders: React.FC = () => {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<LaboratoryOrder[]>([]);
+  const { user } = useAuth();
+  const [laboratoryOrders, setLaboratoryOrders] = useState<LaboratoryOrder[]>([]);
   const [stats, setStats] = useState<LaboratoryOrderStats | null>(null);
   const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [laboratoryFilter, setLaboratoryFilter] = useState<number | undefined>(undefined);
-  const [sedeFilter, setSedeFilter] = useState('');
-  const [periodoFilter, setPeriodoFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
-  const debouncedSearch = useDebounce(search, 400);
+  const [perPage, setPerPage] = useState(10);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [currentLaboratoryOrder, setCurrentLaboratoryOrder] = useState<LaboratoryOrder | null>(null);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusNotes, setStatusNotes] = useState('');
+  
+  // Filters
+  const [filters, setFilters] = useState<LaboratoryOrderFilterParams>({
+    status: '',
+    laboratory_id: undefined,
+    patient_id: undefined,
+    priority: '',
+    search: '',
+    page: 1,
+    per_page: 10,
+    sort_field: 'created_at',
+    sort_direction: 'desc'
+  });
 
-  const activeFilterCount = [
-    statusFilter,
-    priorityFilter,
-    laboratoryFilter ? String(laboratoryFilter) : '',
-    sedeFilter,
-    periodoFilter,
-  ].filter(Boolean).length;
+  // Debounce the filters to prevent too many API calls
+  const debouncedFilters = useDebounce(filters, 500);
 
-  const clearFilters = () => {
-    setStatusFilter('');
-    setPriorityFilter('');
-    setLaboratoryFilter(undefined);
-    setSedeFilter('');
-    setPeriodoFilter('');
-    setSearch('');
-    setCurrentPage(1);
+  // Load initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setLoading(true);
+      try {
+        const [ordersResponse, statsData, labsResponse] = await Promise.all([
+          laboratoryOrderService.getLaboratoryOrders({
+            ...filters,
+            page: currentPage,
+            per_page: perPage
+          }),
+          laboratoryOrderService.getLaboratoryOrderStats(),
+          laboratoryService.getLaboratories()
+        ]);
+
+        setLaboratoryOrders(ordersResponse.data);
+        setCurrentPage(ordersResponse.current_page);
+        setTotalPages(ordersResponse.last_page);
+        setStats(statsData);
+        setLaboratories(labsResponse.data);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los datos iniciales.',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, []); // Only run on mount
+
+  // Handle filter changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          ...debouncedFilters,
+          page: currentPage,
+          per_page: perPage
+        };
+        
+        const [ordersResponse, statsData] = await Promise.all([
+          laboratoryOrderService.getLaboratoryOrders(params),
+          laboratoryOrderService.getLaboratoryOrderStats()
+        ]);
+
+        // Debug: Log what we received from the API
+        console.log('Laboratory orders API response:', ordersResponse);
+        console.log('Laboratory orders data:', ordersResponse.data);
+        
+        // Update state with the data received
+        setLaboratoryOrders(ordersResponse.data || []);
+        setCurrentPage(ordersResponse.current_page || 1);
+        setTotalPages(ordersResponse.last_page || 1);
+        setStats(statsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los datos.',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [debouncedFilters, currentPage, perPage]);
+
+  const handleSearch = (search: string) => {
+    setFilters(prev => ({
+      ...prev,
+      search
+    }));
   };
 
-  useEffect(() => {
-    laboratoryService.getActiveLaboratories().then(setLaboratories).catch(() => {});
-  }, []);
+  const handleFilterChange = (field: keyof LaboratoryOrderFilterParams, value: string | number | undefined) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value === 'all' ? '' : value
+    }));
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      laboratoryOrderService.getLaboratoryOrders({
-        status: statusFilter || undefined,
-        priority: priorityFilter || undefined,
-        laboratory_id: laboratoryFilter,
-        search: debouncedSearch || undefined,
-        page: currentPage,
-        per_page: 10,
-      }),
-      laboratoryOrderService.getLaboratoryOrderStats(),
-    ])
-      .then(([ordersResp, statsData]) => {
-        if (cancelled) return;
-        setOrders(ordersResp.data ?? []);
-        setTotalItems(ordersResp.total ?? ordersResp.meta?.total ?? 0);
-        setTotalPages(ordersResp.last_page ?? ordersResp.meta?.last_page ?? 1);
-        setStats(statsData);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        toast({ title: 'Error', description: 'No se pudieron cargar las órdenes.', variant: 'destructive' });
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [statusFilter, priorityFilter, laboratoryFilter, debouncedSearch, currentPage]);
+  const handleSort = (field: string) => {
+    setFilters(prev => ({
+      ...prev,
+      sort_field: field as keyof LaboratoryOrderFilterParams,
+      sort_direction: prev.sort_field === field ? (prev.sort_direction === 'asc' ? 'desc' : 'asc') : 'asc'
+    }));
+  };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const id = deleteTarget;
-    setDeleteTarget(null);
+  const handleStatusUpdate = async () => {
+    if (!currentLaboratoryOrder || !newStatus) {
+      return;
+    }
+    
     try {
-      await laboratoryOrderService.deleteLaboratoryOrder(id);
-      toast({ title: 'Orden eliminada', description: 'La orden fue eliminada exitosamente.' });
-      setCurrentPage(1);
-      setStatusFilter((s) => s);
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo eliminar la orden.', variant: 'destructive' });
+      await laboratoryOrderService.updateLaboratoryOrderStatus(currentLaboratoryOrder.id, {
+        status: newStatus,
+        notes: statusNotes
+      });
+      
+      toast({
+        title: 'Estado actualizado',
+        description: 'El estado de la orden de laboratorio ha sido actualizado con éxito.',
+        variant: 'default'
+      });
+      
+      // Reset and close modal
+      setCurrentLaboratoryOrder(null);
+      setNewStatus('');
+      setStatusNotes('');
+      setStatusModalOpen(false);
+      
+      // Refresh data by triggering a filter update
+      setFilters(prev => ({ ...prev }));
+      
+    } catch (error) {
+      console.error('Error updating laboratory order status:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el estado de la orden de laboratorio.',
+        variant: 'destructive'
+      });
     }
   };
 
-  const subtitleText = () => {
-    if (loading) return 'Cargando...';
-    if (orders.length === 0 && totalItems === 0 && activeFilterCount === 0 && !debouncedSearch) return '';
-    if (orders.length === 0) return 'Sin resultados';
-    if (activeFilterCount === 0 && !debouncedSearch) return `${totalItems} órdenes registradas`;
-    const filterWord = activeFilterCount === 1 ? '1 filtro activo' : `${activeFilterCount} filtros activos`;
-    return `Mostrando ${orders.length} de ${totalItems} órdenes (${filterWord})`;
+  const openStatusModal = (laboratoryOrder: LaboratoryOrder) => {
+    setCurrentLaboratoryOrder(laboratoryOrder);
+    setNewStatus(laboratoryOrder.status);
+    setStatusNotes('');
+    setStatusModalOpen(true);
   };
 
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * 10 + 1;
-  const endItem = Math.min(currentPage * 10, totalItems);
+  const clearFilters = () => {
+    setFilters({
+      status: '',
+      laboratory_id: undefined,
+      patient_id: undefined,
+      priority: '',
+      search: '',
+      page: 1,
+      per_page: perPage,
+      sort_field: 'created_at',
+      sort_direction: 'desc'
+    });
+  };
 
-  const isEmpty = orders.length === 0 && !loading;
+  const handleRowClick = (row: LaboratoryOrder) => {
+    navigate(`/admin/laboratory-orders/${row.id}`);
+  };
+
+  // Debug output
+  useEffect(() => {
+    console.log('Debug - Rendering with data:', { 
+      laboratoryOrders, 
+      loading, 
+      empty: !laboratoryOrders || laboratoryOrders.length === 0,
+      totalItems: laboratoryOrders?.length
+    });
+  }, [laboratoryOrders, loading]);
+
+  // Add extra debug logging for raw API response
+  useEffect(() => {
+    const checkApiResponse = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/laboratory-orders`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        console.log('Debug - Direct API fetch result:', data);
+        console.log('Debug - Nested data objects:', {
+          laboratoryName: data.data[0]?.laboratory?.name,
+          patientName: data.data[0]?.patient ? `${data.data[0].patient.first_name} ${data.data[0].patient.last_name}` : null,
+          status: data.data[0]?.status,
+          priority: data.data[0]?.priority
+        });
+      } catch (error) {
+        console.error('Debug - Error fetching directly:', error);
+      }
+    };
+    
+    checkApiResponse();
+  }, []);
+
+  // More detailed debug of laboratoryOrders
+  useEffect(() => {
+    if (laboratoryOrders && laboratoryOrders.length > 0) {
+      console.log('Debug - First laboratory order complete object:', laboratoryOrders[0]);
+      console.log('Debug - Laboratory object:', laboratoryOrders[0]?.laboratory);
+      console.log('Debug - Patient object:', laboratoryOrders[0]?.patient);
+    }
+  }, [laboratoryOrders]);
+
+  // Define columns for the DataTable
+  const columns: DataTableColumnDef<LaboratoryOrder>[] = [
+    {
+      id: "order_number",
+      header: "# Orden",
+      type: "text" as const,
+      accessorKey: "order_number",
+    },
+    {
+      id: "laboratory",
+      header: "Laboratorio",
+      type: "text" as const,
+      cell: (row) => row.laboratory?.name || '-'
+    },
+    {
+      id: "patient",
+      header: "Paciente",
+      type: "text" as const,
+      cell: (row) => (row.patient ? `${row.patient.first_name} ${row.patient.last_name}` : '-')
+    },
+    {
+      id: "status",
+      header: "Estado",
+      type: "status" as const,
+      accessorKey: "status",
+      cell: (row) => (
+        <Badge variant={getStatusBadge(row.status)}>
+          {getStatusText(row.status)}
+        </Badge>
+      )
+    },
+    {
+      id: "priority",
+      header: "Prioridad",
+      type: "status" as const,
+      accessorKey: "priority",
+      cell: (row) => (
+        <Badge variant={getPriorityBadge(row.priority)}>
+          {getPriorityText(row.priority)}
+        </Badge>
+      )
+    },
+    {
+      id: "created_at",
+      header: "Fecha",
+      type: "date" as const,
+      accessorKey: "created_at",
+      cell: (row) => (row.created_at ? formatDate(row.created_at) : '—')
+    },
+    {
+      id: "actions",
+      header: "Acciones",
+      type: "actions" as const,
+      cell: (row) => (
+        <div className="flex space-x-2 justify-end">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/admin/laboratory-orders/${row.id}`);
+            }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Ver
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              openStatusModal(row);
+            }}
+          >
+            <Package className="h-4 w-4 mr-1" />
+            Estado
+          </Button>
+          {row.pdf_token && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(
+                  laboratoryOrderService.getLaboratoryOrderPdfUrl(row.id, row.pdf_token), 
+                  '_blank'
+                );
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              PDF
+            </Button>
+          )}
+        </div>
+      )
+    }
+  ];
+
+  // Add additional debugging for columns and data matching
+  useEffect(() => {
+    if (laboratoryOrders && laboratoryOrders.length > 0) {
+      console.log('First laboratory order:', laboratoryOrders[0]);
+      console.log('Columns accessors:', columns.map(col => ({ 
+        id: col.id, 
+        accessorKey: col.accessorKey 
+      })));
+    }
+  }, [laboratoryOrders]);
 
   return (
-    <div className="p-6 space-y-5 bg-[#f5f5f6] min-h-full">
-      <div>
-        <p className="text-[12px] text-[#7d7d87] mb-1">
-          Administración / <span className="text-[#0f0f12] font-medium">Órdenes de Laboratorio</span>
-        </p>
-        <div className="flex items-center justify-between">
-          <h1 className="text-[20px] font-bold text-[#0f0f12]">Órdenes de Laboratorio</h1>
-          <Button
-            onClick={() => navigate('/admin/laboratory-orders/new')}
-            className="bg-[#3a71f7] hover:bg-[#2558d4] text-white h-10 px-4"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> Nueva Orden
-          </Button>
+    <PageLayout
+      title="Órdenes de Laboratorio"
+      actions={
+        <Button onClick={() => navigate('/admin/laboratory-orders/new')}>
+          <Plus className="mr-2 h-4 w-4" /> Nueva Orden
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.total ?? 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.pending ?? 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">En Proceso</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(stats.in_process ?? 0) + (stats.sent_to_lab ?? 0)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Listos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.ready_for_delivery ?? 0}</div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-
-      <StatsCards stats={stats} />
-
-      <LabOrdersFilters
-        statusFilter={statusFilter}
-        priorityFilter={priorityFilter}
-        laboratoryFilter={laboratoryFilter}
-        sedeFilter={sedeFilter}
-        periodoFilter={periodoFilter}
-        laboratories={laboratories}
-        onStatusChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
-        onPriorityChange={(v) => { setPriorityFilter(v); setCurrentPage(1); }}
-        onLaboratoryChange={(v) => { setLaboratoryFilter(v); setCurrentPage(1); }}
-        onSedeChange={(v) => { setSedeFilter(v); setCurrentPage(1); }}
-        onPeriodoChange={(v) => { setPeriodoFilter(v); setCurrentPage(1); }}
-        onClear={clearFilters}
-        activeFilterCount={activeFilterCount}
+      )}
+      
+      {/* Laboratory Orders Table using EntityTable */}
+      <EntityTable
+        columns={columns}
+        queryKeyBase="laboratory-orders"
+        fetcher={async ({ page, per_page, search }) => {
+          const resp = await laboratoryOrderService.getLaboratoryOrders({
+            ...filters,
+            page,
+            per_page,
+            search,
+          });
+          return resp;
+        }}
+        searchPlaceholder="Buscar orden..."
+        extraFilters={filters as any}
+        onRowClick={handleRowClick}
       />
-
-      <div className="bg-white rounded-[10px] border border-[#ebebee] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#f0f0f2]">
-          <div>
-            <h2 className="text-[15px] font-semibold text-[#0f0f12]">Órdenes de laboratorio</h2>
-            {subtitleText() && <p className="text-[12px] text-[#7d7d87] mt-0.5">{subtitleText()}</p>}
+      
+      {/* Status Update Modal */}
+      <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Actualizar Estado</DialogTitle>
+            <DialogDescription>
+              Cambiar el estado de la orden de laboratorio {currentLaboratoryOrder?.order_number}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Estado</label>
+              <Select 
+                value={newStatus}
+                onValueChange={setNewStatus}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="in_process">En proceso</SelectItem>
+                  <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
+                  <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
+                  <SelectItem value="delivered">Entregado</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right">Notas</label>
+              <Input
+                className="col-span-3"
+                placeholder="Notas de cambio de estado (opcional)"
+                value={statusNotes}
+                onChange={(e) => setStatusNotes(e.target.value)}
+              />
+            </div>
           </div>
-          <Input
-            className="w-72 h-9 text-[13px] border-[#e5e5e9]"
-            placeholder="Buscar por # o paciente..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          />
-        </div>
-
-        {isEmpty ? (
-          <EmptyState
-            hasFilters={activeFilterCount > 0 || !!debouncedSearch}
-            onClear={clearFilters}
-            onCreate={() => navigate('/admin/laboratory-orders/new')}
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-b border-[#f0f0f2]">
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase">
-                  # Orden
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase">
-                  Laboratorio
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase">
-                  Paciente
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase" style={{ width: 116 }}>
-                  Sede
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase">
-                  Estado
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase">
-                  Prioridad
-                </TableHead>
-                <TableHead className="text-[11px] font-semibold text-[#7d7d87] tracking-wider uppercase text-right">
-                  Acciones
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading
-                ? Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((__, j) => (
-                        <TableCell key={j}><div className="h-4 bg-[#f5f5f6] rounded animate-pulse" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                : orders.map((row) => {
-                    const ss = LAB_ORDER_STATUS_TOKENS[row.status as LabOrderStatus] ?? { bg: '#f1f2f6', text: '#5d5d67', dot: '#5d5d67' };
-                    const ps = LAB_ORDER_PRIORITY_TOKENS[row.priority as LabOrderPriority] ?? { bg: '#f1f2f6', text: '#5d5d67', dot: '#5d5d67' };
-                    const statusLabel = LAB_ORDER_STATUS_LABELS[row.status as LabOrderStatus] ?? row.status;
-                    const priorityLabel = LAB_ORDER_PRIORITY_LABELS[row.priority as LabOrderPriority] ?? row.priority;
-                    return (
-                      <TableRow
-                        key={row.id}
-                        className="hover:bg-[#fafafa] cursor-pointer border-b border-[#f5f5f6] last:border-0"
-                        onClick={() => navigate(`/admin/laboratory-orders/${row.id}`)}
-                      >
-                        <TableCell className="py-4">
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-semibold text-[#0f0f12]">{row.order_number}</span>
-                            <span className="text-[11px] text-[#7d7d87] mt-0.5">{formatDate(row.created_at)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-[13px] text-[#0f0f12]">{row.laboratory?.name ?? '—'}</TableCell>
-                        <TableCell className="text-[13px] text-[#0f0f12]">
-                          {row.patient ? `${row.patient.first_name} ${row.patient.last_name}` : '—'}
-                        </TableCell>
-                        <TableCell className="text-[13px] text-[#7d7d87]">
-                          {(row as LaboratoryOrder & { sede?: string }).sede ?? 'Sede Principal'}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            style={{ backgroundColor: ss.bg, color: ss.text }}
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                          >
-                            {statusLabel}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            style={{ color: ps.text }}
-                            className="text-[12px] font-semibold"
-                          >
-                            {priorityLabel}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/admin/laboratory-orders/${row.id}`)}
-                              className="h-8 w-8 rounded-md bg-[#eff1ff] hover:bg-[#dbe3ff] flex items-center justify-center transition-colors"
-                              aria-label="Ver detalle"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-[#3a71f7]" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/admin/laboratory-orders/${row.id}/edit`)}
-                              className="h-8 w-8 rounded-md bg-[#f5f5f6] hover:bg-[#ebebee] flex items-center justify-center transition-colors"
-                              aria-label="Editar"
-                            >
-                              <Pencil className="w-3.5 h-3.5 text-[#7d7d87]" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(row.id)}
-                              className="h-8 w-8 rounded-md bg-[#ffeeed] hover:bg-[#ffd9d6] flex items-center justify-center transition-colors"
-                              aria-label="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-[#b82626]" />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-            </TableBody>
-          </Table>
-        )}
-
-        {!loading && totalItems > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-[#f0f0f2]">
-            <p className="text-[12px] text-[#7d7d87]">
-              Mostrando <span className="font-semibold text-[#0f0f12]">{startItem}–{endItem}</span> de {totalItems} resultados
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="h-8 w-8 rounded-md border border-[#e5e5e9] flex items-center justify-center text-[#7d7d87] hover:bg-[#f5f5f6] disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Anterior"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                {(() => {
-                  const pages: number[] = [];
-                  const max = Math.min(totalPages, 5);
-                  for (let i = 1; i <= max; i++) pages.push(i);
-                  return pages.map((page) => (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={cn(
-                        'h-8 w-8 rounded-md text-[12px] font-semibold flex items-center justify-center',
-                        page === currentPage
-                          ? 'bg-[#0f0f12] text-white'
-                          : 'border border-[#e5e5e9] text-[#0f0f12] hover:bg-[#f5f5f6]',
-                      )}
-                    >
-                      {page}
-                    </button>
-                  ));
-                })()}
-                {totalPages > 5 && <span className="px-1 text-[12px] text-[#7d7d87]">...</span>}
-                {totalPages > 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(totalPages)}
-                    className={cn(
-                      'h-8 w-8 rounded-md text-[12px] font-semibold flex items-center justify-center',
-                      totalPages === currentPage
-                        ? 'bg-[#0f0f12] text-white'
-                        : 'border border-[#e5e5e9] text-[#0f0f12] hover:bg-[#f5f5f6]',
-                    )}
-                  >
-                    {totalPages}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="h-8 w-8 rounded-md border border-[#e5e5e9] flex items-center justify-center text-[#7d7d87] hover:bg-[#f5f5f6] disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Siguiente"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleStatusUpdate}>Actualizar Estado</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title="Eliminar orden"
-        description="Esta acción no se puede deshacer. ¿Estás seguro de eliminar esta orden de laboratorio?"
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
-        variant="danger"
-        onConfirm={handleDelete}
-      />
-    </div>
+    </PageLayout>
   );
 };
 
-export default LaboratoryOrders;
+export default LaboratoryOrders; 
