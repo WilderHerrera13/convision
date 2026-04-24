@@ -35,7 +35,7 @@ const adminNav: NavSection[] = [
     items: [
       { title: 'Ventas', path: '/admin/sales', icon: ShoppingCart },
       { title: 'Cotizaciones', path: '/admin/quotes', icon: FileText },
-      { title: 'Órdenes de Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen },
+      { title: 'Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen },
       { title: 'Órdenes de Arreglo', path: '/admin/service-orders', icon: Wrench },
       { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag },
     ],
@@ -78,6 +78,7 @@ const receptionistNav: NavSection[] = [
     items: [
       { title: 'Ventas', path: '/receptionist/sales', icon: ShoppingCart },
       { title: 'Cotizaciones', path: '/receptionist/quotes', icon: FileText },
+      { title: 'Órdenes de Laboratorio', path: '/receptionist/lab-orders', icon: FlaskConical },
       { title: 'Órdenes', path: '/receptionist/orders', icon: PackageOpen },
       { title: 'Descuentos', path: '/receptionist/discount-requests', icon: Tag },
     ],

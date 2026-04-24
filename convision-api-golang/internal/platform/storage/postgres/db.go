@@ -101,6 +101,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.Laboratory{},
 		&domain.LaboratoryOrder{},
 		&domain.LaboratoryOrderStatusEntry{},
+		&domain.LaboratoryOrderEvidence{},
 		// Commerce
 		&domain.Order{},
 		&domain.OrderItem{},

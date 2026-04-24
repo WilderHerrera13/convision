@@ -1,8 +1,8 @@
 ---
 name: "gsd-qa-explore"
-description: "Exploración QA funcional con navegador (Convision) — hallazgos estructurados para agente corrector"
+description: "Exploración QA funcional + diseño con navegador (Convision) — hallazgos estructurados para agente corrector"
 metadata:
-  short-description: "Browser QA exploration with structured FINDINGS output"
+  short-description: "Browser QA exploration (functional + UI/design) with structured FINDINGS output"
 ---
 
 Siempre reinicia el golang antes de empezar las validaciones.
@@ -47,8 +47,23 @@ Result parsing:
 - `close_agent(id)` after collecting results from each agent
 </codex_skill_adapter>
 
+<cursor_adapter>
+## Cursor execution notes
+- Browser tools available via MCP server `cursor-ide-browser`.
+- Use `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_mouse_click_xy`, `browser_fill`, `browser_type`, `browser_console_messages`, `browser_network_requests`.
+- After EVERY action that changes the page, call `browser_snapshot` before next action.
+- For screenshot-based coordinate clicks: capture fresh viewport screenshot immediately before `browser_mouse_click_xy`.
+- Sub-agents: use `Task(subagent_type="browser-use", ...)` or run inline if context allows.
+- Lock/unlock workflow: call `browser_lock({action:"lock"})` AFTER `browser_navigate`, BEFORE interactions; call `browser_lock({action:"unlock"})` when done.
+</cursor_adapter>
+
 <objective>
-Ejecutar exploración QA **en navegador** sobre Convision (login por rol, sidebar + rutas del mapa), documentar fallos/gaps con evidencia y producir un archivo **FINDINGS** listo para el agente corrector (regla `convision-qa-fixer`).
+Ejecutar exploración QA **en navegador** sobre Convision con dos dimensiones:
+
+1. **Funcional:** login por rol, sidebar + rutas del mapa, red/consola — detectar errores, pantallas rotas, flujos bloqueados.
+2. **UI/Diseño:** revisión visual de cada pantalla — detectar problemas de diseño (espaciado, alineación, colores, tipografía, responsividad), textos en idioma incorrecto (inglés u otro idioma donde debería ser español), copy inconsistente, labels confusos, íconos incorrectos, estados vacíos sin mensaje, y cualquier anomalía visual.
+
+Producir un archivo **FINDINGS** listo para el agente corrector (regla `convision-qa-fixer` o `convision-qa-gap-fixer`).
 
 No sustituye `/gsd-verify-work`: ese flujo es UAT conversacional por fase; este es smoke/exploración autónoma con MCP de navegador.
 </objective>
@@ -75,9 +90,60 @@ Contraseña común (seed local): **`password`**. Canónico: `docs/CREDENCIALES_P
 Argumentos: `{{GSD_ARGS}}`
 - Vacío → los tres roles estándar (admin, specialist, receptionist).
 - Un rol → solo ese rol (`admin`, `specialist`, `receptionist`).
+- `design` → foco en problemas UI/diseño, cubrir todos los roles.
 - Texto extra → nota de alcance (priorizar módulos mencionados).
 </context>
 
+<ui_design_checklist>
+En cada pantalla visitada, además de la revisión funcional, inspeccionar:
+
+**Idioma y copy:**
+- Textos en inglés donde debería ser español (labels, placeholders, botones, tooltips, mensajes de error, títulos de columnas, estados vacíos, toasts).
+- Mezcla de idiomas en la misma pantalla.
+- Terminología inconsistente entre pantallas del mismo módulo.
+- Mayúsculas/minúsculas inconsistentes en etiquetas.
+
+**Diseño visual:**
+- Alineación rota (elementos desalineados, overflow visible, scroll horizontal inesperado).
+- Espaciado inconsistente (padding/margin que difiere visualmente del resto de la app).
+- Colores fuera del sistema de diseño (botones con colores incorrectos, fondos, bordes).
+- Tipografía: tamaños de fuente inconsistentes, pesos incorrectos.
+- Íconos: ausentes donde se esperan, incorrectos para la acción, cortados.
+- Truncamiento de texto sin tooltip o con overflow.
+
+**Estados de la UI:**
+- Estados vacíos sin mensaje descriptivo (listas vacías que muestran solo una tabla sin filas y sin explicación).
+- Loading states ausentes (pantalla en blanco mientras carga).
+- Mensajes de error genéricos sin contexto accionable.
+- Formularios sin validación visual.
+
+**Responsividad / layout:**
+- Elementos que se rompen en viewports normales de desktop.
+- Sidebars/headers que se superponen al contenido.
+- Modales o drawers que no se centran correctamente.
+
+**Accesibilidad básica:**
+- Botones sin texto ni aria-label visible.
+- Campos de formulario sin label.
+- Colores de texto con contraste muy bajo.
+</ui_design_checklist>
+
+<findings_categories>
+Usar categoría adicional en cada hallazgo:
+- `funcional` — error de comportamiento, ruta rota, API 4xx/5xx.
+- `idioma` — texto en idioma incorrecto o mezcla de idiomas.
+- `diseño` — problema visual: layout, colores, tipografía, espaciado.
+- `copy` — texto confuso, inconsistente o incorrecto (no idioma, sino redacción).
+- `ux` — flujo confuso, estado vacío sin mensaje, feedback ausente.
+- `accesibilidad` — contraste, labels ausentes, navegación por teclado.
+</findings_categories>
+
 <process>
-Ejecutar el workflow `qa-explore.md` de principio a fin, respetando prerequisitos, lectura obligatoria y plantilla de salida.
+Ejecutar el workflow `qa-explore.md` de principio a fin, respetando prerequisitos, lectura obligatoria y plantilla de salida, con las siguientes extensiones:
+
+1. En cada pantalla del recorrido: aplicar el `<ui_design_checklist>` además de la revisión funcional.
+2. Capturar screenshot cuando se encuentre un problema visual (`browser_take_screenshot`) y referenciar en el hallazgo.
+3. Clasificar cada hallazgo con una de las categorías de `<findings_categories>`.
+4. Si `{{GSD_ARGS}}` contiene "design" o "diseño": priorizar la revisión UI sobre la cobertura de rutas; ir pantalla por pantalla más despacio.
+5. Al finalizar: sección de resumen separada para hallazgos funcionales vs. hallazgos UI/diseño.
 </process>

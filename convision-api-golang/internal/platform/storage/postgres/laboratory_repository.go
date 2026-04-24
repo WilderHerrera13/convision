@@ -66,6 +66,7 @@ func (r *LaboratoryRepository) Delete(id uint) error {
 	var orderIDs []uint
 	r.db.Model(&domain.LaboratoryOrder{}).Where("laboratory_id = ?", id).Pluck("id", &orderIDs)
 	if len(orderIDs) > 0 {
+		r.db.Where("laboratory_order_id IN ?", orderIDs).Delete(&domain.LaboratoryOrderEvidence{})
 		r.db.Where("laboratory_order_id IN ?", orderIDs).Delete(&domain.LaboratoryOrderStatusEntry{})
 		r.db.Where("laboratory_id = ?", id).Delete(&domain.LaboratoryOrder{})
 	}
@@ -109,7 +110,9 @@ func (r *LaboratoryOrderRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Patient").
 		Preload("CreatedByUser").
 		Preload("StatusHistory").
-		Preload("StatusHistory.User")
+		Preload("StatusHistory.User").
+		Preload("Evidence").
+		Preload("Evidence.User")
 }
 
 func (r *LaboratoryOrderRepository) GetByID(id uint) (*domain.LaboratoryOrder, error) {
@@ -156,11 +159,12 @@ func (r *LaboratoryOrderRepository) Update(o *domain.LaboratoryOrder) error {
 		"estimated_completion_date": o.EstimatedCompletionDate,
 		"completion_date":           o.CompletionDate,
 		"notes":                     o.Notes,
+		"drawer_number":             o.DrawerNumber,
 	}).Error
 }
 
 func (r *LaboratoryOrderRepository) Delete(id uint) error {
-	// Delete status history first to avoid FK constraint
+	r.db.Where("laboratory_order_id = ?", id).Delete(&domain.LaboratoryOrderEvidence{})
 	r.db.Where("laboratory_order_id = ?", id).Delete(&domain.LaboratoryOrderStatusEntry{})
 	return r.db.Delete(&domain.LaboratoryOrder{}, id).Error
 }
@@ -174,6 +178,14 @@ func (r *LaboratoryOrderRepository) List(filters map[string]any, page, perPage i
 		if laboratoryOrderFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)
 		}
+	}
+	if v, ok := filters["search"]; ok {
+		q = q.Where("laboratory_orders.order_number ILIKE ?", "%"+fmt.Sprint(v)+"%")
+	}
+	if _, ok := filters["overdue"]; ok {
+		q = q.Where("laboratory_orders.estimated_completion_date IS NOT NULL").
+			Where("laboratory_orders.estimated_completion_date < NOW()").
+			Where("laboratory_orders.status NOT IN ?", []string{"delivered", "cancelled"})
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -195,12 +207,31 @@ func (r *LaboratoryOrderRepository) AddStatusEntry(entry *domain.LaboratoryOrder
 	return r.db.Create(entry).Error
 }
 
+func (r *LaboratoryOrderRepository) AddEvidence(e *domain.LaboratoryOrderEvidence) error {
+	return r.db.Create(e).Error
+}
+
+func (r *LaboratoryOrderRepository) GetEvidence(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	var rows []*domain.LaboratoryOrderEvidence
+	q := r.db.Where("laboratory_order_id = ?", orderID).Preload("User").Order("id DESC")
+	if transitionType != "" {
+		q = q.Where("transition_type = ?", transitionType)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
 	statuses := []domain.LaboratoryOrderStatusValue{
 		domain.LaboratoryOrderStatusPending,
 		domain.LaboratoryOrderStatusInProcess,
 		domain.LaboratoryOrderStatusSentToLab,
+		domain.LaboratoryOrderStatusInTransit,
+		domain.LaboratoryOrderStatusInQuality,
 		domain.LaboratoryOrderStatusReadyForDelivery,
+		domain.LaboratoryOrderStatusPortfolio,
 		domain.LaboratoryOrderStatusDelivered,
 		domain.LaboratoryOrderStatusCancelled,
 	}
@@ -211,5 +242,18 @@ func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
 		r.db.Model(&domain.LaboratoryOrder{}).Where("status = ?", s).Count(&count)
 		result[string(s)] = count
 	}
+
+	var totalCount int64
+	r.db.Model(&domain.LaboratoryOrder{}).Count(&totalCount)
+	result["total"] = totalCount
+
+	var overdueCount int64
+	r.db.Model(&domain.LaboratoryOrder{}).
+		Where("estimated_completion_date IS NOT NULL").
+		Where("estimated_completion_date < NOW()").
+		Where("status NOT IN ?", []string{"delivered", "cancelled"}).
+		Count(&overdueCount)
+	result["overdue"] = overdueCount
+
 	return result, nil
 }

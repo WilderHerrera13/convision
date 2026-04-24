@@ -152,6 +152,16 @@ func (s *Service) DeleteWarehouse(id uint) error {
 	if _, err := s.warehouseRepo.GetByID(id); err != nil {
 		return err
 	}
+	items, _, err := s.itemRepo.List(map[string]any{"warehouse_id": id}, 1, 1)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		return &domain.ErrValidation{
+			Field:   "warehouse_id",
+			Message: "no se puede eliminar una bodega que tiene inventario activo",
+		}
+	}
 	return s.warehouseRepo.Delete(id)
 }
 
@@ -260,6 +270,21 @@ func (s *Service) DeleteLocation(id uint) error {
 	return s.locationRepo.Delete(id)
 }
 
+// validateLocationBelongsToWarehouse verifies that locationID belongs to warehouseID.
+func (s *Service) validateLocationBelongsToWarehouse(locationID, warehouseID uint) error {
+	loc, err := s.locationRepo.GetByID(locationID)
+	if err != nil {
+		return err
+	}
+	if loc.WarehouseID != warehouseID {
+		return &domain.ErrValidation{
+			Field:   "warehouse_location_id",
+			Message: "la ubicación no pertenece a la bodega indicada",
+		}
+	}
+	return nil
+}
+
 // ======== InventoryItem ========
 
 // ItemCreateInput holds validated fields for creating an inventory item.
@@ -316,6 +341,21 @@ func (s *Service) GetItem(id uint) (*domain.InventoryItem, error) {
 }
 
 func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, error) {
+	if input.WarehouseLocationID != nil && *input.WarehouseLocationID != 0 {
+		if err := s.validateLocationBelongsToWarehouse(*input.WarehouseLocationID, input.WarehouseID); err != nil {
+			return nil, err
+		}
+		exists, err := s.itemRepo.ExistsByProductAndLocation(input.ProductID, *input.WarehouseLocationID, 0)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, &domain.ErrConflict{
+				Resource: "inventory_item",
+				Field:    "product_id + warehouse_location_id",
+			}
+		}
+	}
 	status := domain.InventoryItemStatus(input.Status)
 	if status == "" {
 		status = domain.InventoryItemStatusAvailable
@@ -345,7 +385,34 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 	if input.WarehouseID != 0 {
 		i.WarehouseID = input.WarehouseID
 	}
-	i.WarehouseLocationID = input.WarehouseLocationID
+
+	// Validate location ↔ warehouse consistency and uniqueness when location changes.
+	newLocationID := input.WarehouseLocationID
+	if newLocationID != nil && *newLocationID != 0 {
+		warehouseID := i.WarehouseID
+		if input.WarehouseID != 0 {
+			warehouseID = input.WarehouseID
+		}
+		if err := s.validateLocationBelongsToWarehouse(*newLocationID, warehouseID); err != nil {
+			return nil, err
+		}
+		productID := i.ProductID
+		if input.ProductID != 0 {
+			productID = input.ProductID
+		}
+		exists, err := s.itemRepo.ExistsByProductAndLocation(productID, *newLocationID, id)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, &domain.ErrConflict{
+				Resource: "inventory_item",
+				Field:    "product_id + warehouse_location_id",
+			}
+		}
+	}
+
+	i.WarehouseLocationID = newLocationID
 	i.Quantity = input.Quantity
 	if input.Status != "" {
 		i.Status = domain.InventoryItemStatus(input.Status)
@@ -359,8 +426,15 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 }
 
 func (s *Service) DeleteItem(id uint) error {
-	if _, err := s.itemRepo.GetByID(id); err != nil {
+	item, err := s.itemRepo.GetByID(id)
+	if err != nil {
 		return err
+	}
+	if item.Quantity > 0 {
+		return &domain.ErrValidation{
+			Field:   "quantity",
+			Message: "no se puede eliminar un ítem con stock activo",
+		}
 	}
 	return s.itemRepo.Delete(id)
 }
@@ -371,6 +445,52 @@ func (s *Service) TotalStock() (*TotalStockOutput, error) {
 		return nil, err
 	}
 	return &TotalStockOutput{TotalQuantity: total}, nil
+}
+
+// TotalStockPerProduct returns available stock aggregated by product.
+// Supported filters: warehouse_id, warehouse_location_id.
+func (s *Service) TotalStockPerProduct(filters map[string]any) ([]*domain.ProductStockEntry, error) {
+	return s.itemRepo.TotalStockPerProduct(filters)
+}
+
+// ListItemsByLocation returns paginated inventory items for a given location.
+func (s *Service) ListItemsByLocation(locationID uint, page, perPage int) (*ItemListOutput, error) {
+	if _, err := s.locationRepo.GetByID(locationID); err != nil {
+		return nil, err
+	}
+	page, perPage = clampPage(page, perPage)
+	filters := map[string]any{"warehouse_location_id": locationID}
+	data, total, err := s.itemRepo.List(filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &ItemListOutput{
+		CurrentPage: page,
+		Data:        data,
+		LastPage:    calcLastPage(total, perPage),
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
+}
+
+// ProductInventorySummary holds a product's inventory breakdown by location.
+type ProductInventorySummary struct {
+	ProductID uint                    `json:"product_id"`
+	Items     []*domain.InventoryItem `json:"items"`
+	Total     int64                   `json:"total"`
+}
+
+// GetProductInventorySummary returns all inventory items for a product.
+func (s *Service) GetProductInventorySummary(productID uint) (*ProductInventorySummary, error) {
+	data, total, err := s.itemRepo.List(map[string]any{"product_id": productID}, 1, 1000)
+	if err != nil {
+		return nil, err
+	}
+	return &ProductInventorySummary{
+		ProductID: productID,
+		Items:     data,
+		Total:     total,
+	}, nil
 }
 
 // ======== InventoryTransfer ========

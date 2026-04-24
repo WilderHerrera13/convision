@@ -110,6 +110,13 @@ type WarehouseLocationRepository interface {
 	List(filters map[string]any, page, perPage int) ([]*WarehouseLocation, int64, error)
 }
 
+// ProductStockEntry holds the aggregated stock quantity for a single product.
+type ProductStockEntry struct {
+	ProductID     uint   `json:"product_id"`
+	ProductName   string `json:"product_name"`
+	TotalQuantity int64  `json:"total_quantity"`
+}
+
 // InventoryItemRepository defines persistence operations for InventoryItem.
 type InventoryItemRepository interface {
 	GetByID(id uint) (*InventoryItem, error)
@@ -118,6 +125,13 @@ type InventoryItemRepository interface {
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
 	TotalStock() (int64, error)
+	// TotalStockPerProduct returns aggregated stock grouped by product.
+	// Supported filter keys: warehouse_id, warehouse_location_id.
+	TotalStockPerProduct(filters map[string]any) ([]*ProductStockEntry, error)
+	// ExistsByProductAndLocation returns true when an InventoryItem already
+	// exists for the given (productID, locationID) pair, optionally excluding
+	// the item with excludeID (use 0 to skip the exclusion).
+	ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error)
 }
 
 // InventoryTransferRepository defines persistence operations for InventoryTransfer.

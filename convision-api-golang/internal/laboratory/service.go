@@ -1,11 +1,17 @@
 package laboratory
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/filestore"
 )
 
 // Service handles laboratory and laboratory order use-cases.
@@ -79,7 +85,7 @@ type UpdateOrderInput struct {
 }
 
 type UpdateOrderStatusInput struct {
-	Status string `json:"status" binding:"required,oneof=pending in_process sent_to_lab ready_for_delivery delivered cancelled"`
+	Status string `json:"status" binding:"required,oneof=pending crm_registered in_process sent_to_lab in_transit received_from_lab in_quality ready_for_delivery portfolio delivered in_collection collection_follow_up closed cancelled"`
 	Notes  string `json:"notes"`
 }
 
@@ -333,4 +339,75 @@ func (s *Service) DeleteOrder(id uint) error {
 
 func (s *Service) Stats() (map[string]int64, error) {
 	return s.orderRepo.Stats()
+}
+
+func extFromContentType(ct string) string {
+	ct = strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))
+	switch ct {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	case "image/gif":
+		return ".gif"
+	case "image/heic", "image/heif":
+		return ".heic"
+	default:
+		return ""
+	}
+}
+
+func (s *Service) UploadEvidence(
+	ctx context.Context,
+	orderID uint,
+	transitionType string,
+	r io.Reader,
+	size int64,
+	contentType, originalName string,
+	uploadedBy uint,
+	st filestore.Storage,
+) (*domain.LaboratoryOrderEvidence, error) {
+	if transitionType != "sent_to_lab" && transitionType != "received_from_lab" {
+		return nil, &domain.ErrValidation{Field: "transition_type", Message: "must be sent_to_lab or received_from_lab"}
+	}
+	if _, err := s.orderRepo.GetByID(orderID); err != nil {
+		return nil, err
+	}
+	const maxEvidencePerTransition = 4
+	existing, err := s.orderRepo.GetEvidence(orderID, transitionType)
+	if err != nil {
+		return nil, err
+	}
+	if len(existing) >= maxEvidencePerTransition {
+		return nil, &domain.ErrValidation{Field: "evidence", Message: "máximo 4 fotos por etapa"}
+	}
+	ext := extFromContentType(contentType)
+	if ext == "" {
+		return nil, &domain.ErrValidation{Field: "file", Message: "only image uploads are allowed"}
+	}
+	key := fmt.Sprintf("lab-evidence/%d/%s%s", orderID, uuid.New().String(), ext)
+	url, err := st.Store(ctx, key, r, size, contentType)
+	if err != nil {
+		return nil, err
+	}
+	e := &domain.LaboratoryOrderEvidence{
+		LaboratoryOrderID: orderID,
+		TransitionType:    transitionType,
+		ImageURL:          url,
+		Filename:          originalName,
+		UploadedBy:        &uploadedBy,
+	}
+	if err := s.orderRepo.AddEvidence(e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func (s *Service) GetOrderEvidence(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	if _, err := s.orderRepo.GetByID(orderID); err != nil {
+		return nil, err
+	}
+	return s.orderRepo.GetEvidence(orderID, transitionType)
 }

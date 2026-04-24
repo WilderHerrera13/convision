@@ -13,7 +13,10 @@ export const AdminTopBar: React.FC = () => {
   const isNotifications = location.pathname.startsWith('/admin/notifications');
 
   const todayLine = useMemo(
-    () => format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es }),
+    () => {
+      const raw = format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    },
     [],
   );
 
@@ -54,7 +57,7 @@ export const AdminTopBar: React.FC = () => {
       <div className="flex shrink-0 items-center gap-3">
         <AdminNotificationBellButton unread={unread} />
         <div className="text-right">
-          <p className="text-[11px] capitalize text-convision-text-secondary">Hoy · {todayLine}</p>
+          <p className="text-[11px] text-convision-text-secondary">Hoy · {todayLine}</p>
         </div>
       </div>
     </header>

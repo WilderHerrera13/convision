@@ -197,7 +197,7 @@ const ManagementReport: React.FC = () => {
                             <button
                               type="button"
                               aria-label="Ver"
-                              onClick={() => navigate(isAdmin ? `/admin/management-report/${row.id}` : `/specialist/management-report/${row.id}`)}
+                              onClick={(e) => { e.stopPropagation(); navigate(isAdmin ? `/admin/management-report/${row.id}` : `/specialist/management-report/${row.id}`); }}
                               className="inline-flex size-8 items-center justify-center rounded-md bg-[#e5f0ff] text-[#3a71f7] hover:bg-[#d7e6ff] transition-colors"
                             >
                               <Eye className="size-3.5" />
@@ -206,7 +206,7 @@ const ManagementReport: React.FC = () => {
                             <button
                               type="button"
                               aria-label="Editar"
-                              onClick={() => navigate(`/specialist/management-report/${row.id}`)}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/specialist/management-report/${row.id}`); }}
                               className="inline-flex size-8 items-center justify-center rounded-md bg-convision-background text-convision-text-secondary hover:bg-convision-border-subtle transition-colors"
                             >
                               <Pencil className="size-3.5" />

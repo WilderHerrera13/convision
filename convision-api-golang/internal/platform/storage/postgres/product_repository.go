@@ -31,6 +31,11 @@ func (r *ProductRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Category").
 		Preload("Brand").
 		Preload("LensAttributes").
+		Preload("LensAttributes.LensType").
+		Preload("LensAttributes.Material").
+		Preload("LensAttributes.LensClass").
+		Preload("LensAttributes.Treatment").
+		Preload("LensAttributes.Photochromic").
 		Preload("FrameAttributes").
 		Preload("ContactLensAttributes")
 }

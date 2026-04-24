@@ -1,7 +1,11 @@
 <purpose>
-Exploración QA funcional **automatizada con navegador** sobre la SPA Convision: login por rol, recorrido del menú lateral y rutas del mapa, red/consola, salida estructurada para un agente corrector.
+Exploración QA **funcional + UI/diseño** **automatizada con navegador** sobre la SPA Convision: login por rol, recorrido del menú lateral y rutas del mapa, red/consola, revisión visual de cada pantalla — salida estructurada para un agente corrector.
 
 **Diferencia vs verify-work:** `verify-work` es UAT **conversacional** con humano (preguntas sí/no por fase). `qa-explore` es **agente + MCP navegador** sin depender de `.planning/phases`; alimenta hallazgos en `.planning/qa/` o `docs/`.
+
+**Dimensiones cubiertas:**
+1. **Funcional** — errores, pantallas rotas, flujos bloqueados, errores de red/consola.
+2. **UI/Diseño** — problemas visuales (layout, colores, tipografía, espaciado), textos en idioma incorrecto (inglés donde debería ser español), copy inconsistente, estados vacíos sin mensaje, íconos incorrectos, overflow.
 </purpose>
 
 <required_reading>
@@ -53,7 +57,8 @@ Usuarios para login en `/login` (email + password). Contraseña común: **`passw
 
 - Vacío → probar los tres roles: `admin`, `specialist`, `receptionist` (flujo completo del mapa para el alcance razonable en una sesión).
 - `admin` | `specialist` | `receptionist` → solo ese rol.
-- Cualquier texto adicional → tratar como nota de alcance (p. ej. “solo COMERCIAL”) y priorizar esas secciones del mapa.
+- `design` | `diseño` → foco en problemas UI/diseño y de idioma; cubrir todos los roles pero más lento, pantalla por pantalla.
+- Cualquier texto adicional → tratar como nota de alcance (p. ej. "solo COMERCIAL") y priorizar esas secciones del mapa.
 </args>
 
 <process>
@@ -73,8 +78,20 @@ Por cada rol en el alcance:
 4. Si el login falla o redirige a `/unauthorized`, registrar hallazgo con evidencia (URL final, mensaje UI, red).
 5. Recorrer **cada ítem del sidebar** visible (clic en botones con texto en español del mapa).
 6. En cada pantalla: esperar carga; revisar errores visibles; opcional `browser_network_requests` / `browser_console_messages` si hay fallo o vacío sospechoso.
-7. Recorrer **rutas del mapa que no están en el menú** relevantes al rol (tabla “Rutas útiles que no aparecen en el menú lateral” en `docs/QA_MAPA_EXPLORACION.md`).
-8. Cerrar sesión o borrar estado si hace falta para cambiar de rol (logout desde footer/layout según UI).
+7. **Revisión UI/diseño en cada pantalla visitada** (aplicar checklist completo):
+   - Textos en inglés donde debería ser español (labels, placeholders, botones, tooltips, mensajes de error, títulos de columna, estados vacíos, toasts).
+   - Mezcla de idiomas en la misma pantalla.
+   - Alineación rota, overflow visible, scroll horizontal inesperado.
+   - Espaciado o colores fuera del sistema de diseño.
+   - Tipografía inconsistente (tamaños, pesos).
+   - Íonos ausentes, incorrectos o cortados.
+   - Estados vacíos sin mensaje descriptivo.
+   - Loading states ausentes (pantalla en blanco mientras carga sin indicador).
+   - Formularios sin validación visual.
+   - Modales o drawers que no se centran o superponen contenido.
+   - Capturar screenshot (`browser_take_screenshot`) cuando se encuentre un problema visual.
+8. Recorrer **rutas del mapa que no están en el menú** relevantes al rol (tabla "Rutas útiles que no aparecen en el menú lateral" en `docs/QA_MAPA_EXPLORACION.md`).
+9. Cerrar sesión o borrar estado si hace falta para cambiar de rol (logout desde footer/layout según UI).
 
 **Usuario laboratory (seed):** si se pide explícitamente o hay tiempo, probar `hquintero@convision.com` y documentar si termina en `/unauthorized` (gap conocido front vs API).
 </step>
@@ -87,14 +104,28 @@ Por cada rol en el alcance:
 
 <step name="finalize">
 1. Completar secciones Resumen, FAIL/GAP, OK del archivo FINDINGS.
-2. Listar “Handoff” con IDs para el agente que use la regla `convision-qa-fixer`.
-3. Si el usuario quiere integración GSD por fase: opcionalmente copiar un resumen de IDs críticos a un todo: `/gsd-add-todo`.
+2. Resumen dividido en dos sub-secciones: **Hallazgos funcionales** y **Hallazgos UI/diseño**.
+3. Cada hallazgo debe tener categoría: `funcional` | `idioma` | `diseño` | `copy` | `ux` | `accesibilidad`.
+4. Listar "Handoff" con IDs para el agente que use la regla `convision-qa-fixer` o `convision-qa-gap-fixer`.
+5. Si el usuario quiere integración GSD por fase: opcionalmente copiar un resumen de IDs críticos a un todo: `/gsd-add-todo`.
 </step>
 
 </process>
 
+<findings_categories>
+Usar categoría obligatoria en cada hallazgo del FINDINGS:
+- `funcional` — error de comportamiento, ruta rota, API 4xx/5xx.
+- `idioma` — texto en idioma incorrecto o mezcla de idiomas.
+- `diseño` — problema visual: layout, colores, tipografía, espaciado.
+- `copy` — texto confuso, inconsistente o incorrecto (no idioma, sino redacción).
+- `ux` — flujo confuso, estado vacío sin mensaje, feedback ausente.
+- `accesibilidad` — contraste bajo, labels ausentes, navegación por teclado rota.
+</findings_categories>
+
 <anti_patterns>
-- No afirmar “todo OK” sin listar rutas comprobadas.
+- No afirmar "todo OK" sin listar rutas comprobadas.
 - No editar código en este workflow (solo documentación de hallazgos salvo que el usuario ordene lo contrario).
 - No asumir Playwright-MCP; usar las herramientas de navegador **realmente disponibles** en la sesión.
+- No ignorar problemas de idioma: un texto en inglés en la UI es un hallazgo válido de categoría `idioma`.
+- No marcar pantallas como "OK" sin haber aplicado el checklist UI/diseño.
 </anti_patterns>

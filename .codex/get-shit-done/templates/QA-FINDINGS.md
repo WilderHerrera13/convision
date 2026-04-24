@@ -21,7 +21,9 @@ roles_tested: [admin, specialist, receptionist]
 ## Resumen ejecutivo
 
 - Pantallas verificadas: N
-- Hallazgos confirmados: N
+- Hallazgos funcionales confirmados: N
+- Hallazgos UI/diseño confirmados: N
+- Hallazgos de idioma confirmados: N
 - Hipótesis / pendiente evidencia: N
 - Sin incidencias (lista): …
 
@@ -33,11 +35,12 @@ Por cada ítem usar bloque:
 ### QA-001
 - Rol: admin
 - URL: http://localhost:4200/admin/...
+- Categoría: funcional | idioma | diseño | copy | ux | accesibilidad
 - Severidad: bloqueante | mayor | menor | sugerencia
 - Pasos: 1. … 2. …
 - Esperado: …
 - Observado: …
-- Evidencia: (mensaje UI / HTTP / consola)
+- Evidencia: (mensaje UI / HTTP / consola / screenshot)
 - Estado: confirmado | hipótesis
 ```
 

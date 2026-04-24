@@ -298,6 +298,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			products.GET("/:id/discount-info", h.GetProductDiscountInfo)
 			products.GET("/:id/active-discounts", h.GetProductActiveDiscounts)
 			products.GET("/:id/calculate-price", h.CalculateProductPrice)
+			products.GET("/:id/inventory-summary", h.GetProductInventorySummary)
 		}
 
 		// Warehouses — admin only for write
@@ -316,6 +317,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		{
 			warehouseLocations.GET("", h.ListWarehouseLocations)
 			warehouseLocations.GET("/:id", h.GetWarehouseLocation)
+			warehouseLocations.GET("/:id/inventory", h.ListLocationInventoryItems)
 			warehouseLocations.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateWarehouseLocation)
 			warehouseLocations.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateWarehouseLocation)
 			warehouseLocations.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteWarehouseLocation)
@@ -505,7 +507,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			labOrders.GET("", h.ListLaboratoryOrders)
 			labOrders.GET("/:id", h.GetLaboratoryOrder)
 			labOrders.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
 				h.CreateLaboratoryOrder,
 			)
 			labOrders.PUT("/:id",
@@ -517,8 +519,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				h.DeleteLaboratoryOrder,
 			)
 			labOrders.POST("/:id/status",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleLaboratory),
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleLaboratory, domain.RoleReceptionist),
 				h.UpdateLaboratoryOrderStatus,
+			)
+			labOrders.GET("/:id/evidence", h.GetLaboratoryOrderEvidence)
+			labOrders.POST("/:id/evidence",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.UploadLaboratoryOrderEvidence,
 			)
 		}
 

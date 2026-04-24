@@ -145,6 +145,18 @@ type saleStatsResult struct {
 	TotalDiscount float64 `json:"total_discount"`
 }
 
+// todayStatsResult holds the extended data needed for the Today metric cards.
+type todayStatsResult struct {
+	TotalSales      int64   `db:"total_sales"`
+	TotalRevenue    float64 `db:"total_revenue"`
+	TotalDiscount   float64 `db:"total_discount"`
+	TotalCollected  float64 `db:"total_collected"`
+	TotalPending    float64 `db:"total_pending"`
+	CountPaid       int64   `db:"count_paid"`
+	CountPartial    int64   `db:"count_partial"`
+	CountPending    int64   `db:"count_pending"`
+}
+
 func (r *SaleRepository) GetStats() (map[string]any, error) {
 	var result saleStatsResult
 	err := r.db.Model(&domain.Sale{}).
@@ -162,17 +174,31 @@ func (r *SaleRepository) GetStats() (map[string]any, error) {
 }
 
 func (r *SaleRepository) GetTodayStats() (map[string]any, error) {
-	var result saleStatsResult
+	var result todayStatsResult
 	err := r.db.Model(&domain.Sale{}).
 		Where("status != ? AND DATE(created_at) = CURRENT_DATE", string(domain.SaleStatusCancelled)).
-		Select("COUNT(*) as total_sales, COALESCE(SUM(total), 0) as total_revenue, COALESCE(SUM(discount), 0) as total_discount").
+		Select(`
+			COUNT(*) AS total_sales,
+			COALESCE(SUM(total), 0) AS total_revenue,
+			COALESCE(SUM(discount), 0) AS total_discount,
+			COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total ELSE 0 END), 0) AS total_collected,
+			COALESCE(SUM(CASE WHEN payment_status IN ('pending', 'partial') THEN balance ELSE 0 END), 0) AS total_pending,
+			COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) AS count_paid,
+			COUNT(CASE WHEN payment_status = 'partial' THEN 1 END) AS count_partial,
+			COUNT(CASE WHEN payment_status = 'pending' THEN 1 END) AS count_pending
+		`).
 		Scan(&result).Error
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{
-		"total_sales":    result.TotalSales,
-		"total_revenue":  result.TotalRevenue,
-		"total_discount": result.TotalDiscount,
+		"total_sales":     result.TotalSales,
+		"total_revenue":   result.TotalRevenue,
+		"total_discount":  result.TotalDiscount,
+		"total_collected": result.TotalCollected,
+		"total_pending":   result.TotalPending,
+		"count_paid":      result.CountPaid,
+		"count_partial":   result.CountPartial,
+		"count_pending":   result.CountPending,
 	}, nil
 }

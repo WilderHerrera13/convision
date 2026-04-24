@@ -62,8 +62,11 @@ const SpecialistManagementReport: React.FC = () => {
   const [specialistSearch, setSpecialistSearch] = useState('');
 
   const { from, to } = useMemo(() => {
-    if (customFrom && customTo) return { from: customFrom, to: customTo };
-    return resolvePreset(preset);
+    const presetRange = resolvePreset(preset);
+    return {
+      from: customFrom ?? presetRange.from,
+      to: customTo ?? presetRange.to,
+    };
   }, [preset, customFrom, customTo]);
 
   const fromStr = fmt(from);
@@ -181,7 +184,7 @@ const SpecialistManagementReport: React.FC = () => {
                     <button
                       key={p}
                       onClick={() => applyPreset(p)}
-                      className={chipCls(!customFrom && preset === p)}
+                      className={chipCls(!customFrom && !customTo && preset === p)}
                     >
                       {p === 'hoy' ? 'Hoy' : p === '7d' ? '7d' : p === '14d' ? '14d' : 'Mes'}
                     </button>
@@ -220,7 +223,7 @@ const SpecialistManagementReport: React.FC = () => {
                 </div>
               </div>
               <div className="text-[10px] text-[#7d7d87] ml-3 shrink-0 whitespace-nowrap">
-                {daysDiff} {daysDiff === 1 ? 'día' : 'dias'} · {report?.specialists_count ?? specialists.length} especialistas
+                {daysDiff} {daysDiff === 1 ? 'día' : 'días'} · {report?.specialists_count ?? specialists.length} {(report?.specialists_count ?? specialists.length) === 1 ? 'especialista' : 'especialistas'}
               </div>
             </div>
             {selectedSpecialistId !== 'all' && (
@@ -351,9 +354,14 @@ const SpecialistManagementReport: React.FC = () => {
                               {row.specialist_name}
                             </span>
                           </div>
-                          <p className="text-[12px] text-[#0f0f12] leading-relaxed">
-                            {row.observation}
-                          </p>
+                          <ul className="flex flex-col gap-1.5">
+                            {row.observation.split('|').map((obs, i) => (
+                              <li key={i} className="text-[12px] text-[#0f0f12] leading-relaxed flex gap-2">
+                                <span className="text-[#b4b5bc] shrink-0 mt-[1px]">·</span>
+                                <span>{obs.trim()}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       ))}
                   </div>

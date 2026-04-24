@@ -13,6 +13,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import PageLayout from '@/components/layouts/PageLayout';
+import EvidenceUploader from '@/components/lab-orders/EvidenceUploader';
 import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOrderService';
 
 const schema = z.object({
@@ -201,6 +202,15 @@ const ConfirmReception: React.FC = () => {
                       />
                     </form>
                   </Form>
+                  {id && (
+                    <div className="mt-6 pt-6 border-t border-[#f0f0f2]">
+                      <p className="text-sm font-semibold text-gray-700 mb-1">
+                        Evidencia fotográfica <span className="text-gray-400 font-normal">(opcional)</span>
+                      </p>
+                      <p className="text-xs text-[#7d7d87] mb-4">Registre el estado del lente o del empaque al recibirlo del laboratorio.</p>
+                      <EvidenceUploader orderId={Number(id)} transitionType="received_from_lab" />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground mt-4">Campos marcados con * son obligatorios</p>
                 </div>
               </CardContent>

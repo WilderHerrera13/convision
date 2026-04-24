@@ -100,3 +100,43 @@ func (r *InventoryItemRepository) TotalStock() (int64, error) {
 		Scan(&total).Error
 	return total, err
 }
+
+var totalStockFilterAllowlist = map[string]bool{
+	"warehouse_id":          true,
+	"warehouse_location_id": true,
+}
+
+func (r *InventoryItemRepository) TotalStockPerProduct(filters map[string]any) ([]*domain.ProductStockEntry, error) {
+	q := r.db.Table("inventory_items").
+		Select("inventory_items.product_id, products.description AS product_name, COALESCE(SUM(inventory_items.quantity), 0) AS total_quantity").
+		Joins("JOIN products ON products.id = inventory_items.product_id").
+		Where("inventory_items.status = ?", domain.InventoryItemStatusAvailable).
+		Group("inventory_items.product_id, products.description").
+		Order("inventory_items.product_id")
+
+	for field, value := range filters {
+		if !totalStockFilterAllowlist[field] {
+			continue
+		}
+		q = q.Where("inventory_items."+field+" = ?", value)
+	}
+
+	var results []*domain.ProductStockEntry
+	if err := q.Scan(&results).Error; err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (r *InventoryItemRepository) ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error) {
+	q := r.db.Model(&domain.InventoryItem{}).
+		Where("product_id = ? AND warehouse_location_id = ?", productID, locationID)
+	if excludeID != 0 {
+		q = q.Where("id != ?", excludeID)
+	}
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

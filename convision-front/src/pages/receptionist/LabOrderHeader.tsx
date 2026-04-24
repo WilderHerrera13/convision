@@ -9,7 +9,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   in_process: 'En proceso',
   in_progress: 'En proceso',
-  sent_to_lab: 'Enviado a laboratorio',
+  sent_to_lab: 'En laboratorio',
   in_transit: 'En tránsito',
   in_quality: 'En calidad',
   ready_for_delivery: 'Listo para entrega',
@@ -65,41 +65,55 @@ const LabOrderHeader: React.FC<LabOrderHeaderProps> = ({ order }) => {
   const isUrgent = order.priority === 'urgent';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-6 py-5 flex flex-wrap items-start gap-x-8 gap-y-4">
-      <div className="flex-1 min-w-[220px]">
+    <div className="bg-white border border-[#e5e5e9] rounded-lg px-6 py-5 flex flex-wrap items-center gap-0">
+      <div className="flex-1 min-w-[200px] pr-6">
         <h2 className="text-xl font-bold text-[#0f0f12]">{order.order_number}</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-[#7d7d87] mt-1">
           Creada el {formatDate(order.created_at)} · {extractTime(order.created_at)} · por {order.createdBy?.name || '—'}
         </p>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Estado actual</span>
+      <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
+
+      <div className="flex flex-col gap-1 px-6">
+        <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Estado actual</span>
         <Badge variant={getStatusVariant(order.status)}>
           {STATUS_LABELS[order.status] ?? order.status}
         </Badge>
       </div>
 
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tiempo en proceso</span>
-        <span className="font-bold text-[#0f0f12] text-sm">{timeInProcess}</span>
-        <span className="text-xs text-muted-foreground">desde envío al lab.</span>
+      <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
+
+      <div className="flex flex-col gap-0.5 px-6">
+        <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Tiempo en proceso</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-bold text-[#0f0f12] text-[22px] leading-[1]">{timeInProcess.split(' ')[0]}</span>
+          {timeInProcess.includes(' ') && (
+            <span className="text-sm text-[#0f0f12] font-medium">{timeInProcess.split(' ').slice(1).join(' ')}</span>
+          )}
+        </div>
+        <span className="text-xs text-[#7d7d87]">desde envío al lab.</span>
       </div>
 
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Entrega estimada</span>
-        <span className="font-bold text-[#0f0f12] text-sm">
+      <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
+
+      <div className="flex flex-col gap-0.5 px-6 flex-1">
+        <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Entrega estimada</span>
+        <span className="font-bold text-[#0f0f12] text-base">
           {order.estimated_completion_date ? formatDate(order.estimated_completion_date) : '—'}
         </span>
         {relativeDelivery && (
-          <span className="text-xs text-muted-foreground">{relativeDelivery}</span>
+          <span className="text-xs text-[#7d7d87]">{relativeDelivery}</span>
         )}
       </div>
 
       {isUrgent && (
-        <div className="flex flex-col gap-1 ml-auto">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Prioridad</span>
-          <Badge variant="destructive">Urgente</Badge>
+        <div className="flex flex-col items-end gap-1 pl-4">
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-red-500 inline-block" />
+            <span className="text-sm font-medium text-[#0f0f12]">Urgente</span>
+          </div>
+          <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Prioridad</span>
         </div>
       )}
     </div>

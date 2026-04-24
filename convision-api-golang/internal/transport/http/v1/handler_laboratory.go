@@ -1,14 +1,20 @@
 package v1
 
 import (
+	"context"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	jwtauth "github.com/convision/api/internal/platform/auth"
 	labsvc "github.com/convision/api/internal/laboratory"
+	jwtauth "github.com/convision/api/internal/platform/auth"
 )
+
+const maxEvidenceUploadSize = 8 << 20
 
 // --- Laboratories ---
 
@@ -143,6 +149,12 @@ func (h *Handler) ListLaboratoryOrders(c *gin.Context) {
 	if v := c.Query("priority"); v != "" {
 		filters["priority"] = v
 	}
+	if v := c.Query("search"); v != "" {
+		filters["search"] = v
+	}
+	if v := c.Query("overdue"); v == "true" {
+		filters["overdue"] = true
+	}
 
 	out, err := h.laboratory.ListOrders(filters, page, perPage)
 	if err != nil {
@@ -252,4 +264,76 @@ func (h *Handler) UpdateLaboratoryOrderStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, o)
+}
+
+func (h *Handler) UploadLaboratoryOrderEvidence(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	if err := c.Request.ParseMultipartForm(maxEvidenceUploadSize); err != nil {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"message": "La imagen supera el límite de 8 MB"})
+		return
+	}
+	transitionType := strings.TrimSpace(c.PostForm("type"))
+	if transitionType == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "Se requiere el campo type (sent_to_lab o received_from_lab)"})
+		return
+	}
+	fh, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Se requiere el campo image con el archivo"})
+		return
+	}
+	ct := fh.Header.Get("Content-Type")
+	if ct == "" || ct == "application/octet-stream" {
+		ct = mime.TypeByExtension(strings.ToLower(filepath.Ext(fh.Filename)))
+	}
+	if !strings.HasPrefix(strings.ToLower(ct), "image/") {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "Solo se permiten imágenes"})
+		return
+	}
+	src, err := fh.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "No se pudo leer el archivo"})
+		return
+	}
+	defer src.Close()
+
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	ev, err := h.laboratory.UploadEvidence(
+		context.Background(),
+		uint(id),
+		transitionType,
+		src,
+		fh.Size,
+		ct,
+		fh.Filename,
+		claims.UserID,
+		h.storage,
+	)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, ev)
+}
+
+func (h *Handler) GetLaboratoryOrderEvidence(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	transitionType := strings.TrimSpace(c.Query("type"))
+	list, err := h.laboratory.GetOrderEvidence(uint(id), transitionType)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": list})
 }

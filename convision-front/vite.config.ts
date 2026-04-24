@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => ({
     cors: true,
     proxy: {
       // Proxy all /api requests to the Go backend
+      '/uploads': {
+        target: process.env.VITE_API_URL || 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: process.env.VITE_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,

@@ -27,6 +27,7 @@ import AppointmentDetail from './pages/receptionist/AppointmentDetail';
 import NewSale from './pages/receptionist/NewSale';
 import SalesCatalog from "./pages/receptionist/SalesCatalog";
 import OrderList from "./pages/receptionist/OrderList";
+import ReceptionistSales from "./pages/receptionist/Sales";
 
 // Quotes components
 import AdminQuotes from "./pages/admin/Quotes";
@@ -89,6 +90,21 @@ import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
 import LaboratoryOrderDetail from '@/pages/admin/LaboratoryOrderDetail';
 import NewLaboratoryOrder from '@/pages/admin/NewLaboratoryOrder';
+import EditLaboratoryOrder from '@/pages/admin/EditLaboratoryOrder';
+import LaboratoryOrderDelayAlerts from '@/pages/admin/LaboratoryOrderDelayAlerts';
+
+// Specialist quality review
+import QualityReview from '@/pages/specialist/QualityReview';
+import QualityReviewDetail from '@/pages/specialist/QualityReviewDetail';
+
+// Receptionist lab orders
+import LabOrders from '@/pages/receptionist/LabOrders';
+import NewLabOrder from '@/pages/receptionist/NewLabOrder';
+import LabOrderDetail from '@/pages/receptionist/LabOrderDetail';
+import ConfirmShipment from '@/pages/receptionist/ConfirmShipment';
+import ConfirmReception from '@/pages/receptionist/ConfirmReception';
+import AssignDrawer from '@/pages/receptionist/AssignDrawer';
+import ConfirmDelivery from '@/pages/receptionist/ConfirmDelivery';
 
 // Import the purchases dashboard and new modules
 import PurchasesDashboard from '@/pages/admin/PurchasesDashboard';
@@ -106,7 +122,6 @@ import PayrollCalculate from '@/pages/admin/PayrollCalculate';
 import SupplierPayments from '@/pages/admin/SupplierPayments';
 import SupplierPaymentDetail from '@/pages/admin/SupplierPaymentDetail';
 import NewCashTransfer from '@/pages/admin/NewCashTransfer';
-import LaboratoryStatus from '@/pages/admin/LaboratoryStatus';
 import SpecialistManagementReport from '@/pages/admin/SpecialistManagementReport';
 import SpecialistManagementReportDetalle from '@/pages/admin/SpecialistManagementReportDetail';
 import ManagementReportBulkUpload from '@/pages/admin/ManagementReportBulkUpload';
@@ -381,12 +396,20 @@ const router = createBrowserRouter([
             element: <LaboratoryOrders />,
           },
           {
-            path: "laboratory-orders/:id",
-            element: <LaboratoryOrderDetail />,
+            path: "laboratory-orders/delay-alerts",
+            element: <LaboratoryOrderDelayAlerts />,
           },
           {
             path: "laboratory-orders/new",
             element: <NewLaboratoryOrder />,
+          },
+          {
+            path: "laboratory-orders/:id",
+            element: <LaboratoryOrderDetail />,
+          },
+          {
+            path: "laboratory-orders/:id/edit",
+            element: <EditLaboratoryOrder />,
           },
           {
             path: "payrolls",
@@ -435,10 +458,6 @@ const router = createBrowserRouter([
           {
             path: "cash-transfers/new",
             element: <NewCashTransfer />,
-          },
-          {
-            path: "laboratory-status",
-            element: <LaboratoryStatus />,
           },
           {
             path: "cash-closes",
@@ -550,6 +569,14 @@ const router = createBrowserRouter([
             path: "profile",
             element: <Profile />,
           },
+          {
+            path: "laboratory-orders",
+            element: <QualityReview />,
+          },
+          {
+            path: "laboratory-orders/:id",
+            element: <QualityReviewDetail />,
+          },
         ],
       },
       {
@@ -614,7 +641,7 @@ const router = createBrowserRouter([
           },
           {
             path: "sales",
-            element: <Sales />,
+            element: <ReceptionistSales />,
           },
           {
             path: "sales/catalog",
@@ -663,6 +690,34 @@ const router = createBrowserRouter([
           {
             path: "profile",
             element: <Profile />,
+          },
+          {
+            path: "lab-orders",
+            element: <LabOrders />,
+          },
+          {
+            path: "lab-orders/new",
+            element: <NewLabOrder />,
+          },
+          {
+            path: "lab-orders/:id",
+            element: <LabOrderDetail />,
+          },
+          {
+            path: "lab-orders/:id/confirm-shipment",
+            element: <ConfirmShipment />,
+          },
+          {
+            path: "lab-orders/:id/confirm-reception",
+            element: <ConfirmReception />,
+          },
+          {
+            path: "lab-orders/:id/assign-drawer",
+            element: <AssignDrawer />,
+          },
+          {
+            path: "lab-orders/:id/confirm-delivery",
+            element: <ConfirmDelivery />,
           },
         ],
       },

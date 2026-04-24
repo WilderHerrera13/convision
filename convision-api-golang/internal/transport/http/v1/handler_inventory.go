@@ -258,7 +258,54 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 }
 
 func (h *Handler) GetTotalStock(c *gin.Context) {
-	out, err := h.inventory.TotalStock()
+	filters := map[string]any{}
+	if v := c.Query("warehouse_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["warehouse_id"] = uint(id)
+		}
+	}
+	if v := c.Query("warehouse_location_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["warehouse_location_id"] = uint(id)
+		}
+	}
+	if len(filters) == 0 {
+		out, err := h.inventory.TotalStock()
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, out)
+		return
+	}
+	out, err := h.inventory.TotalStockPerProduct(filters)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": out})
+}
+
+func (h *Handler) ListLocationInventoryItems(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	page, perPage := parsePagination(c)
+	out, err := h.inventory.ListItemsByLocation(id, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (h *Handler) GetProductInventorySummary(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	out, err := h.inventory.GetProductInventorySummary(id)
 	if err != nil {
 		respondError(c, err)
 		return
