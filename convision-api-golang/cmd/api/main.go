@@ -136,7 +136,7 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
+	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, logger)

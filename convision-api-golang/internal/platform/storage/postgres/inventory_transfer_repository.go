@@ -51,14 +51,9 @@ func (r *InventoryTransferRepository) Create(t *domain.InventoryTransfer) error 
 
 func (r *InventoryTransferRepository) Update(t *domain.InventoryTransfer) error {
 	return r.db.Model(t).Updates(map[string]any{
-		"lens_id":                 t.LensID,
-		"source_location_id":      t.SourceLocationID,
-		"destination_location_id": t.DestinationLocationID,
-		"quantity":                t.Quantity,
-		"transferred_by":          t.TransferredBy,
-		"notes":                   t.Notes,
-		"status":                  t.Status,
-		"completed_at":            t.CompletedAt,
+		"notes":        t.Notes,
+		"status":       t.Status,
+		"completed_at": t.CompletedAt,
 	}).Error
 }
 

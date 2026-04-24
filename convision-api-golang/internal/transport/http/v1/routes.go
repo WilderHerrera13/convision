@@ -347,6 +347,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			inventoryTransfers.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateInventoryTransfer)
 			inventoryTransfers.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateInventoryTransfer)
 			inventoryTransfers.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteInventoryTransfer)
+			inventoryTransfers.POST("/:id/complete", jwtauth.RequireRole(domain.RoleAdmin), h.CompleteInventoryTransfer)
+			inventoryTransfers.POST("/:id/cancel", jwtauth.RequireRole(domain.RoleAdmin), h.CancelInventoryTransfer)
 		}
 
 		// Discount requests — admin approves; receptionist creates

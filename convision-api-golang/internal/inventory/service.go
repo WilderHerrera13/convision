@@ -1,13 +1,20 @@
 package inventory
 
 import (
+	"errors"
+	"fmt"
+	"time"
+
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/convision/api/internal/domain"
 )
 
 // Service handles inventory use-cases.
 type Service struct {
+	db             *gorm.DB
 	warehouseRepo  domain.WarehouseRepository
 	locationRepo   domain.WarehouseLocationRepository
 	itemRepo       domain.InventoryItemRepository
@@ -17,6 +24,7 @@ type Service struct {
 
 // NewService creates a new inventory Service.
 func NewService(
+	db *gorm.DB,
 	warehouseRepo domain.WarehouseRepository,
 	locationRepo domain.WarehouseLocationRepository,
 	itemRepo domain.InventoryItemRepository,
@@ -24,6 +32,7 @@ func NewService(
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
+		db:            db,
 		warehouseRepo: warehouseRepo,
 		locationRepo:  locationRepo,
 		itemRepo:      itemRepo,
@@ -380,7 +389,7 @@ type TransferCreateInput struct {
 	LensID                *uint  `json:"lens_id"`
 	SourceLocationID      uint   `json:"source_location_id"      binding:"required"`
 	DestinationLocationID uint   `json:"destination_location_id" binding:"required"`
-	Quantity              int    `json:"quantity"                binding:"required"`
+	Quantity              int    `json:"quantity"                binding:"required,min=1"`
 	Notes                 string `json:"notes"`
 	TransferredBy         *uint  `json:"-"` // set from JWT
 }
@@ -393,11 +402,11 @@ type TransferUpdateInput struct {
 
 // TransferListOutput is the paginated transfer response.
 type TransferListOutput struct {
-	CurrentPage int                        `json:"current_page"`
+	CurrentPage int                         `json:"current_page"`
 	Data        []*domain.InventoryTransfer `json:"data"`
-	LastPage    int                        `json:"last_page"`
-	PerPage     int                        `json:"per_page"`
-	Total       int64                      `json:"total"`
+	LastPage    int                         `json:"last_page"`
+	PerPage     int                         `json:"per_page"`
+	Total       int64                       `json:"total"`
 }
 
 func (s *Service) ListTransfers(filters map[string]any, page, perPage int) (*TransferListOutput, error) {
@@ -420,6 +429,32 @@ func (s *Service) GetTransfer(id uint) (*domain.InventoryTransfer, error) {
 }
 
 func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTransfer, error) {
+	if input.SourceLocationID == input.DestinationLocationID {
+		return nil, &domain.ErrValidation{
+			Field:   "destination_location_id",
+			Message: "la ubicación de origen y destino no pueden ser la misma",
+		}
+	}
+
+	// Pre-check: source location must have sufficient stock for the given lens/product.
+	// LensID may be nil — only check stock when a lens is specified.
+	if input.LensID != nil {
+		var srcItem domain.InventoryItem
+		if err := s.db.Where("product_id = ? AND warehouse_location_id = ?", *input.LensID, input.SourceLocationID).
+			First(&srcItem).Error; err != nil {
+			return nil, &domain.ErrValidation{
+				Field:   "source_location_id",
+				Message: "no se encontró inventario en la ubicación de origen para este producto",
+			}
+		}
+		if srcItem.Quantity < input.Quantity {
+			return nil, &domain.ErrValidation{
+				Field:   "quantity",
+				Message: "stock insuficiente en la ubicación de origen",
+			}
+		}
+	}
+
 	t := &domain.InventoryTransfer{
 		LensID:                input.LensID,
 		SourceLocationID:      input.SourceLocationID,
@@ -435,15 +470,161 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 	return s.transferRepo.GetByID(t.ID)
 }
 
+// CompleteTransfer atomically moves stock from source to destination and marks the transfer completed.
+func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
+	var result *domain.InventoryTransfer
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var t domain.InventoryTransfer
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &domain.ErrNotFound{Resource: "inventory_transfer"}
+			}
+			return err
+		}
+		if t.Status != domain.InventoryTransferStatusPending {
+			return &domain.ErrValidation{
+				Field:   "status",
+				Message: "solo se pueden completar transferencias en estado pendiente",
+			}
+		}
+
+		// LensID is used as the product reference until 08-03-T6 renames it to ProductID.
+		if t.LensID != nil {
+			var src domain.InventoryItem
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("product_id = ? AND warehouse_location_id = ?", *t.LensID, t.SourceLocationID).
+				First(&src).Error; err != nil {
+				return &domain.ErrValidation{
+					Field:   "source_location_id",
+					Message: "no se encontró inventario en la ubicación de origen para este producto",
+				}
+			}
+			if src.Quantity < t.Quantity {
+				return &domain.ErrValidation{
+					Field:   "quantity",
+					Message: "stock insuficiente en la ubicación de origen",
+				}
+			}
+
+			if err := tx.Model(&src).Update("quantity", src.Quantity-t.Quantity).Error; err != nil {
+				return err
+			}
+
+			var dst domain.InventoryItem
+			dstErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("product_id = ? AND warehouse_location_id = ?", *t.LensID, t.DestinationLocationID).
+				First(&dst).Error
+			if dstErr != nil && !errors.Is(dstErr, gorm.ErrRecordNotFound) {
+				return dstErr
+			}
+			if errors.Is(dstErr, gorm.ErrRecordNotFound) {
+				var dstLoc domain.WarehouseLocation
+				if err := tx.First(&dstLoc, t.DestinationLocationID).Error; err != nil {
+					return &domain.ErrNotFound{Resource: "destination_warehouse_location"}
+				}
+				dst = domain.InventoryItem{
+					ProductID:           *t.LensID,
+					WarehouseID:         dstLoc.WarehouseID,
+					WarehouseLocationID: &t.DestinationLocationID,
+					Quantity:            t.Quantity,
+					Status:              domain.InventoryItemStatusAvailable,
+				}
+				if err := tx.Create(&dst).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Model(&dst).Update("quantity", dst.Quantity+t.Quantity).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		now := time.Now()
+		if err := tx.Model(&t).Updates(map[string]any{
+			"status":       string(domain.InventoryTransferStatusCompleted),
+			"completed_at": &now,
+		}).Error; err != nil {
+			return err
+		}
+		t.Status = domain.InventoryTransferStatusCompleted
+		t.CompletedAt = &now
+		result = &t
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.transferRepo.GetByID(result.ID)
+}
+
+// CancelTransfer sets the transfer status to cancelled, preventing any further state changes.
+func (s *Service) CancelTransfer(id uint) (*domain.InventoryTransfer, error) {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var t domain.InventoryTransfer
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &domain.ErrNotFound{Resource: "inventory_transfer"}
+			}
+			return err
+		}
+		if t.Status != domain.InventoryTransferStatusPending {
+			return &domain.ErrValidation{
+				Field:   "status",
+				Message: "solo se pueden cancelar transferencias en estado pendiente",
+			}
+		}
+		t.Status = domain.InventoryTransferStatusCancelled
+		if err := tx.Model(&t).Updates(map[string]any{"status": t.Status}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.transferRepo.GetByID(id)
+}
+
+// allowedTransitions defines the valid state machine transitions for inventory transfers.
+var allowedTransitions = map[domain.InventoryTransferStatus]map[domain.InventoryTransferStatus]bool{
+	domain.InventoryTransferStatusPending: {
+		domain.InventoryTransferStatusCompleted: true,
+		domain.InventoryTransferStatusCancelled: true,
+	},
+	domain.InventoryTransferStatusCompleted: {},
+	domain.InventoryTransferStatusCancelled: {},
+}
+
 func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.InventoryTransfer, error) {
 	t, err := s.transferRepo.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
-	t.Notes = input.Notes
-	if input.Status != "" {
-		t.Status = domain.InventoryTransferStatus(input.Status)
+
+	if t.Status == domain.InventoryTransferStatusCompleted || t.Status == domain.InventoryTransferStatusCancelled {
+		return nil, &domain.ErrValidation{
+			Field:   "status",
+			Message: "no se puede modificar una transferencia en estado terminal",
+		}
 	}
+
+	if input.Status != "" {
+		next := domain.InventoryTransferStatus(input.Status)
+		if !allowedTransitions[t.Status][next] {
+			return nil, &domain.ErrValidation{
+				Field:   "status",
+				Message: fmt.Sprintf("transición de estado no permitida: %s → %s", t.Status, next),
+			}
+		}
+		if next == domain.InventoryTransferStatusCompleted {
+			return s.CompleteTransfer(id)
+		}
+		if next == domain.InventoryTransferStatusCancelled {
+			return s.CancelTransfer(id)
+		}
+	}
+
+	t.Notes = input.Notes
 	if err := s.transferRepo.Update(t); err != nil {
 		return nil, err
 	}

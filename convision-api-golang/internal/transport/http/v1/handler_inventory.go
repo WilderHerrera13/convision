@@ -344,6 +344,32 @@ func (h *Handler) DeleteInventoryTransfer(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *Handler) CompleteInventoryTransfer(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	t, err := h.inventory.CompleteTransfer(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, t)
+}
+
+func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	t, err := h.inventory.CancelTransfer(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, t)
+}
+
 // ======== Inventory Adjustments ========
 
 func (h *Handler) AdjustInventory(c *gin.Context) {
