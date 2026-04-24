@@ -1,252 +1,93 @@
-# Phase 8 Verification Checklist
-
-Checklist for confirming all bugs fixed in Plans 08-02 and 08-03 are correctly implemented.
-
+---
+status: human_needed
+phase: 08-go-inventory-backend-audit-hardening
+verified_at: 2026-04-24
+must_haves_checked: 19
+must_haves_passed: 19
 ---
 
-## 1. Code-Level Checks (grep)
+## Phase 08 Verification
 
-Run each command from the repo root. Each must return at least one match unless noted otherwise.
+### Goal
 
-### Plan 08-02 — Transfer Business Logic
+Audit the Go inventory backend against the Laravel reference module, identify all gaps, and harden the implementation by fixing all CRITICAL and HIGH severity bugs — primarily the absent stock-movement logic in CompleteTransfer, transfer validation guards, state machine enforcement, DeleteLocation inventory guard, and the ambiguous/un-atomic AdjustStock method. Rename LensID to ProductID throughout and align all API response shapes.
 
-```bash
-# Service struct has db *gorm.DB field
-grep "db \*gorm.DB" convision-api-golang/internal/inventory/service.go
+### Must-Haves Check
 
-# NewService first parameter is db *gorm.DB
-grep "func NewService(db \*gorm.DB" convision-api-golang/internal/inventory/service.go
+#### From 08-02-PLAN.md
 
-# CompleteTransfer uses a transaction
-grep "s.db.Transaction" convision-api-golang/internal/inventory/service.go
+| # | Must-Have | Evidence | Status |
+|---|-----------|----------|--------|
+| 1 | `go build ./...` exits 0 after all tasks | `cd convision-api-golang && go build ./...` passes | ✓ |
+| 2 | `inventory.Service` struct has field `db *gorm.DB` | `service.go:54` — `db *gorm.DB` inside Service struct | ✓ |
+| 3 | `NewService` first parameter is `db *gorm.DB` | `service.go:64` — `db *gorm.DB,` is first param in signature | ✓ |
+| 4 | `CompleteTransfer` service method exists and uses `s.db.Transaction` | `service.go:646` — method exists; `service.go:648` — `s.db.Transaction` call confirmed | ✓ |
+| 5 | `CancelTransfer` service method exists | `service.go:731` — `func (s *Service) CancelTransfer` defined | ✓ |
+| 6 | `CreateTransfer` returns `ErrValidation` when `SourceLocationID == DestinationLocationID` | `service.go:607` — equality check returning `ErrValidation` | ✓ |
+| 7 | `CreateTransfer` returns `ErrValidation` when source has insufficient stock | `service.go:626` — "stock insuficiente en la ubicación de origen" message | ✓ |
+| 8 | `UpdateTransfer` routes to `CompleteTransfer` when next status is `completed` | `service.go:793` — `return s.CompleteTransfer(id)` inside UpdateTransfer | ✓ |
+| 9 | `POST /api/v1/inventory-transfers/:id/complete` route exists in routes.go | `routes.go:352` — `inventoryTransfers.POST("/:id/complete", jwtauth.RequireRole(...), h.CompleteInventoryTransfer)` | ✓ |
+| 10 | `POST /api/v1/inventory-transfers/:id/cancel` route exists in routes.go | `routes.go:353` — `inventoryTransfers.POST("/:id/cancel", jwtauth.RequireRole(...), h.CancelInventoryTransfer)` | ✓ |
+| 11 | `InventoryTransferRepository.Update` only writes `notes`, `status`, `completed_at` | `inventory_transfer_repository.go:53-59` — map contains exactly those 3 keys, no immutable fields | ✓ |
 
-# CompleteTransfer uses SELECT FOR UPDATE row-level locks
-grep "clause.Locking" convision-api-golang/internal/inventory/service.go
+#### From 08-03-PLAN.md
 
-# CompleteTransfer rejects non-pending status
-grep "solo se pueden completar transferencias en estado pendiente" convision-api-golang/internal/inventory/service.go
+| # | Must-Have | Evidence | Status |
+|---|-----------|----------|--------|
+| 12 | `ProductID uint` on `InventoryTransfer` struct (not LensID) | `domain/inventory.go:77` — `ProductID uint` with `gorm:"column:product_id;not null"` | ✓ |
+| 13 | No `LensID` reference in `domain/inventory.go` | Grep confirms absent — no LensID anywhere in the file | ✓ |
+| 14 | `func (s *Service) AdjustStockByItemID` exists | `service.go:816` — method defined with SELECT FOR UPDATE inside transaction | ✓ |
+| 15 | `func validateItemStatus` exists | `service.go:24` — function defined, checks against `validItemStatuses` map | ✓ |
+| 16 | `Quantity *int` on `ItemUpdateInput` | `service.go:361` — `Quantity *int` confirmed on ItemUpdateInput struct | ✓ |
+| 17 | `warehouse_location_id` filter present in `ListInventoryItems` handler | `handler_inventory.go:192-194` — filter parsed from query param and added to filters map | ✓ |
+| 18 | `total_units` in `GetTotalStock` response | `handler_inventory.go:288` — `"total_units": totalUnits` present in gin.H response | ✓ |
 
-# CancelTransfer exists
-grep "func (s \*Service) CancelTransfer" convision-api-golang/internal/inventory/service.go
+#### From 08-04-PLAN.md
 
-# CancelTransfer rejects non-pending status
-grep "solo se pueden cancelar transferencias en estado pendiente" convision-api-golang/internal/inventory/service.go
+| # | Must-Have | Evidence | Status |
+|---|-----------|----------|--------|
+| 19 | `convision-api-golang/scripts/verify-inventory.sh` exists and is executable | File exists as `-rwxr-xr-x`; 25 `assert_status` calls; 17 PASS/FAIL references; `bash -n` exits 0 | ✓ |
 
-# CreateTransfer rejects same source and destination
-grep "la ubicación de origen y destino no pueden ser la misma" convision-api-golang/internal/inventory/service.go
+### Requirement Traceability
 
-# CreateTransfer rejects insufficient stock
-grep "stock insuficiente en la ubicación de origen" convision-api-golang/internal/inventory/service.go
+Note: INV-01 through INV-05 are phase-internal requirement IDs referenced in the PLAN files. They are not registered in the global REQUIREMENTS.md. The closest global requirements they serve are QUAL-01 (backend endpoint conventions) and QUAL-03 (critical paths have executable verification evidence).
 
-# TransferCreateInput requires quantity >= 1
-grep "min=1" convision-api-golang/internal/inventory/service.go
+| Requirement ID | Description | Status |
+|----------------|-------------|--------|
+| INV-01 | Atomic stock movement: CompleteTransfer must decrement source and increment destination inside a DB transaction with SELECT FOR UPDATE row locking | Satisfied — `service.go:646-728` uses `s.db.Transaction` + `clause.Locking{Strength:"UPDATE"}` on transfer row, source item, and destination item |
+| INV-02 | Transfer validation guards: source location ID must differ from destination, quantity must be ≥ 1, source must have sufficient stock at creation time | Satisfied — `service.go:607-628` checks all three guards; binding tag `min=1` on Quantity at `service.go:567` |
+| INV-03 | Transfer state machine: only pending→completed and pending→cancelled are valid transitions; completed_at is stamped on completion; terminal states cannot be further mutated | Satisfied — `allowedTransitions` map at `service.go:759-766`; `completed_at` stamped in CompleteTransfer at `service.go:712-716`; terminal guard at `service.go:774-778` |
+| INV-04 | Inventory item data integrity: DeleteLocation guards against active inventory; AdjustStock operates on item ID with row lock in a transaction; item status enum is validated; ItemUpdateInput.Quantity is a pointer to avoid zero-value overwrites | Satisfied — `service.go:312-327` (DeleteLocation guard); `service.go:816-846` (AdjustStockByItemID with SELECT FOR UPDATE); `service.go:24-33` (validateItemStatus); `service.go:361` (Quantity *int) |
+| INV-05 | API parity with Laravel reference: warehouse_location_id filter in ListInventoryItems; GetTotalStock returns unified {data, total_units} shape; LensID renamed to ProductID across domain, service, repository, and DB migration | Satisfied — `handler_inventory.go:192`; `handler_inventory.go:265-290`; `domain/inventory.go:77`; migration `000016_rename_lens_id_to_product_id.up.sql` exists |
 
-# UpdateTransfer uses state machine
-grep "allowedTransitions" convision-api-golang/internal/inventory/service.go
+### Gaps (post-phase code review findings not in must_haves)
 
-# UpdateTransfer rejects terminal-state modifications
-grep "no se puede modificar una transferencia en estado terminal" convision-api-golang/internal/inventory/service.go
+The following gaps were identified in 08-REVIEW.md after implementation. They are not failures of the phase must_haves, but they require follow-up work:
 
-# UpdateTransfer delegates to CompleteTransfer
-grep "return s.CompleteTransfer(id)" convision-api-golang/internal/inventory/service.go
+1. **CR-001 (critical)**: `CreateTransfer` stock pre-check runs outside a transaction — TOCTOU race allows queuing more pending transfers than stock allows. CompleteTransfer re-validates under lock so actual over-transfer is prevented at completion, but the creation path is not concurrency-safe. A follow-up phase should wrap CreateTransfer in a transaction with SELECT FOR UPDATE.
 
-# UpdateTransfer delegates to CancelTransfer
-grep "return s.CancelTransfer(id)" convision-api-golang/internal/inventory/service.go
+2. **CR-002 (critical)**: All four inventory entities (`Warehouse`, `WarehouseLocation`, `InventoryItem`, `InventoryTransfer`) lack `clinic_id`. The mandatory multi-clinic data isolation rule from DATABASE_GUIDE is not enforced. Any authenticated user can access inventory data across all clinics. Requires a dedicated hardening phase.
 
-# Repository Update is restricted to mutable fields only (should NOT match source/destination)
-# Expected: 0 matches inside the Update function for immutable fields
-grep "source_location_id" convision-api-golang/internal/platform/storage/postgres/inventory_transfer_repository.go | grep -v List | grep -v Create | grep -v filter
-# Expected: returns "completed_at" match inside Update map
-grep "completed_at" convision-api-golang/internal/platform/storage/postgres/inventory_transfer_repository.go
+3. **CR-003 (warning)**: Migration `000016` UP uses `RENAME COLUMN` with no `IF EXISTS` guard — non-idempotent, will fail on a second run.
 
-# POST /complete and /cancel routes exist
-grep "/:id/complete" convision-api-golang/internal/transport/http/v1/routes.go
-grep "/:id/cancel" convision-api-golang/internal/transport/http/v1/routes.go
-grep "h.CompleteInventoryTransfer" convision-api-golang/internal/transport/http/v1/routes.go
-grep "h.CancelInventoryTransfer" convision-api-golang/internal/transport/http/v1/routes.go
+4. **CR-004 (warning)**: Migration `000016` DOWN references the `lenses` table which may not exist in all environments — down migration is not reliably reversible.
 
-# Handler methods exist
-grep "func (h \*Handler) CompleteInventoryTransfer" convision-api-golang/internal/transport/http/v1/handler_inventory.go
-grep "func (h \*Handler) CancelInventoryTransfer" convision-api-golang/internal/transport/http/v1/handler_inventory.go
-```
+5. **CR-005 (warning)**: Orphaned index `idx_inventory_transfers_lens_id` is left behind after the column rename — migration 016 does not drop it.
 
-### Plan 08-03 — Inventory Item & Warehouse Guards
+6. **CR-007 (warning)**: `DeleteTransfer` allows hard-deleting completed transfers, destroying the audit trail of a committed stock movement.
 
-```bash
-# LensID renamed to ProductID in domain
-grep "ProductID uint" convision-api-golang/internal/domain/inventory.go
-# Expected: 0 matches
-grep "LensID" convision-api-golang/internal/domain/inventory.go
+### Human Verification Items
 
-# AdjustStock rewritten to AdjustStockByItemID
-grep "func (s \*Service) AdjustStockByItemID" convision-api-golang/internal/inventory/service.go
-# Expected: 0 matches (old function removed)
-grep "func (s \*Service) AdjustStock\b" convision-api-golang/internal/inventory/service.go
+The following behaviors require a running backend and cannot be confirmed by static analysis:
 
-# Status enum validation helpers exist
-grep "func validateItemStatus" convision-api-golang/internal/inventory/service.go
-grep "func validateTransferStatus" convision-api-golang/internal/inventory/service.go
+1. **End-to-end stock movement**: Run `BASE_URL=http://localhost:8001 bash convision-api-golang/scripts/verify-inventory.sh` (auto-login included). Confirm all tests pass and especially that location A quantity decreases and location B quantity increases by the transfer amount after CompleteTransfer.
 
-# ItemUpdateInput uses pointer for Quantity to avoid zero-value overwrite
-grep "Quantity \*int" convision-api-golang/internal/inventory/service.go
+2. **State machine enforcement**: Verify that calling `POST /api/v1/inventory-transfers/:id/complete` on an already-completed transfer returns HTTP 422 with the message "solo se pueden completar transferencias en estado pendiente".
 
-# DeleteLocation has inventory guard
-grep "DeleteLocation" convision-api-golang/internal/inventory/service.go
+3. **AdjustStockByItemID negative guard**: Verify that a delta producing negative stock returns HTTP 422 with "el ajuste resultaría en stock negativo".
 
-# warehouse_location_id filter in ListInventoryItems handler
-grep "warehouse_location_id" convision-api-golang/internal/transport/http/v1/handler_inventory.go
+4. **Location delete guard**: Verify that `DELETE /api/v1/warehouse-locations/:id` for a location with active inventory returns HTTP 422 with "no se puede eliminar una ubicación que tiene inventario activo".
 
-# AdjustInventory handler uses inventory_item_id + delta
-grep "inventory_item_id\|InventoryItemID" convision-api-golang/internal/transport/http/v1/handler_inventory.go
+5. **DB migration 000016**: Verify the migration runs cleanly (`migrate up`) and that `inventory_transfers.product_id` is NOT NULL with a FK to `products(id)` using `ON DELETE RESTRICT`.
 
-# GetTotalStock returns unified shape with total_units
-grep "total_units" convision-api-golang/internal/transport/http/v1/handler_inventory.go
-
-# DB migration 000016 exists
-ls convision-api-golang/db/migrations/tenant/000016_rename_lens_id_to_product_id.up.sql
-ls convision-api-golang/db/migrations/tenant/000016_rename_lens_id_to_product_id.down.sql
-
-# Migration renames lens_id to product_id
-grep "RENAME COLUMN lens_id TO product_id" convision-api-golang/db/migrations/tenant/000016_rename_lens_id_to_product_id.up.sql
-
-# inventoryService is constructed with db as first arg in main.go
-grep "inventorysvc.NewService(db," convision-api-golang/cmd/api/main.go
-```
-
----
-
-## 2. Build Check
-
-```bash
-cd convision-api-golang && go build ./...
-```
-
-Expected: exits 0 with no output.
-
----
-
-## 3. Integration Script
-
-Requires the backend running on port 8001 with seed data (at least one product in the catalog).
-
-```bash
-# With auto-login (recommended):
-BASE_URL=http://localhost:8001 bash convision-api-golang/scripts/verify-inventory.sh
-
-# Or with explicit JWT token:
-TOKEN=$(curl -s -X POST http://localhost:8001/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@convision.com","password":"password"}' \
-  | grep -o '"token":"[^"]*"' | sed 's/"token":"//;s/"//') && \
-BASE_URL=http://localhost:8001 TOKEN=$TOKEN bash convision-api-golang/scripts/verify-inventory.sh
-```
-
-Expected output: `X/N tests passed` where X == N, exit code 0.
-
-The script covers:
-- Section 1: Warehouse CRUD (4 assertions)
-- Section 2: Location CRUD (3 assertions)
-- Section 3: Item CRUD + guards: duplicate rejection, delete-with-stock rejection, AdjustStockByItemID, negative delta rejection (7 assertions)
-- Section 4: Transfer validation guards: same location, zero quantity, insufficient stock (3 assertions)
-- Section 5: Transfer happy path: create pending → complete → verify quantity moved at source and destination (6 assertions)
-- Section 6: State machine guards: re-complete rejected, cancel, re-cancel rejected (5 assertions)
-- Section 7: TotalStock unified shape with and without warehouse_id filter (4 assertions)
-- Section 8: Location delete guard with active inventory (1 assertion)
-- Section 9: Warehouse delete guard (1 assertion)
-
----
-
-## 4. DB Verification Queries
-
-Run these in psql after executing the integration script or a manual test transfer to confirm stock was correctly moved.
-
-```sql
--- Replace :source_item_id and :dest_item_id with actual IDs from the test run.
-
--- Check source item quantity decreased
-SELECT id, product_id, warehouse_location_id, quantity, status, updated_at
-FROM inventory_items
-WHERE id = :source_item_id;
-
--- Check destination item quantity increased
-SELECT id, product_id, warehouse_location_id, quantity, status, updated_at
-FROM inventory_items
-WHERE id = :dest_item_id;
-
--- Check transfer record has completed_at set and status = completed
-SELECT id, product_id, source_location_id, destination_location_id,
-       quantity, status, completed_at, created_at
-FROM inventory_transfers
-WHERE id = :transfer_id;
-
--- Confirm no orphaned inventory_items referencing deleted locations
-SELECT ii.id, ii.warehouse_location_id
-FROM inventory_items ii
-LEFT JOIN warehouse_locations wl ON wl.id = ii.warehouse_location_id AND wl.deleted_at IS NULL
-WHERE wl.id IS NULL AND ii.deleted_at IS NULL;
--- Expected: 0 rows
-
--- Verify total stock per product matches sum of individual items
-SELECT product_id, SUM(quantity) AS total
-FROM inventory_items
-WHERE deleted_at IS NULL
-GROUP BY product_id
-ORDER BY product_id;
-```
-
----
-
-## 5. Concurrency Test (manual)
-
-Requires `ab` (Apache Bench) or `k6`. Tests that two concurrent transfers cannot both succeed when only enough stock for one exists.
-
-### Setup
-
-```bash
-# Create an item with exactly 5 units
-# Item ID saved as $ITEM_ID, location IDs as $LOC_A and $LOC_B
-
-# Create 10 pending transfers each requesting 5 units (only 1 can succeed):
-for i in $(seq 1 10); do
-  curl -s -X POST "$BASE_URL/api/v1/inventory-transfers" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{\"source_location_id\":$LOC_A,\"destination_location_id\":$LOC_B,\"quantity\":5,\"product_id\":$PROD_ID}" \
-    | grep -o '"id":[0-9]*' | head -1
-done
-# Save transfer IDs
-```
-
-### Concurrent complete requests
-
-```bash
-# Using ab (10 concurrent requests against the complete endpoint for the first transfer)
-# Expected: exactly 1 succeeds (HTTP 200), 9 get HTTP 422 (already completed or insufficient stock)
-
-# Using a simple parallel bash loop:
-for TRF_ID in $TRF_ID_1 $TRF_ID_2 ...; do
-  curl -s -o /dev/null -w "$TRF_ID: %{http_code}\n" \
-    -X POST "$BASE_URL/api/v1/inventory-transfers/$TRF_ID/complete" \
-    -H "Authorization: Bearer $TOKEN" &
-done
-wait
-```
-
-### Expected result
-
-```sql
--- After all concurrent completes, source item quantity must be >= 0 (never negative)
-SELECT quantity FROM inventory_items WHERE id = :source_item_id;
--- Expected: 0 (one transfer of 5 from 5) or original value (all rejected)
-```
-
----
-
-## Phase 8 Sign-Off Criteria
-
-- [ ] All grep checks in Section 1 pass (returns expected matches)
-- [ ] `go build ./...` exits 0
-- [ ] `verify-inventory.sh` runs all tests with 0 failures
-- [ ] DB queries show correct post-transfer quantities (source decreased, destination increased)
-- [ ] `completed_at` is non-null on completed transfers
-- [ ] Concurrency test shows no negative stock or double-deduction
+6. **Concurrency test**: Send 10 simultaneous `POST /api/v1/inventory-transfers/:id/complete` requests for the same transfer ID. Confirm exactly one succeeds (HTTP 200) and the rest return HTTP 422. Confirm stock is moved exactly once by querying `inventory_items` directly after the test.
