@@ -421,18 +421,18 @@ func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
 
 func (h *Handler) AdjustInventory(c *gin.Context) {
 	var input struct {
-		ProductID uint  `json:"product_id" binding:"required"`
-		Quantity  int64 `json:"quantity" binding:"required"`
-		Reason    string `json:"reason"`
+		InventoryItemID uint   `json:"inventory_item_id" binding:"required"`
+		Delta           int    `json:"delta"             binding:"required"`
+		Reason          string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	result, err := h.inventory.AdjustStock(input.ProductID, input.Quantity, input.Reason)
+	item, err := h.inventory.AdjustStockByItemID(input.InventoryItemID, input.Delta, input.Reason)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, item)
 }

@@ -763,34 +763,36 @@ func (s *Service) DeleteTransfer(id uint) error {
 	return s.transferRepo.Delete(id)
 }
 
-// AdjustStock adjusts inventory stock for a product (GOQA-010)
-func (s *Service) AdjustStock(productID uint, quantity int64, reason string) (interface{}, error) {
-	// Get all inventory items for the product
-	filters := map[string]any{"product_id": productID}
-	items, _, err := s.itemRepo.List(filters, 1, 100)
+// AdjustStockByItemID adjusts the quantity of a specific InventoryItem using a
+// signed delta inside a DB transaction with row-level locking (BUG-5, BUG-6).
+func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*domain.InventoryItem, error) {
+	s.logger.Info("stock adjusted", zap.Uint("item_id", itemID), zap.Int("delta", delta), zap.String("reason", reason))
+	var result *domain.InventoryItem
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var item domain.InventoryItem
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&item, itemID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &domain.ErrNotFound{Resource: "inventory_item"}
+			}
+			return err
+		}
+		newQty := item.Quantity + delta
+		if newQty < 0 {
+			return &domain.ErrValidation{
+				Field:   "delta",
+				Message: "el ajuste resultaría en stock negativo",
+			}
+		}
+		if err := tx.Model(&item).Update("quantity", newQty).Error; err != nil {
+			return err
+		}
+		item.Quantity = newQty
+		result = &item
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	if len(items) == 0 {
-		return nil, &domain.ErrNotFound{Resource: "inventory item for product"}
-	}
-
-	// Adjust the first item (usually there's only one per product)
-	item := items[0]
-	item.Quantity += int(quantity)
-	if item.Quantity < 0 {
-		return nil, &domain.ErrValidation{Field: "quantity", Message: "cannot have negative stock"}
-	}
-
-	if err := s.itemRepo.Update(item); err != nil {
-		return nil, err
-	}
-
-	return map[string]interface{}{
-		"product_id": productID,
-		"adjustment": quantity,
-		"new_quantity": item.Quantity,
-		"reason": reason,
-	}, nil
+	return s.itemRepo.GetByID(result.ID)
 }
