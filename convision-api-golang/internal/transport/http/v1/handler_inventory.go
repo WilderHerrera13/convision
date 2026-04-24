@@ -189,6 +189,11 @@ func (h *Handler) ListInventoryItems(c *gin.Context) {
 			filters["warehouse_id"] = uint(id)
 		}
 	}
+	if v := c.Query("warehouse_location_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["warehouse_location_id"] = uint(id)
+		}
+	}
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
 	}
