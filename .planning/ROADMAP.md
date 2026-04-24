@@ -147,9 +147,9 @@ Plans:
 
 Plans:
 - [x] 08-01: Audit — full inventory backend gap analysis vs Laravel reference (domain, service, repos, handlers, routes)
-- [ ] 08-02: Fix — transfer business logic (atomic stock movement, state machine, validation guards)
-- [ ] 08-03: Fix — inventory item & warehouse data-integrity guards (location delete protection, AdjustStock, status enums)
-- [ ] 08-04: Validate — integration test suite for all critical inventory math paths
+- [x] 08-02: Fix — transfer business logic (atomic stock movement, state machine, validation guards)
+- [x] 08-03: Fix — inventory item & warehouse data-integrity guards (location delete protection, AdjustStock, status enums)
+- [x] 08-04: Validate — integration test suite for all critical inventory math paths
 
 ### Phase 9: Go Backend Test Suite
 **Goal**: Write comprehensive unit and integration tests for all Go backend services and HTTP handlers so that every business rule, validation, and endpoint is verifiable in CI without relying on manual testing.
