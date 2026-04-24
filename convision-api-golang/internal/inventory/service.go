@@ -12,6 +12,43 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
+var validItemStatuses = map[domain.InventoryItemStatus]bool{
+	domain.InventoryItemStatusAvailable: true,
+	domain.InventoryItemStatusReserved:  true,
+	domain.InventoryItemStatusDamaged:   true,
+	domain.InventoryItemStatusSold:      true,
+	domain.InventoryItemStatusReturned:  true,
+	domain.InventoryItemStatusLost:      true,
+}
+
+func validateItemStatus(s string) (domain.InventoryItemStatus, error) {
+	if s == "" {
+		return domain.InventoryItemStatusAvailable, nil
+	}
+	st := domain.InventoryItemStatus(s)
+	if !validItemStatuses[st] {
+		return "", &domain.ErrValidation{Field: "status", Message: "valor de estado inválido"}
+	}
+	return st, nil
+}
+
+var validTransferStatuses = map[domain.InventoryTransferStatus]bool{
+	domain.InventoryTransferStatusPending:   true,
+	domain.InventoryTransferStatusCompleted: true,
+	domain.InventoryTransferStatusCancelled: true,
+}
+
+func validateTransferStatus(s string) (domain.InventoryTransferStatus, error) {
+	if s == "" {
+		return "", nil
+	}
+	st := domain.InventoryTransferStatus(s)
+	if !validTransferStatuses[st] {
+		return "", &domain.ErrValidation{Field: "status", Message: "valor de estado de transferencia inválido"}
+	}
+	return st, nil
+}
+
 // Service handles inventory use-cases.
 type Service struct {
 	db             *gorm.DB
@@ -375,9 +412,9 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 			}
 		}
 	}
-	status := domain.InventoryItemStatus(input.Status)
-	if status == "" {
-		status = domain.InventoryItemStatusAvailable
+	status, err := validateItemStatus(input.Status)
+	if err != nil {
+		return nil, err
 	}
 	i := &domain.InventoryItem{
 		ProductID:           input.ProductID,
@@ -434,7 +471,11 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 	i.WarehouseLocationID = newLocationID
 	i.Quantity = input.Quantity
 	if input.Status != "" {
-		i.Status = domain.InventoryItemStatus(input.Status)
+		st, err := validateItemStatus(input.Status)
+		if err != nil {
+			return nil, err
+		}
+		i.Status = st
 	}
 	i.Notes = input.Notes
 
@@ -734,6 +775,9 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 	}
 
 	if input.Status != "" {
+		if _, err := validateTransferStatus(input.Status); err != nil {
+			return nil, err
+		}
 		next := domain.InventoryTransferStatus(input.Status)
 		if !allowedTransitions[t.Status][next] {
 			return nil, &domain.ErrValidation{
