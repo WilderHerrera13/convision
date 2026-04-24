@@ -611,35 +611,44 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 		}
 	}
 
-	// Pre-check: source location must have sufficient stock for the given product.
-	var srcItem domain.InventoryItem
-	if err := s.db.Where("product_id = ? AND warehouse_location_id = ?", input.ProductID, input.SourceLocationID).
-		First(&srcItem).Error; err != nil {
-		return nil, &domain.ErrValidation{
-			Field:   "source_location_id",
-			Message: "no se encontró inventario en la ubicación de origen para este producto",
+	var created *domain.InventoryTransfer
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Lock the source item row to prevent concurrent transfers from over-committing stock.
+		var srcItem domain.InventoryItem
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("product_id = ? AND warehouse_location_id = ?", input.ProductID, input.SourceLocationID).
+			First(&srcItem).Error; err != nil {
+			return &domain.ErrValidation{
+				Field:   "source_location_id",
+				Message: "no se encontró inventario en la ubicación de origen para este producto",
+			}
 		}
-	}
-	if srcItem.Quantity < input.Quantity {
-		return nil, &domain.ErrValidation{
-			Field:   "quantity",
-			Message: "stock insuficiente en la ubicación de origen",
+		if srcItem.Quantity < input.Quantity {
+			return &domain.ErrValidation{
+				Field:   "quantity",
+				Message: "stock insuficiente en la ubicación de origen",
+			}
 		}
-	}
 
-	t := &domain.InventoryTransfer{
-		ProductID:             input.ProductID,
-		SourceLocationID:      input.SourceLocationID,
-		DestinationLocationID: input.DestinationLocationID,
-		Quantity:              input.Quantity,
-		Notes:                 input.Notes,
-		TransferredBy:         input.TransferredBy,
-		Status:                domain.InventoryTransferStatusPending,
-	}
-	if err := s.transferRepo.Create(t); err != nil {
+		t := &domain.InventoryTransfer{
+			ProductID:             input.ProductID,
+			SourceLocationID:      input.SourceLocationID,
+			DestinationLocationID: input.DestinationLocationID,
+			Quantity:              input.Quantity,
+			Notes:                 input.Notes,
+			TransferredBy:         input.TransferredBy,
+			Status:                domain.InventoryTransferStatusPending,
+		}
+		if err := tx.Create(t).Error; err != nil {
+			return err
+		}
+		created = t
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(t.ID)
+	return s.transferRepo.GetByID(created.ID)
 }
 
 // CompleteTransfer atomically moves stock from source to destination and marks the transfer completed.
