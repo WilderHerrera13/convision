@@ -276,6 +276,16 @@ func (s *Service) DeleteLocation(id uint) error {
 	if _, err := s.locationRepo.GetByID(id); err != nil {
 		return err
 	}
+	items, _, err := s.itemRepo.List(map[string]any{"warehouse_location_id": id}, 1, 1)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		return &domain.ErrValidation{
+			Field:   "warehouse_location_id",
+			Message: "no se puede eliminar una ubicación que tiene inventario activo",
+		}
+	}
 	return s.locationRepo.Delete(id)
 }
 
