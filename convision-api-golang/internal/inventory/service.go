@@ -805,8 +805,15 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 }
 
 func (s *Service) DeleteTransfer(id uint) error {
-	if _, err := s.transferRepo.GetByID(id); err != nil {
+	t, err := s.transferRepo.GetByID(id)
+	if err != nil {
 		return err
+	}
+	if t.Status != domain.InventoryTransferStatusPending {
+		return &domain.ErrValidation{
+			Field:   "status",
+			Message: "solo se pueden eliminar transferencias en estado pendiente",
+		}
 	}
 	return s.transferRepo.Delete(id)
 }
