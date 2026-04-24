@@ -22,7 +22,7 @@ dev:
 
 ## test: run all tests with coverage
 test:
-	go test ./... -coverprofile=coverage.out
+	go test ./... -race -coverprofile=coverage.out -covermode=atomic
 	go tool cover -func=coverage.out
 
 ## lint: run golangci-lint (go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
