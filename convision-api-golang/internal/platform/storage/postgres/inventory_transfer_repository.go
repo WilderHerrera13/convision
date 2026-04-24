@@ -10,7 +10,7 @@ import (
 
 var inventoryTransferFilterAllowlist = map[string]bool{
 	"status":                  true,
-	"lens_id":                 true,
+	"product_id":              true,
 	"source_location_id":      true,
 	"destination_location_id": true,
 	"transferred_by":          true,
@@ -28,6 +28,7 @@ func NewInventoryTransferRepository(db *gorm.DB) *InventoryTransferRepository {
 
 func (r *InventoryTransferRepository) withRelations(q *gorm.DB) *gorm.DB {
 	return q.
+		Preload("Product").
 		Preload("SourceLocation").
 		Preload("DestinationLocation").
 		Preload("TransferredByUser")

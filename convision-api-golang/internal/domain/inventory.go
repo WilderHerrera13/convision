@@ -21,7 +21,7 @@ type Warehouse struct {
 type WarehouseLocation struct {
 	ID          uint      `json:"id"           gorm:"primaryKey;autoIncrement"`
 	WarehouseID uint      `json:"warehouse_id" gorm:"not null;index"`
-	Name        string    `json:"name"         gorm:"not null"`
+	Name        string    `json:"name"         gorm:"not null;uniqueIndex:uq_location_name_warehouse"`
 	Code        string    `json:"code"         gorm:"index"`
 	Type        string    `json:"type"         gorm:"type:varchar(50)"`
 	Status      string    `json:"status"       gorm:"type:varchar(20);not null;default:'active'"`
@@ -74,7 +74,7 @@ const (
 // InventoryTransfer represents a movement of stock between locations.
 type InventoryTransfer struct {
 	ID                    uint                    `json:"id"                      gorm:"primaryKey;autoIncrement"`
-	LensID                *uint                   `json:"lens_id"                 gorm:"column:lens_id"`
+	ProductID             uint                    `json:"product_id"              gorm:"column:product_id;not null"`
 	SourceLocationID      uint                    `json:"source_location_id"      gorm:"not null;index"`
 	DestinationLocationID uint                    `json:"destination_location_id" gorm:"not null;index"`
 	Quantity              int                     `json:"quantity"                gorm:"not null"`
@@ -86,6 +86,7 @@ type InventoryTransfer struct {
 	UpdatedAt             time.Time               `json:"updated_at"`
 
 	// Associations
+	Product             *Product           `json:"product,omitempty"              gorm:"foreignKey:ProductID"`
 	SourceLocation      *WarehouseLocation `json:"source_location,omitempty"      gorm:"foreignKey:SourceLocationID"`
 	DestinationLocation *WarehouseLocation `json:"destination_location,omitempty" gorm:"foreignKey:DestinationLocationID"`
 	TransferredByUser   *User              `json:"transferred_by_user,omitempty"  gorm:"foreignKey:TransferredBy"`

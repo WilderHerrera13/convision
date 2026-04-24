@@ -506,7 +506,7 @@ func (s *Service) GetProductInventorySummary(productID uint) (*ProductInventoryS
 
 // TransferCreateInput holds validated fields for creating a transfer.
 type TransferCreateInput struct {
-	LensID                *uint  `json:"lens_id"`
+	ProductID             uint   `json:"product_id"              binding:"required"`
 	SourceLocationID      uint   `json:"source_location_id"      binding:"required"`
 	DestinationLocationID uint   `json:"destination_location_id" binding:"required"`
 	Quantity              int    `json:"quantity"                binding:"required,min=1"`
@@ -556,27 +556,24 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 		}
 	}
 
-	// Pre-check: source location must have sufficient stock for the given lens/product.
-	// LensID may be nil — only check stock when a lens is specified.
-	if input.LensID != nil {
-		var srcItem domain.InventoryItem
-		if err := s.db.Where("product_id = ? AND warehouse_location_id = ?", *input.LensID, input.SourceLocationID).
-			First(&srcItem).Error; err != nil {
-			return nil, &domain.ErrValidation{
-				Field:   "source_location_id",
-				Message: "no se encontró inventario en la ubicación de origen para este producto",
-			}
+	// Pre-check: source location must have sufficient stock for the given product.
+	var srcItem domain.InventoryItem
+	if err := s.db.Where("product_id = ? AND warehouse_location_id = ?", input.ProductID, input.SourceLocationID).
+		First(&srcItem).Error; err != nil {
+		return nil, &domain.ErrValidation{
+			Field:   "source_location_id",
+			Message: "no se encontró inventario en la ubicación de origen para este producto",
 		}
-		if srcItem.Quantity < input.Quantity {
-			return nil, &domain.ErrValidation{
-				Field:   "quantity",
-				Message: "stock insuficiente en la ubicación de origen",
-			}
+	}
+	if srcItem.Quantity < input.Quantity {
+		return nil, &domain.ErrValidation{
+			Field:   "quantity",
+			Message: "stock insuficiente en la ubicación de origen",
 		}
 	}
 
 	t := &domain.InventoryTransfer{
-		LensID:                input.LensID,
+		ProductID:             input.ProductID,
 		SourceLocationID:      input.SourceLocationID,
 		DestinationLocationID: input.DestinationLocationID,
 		Quantity:              input.Quantity,
@@ -608,54 +605,52 @@ func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
 			}
 		}
 
-		// LensID is used as the product reference until 08-03-T6 renames it to ProductID.
-		if t.LensID != nil {
-			var src domain.InventoryItem
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-				Where("product_id = ? AND warehouse_location_id = ?", *t.LensID, t.SourceLocationID).
-				First(&src).Error; err != nil {
-				return &domain.ErrValidation{
-					Field:   "source_location_id",
-					Message: "no se encontró inventario en la ubicación de origen para este producto",
-				}
+		// Move stock from source to destination location.
+		var src domain.InventoryItem
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("product_id = ? AND warehouse_location_id = ?", t.ProductID, t.SourceLocationID).
+			First(&src).Error; err != nil {
+			return &domain.ErrValidation{
+				Field:   "source_location_id",
+				Message: "no se encontró inventario en la ubicación de origen para este producto",
 			}
-			if src.Quantity < t.Quantity {
-				return &domain.ErrValidation{
-					Field:   "quantity",
-					Message: "stock insuficiente en la ubicación de origen",
-				}
+		}
+		if src.Quantity < t.Quantity {
+			return &domain.ErrValidation{
+				Field:   "quantity",
+				Message: "stock insuficiente en la ubicación de origen",
 			}
+		}
 
-			if err := tx.Model(&src).Update("quantity", src.Quantity-t.Quantity).Error; err != nil {
+		if err := tx.Model(&src).Update("quantity", src.Quantity-t.Quantity).Error; err != nil {
+			return err
+		}
+
+		var dst domain.InventoryItem
+		dstErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("product_id = ? AND warehouse_location_id = ?", t.ProductID, t.DestinationLocationID).
+			First(&dst).Error
+		if dstErr != nil && !errors.Is(dstErr, gorm.ErrRecordNotFound) {
+			return dstErr
+		}
+		if errors.Is(dstErr, gorm.ErrRecordNotFound) {
+			var dstLoc domain.WarehouseLocation
+			if err := tx.First(&dstLoc, t.DestinationLocationID).Error; err != nil {
+				return &domain.ErrNotFound{Resource: "destination_warehouse_location"}
+			}
+			dst = domain.InventoryItem{
+				ProductID:           t.ProductID,
+				WarehouseID:         dstLoc.WarehouseID,
+				WarehouseLocationID: &t.DestinationLocationID,
+				Quantity:            t.Quantity,
+				Status:              domain.InventoryItemStatusAvailable,
+			}
+			if err := tx.Create(&dst).Error; err != nil {
 				return err
 			}
-
-			var dst domain.InventoryItem
-			dstErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-				Where("product_id = ? AND warehouse_location_id = ?", *t.LensID, t.DestinationLocationID).
-				First(&dst).Error
-			if dstErr != nil && !errors.Is(dstErr, gorm.ErrRecordNotFound) {
-				return dstErr
-			}
-			if errors.Is(dstErr, gorm.ErrRecordNotFound) {
-				var dstLoc domain.WarehouseLocation
-				if err := tx.First(&dstLoc, t.DestinationLocationID).Error; err != nil {
-					return &domain.ErrNotFound{Resource: "destination_warehouse_location"}
-				}
-				dst = domain.InventoryItem{
-					ProductID:           *t.LensID,
-					WarehouseID:         dstLoc.WarehouseID,
-					WarehouseLocationID: &t.DestinationLocationID,
-					Quantity:            t.Quantity,
-					Status:              domain.InventoryItemStatusAvailable,
-				}
-				if err := tx.Create(&dst).Error; err != nil {
-					return err
-				}
-			} else {
-				if err := tx.Model(&dst).Update("quantity", dst.Quantity+t.Quantity).Error; err != nil {
-					return err
-				}
+		} else {
+			if err := tx.Model(&dst).Update("quantity", dst.Quantity+t.Quantity).Error; err != nil {
+				return err
 			}
 		}
 
