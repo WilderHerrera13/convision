@@ -46,9 +46,9 @@ type LaboratoryOrder struct {
 	UpdatedAt               time.Time                  `json:"updated_at"`
 
 	// Associations
-	Laboratory    *Laboratory                  `json:"laboratory,omitempty"     gorm:"foreignKey:LaboratoryID"`
-	Patient       *Patient                     `json:"patient,omitempty"        gorm:"foreignKey:PatientID"`
-	CreatedByUser *User                        `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
+	Laboratory    *Laboratory            `json:"laboratory,omitempty"     gorm:"foreignKey:LaboratoryID"`
+	Patient       *Patient               `json:"patient,omitempty"        gorm:"foreignKey:PatientID"`
+	CreatedByUser *User                  `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
 	StatusHistory []LaboratoryOrderStatusEntry `json:"status_history,omitempty" gorm:"foreignKey:LaboratoryOrderID"`
 	Sale          *Sale                        `json:"sale,omitempty"           gorm:"foreignKey:SaleID"`
 }
