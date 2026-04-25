@@ -44,20 +44,16 @@ type Sale struct {
 
 // SaleItem represents a line item within a sale.
 type SaleItem struct {
-	ID          uint      `json:"id"           gorm:"primaryKey;autoIncrement"`
-	SaleID      uint      `json:"sale_id"      gorm:"not null;index"`
-	LensID      *uint     `json:"lens_id"      gorm:"column:lens_id"`
-	ProductID   *uint     `json:"product_id"   gorm:"column:product_id"`
-	ProductType string    `json:"product_type" gorm:"type:varchar(50)"`
-	Name        string    `json:"name"         gorm:"type:varchar(255)"`
-	Description string    `json:"description"  gorm:"type:text"`
-	Quantity    int       `json:"quantity"     gorm:"not null;default:1"`
-	Price       float64   `json:"price"        gorm:"type:decimal(12,2)"`
-	Discount    float64   `json:"discount"     gorm:"type:decimal(12,2)"`
-	Total       float64   `json:"total"        gorm:"type:decimal(12,2)"`
-	Notes       string    `json:"notes"        gorm:"type:text"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID        uint      `json:"id"         gorm:"primaryKey;autoIncrement"`
+	SaleID    uint      `json:"sale_id"    gorm:"not null;index"`
+	LensID    *uint     `json:"lens_id"    gorm:"column:lens_id"`
+	Quantity  int       `json:"quantity"   gorm:"not null;default:1"`
+	Price     float64   `json:"price"      gorm:"type:decimal(12,2)"`
+	Discount  float64   `json:"discount"   gorm:"type:decimal(12,2)"`
+	Total     float64   `json:"total"      gorm:"type:decimal(12,2)"`
+	Notes     string    `json:"notes"      gorm:"type:text"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	Sale    *Sale    `json:"sale,omitempty"    gorm:"foreignKey:SaleID"`
 	Product *Product `json:"product,omitempty" gorm:"foreignKey:LensID"`

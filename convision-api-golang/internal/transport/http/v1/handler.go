@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
@@ -16,12 +15,10 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	"github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
-	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	"github.com/convision/api/internal/discount"
 	"github.com/convision/api/internal/domain"
 	expensesvc "github.com/convision/api/internal/expense"
-	followupsvc "github.com/convision/api/internal/followup"
 	"github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	"github.com/convision/api/internal/location"
@@ -96,44 +93,40 @@ func toMap(v interface{}) gin.H {
 
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
-	logger         *zap.Logger
-	auth           *authsvc.Service
-	patient        *patient.Service
-	clinic         *clinic.Service
-	user           *usersvc.Service
-	appointment    *appointmentsvc.Service
-	prescription   *prescriptionsvc.Service
-	catalog        *catalog.Service
-	location       *location.Service
-	product        *product.Service
-	category       *product.CategoryService
-	inventory      *inventory.Service
-	discount       *discount.Service
-	quote          *quotesvc.Service
-	sale           *salesvc.Service
-	order          *ordersvc.Service
-	laboratory     *labsvc.Service
-	supplier       *suppliersvc.Service
-	purchase       *purchasesvc.Service
-	expense        *expensesvc.Service
-	payroll        *payrollsvc.Service
-	serviceOrder   *serviceordersvc.Service
-	cashTransfer   *cashsvc.Service
-	cashClose      *cashclosesvc.Service
-	notification   *notificationsvc.Service
-	note           *notesvc.Service
-	dailyActivity  *dailyactivitysvc.Service
-	dashboard      *postgresplatform.DashboardRepository
-	bulkImport     *bulkimport.Service
-	bulkImportLog  domain.BulkImportLogRepository
-	revokedTokens  domain.RevokedTokenRepository
-	clinicalRecord *clinicalrecordsvc.Service
-	followUp       *followupsvc.Service
+	auth          *authsvc.Service
+	patient       *patient.Service
+	clinic        *clinic.Service
+	user          *usersvc.Service
+	appointment   *appointmentsvc.Service
+	prescription  *prescriptionsvc.Service
+	catalog       *catalog.Service
+	location      *location.Service
+	product       *product.Service
+	category      *product.CategoryService
+	inventory     *inventory.Service
+	discount      *discount.Service
+	quote         *quotesvc.Service
+	sale          *salesvc.Service
+	order         *ordersvc.Service
+	laboratory    *labsvc.Service
+	supplier      *suppliersvc.Service
+	purchase      *purchasesvc.Service
+	expense       *expensesvc.Service
+	payroll       *payrollsvc.Service
+	serviceOrder  *serviceordersvc.Service
+	cashTransfer  *cashsvc.Service
+	cashClose     *cashclosesvc.Service
+	notification  *notificationsvc.Service
+	note          *notesvc.Service
+	dailyActivity *dailyactivitysvc.Service
+	dashboard     *postgresplatform.DashboardRepository
+	bulkImport    *bulkimport.Service
+	bulkImportLog domain.BulkImportLogRepository
+	revokedTokens domain.RevokedTokenRepository
 }
 
 // NewHandler creates a Handler with all required services injected.
 func NewHandler(
-	logger *zap.Logger,
 	auth *authsvc.Service,
 	patient *patient.Service,
 	clinic *clinic.Service,
@@ -161,46 +154,41 @@ func NewHandler(
 	noteSvc *notesvc.Service,
 	dailyActivitySvc *dailyactivitysvc.Service,
 	dashboardRepo *postgresplatform.DashboardRepository,
-	bulkImportSvc     *bulkimport.Service,
+	bulkImportSvc    *bulkimport.Service,
 	bulkImportLogRepo domain.BulkImportLogRepository,
-	revokedTokens     domain.RevokedTokenRepository,
-	clinicalRecordSvc *clinicalrecordsvc.Service,
-	followUpSvc       *followupsvc.Service,
+	revokedTokens    domain.RevokedTokenRepository,
 ) *Handler {
 	return &Handler{
-		logger:         logger,
-		auth:           auth,
-		patient:        patient,
-		clinic:         clinic,
-		user:           user,
-		appointment:    appointment,
-		prescription:   prescription,
-		catalog:        catalog,
-		location:       location,
-		product:        productSvc,
-		category:       categorySvc,
-		inventory:      inventorySvc,
-		discount:       discountSvc,
-		quote:          quoteSvc,
-		sale:           saleSvc,
-		order:          orderSvc,
-		laboratory:     laboratorySvc,
-		supplier:       supplierSvc,
-		purchase:       purchaseSvc,
-		expense:        expenseSvc,
-		payroll:        payrollSvc,
-		serviceOrder:   serviceOrderSvc,
-		cashTransfer:   cashSvc,
-		cashClose:      cashCloseSvc,
-		notification:   notificationSvc,
-		note:           noteSvc,
-		dailyActivity:  dailyActivitySvc,
-		dashboard:      dashboardRepo,
-		bulkImport:     bulkImportSvc,
-		bulkImportLog:  bulkImportLogRepo,
-		revokedTokens:  revokedTokens,
-		clinicalRecord: clinicalRecordSvc,
-		followUp:       followUpSvc,
+		auth:          auth,
+		patient:       patient,
+		clinic:        clinic,
+		user:          user,
+		appointment:   appointment,
+		prescription:  prescription,
+		catalog:       catalog,
+		location:      location,
+		product:       productSvc,
+		category:      categorySvc,
+		inventory:     inventorySvc,
+		discount:      discountSvc,
+		quote:         quoteSvc,
+		sale:          saleSvc,
+		order:         orderSvc,
+		laboratory:    laboratorySvc,
+		supplier:      supplierSvc,
+		purchase:      purchaseSvc,
+		expense:       expenseSvc,
+		payroll:       payrollSvc,
+		serviceOrder:  serviceOrderSvc,
+		cashTransfer:  cashSvc,
+		cashClose:     cashCloseSvc,
+		notification:  notificationSvc,
+		note:          noteSvc,
+		dailyActivity: dailyActivitySvc,
+		dashboard:     dashboardRepo,
+		bulkImport:    bulkImportSvc,
+		bulkImportLog: bulkImportLogRepo,
+		revokedTokens: revokedTokens,
 	}
 }
 

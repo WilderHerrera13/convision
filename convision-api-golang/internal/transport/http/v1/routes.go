@@ -119,11 +119,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		appointments := protected.Group("/appointments")
 		{
 			appointments.GET("", h.ListAppointments)
-			// /active must be registered before /:id to avoid Gin treating "active" as an ID param.
-			appointments.GET("/active",
-				jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleAdmin),
-				h.GetActiveAppointment,
-			)
 			appointments.GET("/:id", h.GetAppointment)
 			appointments.POST("",
 				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
@@ -157,29 +152,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				jwtauth.RequireRole(domain.RoleSpecialist),
 				h.GetLensAnnotation,
 			)
-			appointments.POST("/:id/complete",
-				jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleAdmin),
-				h.CompleteAppointment,
-			)
-
-			// Clinical record — specialist/admin only
-			cr := appointments.Group("/:id/clinical-record",
-				jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleAdmin),
-			)
-			{
-				cr.POST("", h.CreateClinicalRecord)
-				cr.GET("", h.GetClinicalRecord)
-				cr.PUT("/anamnesis", h.UpsertAnamnesis)
-				cr.PUT("/visual-exam", h.UpsertVisualExam)
-				cr.PUT("/diagnosis", h.UpsertDiagnosis)
-				cr.PUT("/prescription", h.UpsertPrescription)
-				cr.POST("/sign", h.SignAndCompleteClinicalRecord)
-
-				// Follow-up sub-routes
-				cr.PUT("/follow-up/anamnesis", h.UpsertFollowUpAnamnesis)
-				cr.PUT("/follow-up/evolution", h.UpsertFollowUpEvolution)
-				cr.PUT("/follow-up/formula", h.UpsertFollowUpFormula)
-			}
 		}
 
 		// Management report ("Informe de gestión") — specialist writes their own

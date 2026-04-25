@@ -18,11 +18,9 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	catalogsvc "github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
-	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
-	followupsvc "github.com/convision/api/internal/followup"
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
@@ -124,14 +122,6 @@ func main() {
 	dailyActivityRepo := postgresplatform.NewDailyActivityRepository(db)
 	dashboardRepo := postgresplatform.NewDashboardRepository(db)
 
-	// Clinical record repos
-	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository(db)
-	anamnesisRepo := postgresplatform.NewAnamnesisRepository(db)
-	visualExamRepo := postgresplatform.NewVisualExamRepository(db)
-	diagnosisRepo := postgresplatform.NewClinicalDiagnosisRepository(db)
-	clinicalPrescriptionRepo := postgresplatform.NewClinicalPrescriptionRepository(db)
-	followUpRepo := postgresplatform.NewFollowUpRepository(db)
-
 	// ---- Services (use-case layer) ----
 	authService := authsvc.NewService(userRepo, revokedTokenRepo, logger)
 	patientService := patient.NewService(patientRepo, logger)
@@ -149,7 +139,7 @@ func main() {
 	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
+	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
 	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
@@ -164,8 +154,6 @@ func main() {
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
-	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, anamnesisRepo, visualExamRepo, diagnosisRepo, clinicalPrescriptionRepo, appointmentRepo, logger)
-	followUpService := followupsvc.NewService(clinicalRecordRepo, followUpRepo, visualExamRepo, appointmentRepo, logger)
 
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
@@ -183,7 +171,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(logger, authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, clinicalRecordService, followUpService)
+	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----
