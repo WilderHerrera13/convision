@@ -245,16 +245,16 @@ const ClinicalHistoryTab: React.FC<ClinicalHistoryFormProps> = (props) => {
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography variant="body2" sx={{ color: '#64748b' }}>
-                    {isDirty ? '📝 Hay cambios sin guardar' : '✅ No hay cambios pendientes'}
+                    {isDirty ? 'Hay cambios sin guardar' : 'No hay cambios pendientes'}
                   </Typography>
                   {hasAnyErrors && (
                     <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 500 }}>
-                      ❌ {allErrors.length} error{allErrors.length !== 1 ? 'es' : ''} encontrado{allErrors.length !== 1 ? 's' : ''}
+                      {allErrors.length} error{allErrors.length !== 1 ? 'es' : ''} encontrado{allErrors.length !== 1 ? 's' : ''}
                     </Typography>
                   )}
                   {isValid && isDirty && (
                     <Typography variant="body2" sx={{ color: '#059669', fontWeight: 500 }}>
-                      ✅ Formulario válido y listo para guardar
+                      Formulario valido y listo para guardar
                     </Typography>
                   )}
                 </Box>

@@ -16,6 +16,7 @@ const ConfirmDelivery: React.FC = () => {
   const [order, setOrder] = useState<LaboratoryOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('payment');
 
   const [payment, setPayment] = useState<PaymentFormState>({
     paymentMethod: '',
@@ -31,7 +32,6 @@ const ConfirmDelivery: React.FC = () => {
     recipient: '',
     documentType: '',
     documentNumber: '',
-    deliveryTime: '',
     productCondition: '',
     check1: true,
     check2: true,
@@ -50,25 +50,31 @@ const ConfirmDelivery: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const validate = (): boolean => {
+  const handleConfirm = async () => {
+    if (!id) return;
     const pErr: Partial<Record<keyof PaymentFormState, string>> = {};
     const dErr: Partial<Record<keyof DeliveryFormState, string>> = {};
     if (!payment.paymentMethod) pErr.paymentMethod = 'Seleccione forma de pago';
     if (!payment.amount.trim()) pErr.amount = 'Ingrese el valor recibido';
-    if (!payment.check1) pErr.check1 = 'Confirmación requerida';
-    if (!payment.check2) pErr.check2 = 'Confirmación requerida';
-    if (!delivery.recipient) dErr.recipient = 'Seleccione quién retira';
+    if (!payment.check1) pErr.check1 = 'Confirmacion requerida';
+    if (!payment.check2) pErr.check2 = 'Confirmacion requerida';
+    if (!delivery.recipient) dErr.recipient = 'Seleccione quien retira';
     if (!delivery.documentType) dErr.documentType = 'Seleccione tipo de documento';
-    if (!delivery.documentNumber.trim()) dErr.documentNumber = 'Ingrese número de documento';
-    if (!delivery.deliveryTime) dErr.deliveryTime = 'Ingrese hora de entrega';
+    if (!delivery.documentNumber.trim()) dErr.documentNumber = 'Ingrese numero de documento';
     if (!delivery.productCondition) dErr.productCondition = 'Seleccione estado del producto';
     setPaymentErrors(pErr);
     setDeliveryErrors(dErr);
-    return Object.keys(pErr).length === 0 && Object.keys(dErr).length === 0;
-  };
-
-  const handleConfirm = async () => {
-    if (!id || !validate()) return;
+    const hasPaymentErrors = Object.keys(pErr).length > 0;
+    const hasDeliveryErrors = Object.keys(dErr).length > 0;
+    if (hasPaymentErrors || hasDeliveryErrors) {
+      setActiveTab(hasPaymentErrors ? 'payment' : 'delivery');
+      toast({
+        title: 'Campos incompletos',
+        description: 'Complete todos los campos requeridos antes de confirmar la entrega.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       const notes = [
@@ -76,13 +82,14 @@ const ConfirmDelivery: React.FC = () => {
         `Valor: ${payment.amount}`,
         `Retira: ${delivery.recipient === 'titular' ? 'Titular' : 'Otra persona'}`,
         `Doc: ${delivery.documentType} ${delivery.documentNumber}`,
-        `Condición: ${delivery.productCondition}`,
+        `Condicion: ${delivery.productCondition}`,
+        `Fecha entrega: ${new Date().toLocaleString('es-CO')}`,
       ].join(' | ');
       await laboratoryOrderService.updateLaboratoryOrderStatus(Number(id), {
         status: 'delivered',
         notes,
       });
-      toast({ title: '¡Entrega confirmada exitosamente!' });
+      toast({ title: 'Entrega confirmada exitosamente' });
       navigate('/receptionist/lab-orders');
     } catch {
       toast({
@@ -123,14 +130,14 @@ const ConfirmDelivery: React.FC = () => {
   return (
     <PageLayout
       title="Confirmar Entrega y Pago"
-      subtitle={order ? `Órdenes de Laboratorio / ${order.order_number}` : 'Órdenes de Laboratorio'}
+      subtitle={order ? `Ordenes de Laboratorio / ${order.order_number}` : 'Ordenes de Laboratorio'}
       actions={actions}
     >
       {loading && <div className="py-8 text-center text-muted-foreground">Cargando...</div>}
       {!loading && order && (
         <div className="flex gap-6 items-start">
           <div className="flex-1 min-w-0">
-            <Tabs defaultValue="payment">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full mb-6">
                 <TabsTrigger value="payment" className="flex-1">
                   Registrar Pago
@@ -168,9 +175,9 @@ const ConfirmDelivery: React.FC = () => {
                   Listo para entrega
                 </Badge>
                 <div>
-                  <p className="text-gray-500 text-xs mb-0.5">Cajón asignado</p>
+                  <p className="text-gray-500 text-xs mb-0.5">Cajon asignado</p>
                   <p className="font-medium">
-                    {order.drawer_number ? `Cajón #${order.drawer_number}` : '—'}
+                    {order.drawer_number ? `Cajon #${order.drawer_number}` : '—'}
                   </p>
                 </div>
                 <div>
@@ -189,10 +196,10 @@ const ConfirmDelivery: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-[#5c3aaa] leading-relaxed space-y-1.5">
-                <p>• La orden cambia a estado &quot;Entregado&quot;.</p>
-                <p>• Se registra el método de pago y valor recibido.</p>
-                <p>• Se guarda la identidad de quien retiró el producto.</p>
-                <p>• El cajón queda liberado para nuevas órdenes.</p>
+                <p>• La orden cambia a estado "Entregado".</p>
+                <p>• Se registra el metodo de pago y valor recibido.</p>
+                <p>• Se guarda la identidad de quien retiro el producto.</p>
+                <p>• El cajon queda liberado para nuevas ordenes.</p>
               </CardContent>
             </Card>
           </div>

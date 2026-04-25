@@ -5,6 +5,7 @@ import "time"
 // Warehouse represents a physical storage location.
 type Warehouse struct {
 	ID        uint      `json:"id"         gorm:"primaryKey;autoIncrement"`
+	ClinicID  uint      `json:"clinic_id"  gorm:"not null;index"`
 	Name      string    `json:"name"       gorm:"not null"`
 	Code      string    `json:"code"       gorm:"uniqueIndex"`
 	Address   string    `json:"address"`
@@ -20,8 +21,9 @@ type Warehouse struct {
 // WarehouseLocation represents a specific shelf/zone within a warehouse.
 type WarehouseLocation struct {
 	ID          uint      `json:"id"           gorm:"primaryKey;autoIncrement"`
+	ClinicID    uint      `json:"clinic_id"    gorm:"not null;index"`
 	WarehouseID uint      `json:"warehouse_id" gorm:"not null;index"`
-	Name        string    `json:"name"         gorm:"not null"`
+	Name        string    `json:"name"         gorm:"not null;uniqueIndex:uq_location_name_warehouse"`
 	Code        string    `json:"code"         gorm:"index"`
 	Type        string    `json:"type"         gorm:"type:varchar(50)"`
 	Status      string    `json:"status"       gorm:"type:varchar(20);not null;default:'active'"`
@@ -47,6 +49,7 @@ const (
 // InventoryItem represents stock of a product at a specific warehouse location.
 type InventoryItem struct {
 	ID                  uint                `json:"id"                    gorm:"primaryKey;autoIncrement"`
+	ClinicID            uint                `json:"clinic_id"             gorm:"not null;index"`
 	ProductID           uint                `json:"product_id"            gorm:"not null;index"`
 	WarehouseID         uint                `json:"warehouse_id"          gorm:"not null;index"`
 	WarehouseLocationID *uint               `json:"warehouse_location_id" gorm:"column:warehouse_location_id"`
@@ -74,7 +77,8 @@ const (
 // InventoryTransfer represents a movement of stock between locations.
 type InventoryTransfer struct {
 	ID                    uint                    `json:"id"                      gorm:"primaryKey;autoIncrement"`
-	LensID                *uint                   `json:"lens_id"                 gorm:"column:lens_id"`
+	ClinicID              uint                    `json:"clinic_id"               gorm:"not null;index"`
+	ProductID             uint                    `json:"product_id"              gorm:"column:product_id;not null"`
 	SourceLocationID      uint                    `json:"source_location_id"      gorm:"not null;index"`
 	DestinationLocationID uint                    `json:"destination_location_id" gorm:"not null;index"`
 	Quantity              int                     `json:"quantity"                gorm:"not null"`
@@ -86,6 +90,7 @@ type InventoryTransfer struct {
 	UpdatedAt             time.Time               `json:"updated_at"`
 
 	// Associations
+	Product             *Product           `json:"product,omitempty"              gorm:"foreignKey:ProductID"`
 	SourceLocation      *WarehouseLocation `json:"source_location,omitempty"      gorm:"foreignKey:SourceLocationID"`
 	DestinationLocation *WarehouseLocation `json:"destination_location,omitempty" gorm:"foreignKey:DestinationLocationID"`
 	TransferredByUser   *User              `json:"transferred_by_user,omitempty"  gorm:"foreignKey:TransferredBy"`
@@ -110,6 +115,13 @@ type WarehouseLocationRepository interface {
 	List(filters map[string]any, page, perPage int) ([]*WarehouseLocation, int64, error)
 }
 
+// ProductStockEntry holds the aggregated stock quantity for a single product.
+type ProductStockEntry struct {
+	ProductID     uint   `json:"product_id"`
+	ProductName   string `json:"product_name"`
+	TotalQuantity int64  `json:"total_quantity"`
+}
+
 // InventoryItemRepository defines persistence operations for InventoryItem.
 type InventoryItemRepository interface {
 	GetByID(id uint) (*InventoryItem, error)
@@ -118,6 +130,13 @@ type InventoryItemRepository interface {
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
 	TotalStock() (int64, error)
+	// TotalStockPerProduct returns aggregated stock grouped by product.
+	// Supported filter keys: warehouse_id, warehouse_location_id.
+	TotalStockPerProduct(filters map[string]any) ([]*ProductStockEntry, error)
+	// ExistsByProductAndLocation returns true when an InventoryItem already
+	// exists for the given (productID, locationID) pair, optionally excluding
+	// the item with excludeID (use 0 to skip the exclusion).
+	ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error)
 }
 
 // InventoryTransferRepository defines persistence operations for InventoryTransfer.

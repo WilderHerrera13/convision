@@ -103,14 +103,24 @@ const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
             <label className="text-sm font-medium">
               Valor recibido <span className="text-red-500">*</span>
             </label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              className="w-full max-w-[350px]"
-              value={state.amount}
-              onChange={(e) => onChange({ amount: e.target.value })}
-            />
+            <div className="relative w-full max-w-[350px]">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                className="pl-7"
+                value={
+                  state.amount
+                    ? Number(state.amount.replace(/\D/g, '')).toLocaleString('es-CO')
+                    : ''
+                }
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  onChange({ amount: raw });
+                }}
+              />
+            </div>
             {errors.amount && <p className="text-xs text-red-500">{errors.amount}</p>}
           </div>
 

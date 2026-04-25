@@ -81,8 +81,10 @@ const Appointments: React.FC = () => {
 
   const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter]);
 
+  const isSpecialist = user?.role === 'specialist';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['appointments', dateFilter, search, page],
+    queryKey: ['appointments', dateFilter, search, page, user?.role],
     queryFn: () => appointmentsService.getAppointments({
       page,
       perPage: ITEMS_PER_PAGE,
@@ -90,6 +92,7 @@ const Appointments: React.FC = () => {
       startDate: dateRange.startDate,
       endDate: dateRange.endDate,
       search: search || undefined,
+      filters: isSpecialist ? { status: 'completed' } : {},
     }),
     placeholderData: (prev) => prev,
   });
@@ -143,7 +146,11 @@ const Appointments: React.FC = () => {
   ) : undefined;
 
   return (
-    <PageLayout title="Citas" subtitle="Gestión de agenda" actions={pageActions}>
+    <PageLayout
+      title={isSpecialist ? 'Citas Atendidas' : 'Citas'}
+      subtitle={isSpecialist ? 'Historial de citas finalizadas' : 'Gestión de agenda'}
+      actions={pageActions}
+    >
       <div className="space-y-4">
         {/* Date Filter Tabs */}
         <div className="flex items-center gap-2">
@@ -167,8 +174,12 @@ const Appointments: React.FC = () => {
           {/* Table Toolbar */}
           <div className="bg-white border-b border-[#e5e5e9] px-5 h-[52px] flex items-center justify-between">
             <div>
-              <p className="text-[14px] font-semibold text-[#121215]">{getTableTitle(dateFilter)}</p>
-              <p className="text-[11px] text-[#7d7d87] capitalize">{getTableSubtitle(dateFilter)}</p>
+              <p className="text-[14px] font-semibold text-[#121215]">
+                {isSpecialist ? `Citas atendidas — ${getTableSubtitle(dateFilter)}` : getTableTitle(dateFilter)}
+              </p>
+              <p className="text-[11px] text-[#7d7d87] capitalize">
+                {isSpecialist ? 'Solo se muestran citas con estado Atendido' : getTableSubtitle(dateFilter)}
+              </p>
             </div>
             <div className="relative w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />

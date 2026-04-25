@@ -15,7 +15,6 @@ export interface DeliveryFormState {
   recipient: string;
   documentType: string;
   documentNumber: string;
-  deliveryTime: string;
   productCondition: string;
   check1: boolean;
   check2: boolean;
@@ -78,7 +77,7 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
                   <SelectValue placeholder="Seleccione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                  <SelectItem value="CC">Cedula de Ciudadania</SelectItem>
                   <SelectItem value="Pasaporte">Pasaporte</SelectItem>
                   <SelectItem value="CE">CE</SelectItem>
                   <SelectItem value="PPT">PPT</SelectItem>
@@ -91,32 +90,16 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Número de documento <span className="text-red-500">*</span>
+                Numero de documento <span className="text-red-500">*</span>
               </label>
               <Input
-                placeholder="Número"
+                placeholder="Numero"
                 className="max-w-[350px]"
                 value={state.documentNumber}
                 onChange={(e) => onChange({ documentNumber: e.target.value })}
               />
               {errors.documentNumber && (
                 <p className="text-xs text-red-500">{errors.documentNumber}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Hora de entrega <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="datetime-local"
-                className="max-w-[350px]"
-                value={state.deliveryTime}
-                onChange={(e) => onChange({ deliveryTime: e.target.value })}
-              />
-              <p className="text-xs text-[#7d7d87]">Formato: DD/MM/AAAA HH:MM</p>
-              {errors.deliveryTime && (
-                <p className="text-xs text-red-500">{errors.deliveryTime}</p>
               )}
             </div>
 
@@ -134,7 +117,7 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
                 <SelectContent>
                   <SelectItem value="Conforme">Conforme</SelectItem>
                   <SelectItem value="Con observaciones">Con observaciones</SelectItem>
-                  <SelectItem value="Con daños">Con daños</SelectItem>
+                  <SelectItem value="Con danos">Con danos</SelectItem>
                 </SelectContent>
               </Select>
               {errors.productCondition && (
@@ -148,7 +131,7 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-gray-700">
-            Confirmación y firma
+            Confirmacion y firma
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -161,7 +144,7 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
                 className="mt-0.5"
               />
               <label htmlFor="del_check1" className="text-sm cursor-pointer leading-snug">
-                Verifiqué la identidad del cliente con documento físico.
+                Verifique la identidad del cliente con documento fisico.
               </label>
             </div>
 
@@ -173,7 +156,7 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
                 className="mt-0.5"
               />
               <label htmlFor="del_check2" className="text-sm cursor-pointer leading-snug">
-                El cliente probó el lente y confirmó conformidad.
+                El cliente probo el lente y confirmo conformidad.
               </label>
             </div>
 
@@ -185,15 +168,15 @@ const DeliveryInfoTab: React.FC<DeliveryInfoTabProps> = ({ order, state, onChang
                 className="mt-0.5"
               />
               <label htmlFor="del_check3" className="text-sm cursor-pointer leading-snug">
-                Se entregó estuche, paño y certificado de garantía.
+                Se entrego estuche, pano y certificado de garantia.
               </label>
             </div>
           </div>
 
           <div>
-            <p className="text-sm font-medium mb-2">Área de firma</p>
+            <p className="text-sm font-medium mb-2">Area de firma</p>
             <div className="bg-[#f9f9fb] border border-[#e0e0e4] rounded-[6px] h-[80px] flex items-center justify-between px-4">
-              <span className="text-gray-400 text-sm">✍ Firmar en pantalla o capturar firma física</span>
+              <span className="text-gray-400 text-sm">Firmar en pantalla o capturar firma fisica</span>
               <button
                 type="button"
                 className="text-xs border border-gray-300 rounded px-3 py-1 text-gray-600 hover:bg-gray-100 transition-colors"
