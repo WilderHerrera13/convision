@@ -139,7 +139,7 @@ func main() {
 	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
+	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
 	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
@@ -171,7 +171,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
+	handler := v1.NewHandler(logger, authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----
