@@ -200,27 +200,12 @@ const DataTable = <T extends Record<string, any>>({
 
   // Convert our custom columns to react-table compatible columns
   const tableColumns = React.useMemo(() => {
-    const isLedgerMode = tableLayout === 'ledger';
     return columns.map(column => {
       const baseColumn: any = {
         id: column.id,
         header: ({ column: col }: any) => {
           const isSortable = column.enableSorting !== false && enableSorting;
-          if (!isSortable) return column.header;
-
-          if (isLedgerMode) {
-            return (
-              <button
-                onClick={() => col.toggleSorting()}
-                className="flex items-center gap-1 text-[11px] font-semibold text-[#7d7d87] hover:text-[#121215] transition-colors bg-transparent border-0 p-0 cursor-pointer"
-              >
-                {column.header}
-                <ArrowUpDown className="h-3 w-3 text-[#b4b5bc]" />
-              </button>
-            );
-          }
-
-          return (
+          return isSortable ? (
             <Button
               variant="ghost"
               onClick={() => col.toggleSorting()}
@@ -229,10 +214,12 @@ const DataTable = <T extends Record<string, any>>({
               {column.header}
               <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
+          ) : (
+            column.header
           );
         },
       };
-
+      
       if (column.accessorKey) {
         baseColumn.accessorKey = column.accessorKey;
       } else if (column.accessorFn) {
@@ -240,16 +227,18 @@ const DataTable = <T extends Record<string, any>>({
       } else {
         baseColumn.accessorKey = column.id;
       }
-
+      
+      // Handle different cell rendering patterns
       if (column.cell) {
         baseColumn.cell = ({ row }: any) => column.cell?.(row.original);
       } else {
+        // Default cell rendering using our renderCellContent function
         baseColumn.cell = ({ row }: any) => renderCellContent(row.original, column);
       }
-
+      
       return baseColumn as ColumnDef<T>;
     });
-  }, [columns, enableSorting, tableLayout]);
+  }, [columns, enableSorting]);
 
   const isLedger = tableLayout === 'ledger';
   const ledgerFigma = isLedger && ledgerBorderMode === 'figma';

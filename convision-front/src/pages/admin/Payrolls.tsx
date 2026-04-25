@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   UserCheck,
   Plus,
+  Search,
+  Filter,
+  Download,
   Calculator,
   DollarSign,
   Users,
@@ -254,37 +259,42 @@ const Payrolls: React.FC = () => {
         ))}
       </div>
 
-      <EntityTable<Payroll>
-        columns={columns}
-        queryKeyBase="payrolls"
-        fetcher={({ page, per_page, search }) => payrollService.getPayrolls({
-          page,
-          per_page,
-          search,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
-        })}
-        searchPlaceholder="Buscar por empleado..."
-        initialPerPage={15}
-        extraFilters={{ status: statusFilter }}
-        toolbarLeading={
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[14px] font-semibold text-[#121215]">Nóminas</span>
-            <span className="text-[11px] text-[#7d7d87]">Registro de pagos de nómina</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Nóminas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="paid">Pagado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
           </div>
-        }
-        toolbarTrailing={
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-[34px] rounded-[6px] border border-[#e5e5e9] bg-white px-3 text-[12px] text-[#121215]"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="paid">Pagado</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
-        }
-      />
+          <EntityTable<Payroll>
+            columns={columns}
+            queryKeyBase="payrolls"
+            fetcher={({ page, per_page, search }) => payrollService.getPayrolls({
+              page,
+              per_page,
+              search,
+              status: statusFilter !== 'all' ? statusFilter : undefined,
+            })}
+            searchPlaceholder="Buscar por empleado..."
+            initialPerPage={15}
+            extraFilters={{ status: statusFilter }}
+          />
+        </CardContent>
+      </Card>
       </div>
     </PageLayout>
   );
