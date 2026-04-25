@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Eye, Edit, Trash2, DollarSign, FileText, Filter } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, DollarSign, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { expenseService, type Expense } from '@/services/expenseService';
@@ -189,27 +189,24 @@ const Expenses: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Gastos</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="mr-2 h-4 w-4" />
-                Filtros
-              </Button>
-            </div>
+      <EntityTable<Expense>
+        columns={columns}
+        queryKeyBase="expenses"
+        fetcher={({ page, per_page, search }) => expenseService.getExpenses({ page, per_page, search })}
+        searchPlaceholder="Buscar por factura, proveedor o concepto..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Gastos</span>
+            <span className="text-[11px] text-[#7d7d87]">Registro de gastos operativos</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <EntityTable<Expense>
-            columns={columns}
-            queryKeyBase="expenses"
-            fetcher={({ page, per_page }) => expenseService.getExpenses({ page, per_page })}
-            searchPlaceholder="Buscar por factura, proveedor o concepto..."
-          />
-        </CardContent>
-      </Card>
+        }
+        toolbarTrailing={
+          <Button size="sm" onClick={() => navigate('/admin/expenses/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Gasto
+          </Button>
+        }
+      />
 
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
