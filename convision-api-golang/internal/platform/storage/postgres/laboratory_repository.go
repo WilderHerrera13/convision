@@ -72,6 +72,19 @@ func (r *LaboratoryRepository) Delete(id uint) error {
 	return r.db.Delete(&domain.Laboratory{}, id).Error
 }
 
+// GetFirstActive returns the first active laboratory, used as a fallback when no lab is specified.
+func (r *LaboratoryRepository) GetFirstActive() (*domain.Laboratory, error) {
+	var l domain.Laboratory
+	err := r.db.Where("status = ?", "active").Order("id ASC").First(&l).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "laboratory"}
+		}
+		return nil, err
+	}
+	return &l, nil
+}
+
 func (r *LaboratoryRepository) List(filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
 	var labs []*domain.Laboratory
 	var total int64
@@ -127,6 +140,19 @@ func (r *LaboratoryOrderRepository) GetByID(id uint) (*domain.LaboratoryOrder, e
 func (r *LaboratoryOrderRepository) GetByOrderNumber(number string) (*domain.LaboratoryOrder, error) {
 	var o domain.LaboratoryOrder
 	err := r.withRelations(r.db).Where("order_number = ?", number).First(&o).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "laboratory_order"}
+		}
+		return nil, err
+	}
+	return &o, nil
+}
+
+// GetBySaleID returns the first laboratory order associated with a sale, used for idempotency checks.
+func (r *LaboratoryOrderRepository) GetBySaleID(saleID uint) (*domain.LaboratoryOrder, error) {
+	var o domain.LaboratoryOrder
+	err := r.db.Where("sale_id = ?", saleID).Order("id ASC").First(&o).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "laboratory_order"}
