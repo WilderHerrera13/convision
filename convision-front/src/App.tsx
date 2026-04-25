@@ -8,6 +8,7 @@ import SpecialistAppointmentDetail from '@/pages/specialist/SpecialistAppointmen
 import SpecialistAppointmentsPage from '@/pages/specialist/SpecialistAppointmentsPage';
 import SpecialistAppointmentDetailPage from '@/pages/specialist/SpecialistAppointmentDetailPage';
 import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
+import ClinicalHistoryNewConsultationPage from '@/pages/specialist/ClinicalHistoryNewConsultationPage';
 import ManagementReport from '@/pages/specialist/ManagementReport';
 import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
 import Login from '@/pages/Login';
@@ -529,6 +530,10 @@ const router = createBrowserRouter([
           {
             path: "appointments/:id",
             element: <SpecialistAppointmentDetailPage />,
+          },
+          {
+            path: "appointments/:id/clinical-history",
+            element: <ClinicalHistoryNewConsultationPage />,
           },
           {
             path: "management-report",
