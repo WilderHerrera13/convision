@@ -78,7 +78,6 @@ const receptionistNav: NavSection[] = [
     items: [
       { title: 'Ventas', path: '/receptionist/sales', icon: ShoppingCart },
       { title: 'Cotizaciones', path: '/receptionist/quotes', icon: FileText },
-      { title: 'Órdenes', path: '/receptionist/orders', icon: PackageOpen },
       { title: 'Descuentos', path: '/receptionist/discount-requests', icon: Tag },
     ],
   },
