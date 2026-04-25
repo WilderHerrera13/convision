@@ -149,7 +149,7 @@ func main() {
 	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, logger)
+	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
 	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
