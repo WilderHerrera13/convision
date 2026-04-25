@@ -11,10 +11,13 @@ import (
 
 // Service handles sale use-cases.
 type Service struct {
-	saleRepo    domain.SaleRepository
-	adjRepo     domain.SaleLensPriceAdjustmentRepository
-	productRepo domain.ProductRepository
-	logger      *zap.Logger
+	saleRepo        domain.SaleRepository
+	adjRepo         domain.SaleLensPriceAdjustmentRepository
+	productRepo     domain.ProductRepository
+	labOrderRepo    domain.LaboratoryOrderRepository
+	labRepo         domain.LaboratoryRepository
+	appointmentRepo domain.AppointmentRepository
+	logger          *zap.Logger
 }
 
 // NewService creates a new sale Service.
@@ -22,13 +25,19 @@ func NewService(
 	saleRepo domain.SaleRepository,
 	adjRepo domain.SaleLensPriceAdjustmentRepository,
 	productRepo domain.ProductRepository,
+	labOrderRepo domain.LaboratoryOrderRepository,
+	labRepo domain.LaboratoryRepository,
+	appointmentRepo domain.AppointmentRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		saleRepo:    saleRepo,
-		adjRepo:     adjRepo,
-		productRepo: productRepo,
-		logger:      logger,
+		saleRepo:        saleRepo,
+		adjRepo:         adjRepo,
+		productRepo:     productRepo,
+		labOrderRepo:    labOrderRepo,
+		labRepo:         labRepo,
+		appointmentRepo: appointmentRepo,
+		logger:          logger,
 	}
 }
 
@@ -59,16 +68,17 @@ type ItemInput struct {
 
 // CreateInput holds the validated data for creating a sale.
 type CreateInput struct {
-	PatientID    uint           `json:"patient_id"     binding:"required"`
-	OrderID      *uint          `json:"order_id"`
-	AppointmentID *uint         `json:"appointment_id"`
-	Subtotal     float64        `json:"subtotal"       binding:"min=0"`
-	Tax          float64        `json:"tax"            binding:"min=0"`
-	Discount     float64        `json:"discount"       binding:"min=0"`
-	Total        float64        `json:"total"          binding:"min=0"`
-	Notes        string         `json:"notes"`
-	Payments     []PaymentInput `json:"payments"`
-	Items        []ItemInput    `json:"items"`
+	PatientID     uint           `json:"patient_id"      binding:"required"`
+	OrderID       *uint          `json:"order_id"`
+	AppointmentID *uint          `json:"appointment_id"`
+	LaboratoryID  *uint          `json:"laboratory_id"`
+	Subtotal      float64        `json:"subtotal"        binding:"min=0"`
+	Tax           float64        `json:"tax"             binding:"min=0"`
+	Discount      float64        `json:"discount"        binding:"min=0"`
+	Total         float64        `json:"total"           binding:"min=0"`
+	Notes         string         `json:"notes"`
+	Payments      []PaymentInput `json:"payments"`
+	Items         []ItemInput    `json:"items"`
 }
 
 // UpdateInput holds the validated data for updating a sale.
@@ -199,16 +209,12 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 			itemTotal = it.Price*float64(qty) - it.Discount
 		}
 		items[i] = domain.SaleItem{
-			LensID:      it.LensID,
-			ProductID:   it.ProductID,
-			ProductType: it.ProductType,
-			Name:        it.Name,
-			Description: it.Description,
-			Quantity:    qty,
-			Price:       it.Price,
-			Discount:    it.Discount,
-			Total:       itemTotal,
-			Notes:       it.Notes,
+			LensID:   it.LensID,
+			Quantity: qty,
+			Price:    it.Price,
+			Discount: it.Discount,
+			Total:    itemTotal,
+			Notes:    it.Notes,
 		}
 		subtotal += it.Price * float64(qty)
 		discount += it.Discount
