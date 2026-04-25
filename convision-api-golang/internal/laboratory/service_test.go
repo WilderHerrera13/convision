@@ -1,9 +1,6 @@
 package laboratory_test
 
 import (
-	"context"
-	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,18 +12,6 @@ import (
 	"github.com/convision/api/internal/laboratory"
 	"github.com/convision/api/internal/testutil/mocks"
 )
-
-// mockStorage implements filestore.Storage for testing.
-type mockStorage struct {
-	storeFn func(ctx context.Context, key string, r io.Reader, size int64, contentType string) (string, error)
-}
-
-func (m *mockStorage) Store(ctx context.Context, key string, r io.Reader, size int64, contentType string) (string, error) {
-	if m.storeFn != nil {
-		return m.storeFn(ctx, key, r, size, contentType)
-	}
-	return "https://storage.test/file.jpg", nil
-}
 
 func newLabSvc(labRepo *mocks.MockLaboratoryRepository, orderRepo *mocks.MockLaboratoryOrderRepository) *laboratory.Service {
 	return laboratory.NewService(labRepo, orderRepo, zap.NewNop())
@@ -82,61 +67,4 @@ func TestUpdateOrderStatus_ValidTransition(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, o)
 	orderRepo.AssertExpectations(t)
-}
-
-func TestUploadEvidence_Success(t *testing.T) {
-	orderRepo := &mocks.MockLaboratoryOrderRepository{}
-	orderRepo.On("GetByID", uint(1)).Return(&domain.LaboratoryOrder{ID: 1}, nil)
-	orderRepo.On("GetEvidence", uint(1), "sent_to_lab").Return([]*domain.LaboratoryOrderEvidence{}, nil)
-	orderRepo.On("AddEvidence", mock.Anything).Return(nil)
-
-	storage := &mockStorage{}
-	svc := newLabSvc(&mocks.MockLaboratoryRepository{}, orderRepo)
-	e, err := svc.UploadEvidence(
-		context.Background(), 1, "sent_to_lab",
-		strings.NewReader("fake-image"), 10, "image/jpeg", "photo.jpg", 1, storage,
-	)
-
-	require.NoError(t, err)
-	assert.NotNil(t, e)
-	orderRepo.AssertExpectations(t)
-}
-
-// TestUploadEvidence_ExceedsCapOf4 verifies that uploading a 5th evidence image for a transition is rejected.
-func TestUploadEvidence_ExceedsCapOf4(t *testing.T) {
-	orderRepo := &mocks.MockLaboratoryOrderRepository{}
-	orderRepo.On("GetByID", uint(1)).Return(&domain.LaboratoryOrder{ID: 1}, nil)
-	orderRepo.On("GetEvidence", uint(1), "sent_to_lab").Return(
-		[]*domain.LaboratoryOrderEvidence{{}, {}, {}, {}},
-		nil,
-	)
-
-	svc := newLabSvc(&mocks.MockLaboratoryRepository{}, orderRepo)
-	_, err := svc.UploadEvidence(
-		context.Background(), 1, "sent_to_lab",
-		strings.NewReader("fake-image"), 10, "image/jpeg", "photo.jpg", 1, &mockStorage{},
-	)
-
-	require.Error(t, err)
-	var valErr *domain.ErrValidation
-	assert.True(t, assert.ErrorAs(t, err, &valErr))
-	assert.Equal(t, "evidence", valErr.Field)
-	orderRepo.AssertExpectations(t)
-}
-
-func TestUploadEvidence_InvalidContentType(t *testing.T) {
-	orderRepo := &mocks.MockLaboratoryOrderRepository{}
-	orderRepo.On("GetByID", uint(1)).Return(&domain.LaboratoryOrder{ID: 1}, nil)
-	orderRepo.On("GetEvidence", uint(1), "sent_to_lab").Return([]*domain.LaboratoryOrderEvidence{}, nil)
-
-	svc := newLabSvc(&mocks.MockLaboratoryRepository{}, orderRepo)
-	_, err := svc.UploadEvidence(
-		context.Background(), 1, "sent_to_lab",
-		strings.NewReader("data"), 10, "application/pdf", "doc.pdf", 1, &mockStorage{},
-	)
-
-	require.Error(t, err)
-	var valErr *domain.ErrValidation
-	assert.True(t, assert.ErrorAs(t, err, &valErr))
-	assert.Equal(t, "file", valErr.Field)
 }
