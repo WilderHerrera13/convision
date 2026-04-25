@@ -73,7 +73,6 @@ func (r *AppointmentRepository) Update(a *domain.Appointment) error {
 		"notes":                     a.Notes,
 		"reason":                    a.Reason,
 		"is_billed":                 a.IsBilled,
-		"billed_at":                 a.BilledAt,
 		"sale_id":                   a.SaleID,
 		"left_eye_annotation_paths":  a.LeftEyeAnnotationPaths,
 		"right_eye_annotation_paths": a.RightEyeAnnotationPaths,

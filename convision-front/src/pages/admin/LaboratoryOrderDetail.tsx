@@ -110,7 +110,7 @@ const LaboratoryOrderDetail: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Número de Orden</p>
-                <p className="font-medium">{order.sale?.sale_number ?? order.order_number}</p>
+                <p className="font-medium">{order.order_number}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Laboratorio</p>

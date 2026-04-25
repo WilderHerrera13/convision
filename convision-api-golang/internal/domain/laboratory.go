@@ -50,7 +50,6 @@ type LaboratoryOrder struct {
 	Patient       *Patient               `json:"patient,omitempty"        gorm:"foreignKey:PatientID"`
 	CreatedByUser *User                  `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
 	StatusHistory []LaboratoryOrderStatusEntry `json:"status_history,omitempty" gorm:"foreignKey:LaboratoryOrderID"`
-	Sale          *Sale                        `json:"sale,omitempty"           gorm:"foreignKey:SaleID"`
 }
 
 // LaboratoryOrderStatusEntry represents a status change event in a laboratory order.
@@ -75,11 +74,11 @@ func (LaboratoryOrderStatusEntry) TableName() string {
 // LaboratoryRepository defines persistence operations for Laboratory.
 type LaboratoryRepository interface {
 	GetByID(id uint) (*Laboratory, error)
+	GetFirstActive() (*Laboratory, error)
 	Create(l *Laboratory) error
 	Update(l *Laboratory) error
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*Laboratory, int64, error)
-	GetFirstActive() (*Laboratory, error)
 }
 
 // LaboratoryOrderRepository defines persistence operations for LaboratoryOrder.
