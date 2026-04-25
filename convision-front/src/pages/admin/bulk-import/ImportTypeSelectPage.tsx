@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layouts/PageLayout';
-import { UserRound, Stethoscope, CalendarCheck } from 'lucide-react';
+import { UserRound, Stethoscope, CalendarCheck, Glasses } from 'lucide-react';
 
 interface ImportOption {
   type: string;
@@ -36,6 +36,14 @@ const OPTIONS: ImportOption[] = [
     columns: ['FechaConsulta', 'Documento', 'Cliente', 'celular', 'correo', 'fechaNacimiento', 'Sede', 'Idusuario', 'Usuario', 'CreadoPor', 'CreadoPorNombre'],
     icon: CalendarCheck,
     path: '/admin/bulk-import/scheduled-appointments',
+  },
+  {
+    type: 'lenses',
+    title: 'Catálogo de Lentes',
+    description: 'Carga masiva de lentes al catálogo central. Crea automáticamente los atributos (tipo, marca, material, clase, tratamiento) si no existen.',
+    columns: ['CodigoInterno', 'Identificador', 'TipoLente', 'Marca', 'Material', 'ClaseLente', 'Tratamiento', 'Fotocromático', 'Descripción', 'Precio', 'Costo', 'Proveedor'],
+    icon: Glasses,
+    path: '/admin/bulk-import/lenses',
   },
 ];
 

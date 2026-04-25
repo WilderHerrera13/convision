@@ -62,13 +62,22 @@ func NewService(
 	patientRepo domain.PatientRepository,
 	userRepo domain.UserRepository,
 	appointmentRepo domain.AppointmentRepository,
+	lensRepo domain.LensRepository,
+	lensTypeRepo domain.LensTypeRepository,
+	brandRepo domain.BrandRepository,
+	materialRepo domain.MaterialRepository,
+	lensClassRepo domain.LensClassRepository,
+	treatmentRepo domain.TreatmentRepository,
+	photochromicRepo domain.PhotochromicRepository,
+	supplierRepo domain.SupplierRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
 		registry: Registry{
-			ImportTypePatients:           newPatientImporter(patientRepo, logger),
-			ImportTypeDoctors:            newDoctorImporter(userRepo, logger),
+			ImportTypePatients:              newPatientImporter(patientRepo, logger),
+			ImportTypeDoctors:               newDoctorImporter(userRepo, logger),
 			ImportTypeScheduledAppointments: newScheduledAppointmentsImporter(patientRepo, userRepo, appointmentRepo, logger),
+			ImportTypeLenses:                newLensImporter(lensRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
 		},
 		logger: logger,
 	}

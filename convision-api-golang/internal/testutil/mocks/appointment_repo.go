@@ -74,3 +74,16 @@ func (m *MockAppointmentRepository) ExistsByPatientAndDate(patientID uint, speci
 	args := m.Called(patientID, specialistID, date)
 	return args.Bool(0), args.Error(1)
 }
+
+func (m *MockAppointmentRepository) HasConflictForSpecialist(specialistID uint, scheduledAt time.Time, excludeID uint, durationMins int) (bool, error) {
+	args := m.Called(specialistID, scheduledAt, excludeID, durationMins)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockAppointmentRepository) GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error) {
+	args := m.Called(specialistID, date)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

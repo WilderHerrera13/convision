@@ -22,7 +22,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const ConfirmShipment: React.FC = () => {
+interface ConfirmShipmentProps {
+  basePath?: string;
+}
+
+const ConfirmShipment: React.FC<ConfirmShipmentProps> = ({ basePath = '/receptionist/lab-orders' }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [order, setOrder] = useState<LaboratoryOrder | null>(null);
@@ -48,7 +52,7 @@ const ConfirmShipment: React.FC = () => {
       const notes = `Guía: ${values.tracking_number || 'N/A'}. ${values.observations || ''}`.trim();
       await laboratoryOrderService.updateLaboratoryOrderStatus(Number(id), { status: 'sent_to_lab', notes });
       toast({ title: 'Enviado correctamente' });
-      navigate(`/receptionist/lab-orders/${id}`);
+      navigate(`${basePath}/${id}`);
     } catch {
       toast({ title: 'Error', description: 'No se pudo actualizar el estado', variant: 'destructive' });
     } finally {
@@ -58,7 +62,7 @@ const ConfirmShipment: React.FC = () => {
 
   const pageActions = (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={() => navigate(`/receptionist/lab-orders/${id}`)}>
+      <Button variant="outline" size="sm" onClick={() => navigate(`${basePath}/${id}`)}>
         Cancelar
       </Button>
       <Button type="submit" form="shipment-form" size="sm" disabled={submitting} className="bg-[#8753ef] hover:bg-[#7040d6] text-white">

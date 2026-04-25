@@ -112,7 +112,23 @@ func (h *Handler) GuestLaboratoryOrderPdf(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "El enlace ha expirado o no es válido."})
 		return
 	}
-	writePdfResponse(c, "laboratory-order", uint(id))
+
+	order, err := h.laboratory.GetOrder(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Orden no encontrada."})
+		return
+	}
+
+	pdfBytes, genErr := buildLabOrderPDF(order)
+	if genErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generando el PDF."})
+		return
+	}
+
+	filename := fmt.Sprintf("orden-laboratorio-%s.pdf", order.OrderNumber)
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
 // GuestSalePdf godoc

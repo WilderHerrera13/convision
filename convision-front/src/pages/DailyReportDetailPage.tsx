@@ -1,27 +1,39 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import PageLayout from '@/components/layouts/PageLayout';
 import DailyReportDetailView from '@/components/daily-report/DailyReportDetailView';
 import dailyActivityReportService, {
   normalizeDailyActivityReport,
-  SHIFT_OPTIONS,
 } from '@/services/dailyActivityReportService';
-
-const SHIFT_LABELS: Record<string, string> = Object.fromEntries(
-  SHIFT_OPTIONS.map(({ value, label }) => [value, label]),
-);
 
 const DailyReportDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const isAdmin = location.pathname.startsWith('/admin/');
   const backPath = isAdmin ? '/admin/daily-reports' : '/receptionist/daily-report-history';
   const role = isAdmin ? 'admin' : 'receptionist';
+
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
 
   const numericId = id ? Number.parseInt(id, 10) : NaN;
 
@@ -38,6 +50,25 @@ const DailyReportDetailPage: React.FC = () => {
   const handleExportPrint = useCallback(() => {
     window.print();
   }, []);
+
+  const handleReopen = async () => {
+    if (!numericId) return;
+    setIsReopening(true);
+    try {
+      await dailyActivityReportService.reopen(numericId);
+      await queryClient.invalidateQueries({ queryKey: ['daily-activity-report', numericId] });
+      toast({ title: 'Reporte reabierto', description: 'El reporte vuelve a estado pendiente.' });
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo reabrir el reporte.', variant: 'destructive' });
+    } finally {
+      setIsReopening(false);
+      setShowReopenConfirm(false);
+    }
+  };
+
+  const isToday = report
+    ? report.report_date === format(new Date(), 'yyyy-MM-dd')
+    : false;
 
   if (!Number.isFinite(numericId)) {
     return (
@@ -73,12 +104,12 @@ const DailyReportDetailPage: React.FC = () => {
     ? `${report.user.name} ${report.user.last_name ?? ''}`.trim()
     : 'Asesor';
   const dateLabel = format(new Date(report.report_date + 'T12:00:00'), 'dd/MM/yyyy');
-  const shiftLabel = SHIFT_LABELS[report.shift] ?? report.shift;
+  const isClosed = report.status === 'closed';
 
   const title = isAdmin ? 'Informes de gestión (asesores)' : 'Detalle del reporte diario';
   const subtitle = isAdmin
-    ? `${advisorName} · ${dateLabel} · Jornada: ${shiftLabel}`
-    : `Consulta las métricas registradas · ${dateLabel} · Jornada: ${shiftLabel}`;
+    ? `${advisorName} · ${dateLabel}`
+    : `Consulta las métricas registradas · ${dateLabel}`;
 
   return (
     <PageLayout
@@ -86,15 +117,55 @@ const DailyReportDetailPage: React.FC = () => {
       subtitle={subtitle}
       contentClassName="bg-[#f5f5f6]"
       actions={
-        <Button variant="outline" size="sm" className="gap-2 border-[#dcdce0]" asChild>
-          <Link to={backPath}>
-            <ArrowLeft className="h-4 w-4" />
-            Volver al listado
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {isClosed ? (
+            <Badge className="rounded-full border-0 bg-[#ebf5ef] px-3 py-1.5 text-[12px] font-semibold text-[#228b52]">
+              <Lock className="mr-1.5 h-3 w-3" />
+              Cerrado
+            </Badge>
+          ) : (
+            <Badge className="rounded-full border-0 bg-[#fff6e3] px-3 py-1.5 text-[12px] font-semibold text-[#b57218]">
+              Pendiente
+            </Badge>
+          )}
+          {isAdmin && isClosed && isToday && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-[#dcdce0]"
+              onClick={() => setShowReopenConfirm(true)}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reabrir
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-2 border-[#dcdce0]" asChild>
+            <Link to={backPath}>
+              <ArrowLeft className="h-4 w-4" />
+              Volver al listado
+            </Link>
+          </Button>
+        </div>
       }
     >
       <DailyReportDetailView report={report} role={role} onExportPrint={handleExportPrint} />
+
+      <AlertDialog open={showReopenConfirm} onOpenChange={setShowReopenConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reabrir el reporte?</AlertDialogTitle>
+            <AlertDialogDescription>
+              El reporte volverá a estado pendiente y el recepcionista podrá editarlo nuevamente. Solo es posible reabrir el reporte del día de hoy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isReopening}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReopen} disabled={isReopening}>
+              Reabrir Reporte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 };

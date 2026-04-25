@@ -42,17 +42,7 @@ import { inventoryService, Warehouse } from '@/services/inventoryService';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 
 // Form schema
@@ -72,6 +62,8 @@ const WarehouseManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const [deleteWarehouseId, setDeleteWarehouseId] = useState<number | null>(null);
+  const [deleteWarehouseName, setDeleteWarehouseName] = useState<string>('');
   const { toast } = useToast();
 
   const form = useForm<WarehouseFormValues>({
@@ -462,32 +454,9 @@ const WarehouseManagement: React.FC = () => {
                           </Form>
                         </DialogContent>
                       </Dialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará permanentemente el almacén {warehouse.name}.
-                              <br />
-                              <strong>Nota:</strong> No se pueden eliminar almacenes que tengan inventario.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteWarehouse(warehouse.id)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button variant="ghost" size="icon" onClick={() => { setDeleteWarehouseId(warehouse.id); setDeleteWarehouseName(warehouse.name); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -496,6 +465,15 @@ const WarehouseManagement: React.FC = () => {
           </Table>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteWarehouseId !== null}
+        onOpenChange={(open) => !open && setDeleteWarehouseId(null)}
+        title="Eliminar almacen"
+        description={`Esta accion no se puede deshacer. Se eliminara permanentemente el almacen ${deleteWarehouseName}. No se pueden eliminar almacenes con inventario.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={() => { if (deleteWarehouseId !== null) handleDeleteWarehouse(deleteWarehouseId); setDeleteWarehouseId(null); }}
+      />
     </div>
   );
 };

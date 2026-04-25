@@ -46,6 +46,12 @@ func (h *Handler) BulkImportScheduledAppointments(c *gin.Context) {
 	h.processBulkImport(c, bulkimport.ImportTypeScheduledAppointments)
 }
 
+// BulkImportLenses godoc
+// POST /api/v1/bulk-import/lenses
+func (h *Handler) BulkImportLenses(c *gin.Context) {
+	h.processBulkImport(c, bulkimport.ImportTypeLenses)
+}
+
 // BulkImportHistory godoc
 // GET /api/v1/bulk-import/history?type=&page=&per_page=
 func (h *Handler) BulkImportHistory(c *gin.Context) {

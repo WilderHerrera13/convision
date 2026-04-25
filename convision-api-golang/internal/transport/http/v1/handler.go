@@ -15,6 +15,7 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	"github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
+	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	"github.com/convision/api/internal/discount"
 	"github.com/convision/api/internal/domain"
@@ -93,11 +94,12 @@ func toMap(v interface{}) gin.H {
 
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
-	auth          *authsvc.Service
-	patient       *patient.Service
-	clinic        *clinic.Service
-	user          *usersvc.Service
-	appointment   *appointmentsvc.Service
+	auth           *authsvc.Service
+	patient        *patient.Service
+	clinic         *clinic.Service
+	clinicalRecord *clinicalrecordsvc.Service
+	user           *usersvc.Service
+	appointment    *appointmentsvc.Service
 	prescription  *prescriptionsvc.Service
 	catalog       *catalog.Service
 	location      *location.Service
@@ -130,6 +132,7 @@ func NewHandler(
 	auth *authsvc.Service,
 	patient *patient.Service,
 	clinic *clinic.Service,
+	clinicalRecord *clinicalrecordsvc.Service,
 	user *usersvc.Service,
 	appointment *appointmentsvc.Service,
 	prescription *prescriptionsvc.Service,
@@ -159,10 +162,11 @@ func NewHandler(
 	revokedTokens    domain.RevokedTokenRepository,
 ) *Handler {
 	return &Handler{
-		auth:          auth,
-		patient:       patient,
-		clinic:        clinic,
-		user:          user,
+		auth:           auth,
+		patient:        patient,
+		clinic:         clinic,
+		clinicalRecord: clinicalRecord,
+		user:           user,
 		appointment:   appointment,
 		prescription:  prescription,
 		catalog:       catalog,

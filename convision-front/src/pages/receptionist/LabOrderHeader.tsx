@@ -11,6 +11,8 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: 'En proceso',
   sent_to_lab: 'En laboratorio',
   in_transit: 'En tránsito',
+  received_from_lab: 'Recibido del lab.',
+  returned_to_lab: 'Retornado al lab.',
   in_quality: 'En calidad',
   ready_for_delivery: 'Listo para entrega',
   portfolio: 'Cartera',
@@ -20,7 +22,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const getStatusVariant = (status: string): BadgeVariant => {
   if (status === 'pending') return 'warning';
-  if (['in_process', 'in_progress', 'sent_to_lab', 'in_transit'].includes(status)) return 'secondary';
+  if (['in_process', 'in_progress', 'sent_to_lab', 'in_transit', 'received_from_lab'].includes(status)) return 'secondary';
+  if (status === 'returned_to_lab') return 'destructive';
   if (status === 'in_quality') return 'outline';
   if (['ready_for_delivery', 'delivered'].includes(status)) return 'success';
   if (['portfolio', 'cancelled'].includes(status)) return 'destructive';

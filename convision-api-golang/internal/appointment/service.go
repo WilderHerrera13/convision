@@ -124,9 +124,24 @@ func (s *Service) GetByID(id uint) (*domain.Appointment, error) {
 	return s.repo.GetByID(id)
 }
 
-// Create adds a new appointment.
+const defaultAppointmentDurationMins = 30
+
+// Create adds a new appointment after checking for specialist scheduling conflicts.
 func (s *Service) Create(input CreateInput, receptionistID uint) (*domain.Appointment, error) {
 	scheduledAt := parseScheduledAt(input.ScheduledAt, input.Date, input.Time)
+
+	if scheduledAt != nil && input.SpecialistID != nil {
+		conflict, err := s.repo.HasConflictForSpecialist(*input.SpecialistID, *scheduledAt, 0, defaultAppointmentDurationMins)
+		if err != nil {
+			return nil, err
+		}
+		if conflict {
+			return nil, &domain.ErrValidation{
+				Field:   "scheduled_at",
+				Message: "el especialista ya tiene una cita programada en ese horario",
+			}
+		}
+	}
 
 	a := &domain.Appointment{
 		PatientID:         input.PatientID,
@@ -147,7 +162,7 @@ func (s *Service) Create(input CreateInput, receptionistID uint) (*domain.Appoin
 	return s.repo.GetByID(a.ID)
 }
 
-// Update modifies an existing appointment's mutable fields.
+// Update modifies an existing appointment's mutable fields, checking for scheduling conflicts.
 func (s *Service) Update(id uint, input UpdateInput) (*domain.Appointment, error) {
 	a, err := s.repo.GetByID(id)
 	if err != nil {
@@ -173,10 +188,29 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Appointment, error
 		a.Status = domain.AppointmentStatus(input.Status)
 	}
 
+	if a.ScheduledAt != nil && a.SpecialistID != nil &&
+		input.Status == "" || (input.Status != "cancelled" && input.Status != "completed") {
+		conflict, cerr := s.repo.HasConflictForSpecialist(*a.SpecialistID, *a.ScheduledAt, id, defaultAppointmentDurationMins)
+		if cerr != nil {
+			return nil, cerr
+		}
+		if conflict {
+			return nil, &domain.ErrValidation{
+				Field:   "scheduled_at",
+				Message: "el especialista ya tiene una cita programada en ese horario",
+			}
+		}
+	}
+
 	if err := s.repo.Update(a); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByID(a.ID)
+}
+
+// GetBookedSlots returns the list of HH:MM times already booked for a specialist on a given date.
+func (s *Service) GetBookedSlots(specialistID uint, date time.Time) ([]string, error) {
+	return s.repo.GetBookedTimesForSpecialist(specialistID, date)
 }
 
 // Delete removes an appointment.

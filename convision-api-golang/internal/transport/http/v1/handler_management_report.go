@@ -29,7 +29,8 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
 	var specialistID uint
-	if claims.Role != domain.RoleAdmin {
+	isAdmin := claims.Role == domain.RoleAdmin
+	if !isAdmin {
 		specialistID = claims.UserID
 	} else if sid := c.Query("specialist_id"); sid != "" && sid != "all" {
 		if parsed, err := strconv.ParseUint(sid, 10, 32); err == nil {
@@ -37,12 +38,17 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 		}
 	}
 
+	statusFilter := c.Query("status")
+	if !isAdmin {
+		statusFilter = "completed"
+	}
+
 	out, err := h.appointment.ListManagementReport(
 		specialistID,
 		c.Query("search"),
 		c.Query("start_date"),
 		c.Query("end_date"),
-		c.Query("status"),
+		statusFilter,
 		c.Query("consultation_type"),
 		c.Query("pending_report") == "true",
 		page, perPage,

@@ -183,6 +183,7 @@ func (r *LaboratoryOrderRepository) Update(o *domain.LaboratoryOrder) error {
 		"estimated_completion_date": o.EstimatedCompletionDate,
 		"completion_date":           o.CompletionDate,
 		"notes":                     o.Notes,
+		"drawer_number":             o.DrawerNumber,
 	}).Error
 }
 
@@ -201,6 +202,21 @@ func (r *LaboratoryOrderRepository) List(filters map[string]any, page, perPage i
 		if laboratoryOrderFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)
 		}
+	}
+
+	if search, ok := filters["_search"].(string); ok && search != "" {
+		q = q.Where(
+			"laboratory_orders.order_number ILIKE ? OR laboratory_orders.patient_id IN (SELECT id FROM patients WHERE CONCAT(first_name, ' ', last_name) ILIKE ?)",
+			"%"+search+"%", "%"+search+"%",
+		)
+	}
+
+	if assignedUID, ok := filters["_assigned_uid"].(string); ok && assignedUID != "" {
+		uidTag := fmt.Sprintf("%%[uid:%s]%%", assignedUID)
+		q = q.Where(
+			"laboratory_orders.id IN (SELECT laboratory_order_id FROM laboratory_order_statuses WHERE status = 'in_quality' AND notes LIKE ?)",
+			uidTag,
+		)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -227,9 +243,13 @@ func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
 		domain.LaboratoryOrderStatusPending,
 		domain.LaboratoryOrderStatusInProcess,
 		domain.LaboratoryOrderStatusSentToLab,
+		domain.LaboratoryOrderStatusInTransit,
+		domain.LaboratoryOrderStatusReceivedFromLab,
+		domain.LaboratoryOrderStatusInQuality,
 		domain.LaboratoryOrderStatusReadyForDelivery,
 		domain.LaboratoryOrderStatusDelivered,
 		domain.LaboratoryOrderStatusCancelled,
+		domain.LaboratoryOrderStatusPortfolio,
 	}
 
 	result := map[string]int64{}
@@ -239,4 +259,27 @@ func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
 		result[string(s)] = count
 	}
 	return result, nil
+}
+
+// LaboratoryOrderEvidenceRepository is the PostgreSQL-backed implementation of domain.LaboratoryOrderEvidenceRepository.
+type LaboratoryOrderEvidenceRepository struct {
+	db *gorm.DB
+}
+
+func NewLaboratoryOrderEvidenceRepository(db *gorm.DB) *LaboratoryOrderEvidenceRepository {
+	return &LaboratoryOrderEvidenceRepository{db: db}
+}
+
+func (r *LaboratoryOrderEvidenceRepository) Create(e *domain.LaboratoryOrderEvidence) error {
+	return r.db.Create(e).Error
+}
+
+func (r *LaboratoryOrderEvidenceRepository) ListByOrderID(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	var items []*domain.LaboratoryOrderEvidence
+	q := r.db.Preload("User").Where("laboratory_order_id = ?", orderID)
+	if transitionType != "" {
+		q = q.Where("transition_type = ?", transitionType)
+	}
+	err := q.Order("id DESC").Find(&items).Error
+	return items, err
 }

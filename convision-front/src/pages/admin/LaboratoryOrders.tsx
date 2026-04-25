@@ -11,17 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Eye, Pencil, Trash2, FlaskConical, Search } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { Plus, Eye, Pencil, Trash2, FlaskConical, Search, FileDown } from 'lucide-react';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
   laboratoryOrderService,
   LaboratoryOrder,
@@ -32,39 +23,12 @@ import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
 import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  in_process: 'En proceso',
-  in_progress: 'En proceso',
-  sent_to_lab: 'Enviado a laboratorio',
-  in_transit: 'En tránsito',
-  in_quality: 'En calidad',
-  ready_for_delivery: 'Listo para entregar',
-  portfolio: 'Cartera',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado',
-};
-
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  pending: 'bg-[#fff6e3] text-[#b57218]',
-  in_process: 'bg-[#eff1ff] text-[#3a71f7]',
-  in_progress: 'bg-[#eff1ff] text-[#3a71f7]',
-  sent_to_lab: 'bg-[#eff1ff] text-[#3a71f7]',
-  in_transit: 'bg-[#e8f4f8] text-[#0e7490]',
-  in_quality: 'bg-[#eef2ff] text-[#4338ca]',
-  ready_for_delivery: 'bg-[#ebf5ef] text-[#228b52]',
-  portfolio: 'bg-[#fff0f0] text-[#b82626]',
-  delivered: 'bg-gray-100 text-gray-600',
-  cancelled: 'bg-red-100 text-red-700',
-};
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja',
-  normal: 'Media',
-  high: 'Alta',
-  urgent: 'Urgente',
-};
+import {
+  LABORATORY_ORDER_STATUS_LABELS,
+  LAB_ORDER_STATUS_TOKENS,
+  LAB_ORDER_PRIORITY_LABELS,
+  LAB_ORDER_PRIORITY_TOKENS,
+} from '@/constants/laboratoryOrderStatus';
 
 const PRIORITY_BADGE_CLASS: Record<string, string> = {
   low: 'bg-gray-100 text-gray-500',
@@ -196,32 +160,41 @@ const LaboratoryOrders: React.FC = () => {
       header: 'Estado',
       type: 'text',
       accessorKey: 'status',
-      cell: (order) => (
-        <span
-          className={cn(
-            'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
-            STATUS_BADGE_CLASS[order.status] ?? 'bg-gray-100 text-gray-600',
-          )}
-        >
-          {STATUS_LABELS[order.status] ?? order.status}
-        </span>
-      ),
+      cell: (order) => {
+        const token = LAB_ORDER_STATUS_TOKENS[order.status as keyof typeof LAB_ORDER_STATUS_TOKENS];
+        return (
+          <span
+            style={token ? { backgroundColor: token.bg, color: token.text } : undefined}
+            className={cn(
+              'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
+              !token && 'bg-gray-100 text-gray-600',
+            )}
+          >
+            {LABORATORY_ORDER_STATUS_LABELS[order.status] ?? order.status}
+          </span>
+        );
+      },
     },
     {
       id: 'priority',
       header: 'Prioridad',
       type: 'text',
       accessorKey: 'priority',
-      cell: (order) => (
-        <span
-          className={cn(
-            'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
-            PRIORITY_BADGE_CLASS[order.priority] ?? 'bg-gray-100 text-gray-600',
-          )}
-        >
-          {PRIORITY_LABELS[order.priority] ?? order.priority}
-        </span>
-      ),
+      cell: (order) => {
+        const token = LAB_ORDER_PRIORITY_TOKENS[order.priority as keyof typeof LAB_ORDER_PRIORITY_TOKENS];
+        return (
+          <span
+            style={token ? { backgroundColor: token.bg, color: token.text } : undefined}
+            className={cn(
+              'inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
+              !token && PRIORITY_BADGE_CLASS[order.priority],
+              !token && !PRIORITY_BADGE_CLASS[order.priority] && 'bg-gray-100 text-gray-600',
+            )}
+          >
+            {LAB_ORDER_PRIORITY_LABELS[order.priority as keyof typeof LAB_ORDER_PRIORITY_LABELS] ?? order.priority}
+          </span>
+        );
+      },
     },
     {
       id: 'actions',
@@ -242,6 +215,22 @@ const LaboratoryOrders: React.FC = () => {
             title="Editar"
           >
             <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-[#edfaf3] border border-[#228b52]/30 text-[#228b52] hover:opacity-80 transition-colors"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const { pdf_token } = await laboratoryOrderService.getLaboratoryOrderPdfToken(order.id);
+                const url = laboratoryOrderService.getLaboratoryOrderPdfUrl(order.id, pdf_token);
+                window.open(url, '_blank');
+              } catch {
+                toast({ title: 'Error', description: 'No se pudo generar el PDF.', variant: 'destructive' });
+              }
+            }}
+            title="Descargar PDF"
+          >
+            <FileDown className="h-4 w-4" />
           </button>
           <button
             className="flex items-center justify-center size-8 rounded-[6px] bg-red-50 border border-red-200 text-red-500 hover:opacity-80 transition-colors"
@@ -287,6 +276,7 @@ const LaboratoryOrders: React.FC = () => {
               <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
               <SelectItem value="in_transit">En tránsito</SelectItem>
               <SelectItem value="in_quality">En calidad</SelectItem>
+              <SelectItem value="quality_approved">Calidad aprobada</SelectItem>
               <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
               <SelectItem value="delivered">Entregado</SelectItem>
               <SelectItem value="cancelled">Cancelado</SelectItem>
@@ -373,26 +363,16 @@ const LaboratoryOrders: React.FC = () => {
         </div>
       </div>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar orden {deleteTarget?.order_number}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La orden quedará eliminada permanentemente del sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Eliminar orden ${deleteTarget?.order_number ?? ''}`}
+        description="Esta accion no se puede deshacer. La orden quedara eliminada permanentemente del sistema."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={handleDelete}
+        isLoading={deleting}
+      />
     </PageLayout>
   );
 };

@@ -49,17 +49,7 @@ import { inventoryService, WarehouseLocation, Warehouse } from '@/services/inven
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 
 // Form schema
@@ -89,6 +79,8 @@ const LocationManagement: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WarehouseLocation | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
+  const [deleteLocationId, setDeleteLocationId] = useState<number | null>(null);
+  const [deleteLocationName, setDeleteLocationName] = useState<string>('');
   const { toast } = useToast();
 
   const form = useForm<LocationFormValues>({
@@ -659,32 +651,9 @@ const LocationManagement: React.FC = () => {
                           </Form>
                         </DialogContent>
                       </Dialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará permanentemente la ubicación {location.name}.
-                              <br />
-                              <strong>Nota:</strong> No se pueden eliminar ubicaciones que tengan inventario.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteLocation(location.id)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button variant="ghost" size="icon" onClick={() => { setDeleteLocationId(location.id); setDeleteLocationName(location.name); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -693,6 +662,15 @@ const LocationManagement: React.FC = () => {
           </Table>
         </div>
       )}
+      <ConfirmDialog
+        open={deleteLocationId !== null}
+        onOpenChange={(open) => !open && setDeleteLocationId(null)}
+        title="Eliminar ubicacion"
+        description={`Esta accion no se puede deshacer. Se eliminara permanentemente la ubicacion ${deleteLocationName}. No se pueden eliminar ubicaciones con inventario.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={() => { if (deleteLocationId !== null) handleDeleteLocation(deleteLocationId); setDeleteLocationId(null); }}
+      />
     </div>
   );
 };

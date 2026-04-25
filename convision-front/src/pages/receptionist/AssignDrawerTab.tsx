@@ -36,7 +36,7 @@ const AssignDrawerTab: React.FC<AssignDrawerTabProps> = ({
 
   const approvedBy = order.createdBy?.name ?? '—';
   const isApproved =
-    order.status === 'in_quality' || order.status === 'ready_for_delivery';
+    order.status === 'quality_approved' || order.status === 'in_quality' || order.status === 'ready_for_delivery';
 
   return (
     <div className="space-y-6">

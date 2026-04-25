@@ -1,19 +1,45 @@
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { AnamnesisInput } from '@/services/clinicalRecordService';
+import { AnamnesisSection1 } from './AnamnesisSection1';
+import { AnamnesisSection2 } from './AnamnesisSection2';
+import { AnamnesisSection3 } from './AnamnesisSection3';
+import { AnamnesisSection4 } from './AnamnesisSection4';
+import { AnamnesisSection5 } from './AnamnesisSection5';
 
 const schema = z.object({
   reason_for_visit: z.string().min(1, 'El motivo de consulta es requerido'),
-  systemic_background: z.string().optional(),
-  ocular_background: z.string().optional(),
-  family_background: z.string().optional(),
-  pharmacological_background: z.string().optional(),
-  current_correction_type: z.enum(['gafas_vl', 'gafas_vp', 'progresivos', 'lc', 'ninguna', '']).optional(),
-  current_correction_time: z.string().optional(),
+  onset: z.string().optional(),
+  duration: z.string().optional(),
+  character: z.string().optional(),
+  associated_symptoms: z.array(z.string()).optional(),
+  has_diabetes: z.string().optional(),
+  diabetes_diagnosis_year: z.string().optional(),
+  diabetes_hba1c: z.string().optional(),
+  has_hypertension: z.string().optional(),
+  hypertension_diagnosis_year: z.string().optional(),
+  hypertension_medication: z.string().optional(),
+  allergies: z.string().optional(),
+  current_medications: z.string().optional(),
+  other_systemic_conditions: z.array(z.string()).optional(),
+  previous_eye_surgeries: z.string().optional(),
+  lens_use: z.string().optional(),
+  correction_type: z.string().optional(),
+  lens_satisfaction: z.string().optional(),
+  previous_ocular_trauma: z.string().optional(),
+  previous_ocular_pathologies: z.string().optional(),
+  family_ophthalmic_conditions: z.array(z.string()).optional(),
+  family_observations: z.string().optional(),
+  takes_corticosteroids: z.boolean().optional(),
+  takes_hydroxychloroquine: z.boolean().optional(),
+  takes_tamsulosin: z.boolean().optional(),
+  takes_antihistamines: z.boolean().optional(),
+  takes_antihypertensives: z.boolean().optional(),
+  takes_amiodarone: z.boolean().optional(),
 });
 
-type AnamnesisFormData = z.infer<typeof schema>;
+export type AnamnesisFormData = z.infer<typeof schema>;
 
 interface AnamnesisTabProps {
   defaultValues?: Partial<AnamnesisInput>;
@@ -22,9 +48,20 @@ interface AnamnesisTabProps {
 }
 
 export function AnamnesisTab({ defaultValues, onSave, isSaving }: AnamnesisTabProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm<AnamnesisFormData>({
+  const methods = useForm<AnamnesisFormData>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues as AnamnesisFormData,
+    defaultValues: {
+      associated_symptoms: [],
+      other_systemic_conditions: [],
+      family_ophthalmic_conditions: [],
+      takes_corticosteroids: false,
+      takes_hydroxychloroquine: false,
+      takes_tamsulosin: false,
+      takes_antihistamines: false,
+      takes_antihypertensives: false,
+      takes_amiodarone: false,
+      ...defaultValues,
+    },
   });
 
   const onSubmit = async (data: AnamnesisFormData) => {
@@ -32,90 +69,24 @@ export function AnamnesisTab({ defaultValues, onSave, isSaving }: AnamnesisTabPr
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <label className="block text-sm font-medium text-[#0f0f12] mb-1">Motivo de consulta *</label>
-        <textarea
-          {...register('reason_for_visit')}
-          className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-          placeholder="Describa el motivo principal de la consulta"
-        />
-        {errors.reason_for_visit && (
-          <p className="text-xs text-red-500 mt-1">{errors.reason_for_visit.message}</p>
-        )}
-      </div>
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(onSubmit)} className="px-8 py-7">
+        <AnamnesisSection1 />
+        <AnamnesisSection2 />
+        <AnamnesisSection3 />
+        <AnamnesisSection4 />
+        <AnamnesisSection5 />
 
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-2">Antecedentes sistémicos</p>
-        <textarea
-          {...register('systemic_background')}
-          className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-          placeholder="Hipertensión, Diabetes, Alergias, Artritis, Tiroides, Otros..."
-        />
-      </div>
-
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-2">Antecedentes oculares</p>
-        <textarea
-          {...register('ocular_background')}
-          className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-          placeholder="Cirugía ocular, Trauma ocular, Glaucoma, Cataratas, Otras enfermedades oculares..."
-        />
-      </div>
-
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-2">Antecedentes familiares</p>
-        <textarea
-          {...register('family_background')}
-          className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-          placeholder="Glaucoma familiar, Diabetes familiar, Otras enfermedades familiares..."
-        />
-      </div>
-
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-2">Antecedentes farmacológicos</p>
-        <textarea
-          {...register('pharmacological_background')}
-          className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-          placeholder="Medicamentos actuales..."
-        />
-      </div>
-
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-2">Corrección óptica en uso</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-[#7d7d87] mb-1">Tipo de corrección</label>
-            <select
-              {...register('current_correction_type')}
-              className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-            >
-              <option value="">Seleccionar</option>
-              <option value="ninguna">Ninguna</option>
-              <option value="gafas_vl">Gafas VL</option>
-              <option value="gafas_vp">Gafas VP</option>
-              <option value="progresivos">Progresivos</option>
-              <option value="lc">Lentes de contacto</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-[#7d7d87] mb-1">Tiempo de uso</label>
-            <input
-              {...register('current_correction_time')}
-              className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
-              placeholder="Ej: 2 años"
-            />
-          </div>
+        <div className="mt-8">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="bg-[#0f8f64] text-white h-9 px-6 rounded-[6px] text-[13px] font-semibold hover:bg-[#0a7050] transition-colors disabled:opacity-50"
+          >
+            {isSaving ? 'Guardando...' : 'Siguiente: Examen Visual →'}
+          </button>
         </div>
-      </div>
-
-      <button
-        type="submit"
-        disabled={isSaving}
-        className="w-full bg-[#0f8f64] text-white py-2.5 rounded-lg hover:bg-[#0a7050] font-medium text-sm disabled:opacity-60"
-      >
-        {isSaving ? 'Guardando...' : 'Siguiente'}
-      </button>
-    </form>
+      </form>
+    </FormProvider>
   );
 }

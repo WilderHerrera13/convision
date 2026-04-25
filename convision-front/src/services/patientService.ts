@@ -46,17 +46,24 @@ class PatientService {
     return response.data as PaginatedResponse<Patient>;
   }
 
-  /**
-   * Search patients by name or identification
-   */
   async searchPatients(params: PatientSearchParams) {
-    const response = await api.get('/api/v1/patients', { 
-      params: {
-        search: params.search,
-        page: params.page || 1,
-        per_page: params.perPage || 10
-      }
-    });
+    const queryParams: Record<string, string | number> = {
+      page: params.page || 1,
+      per_page: params.perPage || 20,
+    };
+
+    if (params.search?.trim()) {
+      const fields = ['first_name', 'last_name', 'identification', 'email'];
+      queryParams['s_f'] = JSON.stringify(fields);
+      queryParams['s_v'] = JSON.stringify(Array(fields.length).fill(params.search.trim()));
+      queryParams['s_o'] = 'or';
+    }
+
+    if (params.status) {
+      queryParams['status'] = params.status;
+    }
+
+    const response = await api.get('/api/v1/patients', { params: queryParams });
     return response.data as PaginatedResponse<Patient>;
   }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, Calendar, XCircle, Plus, Search, Loader2 } from 'lucide-react';
+import { Eye, Calendar, XCircle, Plus, Search, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { appointmentsService } from '@/services/appointmentsService';
 import { parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import NewAppointmentDialog from '@/components/appointments/NewAppointmentDialog';
 import AppointmentStatusBadge, { Status } from '@/components/appointments/AppointmentStatusBadge';
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'month';
@@ -75,7 +74,6 @@ const Appointments: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [showNewDialog, setShowNewDialog] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
 
@@ -138,7 +136,7 @@ const Appointments: React.FC = () => {
   const pageActions = user?.role !== 'specialist' ? (
     <Button
       className="bg-convision-primary hover:bg-convision-dark text-white text-[13px] font-semibold h-9 px-4"
-      onClick={() => setShowNewDialog(true)}
+      onClick={() => navigate('/receptionist/appointments/new')}
     >
       <Plus className="h-4 w-4 mr-1.5" />
       Nueva cita
@@ -255,6 +253,15 @@ const Appointments: React.FC = () => {
                           </button>
                           {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
                             <button
+                              title="Editar cita"
+                              className="h-8 w-8 flex items-center justify-center rounded-md bg-white border border-[#d8dbe2] hover:bg-slate-50 transition-colors"
+                              onClick={() => navigate(`/receptionist/appointments/${appointment.id}/edit`)}
+                            >
+                              <Pencil className="h-4 w-4 text-[#59687a]" />
+                            </button>
+                          )}
+                          {appointment.status !== 'completed' && appointment.status !== 'cancelled' && (
+                            <button
                               title="Cancelar cita"
                               disabled={cancellingId === appointment.id}
                               className="h-8 w-8 flex items-center justify-center rounded-md bg-[#fff0f0] border border-[#f5baba] hover:bg-red-100 transition-colors disabled:opacity-50"
@@ -289,8 +296,6 @@ const Appointments: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-
-      <NewAppointmentDialog open={showNewDialog} onOpenChange={setShowNewDialog} />
 
       <ConfirmDialog
         open={cancelTargetId !== null}

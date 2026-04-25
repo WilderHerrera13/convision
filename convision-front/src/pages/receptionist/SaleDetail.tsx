@@ -419,7 +419,7 @@ const SaleDetail: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{item.description}</TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.price ?? item.unit_price)}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
                       </TableRow>
                     ))
@@ -453,7 +453,7 @@ const SaleDetail: React.FC = () => {
                     sale.payments.map((payment, index) => (
                       <TableRow key={index}>
                         <TableCell>{safeDateFormat(payment.payment_date)}</TableCell>
-                        <TableCell>{payment.payment_method.name}</TableCell>
+                        <TableCell>{payment.payment_method?.name ?? '—'}</TableCell>
                         <TableCell>{payment.reference_number || '—'}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(payment.amount)}</TableCell>
                       </TableRow>

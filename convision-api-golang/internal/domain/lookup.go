@@ -118,6 +118,7 @@ type Brand struct {
 // BrandRepository defines persistence operations for Brand.
 type BrandRepository interface {
 	GetByID(id uint) (*Brand, error)
+	GetByName(name string) (*Brand, error)
 	Create(e *Brand) error
 	Update(e *Brand) error
 	Delete(id uint) error

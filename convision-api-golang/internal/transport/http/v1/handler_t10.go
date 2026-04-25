@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -16,36 +18,33 @@ import (
 	jwtauth "github.com/convision/api/internal/platform/auth"
 )
 
-// DailyActivityNestedInput is the nested structure expected by the frontend.
+// DailyActivityNestedInput is the nested structure accepted from the frontend.
+// report_date and shift are no longer required; the backend sets today and 'full' automatically.
 type DailyActivityNestedInput struct {
-	ReportDate      string      `json:"report_date" binding:"required"`
-	Shift           string      `json:"shift"       binding:"required,oneof=morning afternoon full"`
-	CustomerAttention map[string]int `json:"customer_attention"`
-	Operations      map[string]interface{} `json:"operations"`
-	SocialMedia     map[string]interface{} `json:"social_media"`
-	Observations    string      `json:"observations"`
+	CustomerAttention map[string]int         `json:"customer_attention"`
+	Operations        map[string]interface{} `json:"operations"`
+	SocialMedia       map[string]interface{} `json:"social_media"`
+	Observations      string                 `json:"observations"`
 }
 
 // DailyActivityNestedResponse is the nested structure returned to the frontend.
 type DailyActivityNestedResponse struct {
-	ID              uint        `json:"id"`
-	ReportDate      string      `json:"report_date"`
-	Shift           string      `json:"shift"`
+	ID                uint                   `json:"id"`
+	ReportDate        string                 `json:"report_date"`
+	Status            string                 `json:"status"`
 	CustomerAttention map[string]interface{} `json:"customer_attention"`
-	Operations      map[string]interface{} `json:"operations"`
-	SocialMedia     map[string]interface{} `json:"social_media"`
-	MoneyReceiptsData     map[string]interface{} `json:"recepciones_dinero,omitempty"`
-	Observations    string      `json:"observations"`
-	CreatedAt       string      `json:"created_at"`
-	UpdatedAt       string      `json:"updated_at"`
-	User            interface{} `json:"user,omitempty"`
+	Operations        map[string]interface{} `json:"operations"`
+	SocialMedia       map[string]interface{} `json:"social_media"`
+	MoneyReceiptsData map[string]interface{} `json:"recepciones_dinero,omitempty"`
+	Observations      string                 `json:"observations"`
+	CreatedAt         string                 `json:"created_at"`
+	UpdatedAt         string                 `json:"updated_at"`
+	User              interface{}            `json:"user,omitempty"`
 }
 
 // flattenDailyActivityInput converts nested frontend structure to flat service input.
 func flattenDailyActivityInput(nested DailyActivityNestedInput) dailyactivitysvc.CreateInput {
 	flat := dailyactivitysvc.CreateInput{
-		ReportDate:   nested.ReportDate,
-		Shift:        nested.Shift,
 		Observations: nested.Observations,
 	}
 	
@@ -109,12 +108,12 @@ func nestDailyActivityResponse(r *domain.DailyActivityReport) DailyActivityNeste
 	}
 	
 	res := DailyActivityNestedResponse{
-		ID:         r.ID,
-		ReportDate: reportDate,
-		Shift:      string(r.Shift),
+		ID:           r.ID,
+		ReportDate:   reportDate,
+		Status:       string(r.Status),
 		Observations: r.Observations,
-		CreatedAt:   r.CreatedAt.UTC().Format(timeFormat) + "Z",
-		UpdatedAt:   r.UpdatedAt.UTC().Format(timeFormat) + "Z",
+		CreatedAt:    r.CreatedAt.UTC().Format(timeFormat) + "Z",
+		UpdatedAt:    r.UpdatedAt.UTC().Format(timeFormat) + "Z",
 		CustomerAttention: map[string]interface{}{
 			"preguntas_hombre": r.InquiriesMale,
 			"preguntas_mujeres": r.InquiriesFemale,
@@ -525,8 +524,17 @@ func (h *Handler) ListDailyActivityReports(c *gin.Context) {
 	if ok && claims.Role != "admin" {
 		filters["user_id"] = claims.UserID
 	}
-	if shift := c.Query("shift"); shift != "" {
-		filters["shift"] = shift
+	if userID := c.Query("user_id"); userID != "" && ok && claims.Role == "admin" {
+		filters["user_id"] = userID
+	}
+	if dateFrom := c.Query("date_from"); dateFrom != "" {
+		filters["date_from"] = dateFrom
+	}
+	if dateTo := c.Query("date_to"); dateTo != "" {
+		filters["date_to"] = dateTo
+	}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
 	}
 	out, err := h.dailyActivity.List(filters, page, perPage)
 	if err != nil {
@@ -581,11 +589,15 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"message": "los administradores no pueden crear informes de actividad"})
 		return
 	}
-	
-	// Try to parse nested structure first
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "error leyendo cuerpo de la solicitud"})
+		return
+	}
+
 	var nestedInput DailyActivityNestedInput
-	if err := c.ShouldBindJSON(&nestedInput); err == nil && nestedInput.CustomerAttention != nil {
-		// Nested structure from frontend
+	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
 		input := flattenDailyActivityInput(nestedInput)
 		report, err := h.dailyActivity.Create(input, uint(claims.UserID))
 		if err != nil {
@@ -596,8 +608,8 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusCreated, nested)
 		return
 	}
-	
-	// Fallback to flat structure
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	var input dailyactivitysvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -623,15 +635,15 @@ func (h *Handler) UpdateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
 		return
 	}
-	if claims.Role == "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"message": "los administradores no pueden editar informes de actividad"})
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "error leyendo cuerpo de la solicitud"})
 		return
 	}
-	
-	// Try to parse nested structure first
+
 	var nestedInput DailyActivityNestedInput
-	if err := c.ShouldBindJSON(&nestedInput); err == nil && nestedInput.CustomerAttention != nil {
-		// Nested structure from frontend
+	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
 		input := flattenDailyActivityInput(nestedInput)
 		report, err := h.dailyActivity.Update(uint(id), input, uint(claims.UserID), claims.Role == "admin")
 		if err != nil {
@@ -642,14 +654,49 @@ func (h *Handler) UpdateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusOK, nested)
 		return
 	}
-	
-	// Fallback to flat structure
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	var input dailyactivitysvc.UpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
 	report, err := h.dailyActivity.Update(uint(id), input, uint(claims.UserID), claims.Role == "admin")
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	nested := nestDailyActivityResponse(report)
+	c.JSON(http.StatusOK, nested)
+}
+
+func (h *Handler) CloseReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
+		return
+	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
+		return
+	}
+	report, err := h.dailyActivity.Close(uint(id), uint(claims.UserID), claims.Role == "admin")
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	nested := nestDailyActivityResponse(report)
+	c.JSON(http.StatusOK, nested)
+}
+
+func (h *Handler) ReopenReport(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
+		return
+	}
+	report, err := h.dailyActivity.Reopen(uint(id))
 	if err != nil {
 		respondError(c, err)
 		return

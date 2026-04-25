@@ -23,6 +23,16 @@ func (r *BrandRepository) GetByID(id uint) (*domain.Brand, error) {
 	return &e, err
 }
 
+func (r *BrandRepository) GetByName(name string) (*domain.Brand, error) {
+	var e domain.Brand
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "brand"}
+	}
+	return &e, err
+}
+
 func (r *BrandRepository) Create(e *domain.Brand) error {
 	return r.db.Create(e).Error
 }
@@ -62,6 +72,16 @@ func NewLensTypeRepository(db *gorm.DB) *LensTypeRepository { return &LensTypeRe
 func (r *LensTypeRepository) GetByID(id uint) (*domain.LensType, error) {
 	var e domain.LensType
 	err := r.db.Select("id, name, description, created_at, updated_at").First(&e, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "lens_type"}
+	}
+	return &e, err
+}
+
+func (r *LensTypeRepository) GetByName(name string) (*domain.LensType, error) {
+	var e domain.LensType
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "lens_type"}
 	}
@@ -108,6 +128,16 @@ func (r *MaterialRepository) GetByID(id uint) (*domain.Material, error) {
 	return &e, err
 }
 
+func (r *MaterialRepository) GetByName(name string) (*domain.Material, error) {
+	var e domain.Material
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "material"}
+	}
+	return &e, err
+}
+
 func (r *MaterialRepository) Create(e *domain.Material) error { return r.db.Create(e).Error }
 
 func (r *MaterialRepository) Update(e *domain.Material) error {
@@ -142,6 +172,16 @@ func NewLensClassRepository(db *gorm.DB) *LensClassRepository { return &LensClas
 func (r *LensClassRepository) GetByID(id uint) (*domain.LensClass, error) {
 	var e domain.LensClass
 	err := r.db.Select("id, name, description, created_at, updated_at").First(&e, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "lens_class"}
+	}
+	return &e, err
+}
+
+func (r *LensClassRepository) GetByName(name string) (*domain.LensClass, error) {
+	var e domain.LensClass
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "lens_class"}
 	}
@@ -188,6 +228,16 @@ func (r *TreatmentRepository) GetByID(id uint) (*domain.Treatment, error) {
 	return &e, err
 }
 
+func (r *TreatmentRepository) GetByName(name string) (*domain.Treatment, error) {
+	var e domain.Treatment
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "treatment"}
+	}
+	return &e, err
+}
+
 func (r *TreatmentRepository) Create(e *domain.Treatment) error { return r.db.Create(e).Error }
 
 func (r *TreatmentRepository) Update(e *domain.Treatment) error {
@@ -224,6 +274,16 @@ func NewPhotochromicRepository(db *gorm.DB) *PhotochromicRepository {
 func (r *PhotochromicRepository) GetByID(id uint) (*domain.Photochromic, error) {
 	var e domain.Photochromic
 	err := r.db.Select("id, name, description, created_at, updated_at").First(&e, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, &domain.ErrNotFound{Resource: "photochromic"}
+	}
+	return &e, err
+}
+
+func (r *PhotochromicRepository) GetByName(name string) (*domain.Photochromic, error) {
+	var e domain.Photochromic
+	err := r.db.Select("id, name, description, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).First(&e).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "photochromic"}
 	}

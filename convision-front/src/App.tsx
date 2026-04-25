@@ -28,6 +28,7 @@ import Settings from "./pages/Settings";
 import Unauthorized from "./pages/Unauthorized";
 import { NotFound } from './pages/ErrorPage';
 import Appointments from './pages/receptionist/Appointments';
+import AppointmentFormPage from './pages/receptionist/AppointmentFormPage';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import AppointmentDetail from './pages/receptionist/AppointmentDetail';
 import NewSale from './pages/receptionist/NewSale';
@@ -94,6 +95,8 @@ import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
 import LaboratoryOrderDetail from '@/pages/admin/LaboratoryOrderDetail';
 import NewLaboratoryOrder from '@/pages/admin/NewLaboratoryOrder';
+import AdminNotifyClient from '@/pages/admin/AdminNotifyClient';
+import WalletManagement from '@/pages/admin/WalletManagement';
 
 // Receptionist lab order pages
 import ReceptionistLabOrders from '@/pages/receptionist/LabOrders';
@@ -103,6 +106,8 @@ import ConfirmReception from '@/pages/receptionist/ConfirmReception';
 import AssignDrawer from '@/pages/receptionist/AssignDrawer';
 import ConfirmDelivery from '@/pages/receptionist/ConfirmDelivery';
 import NotifyClient from '@/pages/receptionist/NotifyClient';
+
+import PortfolioOrderDetail from '@/pages/receptionist/PortfolioOrderDetail';
 
 // Import the purchases dashboard and new modules
 import PurchasesDashboard from '@/pages/admin/PurchasesDashboard';
@@ -399,8 +404,36 @@ const router = createBrowserRouter([
             element: <LaboratoryOrderDetail />,
           },
           {
+            path: "laboratory-orders/:id/notify-client",
+            element: <AdminNotifyClient />,
+          },
+          {
+            path: "laboratory-orders/:id/confirm-shipment",
+            element: <ConfirmShipment basePath="/admin/laboratory-orders" />,
+          },
+          {
+            path: "laboratory-orders/:id/confirm-reception",
+            element: <ConfirmReception basePath="/admin/laboratory-orders" />,
+          },
+          {
+            path: "laboratory-orders/:id/assign-drawer",
+            element: <AssignDrawer basePath="/admin/laboratory-orders" />,
+          },
+          {
+            path: "laboratory-orders/:id/confirm-delivery",
+            element: <ConfirmDelivery basePath="/admin/laboratory-orders" />,
+          },
+          {
             path: "laboratory-orders/new",
             element: <NewLaboratoryOrder />,
+          },
+          {
+            path: "portfolio",
+            element: <WalletManagement />,
+          },
+          {
+            path: "portfolio/:id",
+            element: <PortfolioOrderDetail basePath="/admin/portfolio" />,
           },
           {
             path: "payrolls",
@@ -611,6 +644,14 @@ const router = createBrowserRouter([
             element: <Appointments />,
           },
           {
+            path: "appointments/new",
+            element: <AppointmentFormPage />,
+          },
+          {
+            path: "appointments/:id/edit",
+            element: <AppointmentFormPage />,
+          },
+          {
             path: "appointments/:id",
             element: <AppointmentDetail />,
           },
@@ -667,6 +708,10 @@ const router = createBrowserRouter([
             element: <ReceptionistLabOrders />,
           },
           {
+            path: "lab-orders/new",
+            element: <NewLaboratoryOrder redirectTo="/receptionist/lab-orders" />,
+          },
+          {
             path: "lab-orders/:id",
             element: <ReceptionistLabOrderDetail />,
           },
@@ -689,6 +734,14 @@ const router = createBrowserRouter([
           {
             path: "lab-orders/:id/notify-client",
             element: <NotifyClient />,
+          },
+          {
+            path: "portfolio",
+            element: <WalletManagement basePath="/receptionist/portfolio" />,
+          },
+          {
+            path: "portfolio/:id",
+            element: <PortfolioOrderDetail basePath="/receptionist/portfolio" />,
           },
           {
             path: "cash-closes",

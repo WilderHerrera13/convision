@@ -2,16 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Filter, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import PageLayout from '@/components/layouts/PageLayout';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -92,25 +83,15 @@ const LaboratoriesListPage: React.FC = () => {
         />
       </PageLayout>
 
-      <AlertDialog open={!!deleteLab} onOpenChange={(o) => !o && setDeleteLab(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar el laboratorio {deleteLab?.name}? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirmDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteLab}
+        onOpenChange={(o) => !o && setDeleteLab(null)}
+        title="Eliminar laboratorio"
+        description={`Eliminar el laboratorio ${deleteLab?.name}? Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+      />
     </>
   );
 };

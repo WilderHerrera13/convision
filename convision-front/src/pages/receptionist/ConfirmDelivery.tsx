@@ -10,7 +10,11 @@ import PageLayout from '@/components/layouts/PageLayout';
 import DeliveryPaymentTab, { PaymentFormState } from './DeliveryPaymentTab';
 import DeliveryInfoTab, { DeliveryFormState } from './DeliveryInfoTab';
 
-const ConfirmDelivery: React.FC = () => {
+interface ConfirmDeliveryProps {
+  basePath?: string;
+}
+
+const ConfirmDelivery: React.FC<ConfirmDeliveryProps> = ({ basePath = '/receptionist/lab-orders' }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [order, setOrder] = useState<LaboratoryOrder | null>(null);
@@ -90,7 +94,7 @@ const ConfirmDelivery: React.FC = () => {
         notes,
       });
       toast({ title: 'Entrega confirmada exitosamente' });
-      navigate('/receptionist/lab-orders');
+      navigate(basePath);
     } catch {
       toast({
         title: 'Error',
@@ -112,7 +116,7 @@ const ConfirmDelivery: React.FC = () => {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}`)}
+        onClick={() => navigate(`${basePath}/${id}`)}
       >
         Cancelar
       </Button>

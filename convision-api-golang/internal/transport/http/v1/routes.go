@@ -119,6 +119,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		appointments := protected.Group("/appointments")
 		{
 			appointments.GET("", h.ListAppointments)
+			appointments.GET("/available-slots", h.GetAppointmentAvailableSlots)
 			appointments.GET("/:id", h.GetAppointment)
 			appointments.POST("",
 				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
@@ -151,6 +152,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			appointments.GET("/:id/lens-annotation",
 				jwtauth.RequireRole(domain.RoleSpecialist),
 				h.GetLensAnnotation,
+			)
+
+			// Appointment clinical record (specialist-only writes)
+			appointments.GET("/:id/clinical-record",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				h.GetAppointmentClinicalRecord,
+			)
+			appointments.POST("/:id/clinical-record",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.CreateAppointmentClinicalRecord,
+			)
+			appointments.PUT("/:id/clinical-record/anamnesis",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.UpsertAppointmentAnamnesis,
 			)
 		}
 
@@ -513,7 +528,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				h.CreateLaboratoryOrder,
 			)
 			labOrders.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
 				h.UpdateLaboratoryOrder,
 			)
 			labOrders.DELETE("/:id",
@@ -528,6 +543,32 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			labOrders.POST("/:id/evidence",
 				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
 				h.UploadLaboratoryOrderEvidence,
+			)
+			labOrders.GET("/:id/pdf-token", h.GetLaboratoryOrderPdfToken)
+		}
+
+		// Portfolio (cartera) — admin + receptionist
+		portfolio := protected.Group("/portfolio")
+		{
+			portfolio.GET("/stats",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.GetPortfolioStats,
+			)
+			portfolio.GET("/orders",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.ListPortfolioOrders,
+			)
+			portfolio.GET("/orders/:id",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.GetPortfolioOrder,
+			)
+			portfolio.POST("/orders/:id/calls",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.RegisterPortfolioCall,
+			)
+			portfolio.GET("/orders/:id/calls",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.GetPortfolioOrderCalls,
 			)
 		}
 
@@ -657,6 +698,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			bulkImportGroup.POST("/patients", h.BulkImportPatients)
 			bulkImportGroup.POST("/doctors", h.BulkImportDoctors)
 			bulkImportGroup.POST("/scheduled-appointments", h.BulkImportScheduledAppointments)
+			bulkImportGroup.POST("/lenses", h.BulkImportLenses)
 			bulkImportGroup.GET("/history", h.BulkImportHistory)
 		}
 
@@ -667,6 +709,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			dailyActivity.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetDailyActivityReport)
 			dailyActivity.POST("", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.CreateDailyActivityReport)
 			dailyActivity.PUT("/:id", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.UpdateDailyActivityReport)
+			dailyActivity.POST("/:id/close", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.CloseReport)
+			dailyActivity.POST("/:id/reopen", jwtauth.RequireRole(domain.RoleAdmin), h.ReopenReport)
 			dailyActivity.POST("/quick-attention", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.QuickAttentionDailyActivity)
 		}
 	}

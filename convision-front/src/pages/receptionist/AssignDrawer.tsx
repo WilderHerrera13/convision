@@ -9,7 +9,11 @@ import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOr
 import AssignDrawerTab from './AssignDrawerTab';
 import NotifyClientTab from './NotifyClientTab';
 
-const AssignDrawer: React.FC = () => {
+interface AssignDrawerProps {
+  basePath?: string;
+}
+
+const AssignDrawer: React.FC<AssignDrawerProps> = ({ basePath = '/receptionist/lab-orders' }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -41,13 +45,13 @@ const AssignDrawer: React.FC = () => {
     try {
       await laboratoryOrderService.updateLaboratoryOrder(Number(id), {
         drawer_number: selectedDrawer,
-      } as any);
+      });
       await laboratoryOrderService.updateLaboratoryOrderStatus(Number(id), {
         status: 'ready_for_delivery',
-        notes: 'Cajón asignado: ' + selectedDrawer,
+        notes: 'Recibido del médico. Cajón asignado: ' + selectedDrawer,
       });
       toast({ title: 'Cajón asignado', description: 'La orden está lista para entrega.' });
-      navigate(`/receptionist/lab-orders/${id}`);
+      navigate(`${basePath}/${id}`);
     } catch {
       toast({
         title: 'Error',
@@ -68,7 +72,7 @@ const AssignDrawer: React.FC = () => {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}`)}
+        onClick={() => navigate(`${basePath}/${id}`)}
       >
         Cancelar
       </Button>
@@ -78,17 +82,17 @@ const AssignDrawer: React.FC = () => {
         onClick={handleMarkReady}
         className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
       >
-        {submitting ? 'Guardando...' : 'Marcar como Listo'}
+        {submitting ? 'Guardando...' : 'Confirmar recepción y marcar listo'}
       </Button>
     </div>
   );
 
   return (
     <PageLayout
-      title="Asignar Cajón y Notificar Cliente"
+      title="Recibir del médico y asignar cajón"
       subtitle={
         order
-          ? `Órdenes de Laboratorio / ${order.order_number} / Listo para entrega`
+          ? `Órdenes de Laboratorio / ${order.order_number} / Recepción post-calidad`
           : 'Órdenes de Laboratorio'
       }
       actions={actions}
@@ -153,9 +157,9 @@ const AssignDrawer: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-[#5c3aaa] leading-relaxed">
-                Asigna el cajón y luego ve a la pestaña &quot;Notificar Cliente&quot; para
-                registrar la llamada de aviso al paciente. El lente queda en estado
-                &quot;Listo para entrega&quot;.
+                Confirma que recibiste el lente del médico especialista y selecciona el cajón
+                donde quedará almacenado. La orden pasará a &quot;Listo para entrega&quot; y
+                podrás notificar al cliente.
               </CardContent>
             </Card>
           </div>

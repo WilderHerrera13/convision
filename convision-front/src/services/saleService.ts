@@ -35,7 +35,8 @@ export interface SaleItem {
   sale_id: number;
   description: string;
   quantity: number;
-  unit_price: number;
+  price: number;
+  unit_price?: number;
   total: number;
   created_at: string;
   updated_at: string;
@@ -222,7 +223,7 @@ class SaleService {
    */
   async getPaymentMethods() {
     const response = await api.get('/api/v1/payment-methods');
-    return response.data.data as PaymentMethod[];
+    return (Array.isArray(response.data) ? response.data : response.data.data ?? []) as PaymentMethod[];
   }
 
   /**

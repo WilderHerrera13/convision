@@ -45,11 +45,11 @@ func NewService(
 
 // PaymentInput represents a payment to apply to a sale.
 type PaymentInput struct {
-	PaymentMethodID uint       `json:"payment_method_id" binding:"required"`
-	Amount          float64    `json:"amount"            binding:"required,min=0.01"`
-	ReferenceNumber string     `json:"reference_number"`
-	PaymentDate     *time.Time `json:"payment_date"`
-	Notes           string     `json:"notes"`
+	PaymentMethodID uint    `json:"payment_method_id" binding:"required"`
+	Amount          float64 `json:"amount"            binding:"required,min=0.01"`
+	ReferenceNumber string  `json:"reference_number"`
+	PaymentDate     string  `json:"payment_date"`
+	Notes           string  `json:"notes"`
 }
 
 // ItemInput represents a generic sale line item.
@@ -95,11 +95,11 @@ type UpdateInput struct {
 
 // AddPaymentInput holds data for adding a payment to an existing sale.
 type AddPaymentInput struct {
-	PaymentMethodID uint       `json:"payment_method_id" binding:"required"`
-	Amount          float64    `json:"amount"            binding:"required,min=0.01"`
-	ReferenceNumber string     `json:"reference_number"`
-	PaymentDate     *time.Time `json:"payment_date"`
-	Notes           string     `json:"notes"`
+	PaymentMethodID uint    `json:"payment_method_id" binding:"required"`
+	Amount          float64 `json:"amount"            binding:"required,min=0.01"`
+	ReferenceNumber string  `json:"reference_number"`
+	PaymentDate     string  `json:"payment_date"`
+	Notes           string  `json:"notes"`
 }
 
 // LensPriceAdjInput holds data for creating a lens price adjustment.
@@ -182,8 +182,10 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 	for i, p := range input.Payments {
 		pmID := p.PaymentMethodID
 		pd := now
-		if p.PaymentDate != nil {
-			pd = *p.PaymentDate
+		if p.PaymentDate != "" {
+			if t, err := time.Parse("2006-01-02", p.PaymentDate); err == nil {
+				pd = t
+			}
 		}
 		payments[i] = domain.SalePayment{
 			PaymentMethodID: &pmID,
@@ -326,8 +328,10 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 	pmID := input.PaymentMethodID
 	now := time.Now()
 	pd := now
-	if input.PaymentDate != nil {
-		pd = *input.PaymentDate
+	if input.PaymentDate != "" {
+		if t, err := time.Parse("2006-01-02", input.PaymentDate); err == nil {
+			pd = t
+		}
 	}
 	payment := &domain.SalePayment{
 		SaleID:          saleID,

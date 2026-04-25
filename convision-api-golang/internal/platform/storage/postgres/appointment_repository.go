@@ -205,6 +205,63 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 	return result, nil
 }
 
+// HasConflictForSpecialist checks whether a specialist already has a non-cancelled
+// appointment within durationMins of the proposed scheduledAt.
+// excludeID allows skipping the appointment being updated (pass 0 when creating).
+func (r *AppointmentRepository) HasConflictForSpecialist(
+	specialistID uint,
+	scheduledAt time.Time,
+	excludeID uint,
+	durationMins int,
+) (bool, error) {
+	window := time.Duration(durationMins) * time.Minute
+	from := scheduledAt.Add(-window + time.Minute)
+	to := scheduledAt.Add(window - time.Minute)
+
+	q := r.db.Model(&domain.Appointment{}).
+		Where("specialist_id = ?", specialistID).
+		Where("status NOT IN ?", []string{"cancelled", "completed"}).
+		Where("scheduled_at IS NOT NULL").
+		Where("scheduled_at BETWEEN ? AND ?", from, to)
+
+	if excludeID > 0 {
+		q = q.Where("id != ?", excludeID)
+	}
+
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// GetBookedTimesForSpecialist returns HH:MM strings of all booked (non-cancelled)
+// appointments for a given specialist on the given calendar day (UTC).
+func (r *AppointmentRepository) GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error) {
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	var appointments []*domain.Appointment
+	err := r.db.Model(&domain.Appointment{}).
+		Select("scheduled_at").
+		Where("specialist_id = ?", specialistID).
+		Where("status NOT IN ?", []string{"cancelled"}).
+		Where("scheduled_at IS NOT NULL").
+		Where("scheduled_at >= ? AND scheduled_at < ?", dayStart, dayEnd).
+		Find(&appointments).Error
+	if err != nil {
+		return nil, err
+	}
+
+	times := make([]string, 0, len(appointments))
+	for _, a := range appointments {
+		if a.ScheduledAt != nil {
+			times = append(times, a.ScheduledAt.Format("15:04"))
+		}
+	}
+	return times, nil
+}
+
 // GetActiveBySpecialist returns the single in-progress appointment for the given specialist.
 // Returns ErrNotFound if no active appointment exists.
 func (r *AppointmentRepository) GetActiveBySpecialist(specialistID uint) (*domain.Appointment, error) {

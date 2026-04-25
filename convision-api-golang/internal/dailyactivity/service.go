@@ -22,61 +22,58 @@ func NewService(repo domain.DailyActivityRepository, logger *zap.Logger) *Servic
 }
 
 // CreateInput holds validated fields for creating a daily activity report.
+// report_date and shift are no longer required; the backend sets today and 'full' automatically.
 type CreateInput struct {
-	ReportDate  string `json:"report_date"  binding:"required"`
-	Shift       string `json:"shift"        binding:"required,oneof=morning afternoon full"`
-
-	InquiriesMale            int     `json:"preguntas_hombre"`
-	InquiriesFemale           int     `json:"preguntas_mujeres"`
-	InquiriesChildren             int     `json:"preguntas_ninos"`
-	QuotesMale         int     `json:"cotizaciones_hombre"`
-	QuotesFemale        int     `json:"cotizaciones_mujeres"`
-	QuotesChildren          int     `json:"cotizaciones_ninos"`
-	EffectiveConsultationsMale   int     `json:"consultas_efectivas_hombre"`
-	EffectiveConsultationsFemale  int     `json:"consultas_efectivas_mujeres"`
-	EffectiveConsultationsChildren    int     `json:"consultas_efectivas_ninos"`
-	FormulaConsultations       int     `json:"consulta_venta_formula"`
-	NonEffectiveConsultations       int     `json:"consultas_no_efectivas"`
-	BonusesDelivered            int     `json:"bonos_entregados"`
-	BonusesRedeemed             int     `json:"bonos_redimidos"`
-	SistecreditsDone    int     `json:"sistecreditos_realizados"`
-	AddiDone             int     `json:"addi_realizados"`
-	FollowUpControl         int     `json:"control_seguimiento"`
-	WarrantyFollowUp       int     `json:"seguimiento_garantias"`
-	Orders                    int     `json:"ordenes"`
-	LayawayPlan                 int     `json:"plan_separe"`
-	OtherSales                int     `json:"otras_ventas"`
-	Deliveries                   int     `json:"entregas"`
-	SistecreditsPayments        int     `json:"sistecreditos_abonos"`
-	OrdersValue               float64 `json:"valor_ordenes"`
-	FacebookPosts      int     `json:"publicaciones_facebook"`
-	InstagramPosts     int     `json:"publicaciones_instagram"`
-	WhatsappPosts      int     `json:"publicaciones_whatsapp"`
-	FacebookSharedPosts int     `json:"publicaciones_compartidas_fb"`
-	TiktokVideos           int     `json:"tiktok_realizados"`
-	GiftBonusesSent        int     `json:"bonos_regalo_enviados"`
-	LoyaltyBonusesSent  int     `json:"bonos_fidelizacion_enviados"`
-	FacebookMessages           int     `json:"mensajes_facebook"`
-	InstagramMessages          int     `json:"mensajes_instagram"`
-	WhatsappMessages           int     `json:"mensajes_whatsapp"`
-	DeliveriesCompleted         int     `json:"entregas_realizadas"`
-	CustomerTags          int     `json:"etiquetas_clientes"`
-	WorkQuotes        int     `json:"cotizaciones_trabajo"`
-	WorkOrders             int     `json:"ordenes_trabajo"`
-	Observations               string  `json:"observations"`
+	InquiriesMale                  int     `json:"preguntas_hombre"`
+	InquiriesFemale                int     `json:"preguntas_mujeres"`
+	InquiriesChildren              int     `json:"preguntas_ninos"`
+	QuotesMale                     int     `json:"cotizaciones_hombre"`
+	QuotesFemale                   int     `json:"cotizaciones_mujeres"`
+	QuotesChildren                 int     `json:"cotizaciones_ninos"`
+	EffectiveConsultationsMale     int     `json:"consultas_efectivas_hombre"`
+	EffectiveConsultationsFemale   int     `json:"consultas_efectivas_mujeres"`
+	EffectiveConsultationsChildren int     `json:"consultas_efectivas_ninos"`
+	FormulaConsultations           int     `json:"consulta_venta_formula"`
+	NonEffectiveConsultations      int     `json:"consultas_no_efectivas"`
+	BonusesDelivered               int     `json:"bonos_entregados"`
+	BonusesRedeemed                int     `json:"bonos_redimidos"`
+	SistecreditsDone               int     `json:"sistecreditos_realizados"`
+	AddiDone                       int     `json:"addi_realizados"`
+	FollowUpControl                int     `json:"control_seguimiento"`
+	WarrantyFollowUp               int     `json:"seguimiento_garantias"`
+	Orders                         int     `json:"ordenes"`
+	LayawayPlan                    int     `json:"plan_separe"`
+	OtherSales                     int     `json:"otras_ventas"`
+	Deliveries                     int     `json:"entregas"`
+	SistecreditsPayments           int     `json:"sistecreditos_abonos"`
+	OrdersValue                    float64 `json:"valor_ordenes"`
+	FacebookPosts                  int     `json:"publicaciones_facebook"`
+	InstagramPosts                 int     `json:"publicaciones_instagram"`
+	WhatsappPosts                  int     `json:"publicaciones_whatsapp"`
+	FacebookSharedPosts            int     `json:"publicaciones_compartidas_fb"`
+	TiktokVideos                   int     `json:"tiktok_realizados"`
+	GiftBonusesSent                int     `json:"bonos_regalo_enviados"`
+	LoyaltyBonusesSent             int     `json:"bonos_fidelizacion_enviados"`
+	FacebookMessages               int     `json:"mensajes_facebook"`
+	InstagramMessages              int     `json:"mensajes_instagram"`
+	WhatsappMessages               int     `json:"mensajes_whatsapp"`
+	DeliveriesCompleted            int     `json:"entregas_realizadas"`
+	CustomerTags                   int     `json:"etiquetas_clientes"`
+	WorkQuotes                     int     `json:"cotizaciones_trabajo"`
+	WorkOrders                     int     `json:"ordenes_trabajo"`
+	Observations                   string  `json:"observations"`
 }
 
-// UpdateInput holds optional fields for updating a daily activity report.
+// UpdateInput holds the same fields as CreateInput for updating a report.
 type UpdateInput = CreateInput
 
 // QuickAttentionInput holds fields for the quick-attention endpoint.
+// report_date and shift are no longer required; the backend uses today automatically.
 type QuickAttentionInput struct {
-	ReportDate string  `json:"report_date" binding:"required"`
-	Shift      string  `json:"shift"       binding:"required,oneof=morning afternoon full"`
-	Item       string  `json:"item"        binding:"required"`
-	Profile    string  `json:"profile"`
-	Amount     float64 `json:"amount"`
-	Note       string  `json:"note"`
+	Item    string  `json:"item"    binding:"required"`
+	Profile string  `json:"profile"`
+	Amount  float64 `json:"amount"`
+	Note    string  `json:"note"`
 }
 
 // ListOutput is the paginated list response.
@@ -107,41 +104,50 @@ func (s *Service) GetByID(id uint) (*domain.DailyActivityReport, error) {
 	return s.repo.GetByID(id)
 }
 
-// Create creates a new daily activity report.
+// Create creates a new daily activity report for today.
 func (s *Service) Create(input CreateInput, userID uint) (*domain.DailyActivityReport, error) {
-	reportDate, err := time.Parse("2006-01-02", input.ReportDate)
-	if err != nil {
-		return nil, &domain.ErrValidation{Message: "formato de fecha inválido, use YYYY-MM-DD"}
+	now := time.Now()
+	todayStr := now.Format("2006-01-02")
+
+	_, err := s.repo.FindByUserAndDate(userID, todayStr)
+	if err == nil {
+		return nil, &domain.ErrValidation{Message: "ya existe un reporte para el día de hoy"}
 	}
-	r := buildReport(input, userID, reportDate)
+	if _, ok := err.(*domain.ErrNotFound); !ok {
+		return nil, err
+	}
+
+	r := buildReport(input, userID, now)
+	r.Status = domain.DailyReportStatusPending
 	if err := s.repo.Create(r); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByID(r.ID)
 }
 
-// Update updates a daily activity report.
+// Update updates the metric fields of a daily activity report.
 func (s *Service) Update(id uint, input UpdateInput, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
 	existing, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
-	// Non-admin can only edit today's own reports
 	if !isAdmin {
 		if existing.UserID != requestingUserID {
 			return nil, &domain.ErrUnauthorized{Action: "editar informe de otro usuario"}
 		}
-		today := time.Now().Format("2006-01-02")
-		if existing.ReportDate != nil && existing.ReportDate.Format("2006-01-02") != today {
-			return nil, &domain.ErrValidation{Message: "solo puede editar informes del día de hoy"}
+		if existing.Status == domain.DailyReportStatusClosed {
+			return nil, &domain.ErrValidation{Message: "el reporte ya está cerrado y no puede ser editado"}
 		}
 	}
-	reportDate, err := time.Parse("2006-01-02", input.ReportDate)
-	if err != nil {
-		return nil, &domain.ErrValidation{Message: "formato de fecha inválido, use YYYY-MM-DD"}
+
+	reportDate := time.Now()
+	if existing.ReportDate != nil {
+		reportDate = *existing.ReportDate
 	}
+
 	updated := buildReport(input, existing.UserID, reportDate)
 	updated.ID = existing.ID
+	updated.Status = existing.Status
 	updated.MoneyReceipts = existing.MoneyReceipts
 	if err := s.repo.Update(updated); err != nil {
 		return nil, err
@@ -149,30 +155,68 @@ func (s *Service) Update(id uint, input UpdateInput, requestingUserID uint, isAd
 	return s.repo.GetByID(id)
 }
 
-// QuickAttention finds or creates a report and increments a counter or accumulates an amount.
-func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
-	reportDate, err := time.Parse("2006-01-02", input.ReportDate)
+// Close marks a daily activity report as closed.
+// Non-admin users can only close their own report.
+func (s *Service) Close(id uint, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
+	report, err := s.repo.GetByID(id)
 	if err != nil {
-		return nil, &domain.ErrValidation{Message: "formato de fecha inválido"}
+		return nil, err
 	}
-	shift := domain.DailyShift(input.Shift)
+	if !isAdmin && report.UserID != requestingUserID {
+		return nil, &domain.ErrUnauthorized{Action: "cerrar informe de otro usuario"}
+	}
+	if report.Status == domain.DailyReportStatusClosed {
+		return nil, &domain.ErrValidation{Message: "el reporte ya está cerrado"}
+	}
+	report.Status = domain.DailyReportStatusClosed
+	if err := s.repo.Update(report); err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(id)
+}
 
-	// Find or create
-	report, err := s.repo.FindByUserDateShift(userID, reportDate, shift)
+// Reopen sets a closed report back to pending status.
+// Admin-only action enforced at the handler level.
+func (s *Service) Reopen(id uint) (*domain.DailyActivityReport, error) {
+	report, err := s.repo.GetByID(id)
 	if err != nil {
-		// Not found: create new
-		t := reportDate
+		return nil, err
+	}
+	if report.Status != domain.DailyReportStatusClosed {
+		return nil, &domain.ErrValidation{Message: "el reporte no está cerrado"}
+	}
+	report.Status = domain.DailyReportStatusPending
+	if err := s.repo.Update(report); err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(id)
+}
+
+// QuickAttention finds or creates today's report and increments a counter or accumulates an amount.
+func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
+	today := time.Now()
+	todayStr := today.Format("2006-01-02")
+
+	report, err := s.repo.FindByUserAndDate(userID, todayStr)
+	if err != nil {
+		if _, ok := err.(*domain.ErrNotFound); !ok {
+			return nil, err
+		}
 		report = &domain.DailyActivityReport{
 			UserID:     userID,
-			ReportDate: &t,
-			Shift:      shift,
+			ReportDate: &today,
+			Shift:      domain.DailyShiftFull,
+			Status:     domain.DailyReportStatusPending,
 		}
 		if err := s.repo.Create(report); err != nil {
 			return nil, err
 		}
 	}
 
-	// Amount items — accumulate in recepciones_dinero JSON
+	if report.Status == domain.DailyReportStatusClosed {
+		return nil, &domain.ErrValidation{Message: "el reporte del día ya está cerrado"}
+	}
+
 	amountItems := map[string]bool{
 		"voucher": true, "bancolombia": true, "daviplata": true,
 		"nequi": true, "addi_recibido": true, "sistecredito_recibido": true,
@@ -192,13 +236,11 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 		raw, _ := json.Marshal(dinero)
 		report.MoneyReceipts = raw
 	} else {
-		// Counter item — increment by 1
 		if err := incrementReportField(report, input.Item, input.Profile); err != nil {
 			return nil, err
 		}
 	}
 
-	// Append note if provided
 	if input.Note != "" {
 		if report.Observations != "" {
 			report.Observations += "\n"
@@ -214,47 +256,47 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 
 func buildReport(input CreateInput, userID uint, reportDate time.Time) *domain.DailyActivityReport {
 	return &domain.DailyActivityReport{
-		UserID:                     userID,
-		ReportDate:                 &reportDate,
-		Shift:                      domain.DailyShift(input.Shift),
-		InquiriesMale:            input.InquiriesMale,
-		InquiriesFemale:           input.InquiriesFemale,
-		InquiriesChildren:             input.InquiriesChildren,
-		QuotesMale:         input.QuotesMale,
-		QuotesFemale:        input.QuotesFemale,
-		QuotesChildren:          input.QuotesChildren,
-		EffectiveConsultationsMale:   input.EffectiveConsultationsMale,
-		EffectiveConsultationsFemale:  input.EffectiveConsultationsFemale,
-		EffectiveConsultationsChildren:    input.EffectiveConsultationsChildren,
-		FormulaConsultations:       input.FormulaConsultations,
-		NonEffectiveConsultations:       input.NonEffectiveConsultations,
-		BonusesDelivered:            input.BonusesDelivered,
-		BonusesRedeemed:             input.BonusesRedeemed,
-		SistecreditsDone:    input.SistecreditsDone,
-		AddiDone:             input.AddiDone,
-		FollowUpControl:         input.FollowUpControl,
-		WarrantyFollowUp:       input.WarrantyFollowUp,
-		Orders:                    input.Orders,
-		LayawayPlan:                 input.LayawayPlan,
-		OtherSales:                input.OtherSales,
-		Deliveries:                   input.Deliveries,
-		SistecreditsPayments:        input.SistecreditsPayments,
-		OrdersValue:               input.OrdersValue,
-		FacebookPosts:      input.FacebookPosts,
-		InstagramPosts:     input.InstagramPosts,
-		WhatsappPosts:      input.WhatsappPosts,
-		FacebookSharedPosts: input.FacebookSharedPosts,
-		TiktokVideos:           input.TiktokVideos,
-		GiftBonusesSent:        input.GiftBonusesSent,
-		LoyaltyBonusesSent:  input.LoyaltyBonusesSent,
-		FacebookMessages:           input.FacebookMessages,
-		InstagramMessages:          input.InstagramMessages,
-		WhatsappMessages:           input.WhatsappMessages,
-		DeliveriesCompleted:         input.DeliveriesCompleted,
-		CustomerTags:          input.CustomerTags,
-		WorkQuotes:        input.WorkQuotes,
-		WorkOrders:             input.WorkOrders,
-		Observations:               input.Observations,
+		UserID:                         userID,
+		ReportDate:                     &reportDate,
+		Shift:                          domain.DailyShiftFull,
+		InquiriesMale:                  input.InquiriesMale,
+		InquiriesFemale:                input.InquiriesFemale,
+		InquiriesChildren:              input.InquiriesChildren,
+		QuotesMale:                     input.QuotesMale,
+		QuotesFemale:                   input.QuotesFemale,
+		QuotesChildren:                 input.QuotesChildren,
+		EffectiveConsultationsMale:     input.EffectiveConsultationsMale,
+		EffectiveConsultationsFemale:   input.EffectiveConsultationsFemale,
+		EffectiveConsultationsChildren: input.EffectiveConsultationsChildren,
+		FormulaConsultations:           input.FormulaConsultations,
+		NonEffectiveConsultations:      input.NonEffectiveConsultations,
+		BonusesDelivered:               input.BonusesDelivered,
+		BonusesRedeemed:                input.BonusesRedeemed,
+		SistecreditsDone:               input.SistecreditsDone,
+		AddiDone:                       input.AddiDone,
+		FollowUpControl:                input.FollowUpControl,
+		WarrantyFollowUp:               input.WarrantyFollowUp,
+		Orders:                         input.Orders,
+		LayawayPlan:                    input.LayawayPlan,
+		OtherSales:                     input.OtherSales,
+		Deliveries:                     input.Deliveries,
+		SistecreditsPayments:           input.SistecreditsPayments,
+		OrdersValue:                    input.OrdersValue,
+		FacebookPosts:                  input.FacebookPosts,
+		InstagramPosts:                 input.InstagramPosts,
+		WhatsappPosts:                  input.WhatsappPosts,
+		FacebookSharedPosts:            input.FacebookSharedPosts,
+		TiktokVideos:                   input.TiktokVideos,
+		GiftBonusesSent:                input.GiftBonusesSent,
+		LoyaltyBonusesSent:             input.LoyaltyBonusesSent,
+		FacebookMessages:               input.FacebookMessages,
+		InstagramMessages:              input.InstagramMessages,
+		WhatsappMessages:               input.WhatsappMessages,
+		DeliveriesCompleted:            input.DeliveriesCompleted,
+		CustomerTags:                   input.CustomerTags,
+		WorkQuotes:                     input.WorkQuotes,
+		WorkOrders:                     input.WorkOrders,
+		Observations:                   input.Observations,
 	}
 }
 

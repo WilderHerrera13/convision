@@ -9,6 +9,7 @@ import {
 } from '@/services/specialistReportService';
 import { userService } from '@/services/userService';
 import { DatePicker } from '@/components/ui/date-picker';
+import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
 const fmtDisplay = (d: Date) => format(d, 'dd/MM/yyyy');
@@ -115,6 +116,22 @@ const SpecialistManagementReport: React.FC = () => {
     [specialists, specialistSearch],
   );
 
+  const specialistOptions = useMemo<ComboboxOption[]>(
+    () => [
+      { value: 'all', label: `Todos (${specialists.length})` },
+      ...specialists.map((s) => ({
+        value: String(s.id),
+        label: `${s.name} ${s.last_name}`,
+      })),
+    ],
+    [specialists],
+  );
+
+  const sedeOptions = useMemo<ComboboxOption[]>(
+    () => [{ value: 'all', label: 'Todas' }],
+    [],
+  );
+
   const applyPreset = (p: DatePreset) => {
     setPreset(p);
     setCustomFrom(undefined);
@@ -188,35 +205,32 @@ const SpecialistManagementReport: React.FC = () => {
                   ))}
                 </div>
                 <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <div className="flex flex-col leading-none shrink-0">
+                <div className="flex flex-col leading-none shrink-0 w-[180px]">
                   <span className="text-[10px] font-medium text-[#7d7d87] tracking-[0.4px] mb-0.5">
                     ESPECIALISTA
                   </span>
-                  <select
-                    className="text-[11px] text-[#0f0f12] border-0 bg-transparent cursor-pointer outline-none"
+                  <SearchableCombobox
+                    options={specialistOptions}
                     value={selectedSpecialistId}
-                    onChange={(e) => setSelectedSpecialistId(e.target.value)}
-                  >
-                    <option value="all">Todos ({specialists.length})</option>
-                    {specialists.map((s) => (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.name} {s.last_name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedSpecialistId}
+                    placeholder="Todos"
+                    searchPlaceholder="Buscar especialista..."
+                    className="h-[22px] border-0 bg-transparent rounded-none px-0 text-[11px] shadow-none hover:border-transparent focus:border-transparent focus:ring-0 [&>span]:text-left"
+                  />
                 </div>
                 <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <div className="flex flex-col leading-none shrink-0">
+                <div className="flex flex-col leading-none shrink-0 w-[130px]">
                   <span className="text-[10px] font-medium text-[#7d7d87] tracking-[0.4px] mb-0.5">
                     SEDES
                   </span>
-                  <select
-                    className="text-[11px] text-[#0f0f12] border-0 bg-transparent cursor-pointer outline-none"
+                  <SearchableCombobox
+                    options={sedeOptions}
                     value={selectedSedeId}
-                    onChange={(e) => setSelectedSedeId(e.target.value)}
-                  >
-                    <option value="all">Todas</option>
-                  </select>
+                    onChange={setSelectedSedeId}
+                    placeholder="Todas"
+                    searchPlaceholder="Buscar sede..."
+                    className="h-[22px] border-0 bg-transparent rounded-none px-0 text-[11px] shadow-none hover:border-transparent focus:border-transparent focus:ring-0 [&>span]:text-left"
+                  />
                 </div>
               </div>
               <div className="text-[10px] text-[#7d7d87] ml-3 shrink-0 whitespace-nowrap">

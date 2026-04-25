@@ -67,9 +67,9 @@ type Patient = {
 const patientSchema = z.object({
   first_name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   last_name: z.string().min(2, "El apellido debe tener al menos 2 caracteres"),
-  identification: z.string().min(5, "La identificación debe tener al menos 5 caracteres"),
+  identification: z.string().min(5, "La identificación debe tener al menos 5 caracteres").transform(v => v.replace(/,/g, '')),
   email: z.string().email("Ingrese un correo electrónico válido"),
-  phone: z.string().optional(),
+  phone: z.string().optional().transform(v => v?.replace(/,/g, '')),
   birth_date: z.string().optional(),
   gender: z.enum(["male", "female", "other", ""]).optional(),
   address: z.string().optional(),

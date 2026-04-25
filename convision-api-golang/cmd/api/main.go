@@ -18,6 +18,7 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	catalogsvc "github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
+	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
@@ -72,6 +73,7 @@ func main() {
 	prescriptionRepo := postgresplatform.NewPrescriptionRepository(db)
 	clinicalHistoryRepo := postgresplatform.NewClinicalHistoryRepository(db)
 	clinicalEvolutionRepo := postgresplatform.NewClinicalEvolutionRepository(db)
+	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository(db)
 
 	// Catalog repos
 	brandRepo := postgresplatform.NewBrandRepository(db)
@@ -108,6 +110,8 @@ func main() {
 	orderRepo := postgresplatform.NewOrderRepository(db)
 	laboratoryRepo := postgresplatform.NewLaboratoryRepository(db)
 	laboratoryOrderRepo := postgresplatform.NewLaboratoryOrderRepository(db)
+	laboratoryOrderCallRepo := postgresplatform.NewLaboratoryOrderCallRepository(db)
+	laboratoryOrderEvidenceRepo := postgresplatform.NewLaboratoryOrderEvidenceRepository(db)
 
 	// Supplier, Purchase, Expense repos
 	supplierRepo := postgresplatform.NewSupplierRepository(db)
@@ -129,6 +133,7 @@ func main() {
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
 	prescriptionService := prescriptionsvc.NewService(prescriptionRepo, logger)
 	clinicService := clinic.NewService(clinicalHistoryRepo, clinicalEvolutionRepo, patientRepo, logger)
+	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, logger)
 	catalogService := catalogsvc.NewService(
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,
@@ -136,12 +141,12 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
+	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
-	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, logger)
+	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
 	purchaseService := purchasesvc.NewService(purchaseRepo, logger)
 	expenseService := expensesvc.NewService(expenseRepo, logger)
@@ -152,7 +157,8 @@ func main() {
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
-	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, logger)
+	lensRepo := postgresplatform.NewLensRepository(db)
+	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, lensRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// ---- HTTP Router (Gin) ----
@@ -169,9 +175,19 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().UTC()})
 	})
 
+	// Serve uploaded files
+	uploadPath := os.Getenv("UPLOAD_PATH")
+	if uploadPath == "" {
+		uploadPath = "./uploads"
+	}
+	if err := os.MkdirAll(uploadPath, 0755); err != nil {
+		logger.Warn("could not create upload directory", zap.Error(err))
+	}
+	router.Static("/uploads", uploadPath)
+
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
+	handler := v1.NewHandler(authService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----

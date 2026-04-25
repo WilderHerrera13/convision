@@ -1,4 +1,3 @@
-import { isValid, parseISO } from 'date-fns';
 import { isAxiosError } from 'axios';
 import type { QuickAttentionItem } from '@/services/dailyActivityReportService';
 import { RECEPCIONES_DINERO_META } from '@/services/dailyActivityReportService';
@@ -17,14 +16,6 @@ export function quickAttentionNeedsProfile(item: QuickAttentionItem): boolean {
 
 export function quickAttentionNeedsAmount(item: QuickAttentionItem): boolean {
   return RECEPCIONES_DINERO_META.some((m) => m.key === item);
-}
-
-export const SHIFT_SET = new Set(['morning', 'afternoon', 'full']);
-
-export function parseReportDateFromSearch(raw: string | null): Date {
-  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date();
-  const parsed = parseISO(`${raw}T12:00:00`);
-  return isValid(parsed) ? parsed : new Date();
 }
 
 export function quickAttentionErrorMessage(err: unknown): string {

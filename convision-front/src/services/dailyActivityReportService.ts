@@ -91,7 +91,7 @@ export const sumRecepcionesDinero = (r: Partial<RecepcionesDinero> | Recepciones
 export interface DailyActivityReport {
   id: number;
   report_date: string;
-  shift: 'morning' | 'afternoon' | 'full';
+  status: 'pending' | 'closed';
   customer_attention: CustomerAttention;
   operations: Operations;
   social_media: SocialMedia;
@@ -103,19 +103,11 @@ export interface DailyActivityReport {
 }
 
 export interface CreateDailyReportPayload {
-  report_date: string;
-  shift: string;
   customer_attention: CustomerAttention;
   operations: Operations;
   social_media: SocialMedia;
   observations?: string;
 }
-
-export const SHIFT_OPTIONS = [
-  { value: 'morning', label: 'Mañana' },
-  { value: 'afternoon', label: 'Tarde' },
-  { value: 'full', label: 'Completa' },
-];
 
 export const defaultCustomerAttention = (): CustomerAttention => ({
   questions_men: 0,
@@ -161,7 +153,6 @@ export const defaultSocialMedia = (): SocialMedia => ({
   bonos_fidelizacion: 0,
 });
 
-/** Ítems admitidos por POST /daily-activity-reports/quick-attention */
 export const QUICK_ATTENTION_ITEMS = [
   { value: 'preguntas', label: 'Preguntas' },
   { value: 'cotizaciones', label: 'Cotizaciones' },
@@ -187,30 +178,32 @@ export const QUICK_ATTENTION_ITEMS = [
 
 export type QuickAttentionItem = (typeof QUICK_ATTENTION_ITEMS)[number]['value'];
 
-/**
- * Convierte la respuesta del API (atencion / operaciones / redes_sociales) al modelo usado en pantallas.
- */
+export const SHIFT_OPTIONS = [
+  { value: 'morning', label: 'Mañana' },
+  { value: 'afternoon', label: 'Tarde' },
+  { value: 'full', label: 'Día completo' },
+] as const;
+
 export function normalizeDailyActivityReport(raw: Record<string, unknown>): DailyActivityReport {
+  const ca = raw.customer_attention as Record<string, number> | undefined;
+
   const atencion = (raw.atencion ?? {}) as Record<string, unknown>;
   const preg = (atencion.preguntas ?? {}) as Record<string, number>;
   const cot = (atencion.cotizaciones ?? {}) as Record<string, number>;
   const ce = (atencion.consultas_efectivas ?? {}) as Record<string, number>;
-  const cvf = Number(atencion.consulta_venta_formula ?? 0);
-  const cne = Number(atencion.consultas_no_efectivas ?? 0);
-
-  const oper = (raw.operaciones ?? {}) as Record<string, number>;
-  const redes = (raw.redes_sociales ?? {}) as Record<string, number>;
+  const cvf = Number(ca?.consulta_venta_formula ?? atencion.consulta_venta_formula ?? 0);
+  const cne = Number(ca?.consultas_no_efectivas ?? atencion.consultas_no_efectivas ?? 0);
 
   const customer_attention: CustomerAttention = {
-    questions_men: Number(preg.hombre ?? 0),
-    questions_women: Number(preg.mujeres ?? 0),
-    questions_children: Number(preg.ninos ?? 0),
-    quotes_men: Number(cot.hombre ?? 0),
-    quotes_women: Number(cot.mujeres ?? 0),
-    quotes_children: Number(cot.ninos ?? 0),
-    effective_consultations_men: Number(ce.hombre ?? 0),
-    effective_consultations_women: Number(ce.mujeres ?? 0),
-    effective_consultations_children: Number(ce.ninos ?? 0),
+    questions_men: Number(ca?.preguntas_hombre ?? preg.hombre ?? 0),
+    questions_women: Number(ca?.preguntas_mujeres ?? preg.mujeres ?? 0),
+    questions_children: Number(ca?.preguntas_ninos ?? preg.ninos ?? 0),
+    quotes_men: Number(ca?.cotizaciones_hombre ?? cot.hombre ?? 0),
+    quotes_women: Number(ca?.cotizaciones_mujeres ?? cot.mujeres ?? 0),
+    quotes_children: Number(ca?.cotizaciones_ninos ?? cot.ninos ?? 0),
+    effective_consultations_men: Number(ca?.consultas_efectivas_hombre ?? ce.hombre ?? 0),
+    effective_consultations_women: Number(ca?.consultas_efectivas_mujeres ?? ce.mujeres ?? 0),
+    effective_consultations_children: Number(ca?.consultas_efectivas_ninos ?? ce.ninos ?? 0),
     formula_sale_consultations_men: cvf,
     formula_sale_consultations_women: 0,
     formula_sale_consultations_children: 0,
@@ -219,30 +212,36 @@ export function normalizeDailyActivityReport(raw: Record<string, unknown>): Dail
     non_effective_consultations_children: 0,
   };
 
+  const opsNew = raw.operations as Record<string, number> | undefined;
+  const oper = (raw.operaciones ?? {}) as Record<string, number>;
+
   const operations: Operations = {
-    bonos_entregados: Number(oper.bonos_entregados ?? 0),
-    bonos_redimidos: Number(oper.bonos_redimidos ?? 0),
-    sistecreditos_realizados: Number(oper.sistecreditos_realizados ?? 0),
-    addi_realizados: Number(oper.addi_realizados ?? 0),
-    control_seguimiento: Number(oper.control_seguimiento ?? 0),
-    seguimiento_garantias: Number(oper.seguimiento_garantias ?? 0),
-    ordenes: Number(oper.ordenes ?? 0),
-    plan_separe: Number(oper.plan_separe ?? 0),
-    otras_ventas: Number(oper.otras_ventas ?? 0),
-    entregas: Number(oper.entregas ?? 0),
-    sistecreditos_abonos: Number(oper.sistecreditos_abonos ?? 0),
-    valor_ordenes: Number(oper.valor_ordenes ?? 0),
+    bonos_entregados: Number(opsNew?.bonos_entregados ?? oper.bonos_entregados ?? 0),
+    bonos_redimidos: Number(opsNew?.bonos_redimidos ?? oper.bonos_redimidos ?? 0),
+    sistecreditos_realizados: Number(opsNew?.sistecreditos_realizados ?? oper.sistecreditos_realizados ?? 0),
+    addi_realizados: Number(opsNew?.addi_realizados ?? oper.addi_realizados ?? 0),
+    control_seguimiento: Number(opsNew?.control_seguimiento ?? oper.control_seguimiento ?? 0),
+    seguimiento_garantias: Number(opsNew?.seguimiento_garantias ?? oper.seguimiento_garantias ?? 0),
+    ordenes: Number(opsNew?.ordenes ?? oper.ordenes ?? 0),
+    plan_separe: Number(opsNew?.plan_separe ?? oper.plan_separe ?? 0),
+    otras_ventas: Number(opsNew?.otras_ventas ?? oper.otras_ventas ?? 0),
+    entregas: Number(opsNew?.entregas ?? oper.entregas ?? 0),
+    sistecreditos_abonos: Number(opsNew?.sistecreditos_abonos ?? oper.sistecreditos_abonos ?? 0),
+    valor_ordenes: Number(opsNew?.valor_ordenes ?? oper.valor_ordenes ?? 0),
   };
 
+  const smNew = raw.social_media as Record<string, number> | undefined;
+  const redes = (raw.redes_sociales ?? {}) as Record<string, number>;
+
   const social_media: SocialMedia = {
-    publicaciones_fb: Number(redes.publicaciones_facebook ?? 0),
-    publicaciones_ig: Number(redes.publicaciones_instagram ?? 0),
-    mensajes_fb: Number(redes.mensajes_facebook ?? 0),
-    mensajes_ig: Number(redes.mensajes_instagram ?? 0),
-    publicaciones_wa: Number(redes.publicaciones_whatsapp ?? 0),
-    tiktoks: Number(redes.tiktok_realizados ?? 0),
-    bonos_regalo: Number(redes.bonos_regalo_enviados ?? 0),
-    bonos_fidelizacion: Number(redes.bonos_fidelizacion_enviados ?? 0),
+    publicaciones_fb: Number(smNew?.publicaciones_fb ?? redes.publicaciones_facebook ?? 0),
+    publicaciones_ig: Number(smNew?.publicaciones_ig ?? redes.publicaciones_instagram ?? 0),
+    mensajes_fb: Number(smNew?.mensajes_fb ?? redes.mensajes_facebook ?? 0),
+    mensajes_ig: Number(smNew?.mensajes_ig ?? redes.mensajes_instagram ?? 0),
+    publicaciones_wa: Number(smNew?.publicaciones_wa ?? redes.publicaciones_whatsapp ?? 0),
+    tiktoks: Number(smNew?.tiktoks ?? redes.tiktok_realizados ?? 0),
+    bonos_regalo: Number(smNew?.bonos_regalo ?? redes.bonos_regalo_enviados ?? 0),
+    bonos_fidelizacion: Number(smNew?.bonos_fidelizacion ?? redes.bonos_fidelizacion_enviados ?? 0),
   };
 
   const baseRecepciones = defaultRecepcionesDinero();
@@ -260,7 +259,7 @@ export function normalizeDailyActivityReport(raw: Record<string, unknown>): Dail
   return {
     id: Number(raw.id),
     report_date: String(raw.report_date ?? ''),
-    shift: raw.shift as DailyActivityReport['shift'],
+    status: (raw.status as DailyActivityReport['status']) ?? 'pending',
     customer_attention,
     operations,
     social_media,
@@ -274,14 +273,11 @@ export function normalizeDailyActivityReport(raw: Record<string, unknown>): Dail
   };
 }
 
-/** Payload plano para Laravel (create/update). */
 export function toFlatDailyReportPayload(
-  report_date: string,
-  shift: string,
   customer_attention: CustomerAttention,
   operations: Operations,
   social_media: SocialMedia,
-  observations?: string
+  observations?: string,
 ): Record<string, unknown> {
   const formulaTotal =
     customer_attention.formula_sale_consultations_men +
@@ -293,13 +289,11 @@ export function toFlatDailyReportPayload(
     customer_attention.non_effective_consultations_children;
 
   return {
-    report_date,
-    shift,
     preguntas_hombre: customer_attention.questions_men,
     preguntas_mujeres: customer_attention.questions_women,
     preguntas_ninos: customer_attention.questions_children,
     cotizaciones_hombre: customer_attention.quotes_men,
-    cotizaciones_mujeres: customer_attention.quotes_women,
+    cotizaciones_mujeres: customer_attention.questions_women,
     cotizaciones_ninos: customer_attention.quotes_children,
     consultas_efectivas_hombre: customer_attention.effective_consultations_men,
     consultas_efectivas_mujeres: customer_attention.effective_consultations_women,
@@ -349,12 +343,10 @@ const dailyActivityReportService = {
 
   create: async (data: CreateDailyReportPayload) => {
     const flat = toFlatDailyReportPayload(
-      data.report_date,
-      data.shift,
       data.customer_attention,
       data.operations,
       data.social_media,
-      data.observations
+      data.observations,
     );
     const response = await api.post('/api/v1/daily-activity-reports', flat);
     return response.data;
@@ -362,20 +354,26 @@ const dailyActivityReportService = {
 
   update: async (id: number, data: CreateDailyReportPayload) => {
     const flat = toFlatDailyReportPayload(
-      data.report_date,
-      data.shift,
       data.customer_attention,
       data.operations,
       data.social_media,
-      data.observations
+      data.observations,
     );
     const response = await api.put(`/api/v1/daily-activity-reports/${id}`, flat);
     return response.data;
   },
 
+  close: async (id: number) => {
+    const response = await api.post(`/api/v1/daily-activity-reports/${id}/close`);
+    return response.data;
+  },
+
+  reopen: async (id: number) => {
+    const response = await api.post(`/api/v1/daily-activity-reports/${id}/reopen`);
+    return response.data;
+  },
+
   quickAttention: async (payload: {
-    report_date: string;
-    shift: string;
     item: QuickAttentionItem;
     profile?: 'hombre' | 'mujer' | 'nino';
     amount?: number;

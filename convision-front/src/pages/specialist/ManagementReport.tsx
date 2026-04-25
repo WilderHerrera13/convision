@@ -72,7 +72,8 @@ const ManagementReport: React.FC = () => {
         perPage: PER_PAGE,
         search: search.trim() || undefined,
         specialistId: specialistId !== 'all' ? specialistId : undefined,
-        pendingReport: !isAdmin,
+        status: !isAdmin ? 'completed' : undefined,
+        pendingReport: !isAdmin ? true : undefined,
       }),
     placeholderData: (prev) => prev,
   });

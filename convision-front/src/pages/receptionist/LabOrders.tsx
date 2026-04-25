@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Eye, FlaskConical, Search } from 'lucide-react';
+import { Plus, Eye, FlaskConical, Search, FileDown } from 'lucide-react';
 import {
   laboratoryOrderService,
   LaboratoryOrder,
@@ -28,6 +28,8 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: 'En proceso',
   sent_to_lab: 'Enviado a laboratorio',
   in_transit: 'En tránsito',
+  received_from_lab: 'Recibido del lab.',
+  returned_to_lab: 'Retornado al lab.',
   in_quality: 'En calidad',
   ready_for_delivery: 'Listo para entregar',
   portfolio: 'Cartera',
@@ -41,6 +43,8 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   in_progress: 'bg-[#fff6e3] text-[#b57218]',
   sent_to_lab: 'bg-[#fff6e3] text-[#b57218]',
   in_transit: 'bg-[#e8f4f8] text-[#0e7490]',
+  received_from_lab: 'bg-[#e8f4f8] text-[#0e7490]',
+  returned_to_lab: 'bg-[#ffeeed] text-[#b82626]',
   in_quality: 'bg-[#eef2ff] text-[#4338ca]',
   ready_for_delivery: 'bg-[#ebf5ef] text-[#228b52]',
   portfolio: 'bg-[#fff0f0] text-[#b82626]',
@@ -184,14 +188,32 @@ const LabOrders: React.FC = () => {
       header: 'Acciones',
       type: 'actions',
       cell: (order) => (
-        <button
-          className="flex items-center justify-center size-8 rounded-[6px] border text-[#8753ef] hover:opacity-80 transition-colors"
-          style={{ backgroundColor: '#f1edff', borderColor: '#8753ef4d' }}
-          onClick={(e) => { e.stopPropagation(); navigate(`/receptionist/lab-orders/${order.id}`); }}
-          title="Ver detalle"
-        >
-          <Eye className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] border text-[#8753ef] hover:opacity-80 transition-colors"
+            style={{ backgroundColor: '#f1edff', borderColor: '#8753ef4d' }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/receptionist/lab-orders/${order.id}`); }}
+            title="Ver detalle"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-[#edfaf3] border border-[#228b52]/30 text-[#228b52] hover:opacity-80 transition-colors"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const { pdf_token } = await laboratoryOrderService.getLaboratoryOrderPdfToken(order.id);
+                const url = laboratoryOrderService.getLaboratoryOrderPdfUrl(order.id, pdf_token);
+                window.open(url, '_blank');
+              } catch {
+                toast({ title: 'Error', description: 'No se pudo generar el PDF.', variant: 'destructive' });
+              }
+            }}
+            title="Descargar PDF de la orden"
+          >
+            <FileDown className="h-4 w-4" />
+          </button>
+        </div>
       ),
     },
   ];

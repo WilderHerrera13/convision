@@ -248,6 +248,13 @@ export const appointmentsService = {
     };
   },
 
+  async getBookedSlots(specialistId: number, date: string): Promise<string[]> {
+    const response = await api.get('/api/v1/appointments/available-slots', {
+      params: { specialist_id: specialistId, date },
+    });
+    return response.data.booked_slots ?? [];
+  },
+
   async searchPatients(query: string): Promise<Patient[]> {
     // Don't search if query is too short
     if (query.length < 3) {

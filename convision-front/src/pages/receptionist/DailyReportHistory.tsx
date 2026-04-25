@@ -10,12 +10,7 @@ import type { DataTableColumnDef } from '@/components/ui/data-table';
 import dailyActivityReportService, {
   DailyActivityReport,
   normalizeDailyActivityReport,
-  SHIFT_OPTIONS,
 } from '@/services/dailyActivityReportService';
-
-const SHIFT_LABELS: Record<string, string> = Object.fromEntries(
-  SHIFT_OPTIONS.map(({ value, label }) => [value, label])
-);
 
 const DailyReportHistory: React.FC = () => {
   const navigate = useNavigate();
@@ -29,13 +24,23 @@ const DailyReportHistory: React.FC = () => {
       cell: (item) => format(new Date(item.report_date), 'dd/MM/yyyy'),
     },
     {
-      accessorKey: 'shift',
-      header: 'Jornada',
-      cell: (item) => (
-        <Badge variant="outline">
-          {SHIFT_LABELS[item.shift] ?? item.shift}
-        </Badge>
-      ),
+      id: 'status',
+      header: 'Estado',
+      cell: (item) => {
+        const isClosed = item.status === 'closed';
+        return (
+          <Badge
+            variant="outline"
+            className={
+              isClosed
+                ? 'rounded-full border-0 bg-[#ebf5ef] text-[#228b52]'
+                : 'rounded-full border-0 bg-[#fff6e3] text-[#b57218]'
+            }
+          >
+            {isClosed ? 'Cerrado' : 'Pendiente'}
+          </Badge>
+        );
+      },
     },
     {
       id: 'total_questions',

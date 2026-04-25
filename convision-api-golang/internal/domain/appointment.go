@@ -104,4 +104,6 @@ type AppointmentRepository interface {
 	SaveManagementReport(id uint, consultationType, reportNotes string) error
 	GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*SpecialistReportSummary, error)
 	ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error)
+	HasConflictForSpecialist(specialistID uint, scheduledAt time.Time, excludeID uint, durationMins int) (bool, error)
+	GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error)
 }

@@ -1,34 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import dailyActivityReportService, {
   QuickAttentionItem,
-  SHIFT_OPTIONS,
 } from '@/services/dailyActivityReportService';
 import QuickAttentionStepsBar from '@/pages/receptionist/QuickAttentionStepsBar';
 import DailyQuickAttentionActions from '@/pages/receptionist/DailyQuickAttentionActions';
 import DailyQuickAttentionStepCard from '@/pages/receptionist/DailyQuickAttentionStepCard';
 import {
-  parseReportDateFromSearch,
   quickAttentionErrorMessage,
   quickAttentionNeedsAmount,
   quickAttentionNeedsProfile,
-  SHIFT_SET,
 } from '@/pages/receptionist/dailyQuickAttentionHelpers';
-import {
-  buildQuickAttentionQuerySync,
-  useDailyQuickAttentionQuerySync,
-} from '@/pages/receptionist/useDailyQuickAttentionQuerySync';
 
 const HELPERS: Record<1 | 2 | 3, string> = {
   1: 'Un paso a la vez: primero el ítem, luego el perfil y la observación. Puedes volver más tarde si no alcanzas.',
@@ -52,20 +37,14 @@ const DailyQuickAttention: React.FC = () => {
   const navigate = useNavigate();
 
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [reportDate, setReportDate] = useState<Date>(() => parseReportDateFromSearch(searchParams.get('date')));
-  const shiftParam = searchParams.get('shift');
-  const [shift, setShift] = useState(
-    shiftParam && SHIFT_SET.has(shiftParam) ? shiftParam : 'morning',
-  );
   const [item, setItem] = useState<QuickAttentionItem | ''>('');
   const [profile, setProfile] = useState<'hombre' | 'mujer' | 'nino' | ''>('');
   const [note, setNote] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const dateStr = format(reportDate, 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
   const needsAmount = Boolean(item && quickAttentionNeedsAmount(item as QuickAttentionItem));
   const needsProfile = Boolean(item && quickAttentionNeedsProfile(item as QuickAttentionItem));
   const profileSkipped = Boolean(item && step === 3 && !needsProfile && !needsAmount);
@@ -86,29 +65,12 @@ const DailyQuickAttention: React.FC = () => {
     return HELPERS[step];
   }, [step, omitProfileStep, needsAmount]);
 
-  const syncQuery = useMemo(() => buildQuickAttentionQuerySync(setSearchParams), [setSearchParams]);
-
-  useDailyQuickAttentionQuerySync(searchParams, setSearchParams, reportDate, shift, toast);
-
-  const handleReportDateChange = (d: Date | undefined) => {
-    if (!d) return;
-    setReportDate(d);
-    syncQuery(d, shift);
-  };
-
-  const handleShiftChange = (v: string) => {
-    setShift(v);
-    syncQuery(reportDate, v);
-  };
-
   const submit = async () => {
     if (!item) return;
     if (quickAttentionNeedsAmount(item) && !amountValid) return;
     setSubmitting(true);
     try {
       await dailyActivityReportService.quickAttention({
-        report_date: dateStr,
-        shift,
         item,
         profile: quickAttentionNeedsProfile(item) ? (profile || undefined) : undefined,
         amount: quickAttentionNeedsAmount(item) ? parsedAmount : undefined,
@@ -135,7 +97,7 @@ const DailyQuickAttention: React.FC = () => {
             Registro rápido de atención
           </h1>
           <p className="text-[12px] text-[#7d7d87]">
-            Nota por cliente al salir. Se totaliza en el reporte diario.
+            Nota por cliente al salir · {today}. Se totaliza en el reporte diario.
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-3">
@@ -143,23 +105,8 @@ const DailyQuickAttention: React.FC = () => {
             variant="outline"
             className="rounded-full border-[#f4c678] bg-[#fff6e3] px-3 py-1.5 text-[11px] font-semibold text-[#b57218]"
           >
-            Borrador
+            Pendiente
           </Badge>
-          <div className="w-[148px]">
-            <DatePicker value={reportDate} onChange={handleReportDateChange} placeholder="Fecha" />
-          </div>
-          <Select value={shift} onValueChange={handleShiftChange}>
-            <SelectTrigger className="h-9 w-[140px] rounded-lg border-[#dcdce0] text-[12px]">
-              <SelectValue placeholder="Jornada" />
-            </SelectTrigger>
-            <SelectContent>
-              {SHIFT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </header>
 

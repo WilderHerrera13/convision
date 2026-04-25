@@ -14,6 +14,7 @@ type LensType struct {
 // LensTypeRepository defines persistence operations for LensType.
 type LensTypeRepository interface {
 	GetByID(id uint) (*LensType, error)
+	GetByName(name string) (*LensType, error)
 	Create(e *LensType) error
 	Update(e *LensType) error
 	Delete(id uint) error
@@ -32,6 +33,7 @@ type LensClass struct {
 // LensClassRepository defines persistence operations for LensClass.
 type LensClassRepository interface {
 	GetByID(id uint) (*LensClass, error)
+	GetByName(name string) (*LensClass, error)
 	Create(e *LensClass) error
 	Update(e *LensClass) error
 	Delete(id uint) error
@@ -50,6 +52,7 @@ type Material struct {
 // MaterialRepository defines persistence operations for Material.
 type MaterialRepository interface {
 	GetByID(id uint) (*Material, error)
+	GetByName(name string) (*Material, error)
 	Create(e *Material) error
 	Update(e *Material) error
 	Delete(id uint) error
@@ -68,6 +71,7 @@ type Treatment struct {
 // TreatmentRepository defines persistence operations for Treatment.
 type TreatmentRepository interface {
 	GetByID(id uint) (*Treatment, error)
+	GetByName(name string) (*Treatment, error)
 	Create(e *Treatment) error
 	Update(e *Treatment) error
 	Delete(id uint) error
@@ -86,6 +90,7 @@ type Photochromic struct {
 // PhotochromicRepository defines persistence operations for Photochromic.
 type PhotochromicRepository interface {
 	GetByID(id uint) (*Photochromic, error)
+	GetByName(name string) (*Photochromic, error)
 	Create(e *Photochromic) error
 	Update(e *Photochromic) error
 	Delete(id uint) error
@@ -137,6 +142,7 @@ type Lens struct {
 // LensRepository defines persistence operations for Lens.
 type LensRepository interface {
 	GetByID(id uint) (*Lens, error)
+	GetByInternalCode(code string) (*Lens, error)
 	Create(l *Lens) error
 	Update(l *Lens) error
 	Delete(id uint) error

@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { DatePicker } from '@/components/ui/date-picker';
-import { Loader2 } from 'lucide-react';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
 import dailyActivityReportService, {
-  SHIFT_OPTIONS,
   defaultCustomerAttention,
   defaultOperations,
   defaultRecepcionesDinero,
@@ -57,83 +59,95 @@ const SOCIAL_FIELDS = [
 
 const DailyReport: React.FC = () => {
   const { toast } = useToast();
-  const [reportDate, setReportDate] = useState<Date>(new Date());
-  const [shift, setShift] = useState<string>('morning');
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   const [customerAttention, setCustomerAttention] = useState<CustomerAttention>(defaultCustomerAttention());
   const [operations, setOperations] = useState<Operations>(defaultOperations());
   const [socialMedia, setSocialMedia] = useState<SocialMedia>(defaultSocialMedia());
   const [recepcionesDinero, setRecepcionesDinero] = useState<RecepcionesDinero>(defaultRecepcionesDinero());
   const [observations, setObservations] = useState('');
   const [existingId, setExistingId] = useState<number | null>(null);
+  const [status, setStatus] = useState<'pending' | 'closed'>('pending');
   const [isSaving, setIsSaving] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
-  const dateStr = format(reportDate, 'yyyy-MM-dd');
+  const isClosed = status === 'closed';
+
+  const loadTodayReport = useCallback(async () => {
+    try {
+      const resp = await dailyActivityReportService.list({ date_from: today, date_to: today });
+      const rawList = (resp as { data?: unknown[] })?.data ?? (Array.isArray(resp) ? resp : []);
+      const items = Array.isArray(rawList) ? rawList : [];
+      if (items[0]) {
+        const r = normalizeDailyActivityReport(items[0] as Record<string, unknown>);
+        setExistingId(r.id);
+        setStatus(r.status ?? 'pending');
+        setCustomerAttention(r.customer_attention);
+        setOperations(r.operations);
+        setSocialMedia(r.social_media);
+        setRecepcionesDinero(r.recepciones_dinero ?? defaultRecepcionesDinero());
+        setObservations(r.observations ?? '');
+      } else {
+        setExistingId(null);
+        setStatus('pending');
+        setCustomerAttention(defaultCustomerAttention());
+        setOperations(defaultOperations());
+        setSocialMedia(defaultSocialMedia());
+        setRecepcionesDinero(defaultRecepcionesDinero());
+        setObservations('');
+      }
+    } catch {
+      setExistingId(null);
+    }
+  }, [today]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const resp = await dailyActivityReportService.list({ report_date: dateStr, shift });
-        const rawList = (resp as { data?: unknown[] })?.data ?? (Array.isArray(resp) ? resp : []);
-        const items = Array.isArray(rawList) ? rawList : [];
-        if (items[0]) {
-          const r = normalizeDailyActivityReport(items[0] as Record<string, unknown>);
-          setExistingId(r.id);
-          setCustomerAttention(r.customer_attention);
-          setOperations(r.operations);
-          setSocialMedia(r.social_media);
-          setRecepcionesDinero(r.recepciones_dinero);
-          setObservations(r.observations ?? '');
-        } else {
-          setExistingId(null);
-          setCustomerAttention(defaultCustomerAttention());
-          setOperations(defaultOperations());
-          setSocialMedia(defaultSocialMedia());
-          setRecepcionesDinero(defaultRecepcionesDinero());
-          setObservations('');
-        }
-      } catch {
-        setExistingId(null);
-      }
-    };
-    load();
-  }, [dateStr, shift]);
+    loadTodayReport();
+  }, [loadTodayReport]);
 
   const handleFieldChange = <T extends Record<string, number>>(
     setter: React.Dispatch<React.SetStateAction<T>>,
-    prefix: string
-  ) => (key: string, value: number) => {
-    setter((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => {
-      if (!prev[`${prefix}.${key}`]) return prev;
-      const next = { ...prev };
-      delete next[`${prefix}.${key}`];
-      return next;
-    });
-  };
+    prefix: string,
+  ) =>
+    (key: string, value: number) => {
+      setter((prev) => ({ ...prev, [key]: value }));
+      setErrors((prev) => {
+        if (!prev[`${prefix}.${key}`]) return prev;
+        const next = { ...prev };
+        delete next[`${prefix}.${key}`];
+        return next;
+      });
+    };
 
   const handleSave = async () => {
+    if (isClosed) return;
     setIsSaving(true);
     setErrors({});
     try {
       const payload = {
-        report_date: dateStr,
-        shift,
         customer_attention: customerAttention,
         operations,
         social_media: socialMedia,
         observations,
       };
       if (existingId) {
-        await dailyActivityReportService.update(existingId, payload);
+        const result = await dailyActivityReportService.update(existingId, payload);
+        const updated = normalizeDailyActivityReport((result?.data ?? result) as Record<string, unknown>);
+        setStatus(updated.status ?? 'pending');
       } else {
         const created = await dailyActivityReportService.create(payload);
-        setExistingId((created?.data ?? created)?.id ?? null);
+        const normalized = normalizeDailyActivityReport((created?.data ?? created) as Record<string, unknown>);
+        setExistingId(normalized.id);
+        setStatus(normalized.status ?? 'pending');
       }
       toast({ title: 'Guardado', description: 'Reporte diario guardado correctamente.' });
     } catch (err: any) {
-      console.error(err);
-      if (err.response?.status === 422) {
+      if (err.response?.status === 409) {
+        await loadTodayReport();
+        toast({ title: 'Aviso', description: 'Se cargó el reporte existente del día.' });
+      } else if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});
         toast({ title: 'Error de Validación', description: 'Revisa los campos marcados en rojo.', variant: 'destructive' });
       } else {
@@ -144,44 +158,62 @@ const DailyReport: React.FC = () => {
     }
   };
 
+  const handleClose = async () => {
+    if (!existingId) {
+      toast({ title: 'Error', description: 'Guarda el reporte antes de cerrarlo.', variant: 'destructive' });
+      setShowCloseConfirm(false);
+      return;
+    }
+    setIsClosing(true);
+    try {
+      const result = await dailyActivityReportService.close(existingId);
+      const normalized = normalizeDailyActivityReport((result?.data ?? result) as Record<string, unknown>);
+      setStatus(normalized.status ?? 'closed');
+      toast({ title: 'Reporte cerrado', description: 'El reporte del día ha sido cerrado definitivamente.' });
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo cerrar el reporte.', variant: 'destructive' });
+    } finally {
+      setIsClosing(false);
+      setShowCloseConfirm(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Reporte Diario de Gestión</h1>
-          <p className="text-muted-foreground text-sm">Registro de actividades y gestión del día</p>
+          <p className="text-muted-foreground text-sm">Registro de actividades y gestión del día · {today}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {isClosed ? (
+            <Badge className="rounded-full border-0 bg-[#ebf5ef] px-3 py-1.5 text-[12px] font-semibold text-[#228b52]">
+              <Lock className="mr-1.5 h-3 w-3" />
+              Cerrado
+            </Badge>
+          ) : (
+            <Badge className="rounded-full border-0 bg-[#fff6e3] px-3 py-1.5 text-[12px] font-semibold text-[#b57218]">
+              Pendiente
+            </Badge>
+          )}
           <Button variant="outline" asChild className="border-[#8753ef] text-[#8753ef] hover:bg-[#f5f0ff]">
-            <Link
-              to={`/receptionist/daily-report/quick-attention?date=${encodeURIComponent(dateStr)}&shift=${encodeURIComponent(shift)}`}
-            >
+            <Link to="/receptionist/daily-report/quick-attention">
               Registro rápido de atención
             </Link>
           </Button>
-          <div className="w-48">
-            <DatePicker
-              value={reportDate}
-              onChange={(d) => d && setReportDate(d)}
-              placeholder="Fecha del reporte"
-            />
-          </div>
-          <Select value={shift} onValueChange={setShift}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Jornada" />
-            </SelectTrigger>
-            <SelectContent>
-              {SHIFT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </div>
+
+      {isClosed && (
+        <div className="rounded-lg border border-[#d1fae5] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
+          Este reporte fue cerrado y no puede ser editado. Solo el administrador puede reabrirlo.
+        </div>
+      )}
 
       <CustomerAttentionMatrix
         values={customerAttention}
         onChange={(key, value) => {
+          if (isClosed) return;
           setCustomerAttention((prev) => ({ ...prev, [key]: value }));
           setErrors((prev) => {
             if (!prev[`customer_attention.${key}`]) return prev;
@@ -221,6 +253,7 @@ const DailyReport: React.FC = () => {
         <Textarea
           value={observations}
           onChange={(e) => {
+            if (isClosed) return;
             setObservations(e.target.value);
             setErrors((prev) => {
               if (!prev.observations) return prev;
@@ -231,6 +264,7 @@ const DailyReport: React.FC = () => {
           }}
           placeholder="Escribe tus observaciones del día..."
           rows={4}
+          disabled={isClosed}
           className={errors.observations ? 'border-red-500 focus-visible:ring-red-500' : ''}
         />
         {errors.observations && (
@@ -238,16 +272,49 @@ const DailyReport: React.FC = () => {
         )}
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          className="bg-[#8753ef] hover:bg-[#7345d6] text-white"
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar Reporte
-        </Button>
-      </div>
+      {!isClosed && (
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            className="border-red-300 text-red-600 hover:bg-red-50"
+            onClick={() => setShowCloseConfirm(true)}
+            disabled={isSaving || !existingId}
+          >
+            <Lock className="mr-2 h-4 w-4" />
+            Cerrar Reporte
+          </Button>
+          <Button
+            className="bg-[#8753ef] hover:bg-[#7345d6] text-white"
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Reporte
+          </Button>
+        </div>
+      )}
+
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar el reporte del día?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Al cerrar el reporte no podrás editarlo nuevamente. Solo el administrador puede reabrirlo y únicamente durante el mismo día. Esta acción es definitiva.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClosing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleClose}
+              disabled={isClosing}
+            >
+              {isClosing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cerrar Reporte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

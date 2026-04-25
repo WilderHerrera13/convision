@@ -27,8 +27,14 @@ import {
   Timer,
   Activity,
   ClipboardList,
+  AlertTriangle,
+  X,
+  Check,
 } from 'lucide-react';
-import { ToastAction } from '@/components/ui/toast';
+import {
+  getAppointmentById as getAppointmentByIdNew,
+  type Appointment as AppointmentNew,
+} from '@/services/appointmentService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, parseLocalDatetime, formatTime12h } from '@/lib/utils';
@@ -111,6 +117,144 @@ type AppointmentWithPrescription = {
   prescription?: PrescriptionData | null;
 };
 
+function getActivePatientName(appt: AppointmentNew): string {
+  if (appt.patient?.full_name) return appt.patient.full_name;
+  if (appt.patient?.first_name && appt.patient?.last_name) {
+    return `${appt.patient.first_name} ${appt.patient.last_name}`;
+  }
+  return 'Paciente';
+}
+
+function getActivePatientInitials(name: string): string {
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+interface AdminConflictModalProps {
+  open: boolean;
+  activeAppointmentId: number;
+  onPauseAndTake: () => void;
+  onGoToActive: () => void;
+  onClose: () => void;
+}
+
+function AdminConflictModal({ open, activeAppointmentId, onPauseAndTake, onGoToActive, onClose }: AdminConflictModalProps) {
+  const [activeAppt, setActiveAppt] = useState<AppointmentNew | null>(null);
+  const [elapsedStr, setElapsedStr] = useState('00:00:00');
+
+  useEffect(() => {
+    if (!open || !activeAppointmentId) return;
+    setActiveAppt(null);
+    getAppointmentByIdNew(activeAppointmentId)
+      .then(res => setActiveAppt(res.data as AppointmentNew))
+      .catch(() => {});
+  }, [open, activeAppointmentId]);
+
+  useEffect(() => {
+    if (!activeAppt?.started_at) return;
+    const start = new Date(activeAppt.started_at).getTime();
+    const tick = () => {
+      const sec = Math.floor((Date.now() - start) / 1000);
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      setElapsedStr(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeAppt?.started_at]);
+
+  if (!open) return null;
+
+  const patientName = activeAppt ? getActivePatientName(activeAppt) : '';
+  const initials = patientName ? getActivePatientInitials(patientName) : '??';
+  const startTime = activeAppt?.started_at
+    ? (() => {
+        const d = new Date(activeAppt.started_at);
+        const h = d.getHours() % 12 || 12;
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+        return `${h}:${m} ${ampm}`;
+      })()
+    : '';
+  const appointmentReason = activeAppt?.reason || 'Consulta';
+
+  return (
+    <div className="fixed inset-0 bg-[rgba(15,15,18,0.5)] flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-[12px] shadow-[0px_24px_48px_0px_rgba(15,15,18,0.18)] w-full max-w-[520px] overflow-hidden">
+        <div className="flex items-start gap-4 px-6 pt-5 pb-5">
+          <div className="w-12 h-12 rounded-full bg-[#fef2f2] flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5 text-[#b82626]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[16px] font-semibold text-[#0f0f12]">Ya tienes una cita en curso</p>
+            <p className="text-[12px] text-[#7d7d87] mt-0.5">Solo puedes atender una cita a la vez</p>
+          </div>
+          <button onClick={onClose} className="text-[#7d7d87] hover:text-[#121215] transition-colors shrink-0 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-6 pb-5 space-y-4">
+          <p className="text-[13px] text-[#121215] leading-5">
+            {activeAppt && patientName ? (
+              <>Estás atendiendo a <span className="font-semibold">{patientName}</span> (Cita #{activeAppointmentId}){startTime ? ` desde las ${startTime}` : ''}. Para tomar esta nueva cita, primero debes:</>
+            ) : (
+              <>Tienes la cita #{activeAppointmentId} activa. Para tomar esta nueva cita, primero debes:</>
+            )}
+          </p>
+          <div className="space-y-2">
+            {['Pausar la cita actual y reanudarla luego', 'O completarla y luego tomar esta'].map(text => (
+              <div key={text} className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-full bg-[#0f8f64] flex items-center justify-center shrink-0">
+                  <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                </div>
+                <span className="text-[12px] text-[#121215]">{text}</span>
+              </div>
+            ))}
+          </div>
+          {activeAppt && (
+            <div className="bg-[#fafafb] border border-[#e5e5e9] rounded-[6px] px-3 py-2.5 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#e5f6ef] flex items-center justify-center shrink-0">
+                <span className="text-[12px] font-semibold text-[#0f8f64]">{initials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-[#121215] truncate">{patientName}</p>
+                <p className="text-[11px] text-[#7d7d87] truncate">
+                  {appointmentReason}{startTime ? ` · iniciada ${startTime}` : ''} · {elapsedStr}
+                </p>
+              </div>
+              <div className="bg-[#e5f6ef] px-2.5 py-1 rounded-full shrink-0">
+                <span className="text-[11px] font-semibold text-[#0f8f64] tracking-[0.4px]">EN CURSO</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="border-t border-[#f0f0f2] px-6 py-4 flex items-center gap-3">
+          <button onClick={onClose} className="text-[12px] font-medium text-[#7d7d87] hover:text-[#121215] transition-colors mr-auto">
+            Cancelar
+          </button>
+          <button
+            onClick={onPauseAndTake}
+            className="flex items-center gap-1.5 px-4 h-9 border border-[#e5e5e9] rounded-[6px] text-[13px] font-semibold text-[#121215] bg-white hover:bg-[#f5f5f6] transition-colors"
+          >
+            <Pause className="w-3 h-3 text-[#b57218]" />
+            Pausar y tomar esta
+          </button>
+          <button
+            onClick={onGoToActive}
+            className="flex items-center gap-1.5 px-4 h-9 bg-[#0f8f64] rounded-[6px] text-[13px] font-semibold text-white hover:bg-[#0a7050] transition-colors"
+          >
+            <Play className="w-2.5 h-2.5 text-white fill-white" />
+            Ir a mi cita activa →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const SpecialistAppointmentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -125,6 +269,7 @@ const SpecialistAppointmentDetail: React.FC = () => {
   const [evolutionsKey, setEvolutionsKey] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   const [hasEvolutions, setHasEvolutions] = useState(false);
+  const [conflictModal, setConflictModal] = useState<{ open: boolean; activeId: number }>({ open: false, activeId: 0 });
 
   useEffect(() => {
     if (id) {
@@ -172,40 +317,17 @@ const SpecialistAppointmentDetail: React.FC = () => {
       });
       fetchAppointment(true);
     } catch (error: unknown) {
-      // Check if this is an appointment in progress error
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { error_type?: string; current_appointment_id?: number; message?: string } } };
-        
         if (axiosError.response?.data?.error_type === 'appointment_in_progress' && axiosError.response?.data?.current_appointment_id) {
-          const currentAppointmentId = axiosError.response.data.current_appointment_id;
-          toast({
-            variant: 'destructive',
-            title: 'Cita en progreso',
-            description: `Ya tienes una cita en progreso (ID #${currentAppointmentId}). Debes completar o pausar esa cita primero.`,
-            action: (
-              <ToastAction
-                altText="Ir a la cita en progreso"
-                onClick={() => navigate(`/specialist/appointments/${currentAppointmentId}`)}
-              >
-                Ir a cita
-              </ToastAction>
-            ),
-          });
+          setConflictModal({ open: true, activeId: axiosError.response.data.current_appointment_id });
           return;
         }
       }
-
       const errorMessage = error && typeof error === 'object' && 'response' in error
         ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : error instanceof Error
-        ? error.message
-        : 'No se pudo tomar la cita.';
-
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage || 'No se pudo tomar la cita.',
-      });
+        : error instanceof Error ? error.message : 'No se pudo tomar la cita.';
+      toast({ variant: 'destructive', title: 'Error', description: errorMessage || 'No se pudo tomar la cita.' });
     } finally {
       setActionLoading(null);
     }
@@ -246,42 +368,29 @@ const SpecialistAppointmentDetail: React.FC = () => {
       });
       fetchAppointment(true);
     } catch (error: unknown) {
-      // Check if this is an appointment in progress error
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { error_type?: string; current_appointment_id?: number; message?: string } } };
-        
         if (axiosError.response?.data?.error_type === 'appointment_in_progress' && axiosError.response?.data?.current_appointment_id) {
-          const currentAppointmentId = axiosError.response.data.current_appointment_id;
-          toast({
-            variant: 'destructive',
-            title: 'Cita en progreso',
-            description: `Ya tienes una cita en progreso (ID #${currentAppointmentId}). Debes completar o pausar esa cita primero.`,
-            action: (
-              <ToastAction
-                altText="Ir a la cita en progreso"
-                onClick={() => navigate(`/specialist/appointments/${currentAppointmentId}`)}
-              >
-                Ir a cita
-              </ToastAction>
-            ),
-          });
+          setConflictModal({ open: true, activeId: axiosError.response.data.current_appointment_id });
           return;
         }
       }
-
       const errorMessage = error && typeof error === 'object' && 'response' in error
         ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : error instanceof Error
-        ? error.message
-        : 'No se pudo reanudar la cita.';
-
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage || 'No se pudo reanudar la cita.',
-      });
+        : error instanceof Error ? error.message : 'No se pudo reanudar la cita.';
+      toast({ variant: 'destructive', title: 'Error', description: errorMessage || 'No se pudo reanudar la cita.' });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleConflictPauseAndTake = async () => {
+    setConflictModal(prev => ({ ...prev, open: false }));
+    try {
+      await appointmentsService.pauseAppointment(conflictModal.activeId);
+      await handleTakeAppointment();
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo pausar la cita activa.' });
     }
   };
 
@@ -877,6 +986,17 @@ const SpecialistAppointmentDetail: React.FC = () => {
           onCancel={() => setShowEvolutionForm(false)}
         />
       )}
+
+      <AdminConflictModal
+        open={conflictModal.open}
+        activeAppointmentId={conflictModal.activeId}
+        onPauseAndTake={handleConflictPauseAndTake}
+        onGoToActive={() => {
+          setConflictModal(prev => ({ ...prev, open: false }));
+          navigate(`/specialist/appointments/${conflictModal.activeId}`);
+        }}
+        onClose={() => setConflictModal(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

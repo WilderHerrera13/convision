@@ -2,6 +2,38 @@ import api from '@/lib/axios';
 
 export interface AnamnesisInput {
   reason_for_visit: string;
+  onset?: string;
+  duration?: string;
+  character?: string;
+  associated_symptoms?: string[];
+
+  has_diabetes?: string;
+  diabetes_diagnosis_year?: string;
+  diabetes_hba1c?: string;
+  has_hypertension?: string;
+  hypertension_diagnosis_year?: string;
+  hypertension_medication?: string;
+  allergies?: string;
+  current_medications?: string;
+  other_systemic_conditions?: string[];
+
+  previous_eye_surgeries?: string;
+  lens_use?: string;
+  correction_type?: string;
+  lens_satisfaction?: string;
+  previous_ocular_trauma?: string;
+  previous_ocular_pathologies?: string;
+
+  family_ophthalmic_conditions?: string[];
+  family_observations?: string;
+
+  takes_corticosteroids?: boolean;
+  takes_hydroxychloroquine?: boolean;
+  takes_tamsulosin?: boolean;
+  takes_antihistamines?: boolean;
+  takes_antihypertensives?: boolean;
+  takes_amiodarone?: boolean;
+
   systemic_background?: string;
   ocular_background?: string;
   family_background?: string;
@@ -124,7 +156,7 @@ export const getClinicalRecord = (appointmentId: number) =>
   api.get<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record`);
 
 export const upsertAnamnesis = (appointmentId: number, data: AnamnesisInput) =>
-  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/anamnesis`, data);
+  api.put<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record/anamnesis`, data);
 
 export const upsertVisualExam = (appointmentId: number, data: VisualExamInput) =>
   api.put(`/api/v1/appointments/${appointmentId}/clinical-record/visual-exam`, data);

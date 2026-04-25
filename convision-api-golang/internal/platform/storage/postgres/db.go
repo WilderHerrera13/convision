@@ -80,6 +80,8 @@ func Migrate(db *gorm.DB) error {
 		&domain.Prescription{},
 		&domain.ClinicalHistory{},
 		&domain.ClinicalEvolution{},
+		&domain.ClinicalRecord{},
+		&domain.Anamnesis{},
 		// Catalogue
 		&domain.LensType{},
 		&domain.LensClass{},
@@ -101,6 +103,8 @@ func Migrate(db *gorm.DB) error {
 		&domain.Laboratory{},
 		&domain.LaboratoryOrder{},
 		&domain.LaboratoryOrderStatusEntry{},
+		&domain.LaboratoryOrderEvidence{},
+		&domain.LaboratoryOrderCall{},
 		// Commerce
 		&domain.Order{},
 		&domain.OrderItem{},

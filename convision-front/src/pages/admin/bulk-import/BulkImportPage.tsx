@@ -107,11 +107,13 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
   const dataKeys =
     importType === 'patients' ? ['documento', 'paciente', 'telefono', 'correo']
     : importType === 'scheduled-appointments' ? ['documento', 'cliente', 'fechaconsulta', 'usuario']
+    : importType === 'lenses' ? ['codigointerno', 'descripción', 'precio', 'proveedor']
     : ['documento', 'nombre', 'apellido', 'correo'];
 
   const searchPlaceholder =
     importType === 'patients' ? 'Buscar paciente...'
     : importType === 'scheduled-appointments' ? 'Buscar consulta...'
+    : importType === 'lenses' ? 'Buscar lente...'
     : 'Buscar especialista...';
 
   return (
@@ -214,6 +216,34 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
   );
 };
 
+const LENSES_CONFIG: TypeConfig = {
+  title: 'Carga Masiva de Catálogo de Lentes',
+  mapChips: [
+    { col: 'CodigoInterno',  label: 'Código Interno'   },
+    { col: 'Identificador',  label: 'Identificador'    },
+    { col: 'TipoLente',      label: 'Tipo de Lente'    },
+    { col: 'Marca',          label: 'Marca'            },
+    { col: 'Material',       label: 'Material'         },
+    { col: 'ClaseLente',     label: 'Clase de Lente'   },
+    { col: 'Tratamiento',    label: 'Tratamiento'      },
+    { col: 'Fotocromático',  label: 'Fotocromático'    },
+    { col: 'Descripción',    label: 'Descripción'      },
+    { col: 'Precio',         label: 'Precio'           },
+    { col: 'Costo',          label: 'Costo'            },
+    { col: 'Proveedor',      label: 'Proveedor'        },
+  ],
+  asideItems: [
+    { title: 'Columnas requeridas', body: 'CodigoInterno y Precio son obligatorios. Las demás son opcionales.' },
+    { title: 'Catálogo central', body: 'Los lentes se agregan al catálogo global. No están atados a ninguna sede.' },
+    { title: 'Atributos automáticos', body: 'TipoLente, Marca, Material, ClaseLente, Tratamiento y Fotocromático se crean automáticamente si no existen en el catálogo.' },
+    { title: 'Proveedor', body: 'Si el proveedor no existe en el sistema, el lente se crea sin proveedor asignado.' },
+    { title: 'Duplicados', body: 'El sistema omite lentes que ya existan por CodigoInterno.' },
+  ],
+  tipBody: 'Los lentes nuevos quedarán habilitados en el catálogo central con estado "enabled". Los que ya existan (por CodigoInterno) serán omitidos sin generar error.',
+  tableHeaders: ['FILA', 'CÓDIGO', 'DESCRIPCIÓN', 'PRECIO', 'PROVEEDOR', 'ESTADO'],
+  cancelPath: '/admin/bulk-import',
+};
+
 const SCHEDULED_APPOINTMENTS_CONFIG: TypeConfig = {
   title: 'Carga Masiva de Consultas Agendadas',
   mapChips: [
@@ -251,11 +281,13 @@ const BulkImportPage: React.FC = () => {
   const importType: ImportType =
     type === 'doctors' ? 'doctors'
     : type === 'scheduled-appointments' ? 'scheduled-appointments'
+    : type === 'lenses' ? 'lenses'
     : 'patients';
 
   const config =
     importType === 'doctors' ? DOCTORS_CONFIG
     : importType === 'scheduled-appointments' ? SCHEDULED_APPOINTMENTS_CONFIG
+    : importType === 'lenses' ? LENSES_CONFIG
     : PATIENTS_CONFIG;
 
   const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
@@ -329,6 +361,7 @@ const BulkImportPage: React.FC = () => {
       const res =
         importType === 'doctors' ? await bulkImportService.uploadDoctors(file)
         : importType === 'scheduled-appointments' ? await bulkImportService.uploadScheduledAppointments(file)
+        : importType === 'lenses' ? await bulkImportService.uploadLenses(file)
         : await bulkImportService.uploadPatients(file);
       setResult(res);
       await fetchHistory();

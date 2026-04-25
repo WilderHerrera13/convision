@@ -7,7 +7,7 @@ import {
   PackageOpen, FileText, ShoppingBag, FlaskConical, Archive,
   CreditCard, TrendingUp, LogOut, Menu, Eye,
   Wrench, Tag, ArrowLeftRight, Banknote, Users2, Building2,
-  ClipboardList, BarChart3, FileBarChart2, FlaskConical as LabIcon, Upload,
+  ClipboardList, BarChart3, FileBarChart2, FlaskConical as LabIcon, Upload, Wallet,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -36,6 +36,7 @@ const adminNav: NavSection[] = [
       { title: 'Ventas', path: '/admin/sales', icon: ShoppingCart },
       { title: 'Cotizaciones', path: '/admin/quotes', icon: FileText },
       { title: 'Órdenes de Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen },
+      { title: 'Gestión de Cartera', path: '/admin/portfolio', icon: Wallet },
       { title: 'Órdenes de Arreglo', path: '/admin/service-orders', icon: Wrench },
       { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag },
     ],
@@ -78,6 +79,8 @@ const receptionistNav: NavSection[] = [
     items: [
       { title: 'Ventas', path: '/receptionist/sales', icon: ShoppingCart },
       { title: 'Cotizaciones', path: '/receptionist/quotes', icon: FileText },
+      { title: 'Órdenes de Laboratorio', path: '/receptionist/lab-orders', icon: FlaskConical },
+      { title: 'Gestión de Cartera', path: '/receptionist/portfolio', icon: Wallet },
       { title: 'Descuentos', path: '/receptionist/discount-requests', icon: Tag },
     ],
   },

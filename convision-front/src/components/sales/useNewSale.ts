@@ -401,9 +401,15 @@ export function useNewSale() {
       }
 
       const result = await saleService.createSale(saleData);
-      let saleResult: SaleApiResponse;
-      if (result && typeof result === 'object' && 'data' in result) saleResult = (result as { data: SaleApiResponse }).data;
-      else saleResult = result as unknown as SaleApiResponse;
+      const saleObj = (result as any).sale ?? result;
+      const saleResult: SaleApiResponse = {
+        id: saleObj.id,
+        sale_number: saleObj.sale_number,
+        patient_id: saleObj.patient_id,
+        laboratoryOrders: saleObj.laboratory_orders ?? saleObj.laboratoryOrders,
+        pdf_url: (result as any).pdf_url ?? saleObj.pdf_url,
+        guest_pdf_url: (result as any).guest_pdf_url ?? saleObj.guest_pdf_url,
+      };
       if (!saleResult?.id) throw new Error('Invalid response structure from server');
 
       const hasLab = saleResult.laboratoryOrders && saleResult.laboratoryOrders.length > 0;

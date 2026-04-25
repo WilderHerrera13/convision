@@ -154,12 +154,21 @@ const (
 	DailyShiftFull      DailyShift = "full"
 )
 
+// DailyReportStatus enumerates the workflow states for a daily activity report.
+type DailyReportStatus string
+
+const (
+	DailyReportStatusPending DailyReportStatus = "pending"
+	DailyReportStatusClosed  DailyReportStatus = "closed"
+)
+
 // DailyActivityReport represents a daily commercial activity report submitted by an advisor.
 type DailyActivityReport struct {
-	ID                         uint            `json:"id"                           gorm:"primaryKey;autoIncrement"`
-	UserID                     uint            `json:"user_id"                      gorm:"not null;index"`
-	ReportDate                 *time.Time      `json:"report_date"`
-	Shift                      DailyShift      `json:"shift"                        gorm:"type:varchar(20)"`
+	ID                         uint              `json:"id"                           gorm:"primaryKey;autoIncrement"`
+	UserID                     uint              `json:"user_id"                      gorm:"not null;index"`
+	ReportDate                 *time.Time        `json:"report_date"`
+	Shift                      DailyShift        `json:"shift"                        gorm:"type:varchar(20)"`
+	Status                     DailyReportStatus `json:"status"                       gorm:"type:varchar(20);not null;default:'pending'"`
 	InquiriesMale            int             `json:"preguntas_hombre"             gorm:"not null;default:0"`
 	InquiriesFemale           int             `json:"preguntas_mujeres"            gorm:"not null;default:0"`
 	InquiriesChildren             int             `json:"preguntas_ninos"              gorm:"not null;default:0"`
@@ -208,7 +217,8 @@ type DailyActivityReport struct {
 // DailyActivityRepository defines persistence operations for DailyActivityReport.
 type DailyActivityRepository interface {
 	GetByID(id uint) (*DailyActivityReport, error)
-	FindByUserDateShift(userID uint, reportDate time.Time, shift DailyShift) (*DailyActivityReport, error)
+	// FindByUserAndDate returns the report for the given user on the given date (YYYY-MM-DD).
+	FindByUserAndDate(userID uint, date string) (*DailyActivityReport, error)
 	Create(r *DailyActivityReport) error
 	Update(r *DailyActivityReport) error
 	List(filters map[string]any, page, perPage int) ([]*DailyActivityReport, int64, error)

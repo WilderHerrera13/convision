@@ -1,8 +1,12 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -144,6 +148,9 @@ func (h *Handler) ListLaboratoryOrders(c *gin.Context) {
 	if v := c.Query("priority"); v != "" {
 		filters["priority"] = v
 	}
+	if v := c.Query("assigned_uid"); v != "" {
+		filters["_assigned_uid"] = v
+	}
 
 	out, err := h.laboratory.ListOrders(filters, page, perPage)
 	if err != nil {
@@ -225,6 +232,103 @@ func (h *Handler) DeleteLaboratoryOrder(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusNoContent, nil)
+}
+
+// GetLaboratoryOrderEvidence godoc
+// GET /api/v1/laboratory-orders/:id/evidence
+func (h *Handler) GetLaboratoryOrderEvidence(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	transitionType := c.Query("transition_type")
+	items, err := h.laboratory.GetOrderEvidence(id, transitionType)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// UploadLaboratoryOrderEvidence godoc
+// POST /api/v1/laboratory-orders/:id/evidence
+func (h *Handler) UploadLaboratoryOrderEvidence(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	_, err = h.laboratory.GetOrder(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "file is required"})
+		return
+	}
+	defer file.Close()
+
+	transitionType := c.PostForm("transition_type")
+	if transitionType == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "transition_type is required"})
+		return
+	}
+
+	uploadDir := os.Getenv("UPLOAD_PATH")
+	if uploadDir == "" {
+		uploadDir = "./uploads"
+	}
+	evidenceDir := filepath.Join(uploadDir, "evidence")
+	if mkErr := os.MkdirAll(evidenceDir, 0755); mkErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "could not create upload directory"})
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	filename := fmt.Sprintf("lab_%d_%s_%d%s", id, transitionType, time.Now().UnixNano(), ext)
+	dst := filepath.Join(evidenceDir, filename)
+
+	if saveErr := c.SaveUploadedFile(header, dst); saveErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "could not save file"})
+		return
+	}
+
+	imageURL := fmt.Sprintf("/uploads/evidence/%s", filename)
+
+	claims, ok := jwtauth.GetClaims(c)
+	var userID uint
+	if ok {
+		userID = claims.UserID
+	}
+
+	ev, err := h.laboratory.AddOrderEvidence(id, transitionType, imageURL, userID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"data": ev})
+}
+
+// GetLaboratoryOrderPdfToken godoc
+// GET /api/v1/laboratory-orders/:id/pdf-token
+func (h *Handler) GetLaboratoryOrderPdfToken(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	result, err := h.laboratory.GetOrderPdfToken(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // UpdateLaboratoryOrderStatus godoc

@@ -69,13 +69,13 @@ export function hasReportData(r: DailyActivityReport): boolean {
   return sumAttention(r) + sumOps(r) + sumSocial(r) > 0;
 }
 
-/** Deriva etiqueta de estado para la tabla admin; el API no expone `status` aún. */
+/** Derives the status label for the admin table using the actual report status. */
 export function deriveEstado(r: DailyActivityReport): { label: string; className: string } {
+  if (r.status === 'closed') {
+    return { label: 'Cerrado', className: 'bg-[#ebf5ef] text-[#228b52] border-0' };
+  }
   if (!hasReportData(r)) {
     return { label: 'Borrador', className: 'bg-[#f5f5f6] text-[#7d7d87] border-0' };
-  }
-  if (r.shift === 'full') {
-    return { label: 'Completa', className: 'bg-[#ebf5ef] text-[#228b52] border-0' };
   }
   return { label: 'Pendiente', className: 'bg-[#fff6e3] text-[#b57218] border-0' };
 }

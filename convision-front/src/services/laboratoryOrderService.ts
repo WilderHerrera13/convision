@@ -7,7 +7,7 @@ export interface LaboratoryOrder {
   sale_id: number | null;
   laboratory_id: number;
   patient_id: number;
-  status: 'pending' | 'in_process' | 'sent_to_lab' | 'ready_for_delivery' | 'delivered' | 'cancelled';
+  status: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   estimated_completion_date: string | null;
   completion_date: string | null;
@@ -66,7 +66,6 @@ export interface LaboratoryOrder {
     id: number;
     name: string;
   };
-  drawer_number?: string | null;
   statusHistory?: Array<{
     id: number;
     status: string;
@@ -82,7 +81,7 @@ export interface LaboratoryOrder {
   guest_pdf_url?: string;
 }
 
-export type LaboratoryEvidenceTransition = 'sent_to_lab' | 'received_from_lab' | 'notify_client';
+export type LaboratoryEvidenceTransition = 'sent_to_lab' | 'received_from_lab' | 'returned_to_lab' | 'notify_client';
 
 export interface LaboratoryOrderEvidence {
   id: number;
@@ -106,6 +105,7 @@ export interface LaboratoryOrderFilterParams {
   per_page?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
+  assigned_uid?: number;
 }
 
 export interface LaboratoryOrderStats {
@@ -113,9 +113,41 @@ export interface LaboratoryOrderStats {
   pending: number;
   in_process: number;
   sent_to_lab: number;
+  in_transit: number;
+  received_from_lab: number;
+  in_quality: number;
   ready_for_delivery: number;
   delivered: number;
   cancelled: number;
+  portfolio: number;
+}
+
+export interface RxEye {
+  sphere: string;
+  cylinder: string;
+  axis: string;
+  addition: string;
+  dp: string;
+  af: string;
+  diameter: string;
+  base_curve: string;
+  power: string;
+  prism_h: string;
+  prism_v: string;
+}
+
+export interface FrameSpecs {
+  name: string;
+  type: string;
+  gender: string;
+  color: string;
+  horizontal: string;
+  bridge: string;
+  vertical: string;
+  pantoscopic_angle: string;
+  mechanical_distance: string;
+  panoramic_angle: string;
+  effective_diameter: string;
 }
 
 export interface CreateLaboratoryOrderRequest {
@@ -127,6 +159,36 @@ export interface CreateLaboratoryOrderRequest {
   priority?: string;
   estimated_completion_date?: string | null;
   notes?: string | null;
+  rx_od?: RxEye | null;
+  rx_oi?: RxEye | null;
+  lens_od?: string;
+  lens_oi?: string;
+  frame_specs?: FrameSpecs | null;
+  seller_name?: string;
+  sale_date?: string | null;
+  branch?: string;
+  special_instructions?: string;
+}
+
+export interface UpdateLaboratoryOrderRequest {
+  order_id?: number | null;
+  sale_id?: number | null;
+  laboratory_id?: number;
+  patient_id?: number;
+  status?: string;
+  priority?: string;
+  estimated_completion_date?: string | null;
+  notes?: string | null;
+  drawer_number?: string | null;
+  rx_od?: RxEye | null;
+  rx_oi?: RxEye | null;
+  lens_od?: string;
+  lens_oi?: string;
+  frame_specs?: FrameSpecs | null;
+  seller_name?: string;
+  sale_date?: string | null;
+  branch?: string;
+  special_instructions?: string;
 }
 
 export interface UpdateLaboratoryOrderStatusRequest {
@@ -161,6 +223,9 @@ const laboratoryOrderService = {
     }
     if (params.sort_field) {
       query.sort = `${params.sort_field},${params.sort_direction || 'desc'}`;
+    }
+    if (params.assigned_uid) {
+      query.assigned_uid = params.assigned_uid;
     }
 
     const response = await api.get('/api/v1/laboratory-orders', { params: query });
@@ -245,7 +310,7 @@ const laboratoryOrderService = {
   /**
    * Update an existing laboratory order
    */
-  async updateLaboratoryOrder(id: number, data: Partial<CreateLaboratoryOrderRequest>) {
+  async updateLaboratoryOrder(id: number, data: UpdateLaboratoryOrderRequest) {
     const response = await api.put(`/api/v1/laboratory-orders/${id}`, data);
     return response.data;
   },
@@ -279,6 +344,14 @@ const laboratoryOrderService = {
    */
   getLaboratoryOrderPdfUrl(laboratoryOrderId: number, pdfToken: string): string {
     return `${import.meta.env.VITE_API_URL}/api/v1/guest/laboratory-orders/${laboratoryOrderId}/pdf?token=${pdfToken}`;
+  },
+
+  /**
+   * Get or generate a PDF token for a laboratory order
+   */
+  async getLaboratoryOrderPdfToken(id: number): Promise<{ pdf_token: string; guest_pdf_url: string }> {
+    const response = await api.get(`/api/v1/laboratory-orders/${id}/pdf-token`);
+    return response.data;
   },
 
   async uploadLaboratoryOrderEvidence(

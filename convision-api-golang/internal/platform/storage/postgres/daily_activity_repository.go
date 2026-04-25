@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"errors"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -28,11 +27,9 @@ func (r *DailyActivityRepository) GetByID(id uint) (*domain.DailyActivityReport,
 	return &report, err
 }
 
-func (r *DailyActivityRepository) FindByUserDateShift(userID uint, reportDate time.Time, shift domain.DailyShift) (*domain.DailyActivityReport, error) {
+func (r *DailyActivityRepository) FindByUserAndDate(userID uint, date string) (*domain.DailyActivityReport, error) {
 	var report domain.DailyActivityReport
-	// Match by date (date part) and shift and user
-	dateStr := reportDate.Format("2006-01-02")
-	err := r.db.Where("user_id = ? AND DATE(report_date) = ? AND shift = ?", userID, dateStr, shift).
+	err := r.db.Where("user_id = ? AND DATE(report_date) = ?", userID, date).
 		First(&report).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "daily_activity_report"}
@@ -54,12 +51,17 @@ func (r *DailyActivityRepository) List(filters map[string]any, page, perPage int
 
 	q := r.db.Model(&domain.DailyActivityReport{})
 
-	// Filter by user_id if provided (non-admin sees only their own)
 	if userID, ok := filters["user_id"]; ok {
 		q = q.Where("user_id = ?", userID)
 	}
-	if shift, ok := filters["shift"]; ok {
-		q = q.Where("shift = ?", shift)
+	if dateFrom, ok := filters["date_from"]; ok {
+		q = q.Where("DATE(report_date) >= ?", dateFrom)
+	}
+	if dateTo, ok := filters["date_to"]; ok {
+		q = q.Where("DATE(report_date) <= ?", dateTo)
+	}
+	if status, ok := filters["status"]; ok {
+		q = q.Where("status = ?", status)
 	}
 
 	if err := q.Count(&total).Error; err != nil {

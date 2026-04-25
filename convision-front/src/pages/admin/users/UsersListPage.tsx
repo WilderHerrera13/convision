@@ -2,16 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import PageLayout from '@/components/layouts/PageLayout';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import { useToast } from '@/components/ui/use-toast';
@@ -81,26 +72,15 @@ const UsersListPage: React.FC = () => {
         />
       </PageLayout>
 
-      <AlertDialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar a {deleteUser ? [deleteUser.name, deleteUser.last_name].filter(Boolean).join(' ') : ''}? Esta
-              acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirmDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteUser}
+        onOpenChange={(o) => !o && setDeleteUser(null)}
+        title="Eliminar usuario"
+        description={`Eliminar a ${deleteUser ? [deleteUser.name, deleteUser.last_name].filter(Boolean).join(' ') : ''}? Esta accion no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+      />
     </>
   );
 };

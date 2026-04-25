@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -322,6 +323,38 @@ func (h *Handler) SaveAppointmentAnnotations(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toAppointmentResource(a))
+}
+
+// GetAppointmentAvailableSlots godoc
+// GET /api/v1/appointments/available-slots?specialist_id=X&date=YYYY-MM-DD
+func (h *Handler) GetAppointmentAvailableSlots(c *gin.Context) {
+	specialistIDStr := c.Query("specialist_id")
+	dateStr := c.Query("date")
+
+	if specialistIDStr == "" || dateStr == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "specialist_id and date are required"})
+		return
+	}
+
+	specialistID, err := strconv.ParseUint(specialistIDStr, 10, 64)
+	if err != nil || specialistID == 0 {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "specialist_id must be a positive integer"})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "date must be in YYYY-MM-DD format"})
+		return
+	}
+
+	booked, err := h.appointment.GetBookedSlots(uint(specialistID), date)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"booked_slots": booked})
 }
 
 // GetLensAnnotation godoc

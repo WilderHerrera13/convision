@@ -1,6 +1,8 @@
 package laboratory
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -10,18 +12,22 @@ import (
 
 // Service handles laboratory and laboratory order use-cases.
 type Service struct {
-	labRepo   domain.LaboratoryRepository
-	orderRepo domain.LaboratoryOrderRepository
-	logger    *zap.Logger
+	labRepo      domain.LaboratoryRepository
+	orderRepo    domain.LaboratoryOrderRepository
+	callRepo     domain.LaboratoryOrderCallRepository
+	evidenceRepo domain.LaboratoryOrderEvidenceRepository
+	logger       *zap.Logger
 }
 
 // NewService creates a new laboratory Service.
 func NewService(
 	labRepo domain.LaboratoryRepository,
 	orderRepo domain.LaboratoryOrderRepository,
+	callRepo domain.LaboratoryOrderCallRepository,
+	evidenceRepo domain.LaboratoryOrderEvidenceRepository,
 	logger *zap.Logger,
 ) *Service {
-	return &Service{labRepo: labRepo, orderRepo: orderRepo, logger: logger}
+	return &Service{labRepo: labRepo, orderRepo: orderRepo, callRepo: callRepo, evidenceRepo: evidenceRepo, logger: logger}
 }
 
 // --- Laboratory DTOs ---
@@ -56,30 +62,77 @@ type LabListOutput struct {
 
 // --- Laboratory Order DTOs ---
 
+type RxEyeInput struct {
+	Sphere    string `json:"sphere"`
+	Cylinder  string `json:"cylinder"`
+	Axis      string `json:"axis"`
+	Addition  string `json:"addition"`
+	DP        string `json:"dp"`
+	AF        string `json:"af"`
+	Diameter  string `json:"diameter"`
+	BaseCurve string `json:"base_curve"`
+	Power     string `json:"power"`
+	PrismH    string `json:"prism_h"`
+	PrismV    string `json:"prism_v"`
+}
+
+type FrameSpecsInput struct {
+	Name               string `json:"name"`
+	Type               string `json:"type"`
+	Gender             string `json:"gender"`
+	Color              string `json:"color"`
+	Horizontal         string `json:"horizontal"`
+	Bridge             string `json:"bridge"`
+	Vertical           string `json:"vertical"`
+	PantoscopicAngle   string `json:"pantoscopic_angle"`
+	MechanicalDistance string `json:"mechanical_distance"`
+	PanoramicAngle     string `json:"panoramic_angle"`
+	EffectiveDiameter  string `json:"effective_diameter"`
+}
+
 type CreateOrderInput struct {
-	OrderID                 *uint   `json:"order_id"`
-	SaleID                  *uint   `json:"sale_id"`
-	LaboratoryID            uint    `json:"laboratory_id" binding:"required"`
-	PatientID               uint    `json:"patient_id"    binding:"required"`
-	Status                  string  `json:"status"`
-	Priority                string  `json:"priority"`
-	EstimatedCompletionDate *string `json:"estimated_completion_date"`
-	Notes                   string  `json:"notes"`
+	OrderID                 *uint            `json:"order_id"`
+	SaleID                  *uint            `json:"sale_id"`
+	LaboratoryID            uint             `json:"laboratory_id" binding:"required"`
+	PatientID               uint             `json:"patient_id"    binding:"required"`
+	Status                  string           `json:"status"`
+	Priority                string           `json:"priority"`
+	EstimatedCompletionDate *string          `json:"estimated_completion_date"`
+	Notes                   string           `json:"notes"`
+	RxOD                    *RxEyeInput      `json:"rx_od"`
+	RxOI                    *RxEyeInput      `json:"rx_oi"`
+	LensOD                  string           `json:"lens_od"`
+	LensOI                  string           `json:"lens_oi"`
+	FrameSpecs              *FrameSpecsInput `json:"frame_specs"`
+	SellerName              string           `json:"seller_name"`
+	SaleDate                *string          `json:"sale_date"`
+	Branch                  string           `json:"branch"`
+	SpecialInstructions     string           `json:"special_instructions"`
 }
 
 type UpdateOrderInput struct {
-	OrderID                 *uint   `json:"order_id"`
-	SaleID                  *uint   `json:"sale_id"`
-	LaboratoryID            *uint   `json:"laboratory_id"`
-	PatientID               *uint   `json:"patient_id"`
-	Status                  string  `json:"status"`
-	Priority                string  `json:"priority"`
-	EstimatedCompletionDate *string `json:"estimated_completion_date"`
-	Notes                   string  `json:"notes"`
+	OrderID                 *uint            `json:"order_id"`
+	SaleID                  *uint            `json:"sale_id"`
+	LaboratoryID            *uint            `json:"laboratory_id"`
+	PatientID               *uint            `json:"patient_id"`
+	Status                  string           `json:"status"`
+	Priority                string           `json:"priority"`
+	EstimatedCompletionDate *string          `json:"estimated_completion_date"`
+	Notes                   string           `json:"notes"`
+	DrawerNumber            *string          `json:"drawer_number"`
+	RxOD                    *RxEyeInput      `json:"rx_od"`
+	RxOI                    *RxEyeInput      `json:"rx_oi"`
+	LensOD                  *string          `json:"lens_od"`
+	LensOI                  *string          `json:"lens_oi"`
+	FrameSpecs              *FrameSpecsInput `json:"frame_specs"`
+	SellerName              *string          `json:"seller_name"`
+	SaleDate                *string          `json:"sale_date"`
+	Branch                  *string          `json:"branch"`
+	SpecialInstructions     *string          `json:"special_instructions"`
 }
 
 type UpdateOrderStatusInput struct {
-	Status string `json:"status" binding:"required,oneof=pending in_process sent_to_lab ready_for_delivery delivered cancelled"`
+	Status string `json:"status" binding:"required,oneof=pending in_process sent_to_lab in_transit received_from_lab returned_to_lab in_quality quality_approved ready_for_delivery delivered cancelled portfolio"`
 	Notes  string `json:"notes"`
 }
 
@@ -89,6 +142,31 @@ type OrderListOutput struct {
 	Page     int                       `json:"current_page"`
 	PerPage  int                       `json:"per_page"`
 	LastPage int                       `json:"last_page"`
+}
+
+// --- Portfolio DTOs ---
+
+type RegisterCallInput struct {
+	Result          string  `json:"result"           binding:"required,oneof=contacted payment_promise no_answer wrong_number"`
+	Channel         string  `json:"channel"          binding:"required,oneof=call whatsapp sms email"`
+	NextContactDate *string `json:"next_contact_date"`
+	Notes           string  `json:"notes"`
+}
+
+type PortfolioOrderItem struct {
+	domain.LaboratoryOrder
+	DaysInPortfolio int                         `json:"days_in_portfolio"`
+	LastCall        *domain.LaboratoryOrderCall `json:"last_call,omitempty"`
+	CallCount       int                         `json:"call_count"`
+	Balance         *float64                    `json:"balance"`
+}
+
+type PortfolioListOutput struct {
+	Data     []*PortfolioOrderItem `json:"data"`
+	Total    int64                 `json:"total"`
+	Page     int                  `json:"current_page"`
+	PerPage  int                  `json:"per_page"`
+	LastPage int                  `json:"last_page"`
 }
 
 // --- Laboratory Methods ---
@@ -211,6 +289,44 @@ func (s *Service) ListOrders(filters map[string]any, page, perPage int) (*OrderL
 	return &OrderListOutput{Data: data, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
 }
 
+func rxEyeInputToDomain(inp *RxEyeInput) *domain.RxEye {
+	if inp == nil {
+		return nil
+	}
+	return &domain.RxEye{
+		Sphere:    inp.Sphere,
+		Cylinder:  inp.Cylinder,
+		Axis:      inp.Axis,
+		Addition:  inp.Addition,
+		DP:        inp.DP,
+		AF:        inp.AF,
+		Diameter:  inp.Diameter,
+		BaseCurve: inp.BaseCurve,
+		Power:     inp.Power,
+		PrismH:    inp.PrismH,
+		PrismV:    inp.PrismV,
+	}
+}
+
+func frameSpecsInputToDomain(inp *FrameSpecsInput) *domain.FrameSpecs {
+	if inp == nil {
+		return nil
+	}
+	return &domain.FrameSpecs{
+		Name:               inp.Name,
+		Type:               inp.Type,
+		Gender:             inp.Gender,
+		Color:              inp.Color,
+		Horizontal:         inp.Horizontal,
+		Bridge:             inp.Bridge,
+		Vertical:           inp.Vertical,
+		PantoscopicAngle:   inp.PantoscopicAngle,
+		MechanicalDistance: inp.MechanicalDistance,
+		PanoramicAngle:     inp.PanoramicAngle,
+		EffectiveDiameter:  inp.EffectiveDiameter,
+	}
+}
+
 func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.LaboratoryOrder, error) {
 	status := input.Status
 	if status == "" {
@@ -230,6 +346,14 @@ func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.Labo
 		}
 	}
 
+	var saleDate *time.Time
+	if input.SaleDate != nil && *input.SaleDate != "" {
+		t, err := time.Parse("2006-01-02", *input.SaleDate)
+		if err == nil {
+			saleDate = &t
+		}
+	}
+
 	labID := input.LaboratoryID
 	patID := input.PatientID
 
@@ -243,6 +367,15 @@ func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.Labo
 		EstimatedCompletionDate: estDate,
 		Notes:                   input.Notes,
 		CreatedBy:               &userID,
+		RxOD:                    rxEyeInputToDomain(input.RxOD),
+		RxOI:                    rxEyeInputToDomain(input.RxOI),
+		LensOD:                  input.LensOD,
+		LensOI:                  input.LensOI,
+		FrameSpecs:              frameSpecsInputToDomain(input.FrameSpecs),
+		SellerName:              input.SellerName,
+		SaleDate:                saleDate,
+		Branch:                  input.Branch,
+		SpecialInstructions:     input.SpecialInstructions,
 	}
 
 	if err := s.orderRepo.Create(o); err != nil {
@@ -294,6 +427,39 @@ func (s *Service) UpdateOrder(id uint, input UpdateOrderInput) (*domain.Laborato
 	if input.Notes != "" {
 		o.Notes = input.Notes
 	}
+	if input.DrawerNumber != nil {
+		o.DrawerNumber = input.DrawerNumber
+	}
+	if input.RxOD != nil {
+		o.RxOD = rxEyeInputToDomain(input.RxOD)
+	}
+	if input.RxOI != nil {
+		o.RxOI = rxEyeInputToDomain(input.RxOI)
+	}
+	if input.LensOD != nil {
+		o.LensOD = *input.LensOD
+	}
+	if input.LensOI != nil {
+		o.LensOI = *input.LensOI
+	}
+	if input.FrameSpecs != nil {
+		o.FrameSpecs = frameSpecsInputToDomain(input.FrameSpecs)
+	}
+	if input.SellerName != nil {
+		o.SellerName = *input.SellerName
+	}
+	if input.SaleDate != nil && *input.SaleDate != "" {
+		t, err := time.Parse("2006-01-02", *input.SaleDate)
+		if err == nil {
+			o.SaleDate = &t
+		}
+	}
+	if input.Branch != nil {
+		o.Branch = *input.Branch
+	}
+	if input.SpecialInstructions != nil {
+		o.SpecialInstructions = *input.SpecialInstructions
+	}
 
 	if err := s.orderRepo.Update(o); err != nil {
 		return nil, err
@@ -331,6 +497,200 @@ func (s *Service) DeleteOrder(id uint) error {
 	return s.orderRepo.Delete(id)
 }
 
+func (s *Service) GetOrderPdfToken(id uint) (map[string]any, error) {
+	o, err := s.orderRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if o.PdfToken == "" {
+		token := fmt.Sprintf("%x-%d", o.ID, time.Now().UnixNano())
+		o.PdfToken = token
+		if updateErr := s.orderRepo.Update(o); updateErr != nil {
+			return nil, updateErr
+		}
+	}
+
+	baseURL := os.Getenv("APP_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8000"
+	}
+	guestURL := fmt.Sprintf("%s/api/v1/guest/laboratory-orders/%d/pdf?token=%s", baseURL, o.ID, o.PdfToken)
+
+	return map[string]any{
+		"pdf_token":     o.PdfToken,
+		"guest_pdf_url": guestURL,
+	}, nil
+}
+
 func (s *Service) Stats() (map[string]int64, error) {
 	return s.orderRepo.Stats()
+}
+
+// --- Portfolio Methods ---
+
+func (s *Service) PortfolioStats() (map[string]int64, error) {
+	return s.callRepo.PortfolioStats()
+}
+
+func (s *Service) ListPortfolioOrders(page, perPage int, search string) (*PortfolioListOutput, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 15
+	}
+
+	filters := map[string]any{"status": "portfolio"}
+	if search != "" {
+		filters["_search"] = search
+	}
+	orders, total, err := s.orderRepo.List(filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+
+	orderIDs := make([]uint, len(orders))
+	for i, o := range orders {
+		orderIDs[i] = o.ID
+	}
+
+	calls, err := s.callRepo.GetByOrderIDs(orderIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	callsByOrderID := map[uint][]*domain.LaboratoryOrderCall{}
+	for _, c := range calls {
+		callsByOrderID[c.LaboratoryOrderID] = append(callsByOrderID[c.LaboratoryOrderID], c)
+	}
+
+	items := make([]*PortfolioOrderItem, len(orders))
+	for i, o := range orders {
+		item := &PortfolioOrderItem{
+			LaboratoryOrder: *o,
+			CallCount:       len(callsByOrderID[o.ID]),
+		}
+
+		portfolioSince := o.UpdatedAt
+		for _, entry := range o.StatusHistory {
+			if entry.Status == "portfolio" {
+				portfolioSince = entry.CreatedAt
+			}
+		}
+		item.DaysInPortfolio = int(time.Since(portfolioSince).Hours() / 24)
+
+		orderCalls := callsByOrderID[o.ID]
+		if len(orderCalls) > 0 {
+			item.LastCall = orderCalls[0]
+		}
+
+		if o.Sale != nil {
+			b := o.Sale.Balance
+			item.Balance = &b
+		}
+
+		items[i] = item
+	}
+
+	lastPage := 1
+	if perPage > 0 && total > 0 {
+		lastPage = int((total + int64(perPage) - 1) / int64(perPage))
+	}
+
+	return &PortfolioListOutput{Data: items, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
+}
+
+func (s *Service) RegisterPortfolioCall(orderID uint, input RegisterCallInput, userID uint) (*domain.LaboratoryOrderCall, error) {
+	o, err := s.orderRepo.GetByID(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if o.Status != domain.LaboratoryOrderStatusPortfolio {
+		return nil, &domain.ErrValidation{Field: "status", Message: "order is not in portfolio status"}
+	}
+
+	var nextContact *time.Time
+	if input.NextContactDate != nil && *input.NextContactDate != "" {
+		t, err := time.Parse("2006-01-02", *input.NextContactDate)
+		if err == nil {
+			nextContact = &t
+		}
+	}
+
+	call := &domain.LaboratoryOrderCall{
+		LaboratoryOrderID: orderID,
+		Result:            input.Result,
+		Channel:           input.Channel,
+		NextContactDate:   nextContact,
+		Notes:             input.Notes,
+		UserID:            &userID,
+	}
+
+	if err := s.callRepo.Create(call); err != nil {
+		return nil, err
+	}
+
+	s.logger.Info("portfolio call registered", zap.Uint("order_id", orderID), zap.String("result", input.Result))
+	return call, nil
+}
+
+func (s *Service) GetPortfolioOrderCalls(orderID uint) ([]*domain.LaboratoryOrderCall, error) {
+	return s.callRepo.GetByOrderID(orderID)
+}
+
+func (s *Service) GetPortfolioOrder(orderID uint) (*PortfolioOrderItem, error) {
+	o, err := s.orderRepo.GetByID(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	calls, err := s.callRepo.GetByOrderID(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	item := &PortfolioOrderItem{
+		LaboratoryOrder: *o,
+		CallCount:       len(calls),
+	}
+
+	portfolioSince := o.UpdatedAt
+	for _, entry := range o.StatusHistory {
+		if entry.Status == "portfolio" {
+			portfolioSince = entry.CreatedAt
+		}
+	}
+	item.DaysInPortfolio = int(time.Since(portfolioSince).Hours() / 24)
+
+	if len(calls) > 0 {
+		item.LastCall = calls[0]
+	}
+
+	if o.Sale != nil {
+		b := o.Sale.Balance
+		item.Balance = &b
+	}
+
+	return item, nil
+}
+
+// --- Evidence Methods ---
+
+func (s *Service) GetOrderEvidence(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	return s.evidenceRepo.ListByOrderID(orderID, transitionType)
+}
+
+func (s *Service) AddOrderEvidence(orderID uint, transitionType, imageURL string, userID uint) (*domain.LaboratoryOrderEvidence, error) {
+	e := &domain.LaboratoryOrderEvidence{
+		LaboratoryOrderID: orderID,
+		TransitionType:    transitionType,
+		ImageURL:          imageURL,
+		CreatedBy:         &userID,
+	}
+	if err := s.evidenceRepo.Create(e); err != nil {
+		return nil, err
+	}
+	return e, nil
 }

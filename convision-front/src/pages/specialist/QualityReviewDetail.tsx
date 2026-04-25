@@ -263,6 +263,7 @@ function TabDatosLente({
 }
 
 const STATUS_TO_DECISION: Record<string, 'approve' | 'return' | 'cancel'> = {
+  quality_approved: 'approve',
   ready_for_delivery: 'approve',
   sent_to_lab: 'return',
   cancelled: 'cancel',
@@ -469,7 +470,7 @@ const QualityReviewDetail: React.FC = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['quality-review-orders'] });
       queryClient.removeQueries({ queryKey: ['laboratory-order', id] });
-      const action = variables.status === 'ready_for_delivery' ? 'approved' : 'returned';
+      const action = variables.status === 'quality_approved' ? 'approved' : 'returned';
       navigate(`/specialist/laboratory-orders?action=${action}`);
     },
     onError: () => {
@@ -500,7 +501,7 @@ const QualityReviewDetail: React.FC = () => {
   };
 
   const handleApproveConfirm = (comment: string) => {
-    mutation.mutate({ status: 'ready_for_delivery', notes: comment || observations });
+    mutation.mutate({ status: 'quality_approved', notes: comment || observations });
   };
 
   const handleReturnConfirm = () => {
@@ -565,7 +566,7 @@ const QualityReviewDetail: React.FC = () => {
                 onClick={handleApprove}
                 disabled={mutation.isPending || isLoading}
               >
-                Aprobar · Listo para entrega
+                Aprobar calidad
               </Button>
               <Button
                 size="sm"

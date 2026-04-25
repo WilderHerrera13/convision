@@ -115,9 +115,15 @@ const LaboratoryOrderDetail: React.FC = () => {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!order?.id) return;
-    window.open(`/print/lab-orders/${order.id}`, '_blank');
+    try {
+      const { pdf_token } = await laboratoryOrderService.getLaboratoryOrderPdfToken(order.id);
+      const url = laboratoryOrderService.getLaboratoryOrderPdfUrl(order.id, pdf_token);
+      window.open(url, '_blank');
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo generar el PDF.', variant: 'destructive' });
+    }
   };
 
   const openStatusModal = () => {

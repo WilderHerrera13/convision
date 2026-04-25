@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import SearchableCombobox from '@/components/ui/SearchableCombobox';
 import { LaboratoryOrder, laboratoryOrderService } from '@/services/laboratoryOrderService';
+import { userService, User } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LabOrderSidebarProps {
   order: LaboratoryOrder;
@@ -23,10 +24,18 @@ interface LabOrderSidebarProps {
 const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin, isReceptionist } = useAuth();
+  const isAdminUser = isAdmin();
+  const isReceptionistUser = isReceptionist();
   const { id, status } = order;
   const [sendingToQuality, setSendingToQuality] = useState(false);
   const [confirmPortfolio, setConfirmPortfolio] = useState(false);
   const [confirmQuality, setConfirmQuality] = useState(false);
+  const [confirmResentFromLab, setConfirmResentFromLab] = useState(false);
+  const [markingInTransit, setMarkingInTransit] = useState(false);
+  const [specialists, setSpecialists] = useState<User[]>([]);
+  const [loadingSpecialists, setLoadingSpecialists] = useState(false);
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('');
 
   const handleMarkAsPortfolio = async () => {
     try {
@@ -37,16 +46,52 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
     }
   };
 
+  const handleOpenQualityDialog = async () => {
+    setSelectedSpecialistId('');
+    setConfirmQuality(true);
+    if (specialists.length === 0) {
+      setLoadingSpecialists(true);
+      try {
+        const all = await userService.getAll();
+        setSpecialists(all.filter((u) => u.role === 'specialist'));
+      } catch {
+        toast({ title: 'Error', description: 'No se pudo cargar la lista de especialistas.', variant: 'destructive' });
+      } finally {
+        setLoadingSpecialists(false);
+      }
+    }
+  };
+
   const handleSendToQuality = async () => {
     setSendingToQuality(true);
+    const specialist = specialists.find((u) => String(u.id) === selectedSpecialistId);
+    const specialistName = specialist ? `${specialist.name} ${specialist.last_name ?? ''}`.trim() : '';
+    const notes = specialistName ? `Médico asignado: ${specialistName} [uid:${specialist!.id}]` : '';
     try {
-      await laboratoryOrderService.updateLaboratoryOrderStatus(id, { status: 'in_quality', notes: '' });
+      await laboratoryOrderService.updateLaboratoryOrderStatus(id, { status: 'in_quality', notes });
       toast({ title: 'Enviado a calidad', description: 'La orden fue enviada al especialista para revisión.' });
+      setConfirmQuality(false);
       onStatusUpdate();
     } catch {
       toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
     } finally {
       setSendingToQuality(false);
+    }
+  };
+
+  const handleMarkInTransit = async () => {
+    setMarkingInTransit(true);
+    try {
+      await laboratoryOrderService.updateLaboratoryOrderStatus(id, {
+        status: 'in_transit',
+        notes: 'Laboratorio reenvió el pedido corregido.',
+      });
+      toast({ title: 'Pedido en tránsito', description: 'La orden fue marcada como en camino desde el laboratorio.' });
+      onStatusUpdate();
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+    } finally {
+      setMarkingInTransit(false);
     }
   };
 
@@ -112,14 +157,28 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
         </>
       );
     }
-    if (status === 'received_from_lab') {
+    if (status === 'returned_to_lab') {
       return (
+        <>
+          <p className="text-[13px] font-semibold text-[#b82626]">La orden fue retornada al laboratorio por no conformidad.</p>
+          <p className="text-[12px] text-[#0f0f12] mt-1">Espera a que el laboratorio corrija y reenvíe el pedido. Luego confirma la nueva llegada.</p>
+          <Button
+            className="w-full mt-4 bg-[#b82626] hover:bg-[#9b1e1e] text-white h-10 text-[13px] font-semibold"
+            onClick={() => setConfirmResentFromLab(true)}
+            disabled={markingInTransit}
+          >
+            {markingInTransit ? 'Procesando...' : 'Laboratorio reenvió el pedido'}
+          </Button>
+        </>
+      );
+    }
+    if (status === 'received_from_lab') {      return (
         <>
           <p className="text-[13px] font-semibold text-[#8753ef]">El lente llegó a sede y fue registrado.</p>
           <p className="text-[12px] text-[#0f0f12] mt-1">Envíalo al especialista para la revisión de calidad antes de entregarlo al paciente.</p>
           <Button
             className="w-full mt-4 bg-[#8753ef] hover:bg-[#7040d6] text-white h-10 text-[13px] font-semibold"
-            onClick={() => setConfirmQuality(true)}
+            onClick={() => handleOpenQualityDialog()}
             disabled={sendingToQuality}
           >
             {sendingToQuality ? 'Enviando...' : 'Enviar a control de calidad'}
@@ -128,15 +187,97 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
       );
     }
     if (status === 'in_quality') {
+      const qualityEntry = order.statusHistory
+        ?.slice()
+        .reverse()
+        .find((e) => e.status === 'in_quality' && e.notes?.startsWith('Médico asignado:'));
+      const assignedSpecialist = qualityEntry?.notes
+        ? qualityEntry.notes.replace(/\s*\[uid:\d+\]\s*$/, '').replace(/^Médico asignado:\s*/i, '')
+        : null;
+
+      if (isReceptionistUser) {
+        return (
+          <>
+            <p className="text-[13px] font-semibold text-[#8753ef]">El lente está en revisión de calidad.</p>
+            <p className="text-[12px] text-[#0f0f12] mt-1">
+              Esperando que el médico especialista complete la revisión y libere la orden. No se requiere acción por ahora.
+            </p>
+            {assignedSpecialist && (
+              <div className="mt-3 flex items-center gap-2 bg-[#f0faf5] border border-[#a6d9bd] rounded-lg px-3 py-2">
+                <span className="text-[11px] text-[#0a6b4a] font-semibold">Dr. {assignedSpecialist}</span>
+              </div>
+            )}
+            <div className="mt-3 flex items-center gap-2 bg-[#f5f5f6] border border-[#e5e5e9] rounded-lg px-3 py-2.5">
+              <span className="size-2 rounded-full bg-[#8753ef] inline-block animate-pulse shrink-0" />
+              <span className="text-[11px] text-[#7d7d87]">En espera de aprobación del médico…</span>
+            </div>
+          </>
+        );
+      }
+
+      if (isAdminUser) {
+        return (
+          <>
+            <p className="text-[13px] font-semibold text-[#8753ef]">El lente está en revisión de calidad.</p>
+            {assignedSpecialist ? (
+              <div className="mt-2 flex items-center justify-between gap-2 bg-[#f0faf5] border border-[#a6d9bd] rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-[10px] text-[#0a6b4a] font-semibold uppercase tracking-wide">Médico asignado</p>
+                  <p className="text-[13px] font-semibold text-[#121215]">{assignedSpecialist}</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-[11px] text-[#7d7d87] underline hover:text-[#8753ef] transition-colors shrink-0"
+                  onClick={() => handleOpenQualityDialog()}
+                >
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <p className="text-[12px] text-[#0f0f12]">Sin médico asignado. Asigna un especialista para que realice la revisión.</p>
+                <Button
+                  className="w-full mt-3 bg-[#8753ef] hover:bg-[#7040d6] text-white h-9 text-[13px] font-semibold"
+                  onClick={() => handleOpenQualityDialog()}
+                  disabled={sendingToQuality}
+                >
+                  Asignar médico especialista
+                </Button>
+              </div>
+            )}
+            <div className="h-px bg-[#f0f0f2] my-3" />
+            <p className="text-[11px] text-[#7d7d87] mb-2">Acciones administrativas</p>
+            <Button
+              variant="outline"
+              className="w-full h-9 text-[13px] border-[#d4c4ff] text-[#8753ef] hover:bg-[#f1edff]"
+              onClick={() => navigate(`/specialist/laboratory-orders/${id}`)}
+            >
+              Revisar y aprobar calidad
+            </Button>
+            <Button
+              className="w-full mt-2 bg-[#8753ef] hover:bg-[#7040d6] text-white h-9 text-[13px] font-semibold"
+              onClick={() => navigate(`/receptionist/lab-orders/${id}/assign-drawer`)}
+            >
+              Aprobar calidad y asignar cajón
+            </Button>
+          </>
+        );
+      }
+
+      return null;
+    }
+    if (status === 'quality_approved') {
       return (
         <>
-          <p className="text-[13px] font-semibold text-[#8753ef]">El lente está en revisión de calidad.</p>
-          <p className="text-[12px] text-[#0f0f12] mt-1">Asigna un cajón cuando sea aprobado por el especialista.</p>
+          <p className="text-[13px] font-semibold text-[#0a6b4a]">El médico aprobó la revisión de calidad.</p>
+          <p className="text-[12px] text-[#0f0f12] mt-1">
+            Recibe el lente del médico especialista y asígnale un cajón para proceder a la entrega.
+          </p>
           <Button
             className="w-full mt-4 bg-[#8753ef] hover:bg-[#7040d6] text-white h-10 text-[13px] font-semibold"
             onClick={() => navigate(`/receptionist/lab-orders/${id}/assign-drawer`)}
           >
-            Asignar cajón
+            Recibir del médico y asignar cajón
           </Button>
         </>
       );
@@ -264,40 +405,71 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
         </div>
       )}
 
-      <AlertDialog open={confirmQuality} onOpenChange={setConfirmQuality}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Enviar a control de calidad?</AlertDialogTitle>
-            <AlertDialogDescription>
-              La orden cambiará al estado "En calidad" y quedará asignada al especialista para revisión.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
+      <ConfirmDialog
+        open={confirmResentFromLab}
+        onOpenChange={setConfirmResentFromLab}
+        title="Confirmar reenvío del laboratorio"
+        description="La orden cambiará al estado 'En tránsito'. Confirma solo cuando el laboratorio haya enviado el pedido corregido."
+        confirmLabel="Confirmar reenvío"
+        variant="warning"
+        onConfirm={handleMarkInTransit}
+        isLoading={markingInTransit}
+      />
+
+      <Dialog open={confirmQuality} onOpenChange={(open) => { if (!sendingToQuality) setConfirmQuality(open); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar a control de calidad</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <p className="text-[13px] text-[#7d7d87]">
+              Selecciona el médico especialista que realizará la revisión de calidad del lente.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-[#121215]">Médico especialista *</label>
+              {loadingSpecialists ? (
+                <div className="h-9 bg-[#f0f0f2] rounded-md animate-pulse" />
+              ) : (
+                <SearchableCombobox
+                  options={specialists.map((u) => ({
+                    value: String(u.id),
+                    label: `${u.name} ${u.last_name ?? ''}`.trim(),
+                  }))}
+                  value={selectedSpecialistId}
+                  onChange={setSelectedSpecialistId}
+                  placeholder="Seleccionar especialista..."
+                />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmQuality(false)}
+              disabled={sendingToQuality}
+            >
+              Cancelar
+            </Button>
+            <Button
               className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
               onClick={handleSendToQuality}
+              disabled={sendingToQuality || !selectedSpecialistId}
             >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {sendingToQuality ? 'Enviando...' : 'Confirmar y enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <AlertDialog open={confirmPortfolio} onOpenChange={setConfirmPortfolio}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Marcar como cartera?</AlertDialogTitle>
-            <AlertDialogDescription>
-              La orden pasará a estado "Cartera" indicando que el paciente no ha recogido su pedido.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMarkAsPortfolio}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmPortfolio}
+        onOpenChange={setConfirmPortfolio}
+        title="Marcar como cartera"
+        description='La orden pasara a estado "Cartera" indicando que el paciente no ha recogido su pedido.'
+        confirmLabel="Confirmar"
+        variant="warning"
+        onConfirm={handleMarkAsPortfolio}
+      />
     </div>
   );
 };

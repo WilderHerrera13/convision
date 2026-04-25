@@ -14,6 +14,28 @@ const api = axios.create({
   withCredentials: true,
 });
 
+const NUMERIC_STRING_FIELDS = new Set([
+  'phone', 'identification', 'employee_identification', 'customer_phone',
+]);
+
+function stripCommasFromNumericFields(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(stripCommasFromNumericFields);
+  }
+  if (data !== null && typeof data === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (NUMERIC_STRING_FIELDS.has(key) && typeof value === 'string') {
+        result[key] = value.replace(/,/g, '');
+      } else {
+        result[key] = stripCommasFromNumericFields(value);
+      }
+    }
+    return result;
+  }
+  return data;
+}
+
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config) => {
@@ -30,7 +52,10 @@ api.interceptors.request.use(
 
 // Response interceptor for handling common errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    response.data = stripCommasFromNumericFields(response.data);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 

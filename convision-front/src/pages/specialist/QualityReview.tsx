@@ -8,14 +8,19 @@ import EntityTable from '@/components/ui/data-table/EntityTable';
 import { DataTableColumnDef } from '@/components/ui/data-table/DataTable';
 import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOrderService';
 import { LABORATORY_ORDER_STATUS_LABELS, LAB_ORDER_STATUS_TOKENS } from '@/constants/laboratoryOrderStatus';
+import { useAuth } from '@/contexts/AuthContext';
 
 const QUALITY_STATUS_LABEL: Record<string, string> = {
   ...LABORATORY_ORDER_STATUS_LABELS,
   in_quality: 'En revisión',
+  ready_for_delivery: 'Aprobado',
+  sent_to_lab: 'Retornado',
 };
 
 const QUALITY_STATUS_CLASS: Record<string, string> = {
   in_quality: 'bg-[#fff6e3] text-[#b57218]',
+  ready_for_delivery: 'bg-[#ebf5ef] text-[#0f8f64]',
+  sent_to_lab: 'bg-[#ffeeed] text-[#b82626]',
 };
 
 function QualityBadge({ status }: { status: string }) {
@@ -99,6 +104,8 @@ const QualityReview: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
+  const isAdminUser = isAdmin();
   const actionHandledRef = useRef(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -159,6 +166,7 @@ const QualityReview: React.FC = () => {
               per_page,
               sort_field: 'created_at',
               sort_direction: 'desc',
+              assigned_uid: !isAdminUser && user ? user.id : undefined,
             });
             return resp;
           }}
