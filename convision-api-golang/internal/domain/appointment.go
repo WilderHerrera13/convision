@@ -67,6 +67,8 @@ type Appointment struct {
 	LensAnnotationPaths     string            `json:"lens_annotation_paths"      gorm:"type:text"`
 	ConsultationType        string            `json:"consultation_type"          gorm:"column:consultation_type;type:varchar(30)"`
 	ReportNotes             string            `json:"report_notes"               gorm:"column:report_notes;type:text"`
+	StartedAt               *time.Time        `json:"started_at"                 gorm:"column:started_at"`
+	CompletedAt             *time.Time        `json:"completed_at"               gorm:"column:completed_at"`
 	CreatedAt               time.Time         `json:"created_at"`
 	UpdatedAt               time.Time         `json:"updated_at"`
 
@@ -104,4 +106,5 @@ type AppointmentRepository interface {
 	SaveManagementReport(id uint, consultationType, reportNotes string) error
 	GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*SpecialistReportSummary, error)
 	ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error)
+	GetActiveBySpecialist(specialistID uint) (*Appointment, error)
 }

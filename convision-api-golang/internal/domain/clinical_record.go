@@ -68,17 +68,17 @@ type ClinicalRecord struct {
 // Anamnesis captures the patient history and chief complaint at the start of
 // a clinical encounter.
 type Anamnesis struct {
-	ID                uint      `json:"id"                   gorm:"primaryKey;autoIncrement"`
-	ClinicID          uint      `json:"clinic_id"            gorm:"not null;index"`
-	ClinicalRecordID  uint      `json:"clinical_record_id"   gorm:"not null;index"`
-	ChiefComplaint    string    `json:"chief_complaint"      gorm:"type:text"`
-	OcularHistory     string    `json:"ocular_history"       gorm:"type:text"`
-	FamilyHistory     string    `json:"family_history"       gorm:"type:text"`
-	SystemicHistory   string    `json:"systemic_history"     gorm:"type:text"`
+	ID               uint      `json:"id"                   gorm:"primaryKey;autoIncrement"`
+	ClinicID         uint      `json:"clinic_id"            gorm:"not null;index"`
+	ClinicalRecordID uint      `json:"clinical_record_id"   gorm:"not null;index"`
+	ChiefComplaint   string    `json:"chief_complaint"      gorm:"type:text"`
+	OcularHistory    string    `json:"ocular_history"       gorm:"type:text"`
+	FamilyHistory    string    `json:"family_history"       gorm:"type:text"`
+	SystemicHistory  string    `json:"systemic_history"     gorm:"type:text"`
 	// Current correction for right eye (OD = oculus dexter)
 	CurrentCorrectionOD string `json:"current_correction_od" gorm:"type:varchar(100)"`
 	// Current correction for left eye (OI = oculus inferior/sinister)
-	CurrentCorrectionOI string `json:"current_correction_oi" gorm:"type:varchar(100)"`
+	CurrentCorrectionOI string    `json:"current_correction_oi" gorm:"type:varchar(100)"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
@@ -132,8 +132,8 @@ type VisualExam struct {
 	IOPOD *float64 `json:"iop_od" gorm:"type:numeric(6,2)"`
 	IOPOI *float64 `json:"iop_oi" gorm:"type:numeric(6,2)"`
 	// Slit-lamp biomicroscopy and ocular motility findings
-	Biomicroscopy string `json:"biomicroscopy" gorm:"type:text"`
-	Motility      string `json:"motility"      gorm:"type:text"`
+	Biomicroscopy string    `json:"biomicroscopy" gorm:"type:text"`
+	Motility      string    `json:"motility"      gorm:"type:text"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -149,9 +149,9 @@ type ClinicalDiagnosis struct {
 	DiagnosisType    DiagnosisType `json:"diagnosis_type"      gorm:"type:varchar(20);not null;check:diagnosis_type IN ('main','related')"`
 	// RelatedCodes holds additional CIE-10 codes stored as a JSON array.
 	RelatedCodes json.RawMessage `json:"related_codes" gorm:"type:jsonb"`
-	CarePlan     string         `json:"care_plan"     gorm:"type:text"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	CarePlan     string          `json:"care_plan"     gorm:"type:text"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 // ClinicalPrescription stores the optical formula prescribed at the end of a
@@ -176,7 +176,7 @@ type ClinicalPrescription struct {
 	LensUse      string `json:"lens_use"      gorm:"type:varchar(50)"`
 	// Treatments holds a JSON array of applied lens treatments (e.g. anti-reflective).
 	Treatments json.RawMessage `json:"treatments"  gorm:"type:jsonb"`
-	ValidUntil *time.Time     `json:"valid_until" gorm:"type:date"`
+	ValidUntil *time.Time      `json:"valid_until" gorm:"type:date"`
 	// CUPSCode is the Colombian health service billing code for this prescription.
 	CUPSCode  string    `json:"cups_code"  gorm:"type:varchar(20)"`
 	CreatedAt time.Time `json:"created_at"`
@@ -197,15 +197,15 @@ type FollowUp struct {
 	SystemicChanges        string `json:"systemic_changes"        gorm:"type:text"`
 	CorrectionUse          string `json:"correction_use"          gorm:"type:varchar(50)"`
 	// DailyHours is the average number of hours per day the patient wears their correction.
-	DailyHours          *int            `json:"daily_hours"`
-	Observations        string          `json:"observations"         gorm:"type:text"`
-	EvolutionType       EvolutionType   `json:"evolution_type"       gorm:"type:varchar(20);not null;check:evolution_type IN ('stable','improved','worsened')"`
-	EvolutionDescription string         `json:"evolution_description" gorm:"type:text"`
-	NewDiagnosis        bool            `json:"new_diagnosis"        gorm:"not null;default:false"`
-	ContinuityPlan      string          `json:"continuity_plan"      gorm:"type:text"`
-	FormulaDecision     FormulaDecision `json:"formula_decision"     gorm:"type:varchar(20);not null;check:formula_decision IN ('maintain','update')"`
-	CreatedAt           time.Time       `json:"created_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
+	DailyHours           *int            `json:"daily_hours"`
+	Observations         string          `json:"observations"          gorm:"type:text"`
+	EvolutionType        EvolutionType   `json:"evolution_type"        gorm:"type:varchar(20);not null;check:evolution_type IN ('stable','improved','worsened')"`
+	EvolutionDescription string          `json:"evolution_description" gorm:"type:text"`
+	NewDiagnosis         bool            `json:"new_diagnosis"         gorm:"not null;default:false"`
+	ContinuityPlan       string          `json:"continuity_plan"       gorm:"type:text"`
+	FormulaDecision      FormulaDecision `json:"formula_decision"      gorm:"type:varchar(20);not null;check:formula_decision IN ('maintain','update')"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
 // ClinicalRecordRepository defines persistence operations for ClinicalRecord.
