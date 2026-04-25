@@ -35,8 +35,4 @@ export {
 } from './cell-renderers';
 
 // Helper functions
-export { createColumnHelper } from './column-helper';
-
-// EntityTable
-export { default as EntityTable } from './EntityTable';
-export type { EntityTableProps, FetchParams, PaginatedResult } from './EntityTable'; 
+export { createColumnHelper } from './column-helper'; 

@@ -13,14 +13,14 @@ export type PaginatedResult<T> = {
   total?: number;
 };
 
-export type FetchParams = {
+type FetchParams = {
   page: number;
   per_page: number;
   search?: string;
   filters?: Record<string, unknown>;
 };
 
-export type EntityTableProps<T> = {
+type EntityTableProps<T> = {
   title?: string;
   columns: DataTableColumnDef<T>[];
   /**
@@ -67,13 +67,13 @@ function EntityTable<T>({
   extraFilters = {},
   emptyStateNode,
   filterEmptyStateNode,
-  showPageSizeSelect = false,
+  showPageSizeSelect = true,
   enableSorting = true,
-  tableLayout = 'ledger',
-  paginationVariant = 'figma',
+  tableLayout = 'default',
+  paginationVariant = 'default',
   tableAriaLabel,
   tableScrollClassName,
-  ledgerBorderMode = 'figma',
+  ledgerBorderMode = 'grid',
   tableClassName,
   toolbarLeading,
   toolbarTrailing,
