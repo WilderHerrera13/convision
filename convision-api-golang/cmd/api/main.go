@@ -18,9 +18,11 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	catalogsvc "github.com/convision/api/internal/catalog"
 	"github.com/convision/api/internal/clinic"
+	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
+	followupsvc "github.com/convision/api/internal/followup"
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
@@ -122,6 +124,14 @@ func main() {
 	dailyActivityRepo := postgresplatform.NewDailyActivityRepository(db)
 	dashboardRepo := postgresplatform.NewDashboardRepository(db)
 
+	// Clinical record repos
+	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository(db)
+	anamnesisRepo := postgresplatform.NewAnamnesisRepository(db)
+	visualExamRepo := postgresplatform.NewVisualExamRepository(db)
+	diagnosisRepo := postgresplatform.NewClinicalDiagnosisRepository(db)
+	clinicalPrescriptionRepo := postgresplatform.NewClinicalPrescriptionRepository(db)
+	followUpRepo := postgresplatform.NewFollowUpRepository(db)
+
 	// ---- Services (use-case layer) ----
 	authService := authsvc.NewService(userRepo, revokedTokenRepo, logger)
 	patientService := patient.NewService(patientRepo, logger)
@@ -154,6 +164,10 @@ func main() {
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
+	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, anamnesisRepo, visualExamRepo, diagnosisRepo, clinicalPrescriptionRepo, appointmentRepo, logger)
+	followUpService := followupsvc.NewService(clinicalRecordRepo, followUpRepo, visualExamRepo, appointmentRepo, logger)
+	_ = clinicalRecordService
+	_ = followUpService
 
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
