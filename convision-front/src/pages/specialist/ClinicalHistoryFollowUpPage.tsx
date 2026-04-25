@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAppointmentById } from '@/services/appointmentService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   createClinicalRecord,
   getClinicalRecord,
@@ -9,6 +11,7 @@ import {
   upsertFollowUpAnamnesis,
   upsertFollowUpEvolution,
   upsertFollowUpFormula,
+  signClinicalRecord,
   getPreviousClinicalRecord,
   type FollowUpAnamnesisInput,
   type FollowUpEvolutionInput,
@@ -16,6 +19,7 @@ import {
   type VisualExamInput,
   type ClinicalRecord,
 } from '@/services/clinicalRecordService';
+import { PrescriptionPreviewModal } from '@/components/clinical/PrescriptionPreviewModal';
 import { ClinicalAsidePanel } from '@/components/clinical/ClinicalAsidePanel';
 import { ClinicalTabBar } from '@/components/clinical/ClinicalTabBar';
 import { FollowUpAnamnesisTab } from '@/components/clinical/FollowUp/FollowUpAnamnesisTab';
@@ -25,7 +29,7 @@ import { UpdateFormulaTab } from '@/components/clinical/FollowUp/UpdateFormulaTa
 
 const TAB_LABELS = ['Anamnesis Control', 'Examen Comparativo', 'Evolución Diagnóstica', 'Actualizar Fórmula'];
 
-function SignModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+function _UnusedSignModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
@@ -58,15 +62,25 @@ function isExpiringWithin30Days(validUntil?: string): boolean {
   return diff > 0 && diff < 30 * 24 * 60 * 60 * 1000;
 }
 
+function validUntilFormatted(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 export default function ClinicalHistoryFollowUpPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const apptId = parseInt(id || '0');
 
   const [activeTab, setActiveTab] = useState(0);
   const [stepsCompleted, setStepsCompleted] = useState([false, false, false, false]);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSignModal, setShowSignModal] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [record, setRecord] = useState<ClinicalRecord | null>(null);
   const [previousRecord, setPreviousRecord] = useState<ClinicalRecord | null>(null);
 
@@ -150,10 +164,21 @@ export default function ClinicalHistoryFollowUpPage() {
     } finally { setIsSaving(false); }
   };
 
-  const handleSign = () => setShowSignModal(true);
-  const handleConfirmSign = () => {
-    setShowSignModal(false);
-    navigate('/specialist/appointments');
+  const handleSign = () => setShowPreview(true);
+
+  const handleConfirmSign = async (tp: string) => {
+    setIsSigning(true);
+    try {
+      await signClinicalRecord(apptId, tp);
+      queryClient.invalidateQueries({ queryKey: ['appointment', apptId] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({ title: 'Control completado y firmado correctamente' });
+      navigate('/specialist/appointments');
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo firmar el control.' });
+    } finally {
+      setIsSigning(false);
+    }
   };
 
   const patient = appt?.patient;
@@ -236,8 +261,28 @@ export default function ClinicalHistoryFollowUpPage() {
         </div>
       </div>
 
-      {showSignModal && (
-        <SignModal onClose={() => setShowSignModal(false)} onConfirm={handleConfirmSign} />
+      {showPreview && (
+        <PrescriptionPreviewModal
+          open={showPreview}
+          onClose={() => setShowPreview(false)}
+          onConfirmSign={handleConfirmSign}
+          isSigning={isSigning}
+          clinic={{ name: 'Convision Óptica', reps_number: 'N/A', address: '' }}
+          patient={{
+            name: appt?.patient?.full_name || 'Paciente',
+            id_number: appt?.patient?.id_number || '',
+            age: 0,
+            date: new Date().toLocaleDateString('es-CO'),
+          }}
+          professional={{ name: user?.name || 'Especialista', specialty: 'Optómetra' }}
+          prescription={prevPrescription || {}}
+          diagnosis={prevDiagnosis
+            ? { primary_code: prevDiagnosis.primary_code, primary_description: prevDiagnosis.primary_description }
+            : { primary_code: '', primary_description: '' }
+          }
+          validUntil={validUntilFormatted(12)}
+          cups="890307"
+        />
       )}
     </div>
   );
