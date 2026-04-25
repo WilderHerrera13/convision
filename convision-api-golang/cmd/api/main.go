@@ -166,8 +166,6 @@ func main() {
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, anamnesisRepo, visualExamRepo, diagnosisRepo, clinicalPrescriptionRepo, appointmentRepo, logger)
 	followUpService := followupsvc.NewService(clinicalRecordRepo, followUpRepo, visualExamRepo, appointmentRepo, logger)
-	_ = clinicalRecordService
-	_ = followUpService
 
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
@@ -185,7 +183,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(logger, authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
+	handler := v1.NewHandler(logger, authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, clinicalRecordService, followUpService)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----
