@@ -524,6 +524,21 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
          fi
        done
 
+       # Detect source files that existed on main BEFORE merge but were DELETED by worktree
+       # This happens when a worktree was created from a stale base (before certain files existed)
+       # and its merge removes those newer files. Main always wins for source files.
+       STALE_DELETIONS=$(git diff --diff-filter=D --name-only HEAD~1 -- \
+         convision-front/ convision-api-golang/ convision-api/ 2>/dev/null || true)
+       RESTORED_COUNT=0
+       for LOST_FILE in $STALE_DELETIONS; do
+         git checkout HEAD~1 -- "$LOST_FILE" 2>/dev/null && RESTORED_COUNT=$((RESTORED_COUNT + 1)) || true
+       done
+       if [ "$RESTORED_COUNT" -gt 0 ]; then
+         echo "⚠ Restored $RESTORED_COUNT source file(s) deleted by stale worktree base in $WT_BRANCH"
+         git add . 2>/dev/null || true
+         git commit --amend --no-edit 2>/dev/null || true
+       fi
+
        # Amend merge commit with restored files if any changed
        if ! git diff --quiet .planning/STATE.md .planning/ROADMAP.md 2>/dev/null || \
           [ -n "$DELETED_FILES" ]; then
