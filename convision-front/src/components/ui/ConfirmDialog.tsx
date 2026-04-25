@@ -24,7 +24,7 @@ export interface ConfirmDialogProps {
 const VARIANT_STYLES = {
   danger: 'bg-[#b82626] hover:bg-[#991f1f] text-white',
   warning: 'bg-amber-600 hover:bg-amber-700 text-white',
-  default: 'bg-[#3a71f7] hover:bg-[#2d5dcc] text-white',
+  default: 'bg-[var(--role-primary)] hover:bg-[var(--role-dark)] text-white',
 };
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
