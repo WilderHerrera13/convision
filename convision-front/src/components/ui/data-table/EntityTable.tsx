@@ -13,14 +13,14 @@ export type PaginatedResult<T> = {
   total?: number;
 };
 
-type FetchParams = {
+export type FetchParams = {
   page: number;
   per_page: number;
   search?: string;
   filters?: Record<string, unknown>;
 };
 
-type EntityTableProps<T> = {
+export type EntityTableProps<T> = {
   title?: string;
   columns: DataTableColumnDef<T>[];
   /**
