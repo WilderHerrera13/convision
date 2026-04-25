@@ -1,22 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   ArrowUpDown,
   Plus,
-  Search,
-  Filter,
-  Download,
   CheckCircle,
   Clock,
-  XCircle,
   DollarSign,
 } from 'lucide-react';
 import { cashTransferService } from '@/services/cashTransferService';
@@ -26,16 +21,7 @@ const CashTransfers: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const { data: cashTransfers, isLoading } = useQuery({
-    queryKey: ['cash-transfers', searchTerm, statusFilter],
-    queryFn: () => cashTransferService.getCashTransfers({
-      search: searchTerm,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
-  });
 
   const { data: stats } = useQuery({
     queryKey: ['cash-transfer-stats'],
@@ -47,17 +33,10 @@ const CashTransfers: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['cash-transfer-stats'] });
-      toast({
-        title: 'Éxito',
-        description: 'Traslado eliminado correctamente',
-      });
+      toast({ title: 'Éxito', description: 'Traslado eliminado correctamente' });
     },
     onError: () => {
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el traslado',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No se pudo eliminar el traslado', variant: 'destructive' });
     },
   });
 
@@ -66,17 +45,10 @@ const CashTransfers: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['cash-transfer-stats'] });
-      toast({
-        title: 'Éxito',
-        description: 'Traslado aprobado correctamente',
-      });
+      toast({ title: 'Éxito', description: 'Traslado aprobado correctamente' });
     },
     onError: () => {
-      toast({
-        title: 'Error',
-        description: 'No se pudo aprobar el traslado',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No se pudo aprobar el traslado', variant: 'destructive' });
     },
   });
 
@@ -85,17 +57,10 @@ const CashTransfers: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['cash-transfer-stats'] });
-      toast({
-        title: 'Éxito',
-        description: 'Traslado cancelado correctamente',
-      });
+      toast({ title: 'Éxito', description: 'Traslado cancelado correctamente' });
     },
     onError: () => {
-      toast({
-        title: 'Error',
-        description: 'No se pudo cancelar el traslado',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'No se pudo cancelar el traslado', variant: 'destructive' });
     },
   });
 
@@ -106,7 +71,6 @@ const CashTransfers: React.FC = () => {
       completed: { label: 'Completado', variant: 'default' as const },
       cancelled: { label: 'Cancelado', variant: 'destructive' as const },
     };
-    
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
@@ -131,9 +95,7 @@ const CashTransfers: React.FC = () => {
       accessorKey: 'transfer_number',
       header: 'Número',
       type: 'text',
-      cell: (row) => (
-        <div className="font-medium">{row.transfer_number}</div>
-      ),
+      cell: (row) => <div className="font-medium">{row.transfer_number}</div>,
     },
     {
       id: 'origin',
@@ -164,29 +126,16 @@ const CashTransfers: React.FC = () => {
       accessorKey: 'amount',
       header: 'Monto',
       type: 'money',
-      cell: (row) => (
-        <div className="font-medium text-green-600">
-          {formatCurrency(row.amount)}
-        </div>
-      ),
+      cell: (row) => <div className="font-medium text-green-600">{formatCurrency(row.amount)}</div>,
     },
     {
       id: 'reason',
       accessorKey: 'reason',
       header: 'Razón',
       type: 'text',
-      cell: (row) => (
-        <div className="max-w-xs truncate" title={row.reason}>
-          {row.reason}
-        </div>
-      ),
+      cell: (row) => <div className="max-w-xs truncate" title={row.reason}>{row.reason}</div>,
     },
-    {
-      id: 'requested_by',
-      accessorKey: 'requested_by',
-      header: 'Solicitado por',
-      type: 'text',
-    },
+    { id: 'requested_by', accessorKey: 'requested_by', header: 'Solicitado por', type: 'text' },
     {
       id: 'status',
       accessorKey: 'status',
@@ -207,36 +156,20 @@ const CashTransfers: React.FC = () => {
       type: 'actions',
       cell: (row) => (
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/cash-transfers/${row.id}`)}
-          >
+          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/cash-transfers/${row.id}`)}>
             Ver
           </Button>
           {row.status === 'pending' && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => approveCashTransferMutation.mutate(row.id)}
-              >
+              <Button variant="outline" size="sm" onClick={() => approveCashTransferMutation.mutate(row.id)}>
                 Aprobar
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => cancelCashTransferMutation.mutate(row.id)}
-              >
+              <Button variant="destructive" size="sm" onClick={() => cancelCashTransferMutation.mutate(row.id)}>
                 Cancelar
               </Button>
             </>
           )}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => deleteCashTransferMutation.mutate(row.id)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => deleteCashTransferMutation.mutate(row.id)}>
             Eliminar
           </Button>
         </div>
@@ -245,34 +178,10 @@ const CashTransfers: React.FC = () => {
   ];
 
   const statsCards = [
-    {
-      title: 'Total Traslados',
-      value: stats?.total_transfers || 0,
-      subtitle: 'Este mes',
-      icon: ArrowUpDown,
-      color: 'text-blue-600',
-    },
-    {
-      title: 'Monto Total',
-      value: formatCurrency(stats?.total_amount || 0),
-      subtitle: 'Trasladado',
-      icon: DollarSign,
-      color: 'text-green-600',
-    },
-    {
-      title: 'Pendientes',
-      value: stats?.pending_transfers || 0,
-      subtitle: 'Por aprobar',
-      icon: Clock,
-      color: 'text-orange-600',
-    },
-    {
-      title: 'Completados',
-      value: stats?.completed_transfers || 0,
-      subtitle: 'Finalizados',
-      icon: CheckCircle,
-      color: 'text-green-600',
-    },
+    { title: 'Total Traslados', value: stats?.total_transfers || 0, subtitle: 'Este mes', icon: ArrowUpDown, color: 'text-blue-600' },
+    { title: 'Monto Total', value: formatCurrency(stats?.total_amount || 0), subtitle: 'Trasladado', icon: DollarSign, color: 'text-green-600' },
+    { title: 'Pendientes', value: stats?.pending_transfers || 0, subtitle: 'Por aprobar', icon: Clock, color: 'text-orange-600' },
+    { title: 'Completados', value: stats?.completed_transfers || 0, subtitle: 'Finalizados', icon: CheckCircle, color: 'text-green-600' },
   ];
 
   return (
@@ -287,43 +196,53 @@ const CashTransfers: React.FC = () => {
       }
     >
       <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsCards.map((stat, index) => (
-          <Card key={index}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {stat.title}
-                  </p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statsCards.map((stat, index) => (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                  </div>
+                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
                 </div>
-                <stat.icon className={`h-8 w-8 ${stat.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Traslados de Efectivo</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por número, razón..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <EntityTable<CashTransferRow>
+          columns={columns}
+          fetcher={async (params) => {
+            const result = await cashTransferService.getCashTransfers({
+              page: params.page,
+              per_page: params.per_page,
+              search: params.search,
+              status: statusFilter !== 'all' ? statusFilter : undefined,
+            });
+            return {
+              data: result.data ?? result,
+              last_page: result.last_page ?? 1,
+              total: result.total,
+            };
+          }}
+          queryKeyBase="cash-transfers"
+          extraFilters={{ status: statusFilter }}
+          searchPlaceholder="Buscar por número, razón..."
+          toolbarLeading={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-[#121215]">Traslados de Caja</span>
+              <span className="text-[11px] text-[#7d7d87]">Historial de transferencias</span>
             </div>
-            <div className="flex gap-2">
+          }
+          toolbarTrailing={
+            <>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                className="h-[34px] rounded-[6px] border border-[#e5e5e9] bg-white px-3 text-[12px] text-[#121215]"
               >
                 <option value="all">Todos los estados</option>
                 <option value="pending">Pendiente</option>
@@ -331,28 +250,12 @@ const CashTransfers: React.FC = () => {
                 <option value="completed">Completado</option>
                 <option value="cancelled">Cancelado</option>
               </select>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={cashTransfers?.data || []}
-            loading={isLoading}
-          />
-        </CardContent>
-      </Card>
+            </>
+          }
+        />
       </div>
     </PageLayout>
   );
 };
 
-export default CashTransfers; 
+export default CashTransfers;

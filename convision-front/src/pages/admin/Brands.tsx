@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -20,38 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Tag,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Loader2,
-} from 'lucide-react';
-import {
-  DataTable,
-  DataTableColumnDef,
-} from '@/components/ui/data-table';
+import { Edit, Trash2, Loader2 } from 'lucide-react';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import {
   brandService,
   Brand,
   CreateBrandRequest,
   UpdateBrandRequest,
-  BrandSearchParams,
 } from '@/services/brandService';
 
 const brandSchema = z.object({
@@ -64,57 +36,31 @@ type BrandFormValues = z.infer<typeof brandSchema>;
 const Brands: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(15);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
-  
-  const [filters, setFilters] = useState<BrandSearchParams>({
-    search: '',
-  });
 
   const createForm = useForm<BrandFormValues>({
     resolver: zodResolver(brandSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-    },
+    defaultValues: { name: '', description: '' },
   });
 
   const editForm = useForm<BrandFormValues>({
     resolver: zodResolver(brandSchema),
   });
 
-  const { data: brandsData, isLoading } = useQuery({
-    queryKey: ['brands', page, perPage, filters],
-    queryFn: () => brandService.getBrands({
-      ...filters,
-      page,
-      per_page: perPage,
-    }),
-  });
-
   const createMutation = useMutation({
     mutationFn: (data: CreateBrandRequest) => brandService.createBrand(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast({
-        title: 'Marca creada',
-        description: 'La marca ha sido creada exitosamente.',
-      });
+      toast({ title: 'Marca creada', description: 'La marca ha sido creada exitosamente.' });
       setIsCreateModalOpen(false);
       createForm.reset();
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al crear la marca',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Error al crear la marca', variant: 'destructive' });
     },
   });
 
@@ -123,19 +69,12 @@ const Brands: React.FC = () => {
       brandService.updateBrand(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast({
-        title: 'Marca actualizada',
-        description: 'La marca ha sido actualizada exitosamente.',
-      });
+      toast({ title: 'Marca actualizada', description: 'La marca ha sido actualizada exitosamente.' });
       setIsEditModalOpen(false);
       setSelectedBrand(null);
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al actualizar la marca',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Error al actualizar la marca', variant: 'destructive' });
     },
   });
 
@@ -143,46 +82,19 @@ const Brands: React.FC = () => {
     mutationFn: (id: number) => brandService.deleteBrand(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
-      toast({
-        title: 'Marca eliminada',
-        description: 'La marca ha sido eliminada exitosamente.',
-      });
+      toast({ title: 'Marca eliminada', description: 'La marca ha sido eliminada exitosamente.' });
       setIsDeleteModalOpen(false);
       setSelectedBrand(null);
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al eliminar la marca',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Error al eliminar la marca', variant: 'destructive' });
     },
   });
 
-  const handleCreateBrand = (data: BrandFormValues) => {
-    const brandData: CreateBrandRequest = {
-      name: data.name,
-      description: data.description,
-    };
-    createMutation.mutate(brandData);
-  };
-
   const handleEditBrand = (brand: Brand) => {
     setSelectedBrand(brand);
-    editForm.reset({
-      name: brand.name,
-      description: brand.description || '',
-    });
+    editForm.reset({ name: brand.name, description: brand.description || '' });
     setIsEditModalOpen(true);
-  };
-
-  const handleUpdateBrand = (data: BrandFormValues) => {
-    if (!selectedBrand) return;
-    const updateData: UpdateBrandRequest = {
-      name: data.name,
-      description: data.description,
-    };
-    updateMutation.mutate({ id: selectedBrand.id, data: updateData });
   };
 
   const handleDeleteBrand = (brand: Brand) => {
@@ -195,10 +107,13 @@ const Brands: React.FC = () => {
     deleteMutation.mutate(selectedBrand.id);
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setFilters(prev => ({ ...prev, search: value }));
-    setPage(1);
+  const handleCreateBrand = (data: BrandFormValues) => {
+    createMutation.mutate({ name: data.name, description: data.description });
+  };
+
+  const handleUpdateBrand = (data: BrandFormValues) => {
+    if (!selectedBrand) return;
+    updateMutation.mutate({ id: selectedBrand.id, data: { name: data.name, description: data.description } });
   };
 
   const columns: DataTableColumnDef<Brand>[] = [
@@ -232,20 +147,10 @@ const Brands: React.FC = () => {
       type: 'actions',
       cell: (brand) => (
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEditBrand(brand)}
-            title="Editar marca"
-          >
+          <Button variant="ghost" size="sm" onClick={() => handleEditBrand(brand)} title="Editar marca">
             <Edit className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDeleteBrand(brand)}
-            title="Eliminar marca"
-          >
+          <Button variant="ghost" size="sm" onClick={() => handleDeleteBrand(brand)} title="Eliminar marca">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -253,123 +158,60 @@ const Brands: React.FC = () => {
     },
   ];
 
-  const brands = brandsData?.data || [];
-  const totalPages = brandsData?.last_page || 1;
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Marcas</h1>
-          <p className="text-muted-foreground">
-            Gestiona las marcas de productos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="15">15 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Marca
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Marcas</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar marcas..."
-                  value={search}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-            </div>
+    <div className="space-y-4">
+      <EntityTable<Brand>
+        columns={columns}
+        fetcher={(params) =>
+          brandService.getBrands({
+            page: params.page,
+            per_page: params.per_page,
+            search: params.search,
+          })
+        }
+        queryKeyBase="brands"
+        searchPlaceholder="Buscar marcas..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Marcas</span>
+            <span className="text-[11px] text-[#7d7d87]">Catálogo de marcas</span>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={brands}
-            columns={columns}
-            loading={isLoading}
-            enablePagination={true}
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            emptyMessage="No se encontraron marcas"
-          />
-        </CardContent>
-      </Card>
+        }
+        toolbarTrailing={
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="h-[34px] rounded-[6px] bg-[#8753ef] px-4 text-[12px] font-semibold text-white hover:bg-[#7040d8]"
+          >
+            + Nueva marca
+          </Button>
+        }
+      />
 
-      {/* Create Brand Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Crear Nueva Marca</DialogTitle>
-            <DialogDescription>
-              Complete la información de la nueva marca
-            </DialogDescription>
+            <DialogDescription>Complete la información de la nueva marca</DialogDescription>
           </DialogHeader>
           <form onSubmit={createForm.handleSubmit(handleCreateBrand)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
-              <Input
-                id="name"
-                {...createForm.register('name')}
-                placeholder="Nombre de la marca"
-              />
+              <Input id="name" {...createForm.register('name')} placeholder="Nombre de la marca" />
               {createForm.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {createForm.formState.errors.name.message}
-                </p>
+                <p className="text-sm text-destructive">{createForm.formState.errors.name.message}</p>
               )}
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="description">Descripción</Label>
-              <Textarea
-                id="description"
-                {...createForm.register('description')}
-                placeholder="Descripción de la marca"
-                rows={3}
-              />
+              <Textarea id="description" {...createForm.register('description')} placeholder="Descripción de la marca" rows={3} />
             </div>
-
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateModalOpen(false)}
-                disabled={createMutation.isPending}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)} disabled={createMutation.isPending}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creando...
-                  </>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creando...</>
                 ) : (
                   'Crear Marca'
                 )}
@@ -379,53 +221,31 @@ const Brands: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Brand Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Editar Marca</DialogTitle>
-            <DialogDescription>
-              Modifique la información de la marca
-            </DialogDescription>
+            <DialogDescription>Modifique la información de la marca</DialogDescription>
           </DialogHeader>
           <form onSubmit={editForm.handleSubmit(handleUpdateBrand)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit_name">Nombre</Label>
-              <Input
-                id="edit_name"
-                {...editForm.register('name')}
-              />
+              <Input id="edit_name" {...editForm.register('name')} />
               {editForm.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {editForm.formState.errors.name.message}
-                </p>
+                <p className="text-sm text-destructive">{editForm.formState.errors.name.message}</p>
               )}
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit_description">Descripción</Label>
-              <Textarea
-                id="edit_description"
-                {...editForm.register('description')}
-                rows={3}
-              />
+              <Textarea id="edit_description" {...editForm.register('description')} rows={3} />
             </div>
-
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
-                disabled={updateMutation.isPending}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={updateMutation.isPending}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Actualizando...
-                  </>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Actualizando...</>
                 ) : (
                   'Actualizar Marca'
                 )}
@@ -435,38 +255,18 @@ const Brands: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar marca?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La marca "{selectedBrand?.name}" será eliminada permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                'Eliminar'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        title="Eliminar marca"
+        description={`Esta accion no se puede deshacer. La marca "${selectedBrand?.name}" sera eliminada permanentemente.`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };
 
-export default Brands; 
+export default Brands;
