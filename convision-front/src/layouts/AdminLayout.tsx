@@ -143,10 +143,9 @@ const AdminLayout: React.FC = () => {
     return () => mql.removeEventListener('change', apply);
   }, [setOpen]);
 
-  const path = location.pathname;
   let navSections = adminNav;
-  if (user?.role === 'receptionist' || path.startsWith('/receptionist')) navSections = receptionistNav;
-  else if (user?.role === 'specialist' || path.startsWith('/specialist')) navSections = specialistNav;
+  if (user?.role === 'receptionist') navSections = receptionistNav;
+  else if (user?.role === 'specialist') navSections = specialistNav;
 
   const roleInfo = roleLabels[user?.role ?? 'admin'] ?? { badge: 'Admin', title: 'Administrador' };
   const initials = user?.name ? getInitials(user.name) : 'US';

@@ -152,7 +152,12 @@ const Patients: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const basePath = (user?.role === 'receptionist' || location.pathname.startsWith('/receptionist')) ? '/receptionist' : '/admin';
+  const basePath = location.pathname.startsWith('/receptionist')
+    ? '/receptionist'
+    : location.pathname.startsWith('/specialist')
+      ? '/specialist'
+      : '/admin';
+  const isSpecialist = user?.role === 'specialist' || location.pathname.startsWith('/specialist');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -871,20 +876,24 @@ const Patients: React.FC = () => {
           >
             <Eye className="h-4 w-4" />
           </Link>
-          <button
-            className="flex items-center justify-center size-8 rounded-[6px] bg-[#f5f5f7] border border-[#e0e0e4] text-[#7d7d87] hover:bg-[#ebebee] transition-colors"
-            onClick={() => navigate(`${basePath}/patients/${patient.id}/edit`)}
-            title="Editar paciente"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            className="flex items-center justify-center size-8 rounded-[6px] bg-[#fff0f0] border border-[#f5baba] text-red-500 hover:bg-[#ffe4e4] transition-colors"
-            onClick={() => openDeleteModal(patient)}
-            title="Eliminar paciente"
-          >
-            <Trash className="h-4 w-4" />
-          </button>
+          {!isSpecialist && (
+            <>
+              <button
+                className="flex items-center justify-center size-8 rounded-[6px] bg-[#f5f5f7] border border-[#e0e0e4] text-[#7d7d87] hover:bg-[#ebebee] transition-colors"
+                onClick={() => navigate(`${basePath}/patients/${patient.id}/edit`)}
+                title="Editar paciente"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
+                className="flex items-center justify-center size-8 rounded-[6px] bg-[#fff0f0] border border-[#f5baba] text-red-500 hover:bg-[#ffe4e4] transition-colors"
+                onClick={() => openDeleteModal(patient)}
+                title="Eliminar paciente"
+              >
+                <Trash className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -895,12 +904,14 @@ const Patients: React.FC = () => {
       title="Pacientes"
       subtitle="Base de datos de pacientes"
       actions={
-        <Button
-          onClick={() => navigate(`${basePath}/patients/new`)}
-          className="bg-convision-primary hover:bg-convision-dark text-white text-[13px] h-9 px-4"
-        >
-          + Nuevo paciente
-        </Button>
+        !isSpecialist && (
+          <Button
+            onClick={() => navigate(`${basePath}/patients/new`)}
+            className="bg-convision-primary hover:bg-convision-dark text-white text-[13px] h-9 px-4"
+          >
+            + Nuevo paciente
+          </Button>
+        )
       }
     >
     <div className="space-y-5">

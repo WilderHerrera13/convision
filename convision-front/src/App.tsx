@@ -533,6 +533,10 @@ const router = createBrowserRouter([
             element: <SpecialistDashboard />,
           },
           {
+            path: "patients",
+            element: <Patients />,
+          },
+          {
             path: "patients/:patientId/history",
             element: <ClinicalHistory />,
           },

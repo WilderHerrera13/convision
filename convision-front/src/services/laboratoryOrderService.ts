@@ -15,6 +15,7 @@ export interface LaboratoryOrder {
   created_by: number;
   created_at: string;
   updated_at: string;
+  drawer_number?: string | null;
   laboratory?: {
     id: number;
     name: string;
@@ -65,18 +66,34 @@ export interface LaboratoryOrder {
     id: number;
     name: string;
   };
+  drawer_number?: string | null;
   statusHistory?: Array<{
     id: number;
     status: string;
     notes: string;
     created_at: string;
-    user: {
+    user?: {
       id: number;
       name: string;
+      last_name?: string;
     };
   }>;
   pdf_token?: string;
   guest_pdf_url?: string;
+}
+
+export type LaboratoryEvidenceTransition = 'sent_to_lab' | 'received_from_lab' | 'notify_client';
+
+export interface LaboratoryOrderEvidence {
+  id: number;
+  laboratory_order_id: number;
+  transition_type: string;
+  image_url: string;
+  created_at: string;
+  user?: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface LaboratoryOrderFilterParams {
@@ -122,79 +139,32 @@ const laboratoryOrderService = {
    * Get all laboratory orders with optional filtering
    */
   async getLaboratoryOrders(params: LaboratoryOrderFilterParams = {}) {
-    // Build s_f and s_v arrays for all filters
-    const searchFields: string[] = [];
-    const searchValues: string[] = [];
-
-    if (params.status && params.status !== 'all') {
-      searchFields.push('status');
-      searchValues.push(params.status);
-    }
-    if (params.laboratory_id) {
-      searchFields.push('laboratory_id');
-      searchValues.push(params.laboratory_id.toString());
-    }
-    if (params.patient_id) {
-      searchFields.push('patient_id');
-      searchValues.push(params.patient_id.toString());
-    }
-    if (params.priority && params.priority !== 'all') {
-      searchFields.push('priority');
-      searchValues.push(params.priority);
-    }
-    if (params.search && params.search.trim() !== '') {
-      // You can add more fields for search if needed (e.g., patient.name)
-      searchFields.push('order_number');
-      searchValues.push(params.search.trim());
-    }
-
-    // Build query params
     const query: Record<string, string | number> = {
       page: params.page || 1,
       per_page: params.per_page || 10,
     };
-    if (searchFields.length > 0) {
-      query.s_f = JSON.stringify(searchFields);
-      query.s_v = JSON.stringify(searchValues);
+
+    if (params.status && params.status !== 'all') {
+      query.status = params.status;
     }
-    // Sorting
+    if (params.laboratory_id) {
+      query.laboratory_id = params.laboratory_id;
+    }
+    if (params.patient_id) {
+      query.patient_id = params.patient_id;
+    }
+    if (params.priority && params.priority !== 'all') {
+      query.priority = params.priority;
+    }
+    if (params.search && params.search.trim() !== '') {
+      query.search = params.search.trim();
+    }
     if (params.sort_field) {
       query.sort = `${params.sort_field},${params.sort_direction || 'desc'}`;
     }
 
-    try {
-      console.log('Debug - API request params:', query);
-      
-      const response = await api.get('/api/v1/laboratory-orders', { params: query });
-      
-      console.log('Debug - Raw API response:', response);
-      console.log('Debug - API response data:', response.data);
-      
-      // Ensure proper data mapping
-      if (response.data && Array.isArray(response.data.data)) {
-        // Make sure all objects have the expected relationships
-        response.data.data = response.data.data.map((order: LaboratoryOrder) => {
-          // Ensure laboratory is initialized properly
-          if (order.laboratory_id && !order.laboratory) {
-            console.log('Debug - Missing laboratory object for ID:', order.laboratory_id);
-          }
-          
-          // Ensure patient is initialized properly
-          if (order.patient_id && !order.patient) {
-            console.log('Debug - Missing patient object for ID:', order.patient_id);
-          }
-          
-          return order;
-        });
-        
-        console.log('Debug - Processed data:', response.data.data);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('Debug - Error fetching laboratory orders:', error);
-      throw error;
-    }
+    const response = await api.get('/api/v1/laboratory-orders', { params: query });
+    return response.data;
   },
 
   /**
@@ -230,6 +200,7 @@ const laboratoryOrderService = {
       sale?: Record<string, unknown>;
       created_by_user?: { id: number; name: string } | null;
       status_history?: RawStatusHistory[];
+      drawer_number?: string | null;
       pdf_token?: string;
       guest_pdf_url?: string;
     };
@@ -256,6 +227,7 @@ const laboratoryOrderService = {
       sale: raw.sale,
       createdBy: raw.created_by_user ?? undefined,
       statusHistory: raw.status_history as any,
+      drawer_number: raw.drawer_number ?? null,
       pdf_token: raw.pdf_token,
       guest_pdf_url: raw.guest_pdf_url,
     };
@@ -307,7 +279,36 @@ const laboratoryOrderService = {
    */
   getLaboratoryOrderPdfUrl(laboratoryOrderId: number, pdfToken: string): string {
     return `${import.meta.env.VITE_API_URL}/api/v1/guest/laboratory-orders/${laboratoryOrderId}/pdf?token=${pdfToken}`;
-  }
+  },
+
+  async uploadLaboratoryOrderEvidence(
+    orderId: number,
+    transitionType: LaboratoryEvidenceTransition,
+    file: File | Blob,
+    filename?: string,
+  ): Promise<LaboratoryOrderEvidence> {
+    const form = new FormData();
+    const uploadFile = filename && file instanceof Blob && !(file instanceof File)
+      ? new File([file], filename, { type: file.type })
+      : file;
+    form.append('file', uploadFile);
+    form.append('transition_type', transitionType);
+    const response = await api.post(`/api/v1/laboratory-orders/${orderId}/evidence`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return (response.data?.data ?? response.data) as LaboratoryOrderEvidence;
+  },
+
+  async getLaboratoryOrderEvidence(
+    orderId: number,
+    transitionType?: LaboratoryEvidenceTransition,
+  ): Promise<LaboratoryOrderEvidence[]> {
+    const params: Record<string, string> = {};
+    if (transitionType) params.transition_type = transitionType;
+    const response = await api.get(`/api/v1/laboratory-orders/${orderId}/evidence`, { params });
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
+  },
 };
 
 export { laboratoryOrderService }; 

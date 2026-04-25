@@ -240,9 +240,11 @@ func (s *Service) Resume(id uint) (*domain.Appointment, error) {
 // ListManagementReport returns a page of appointments filtered to those
 // handled by the given specialist (either assigned or taken). When
 // specialistID is 0 no attended-by constraint is applied (admin view).
+// When pendingReport is true only appointments without a saved report are returned.
 func (s *Service) ListManagementReport(
 	specialistID uint,
 	search, startDate, endDate, status, consultationType string,
+	pendingReport bool,
 	page, perPage int,
 ) (*ListOutput, error) {
 	filters := make(map[string]any)
@@ -263,6 +265,9 @@ func (s *Service) ListManagementReport(
 	}
 	if consultationType != "" {
 		filters["consultation_type"] = consultationType
+	}
+	if pendingReport {
+		filters["_pending_report"] = true
 	}
 	return s.List(filters, page, perPage)
 }

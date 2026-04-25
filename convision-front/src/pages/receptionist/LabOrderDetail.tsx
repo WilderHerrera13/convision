@@ -1,61 +1,74 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ArrowLeft, Download } from 'lucide-react';
 import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOrderService';
+import { formatDate, formatDateTime12h } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
-import LabOrderHeader from './LabOrderHeader';
-import LabOrderStatusTimeline from './LabOrderStatusTimeline';
 import LabOrderSidebar from './LabOrderSidebar';
+import LabOrderTracker from '@/components/lab-orders/LabOrderTracker';
 
-function getPrimaryAction(order: LaboratoryOrder, navigate: ReturnType<typeof useNavigate>) {
-  const { id, status } = order;
-  if (status === 'pending') {
-    return (
-      <Button
-        className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
-        size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}/confirm-shipment`)}
-      >
-        Confirmar Envío
-      </Button>
-    );
-  }
-  if (status === 'sent_to_lab' || status === 'in_transit') {
-    return (
-      <Button
-        className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
-        size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}/confirm-reception`)}
-      >
-        Confirmar Recepción
-      </Button>
-    );
-  }
-  if (status === 'in_quality') {
-    return (
-      <Button
-        className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
-        size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}/assign-drawer`)}
-      >
-        Asignar Cajón
-      </Button>
-    );
-  }
-  if (status === 'ready_for_delivery') {
-    return (
-      <Button
-        className="bg-[#8753ef] hover:bg-[#7040d6] text-white"
-        size="sm"
-        onClick={() => navigate(`/receptionist/lab-orders/${id}/confirm-delivery`)}
-      >
-        Confirmar Entrega
-      </Button>
-    );
-  }
-  return null;
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'success' | 'info';
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  in_process: 'En proceso',
+  in_progress: 'En proceso',
+  sent_to_lab: 'Enviado a laboratorio',
+  in_transit: 'En tránsito',
+  received_from_lab: 'Recibido del lab.',
+  in_quality: 'En calidad',
+  ready_for_delivery: 'Listo para entregar',
+  portfolio: 'Cartera',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+};
+
+const getStatusVariant = (status: string): BadgeVariant => {
+  if (status === 'pending') return 'warning';
+  if (['in_process', 'in_progress', 'sent_to_lab', 'in_transit', 'received_from_lab'].includes(status)) return 'secondary';
+  if (status === 'in_quality') return 'outline';
+  if (['ready_for_delivery', 'delivered'].includes(status)) return 'success';
+  if (['portfolio', 'cancelled'].includes(status)) return 'destructive';
+  return 'default';
+};
+
+function calcTimeInProcess(createdAt: string): string {
+  const start = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - start.getTime();
+  if (diffMs < 0) return '—';
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days > 0) return `${days}d ${String(hours).padStart(2, '0')}h`;
+  return `${totalHours}h`;
+}
+
+function calcRelativeDelivery(estimatedDate: string | null): string {
+  if (!estimatedDate) return '';
+  const target = new Date(estimatedDate);
+  const now = new Date();
+  const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'vencida';
+  if (diffDays === 0) return 'hoy';
+  if (diffDays === 1) return 'en 1 día';
+  return `en ${diffDays} días`;
+}
+
+function extractTime(dateStr: string): string {
+  const parts = formatDateTime12h(dateStr).split(' ');
+  return parts.slice(1).join(' ');
 }
 
 const LabOrderDetail: React.FC = () => {
@@ -82,137 +95,151 @@ const LabOrderDetail: React.FC = () => {
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
   const handleDownloadPdf = () => {
-    if (!order?.id || !order?.pdf_token) return;
-    const url = laboratoryOrderService.getLaboratoryOrderPdfUrl(order.id, order.pdf_token);
-    window.open(url, '_blank');
+    if (!order?.id) return;
+    window.open(`/print/lab-orders/${order.id}`, '_blank');
   };
 
-  const lensItem = order?.order?.items?.[0]?.lens;
-  const patientName = order?.patient
-    ? `${order.patient.first_name} ${order.patient.last_name}`
-    : '—';
+  const timeInProcess = order ? calcTimeInProcess(order.created_at) : '—';
+  const relativeDelivery = order ? calcRelativeDelivery(order.estimated_completion_date) : '';
+  const isUrgent = order?.priority === 'urgent';
 
-  const topActions = order ? (
+  const topActions = (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" onClick={() => navigate('/receptionist/lab-orders')}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Volver
       </Button>
-      {order.pdf_token && (
+      {order && (
         <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
-          <Download className="h-4 w-4 mr-1" /> Descargar PDF
+          <Download className="h-4 w-4 mr-1" /> Imprimir / PDF
         </Button>
       )}
-      {getPrimaryAction(order, navigate)}
-    </div>
-  ) : (
-    <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={() => navigate('/receptionist/lab-orders')}>
-        <ArrowLeft className="h-4 w-4 mr-1" /> Volver
-      </Button>
     </div>
   );
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <PageLayout
-        title={order ? `Detalle de Orden ${order.order_number}` : 'Detalle de Orden'}
-        subtitle="Órdenes de Laboratorio"
-        actions={topActions}
-      >
-        {loading && <div className="py-8 text-center text-muted-foreground">Cargando...</div>}
-        {error && <div className="py-8 text-center text-red-500">{error}</div>}
-        {!loading && !error && order && (
-          <div className="space-y-6 pb-28">
-            <LabOrderHeader order={order} />
+    <PageLayout
+      title={order ? `Detalle de Orden ${order.order_number}` : 'Detalle de Orden'}
+      subtitle="Órdenes de Laboratorio"
+      actions={topActions}
+    >
+      {loading && <div className="py-16 text-center text-[#7d7d87]">Cargando...</div>}
+      {error && <div className="py-16 text-center text-red-500">{error}</div>}
+      {!loading && !error && order && (
+        <div className="space-y-5 pb-28">
+          <div className="bg-white border border-[#e5e5e9] rounded-xl px-6 py-5 flex flex-wrap items-center gap-0">
+            <div className="flex-1 min-w-[200px] pr-6">
+              <h2 className="text-[22px] font-bold text-[#121215]">{order.order_number}</h2>
+              <p className="text-[12px] text-[#7d7d87] mt-1">
+                Creada el {formatDate(order.created_at)} · {extractTime(order.created_at)}
+                {order.createdBy && ` · por ${order.createdBy.name}`}
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Datos del lente</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Especificaciones técnicas y origen de la orden
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Paciente</p>
-                        <p className="text-sm font-medium">{patientName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Identificación</p>
-                        <p className="text-sm font-medium">{order.patient?.identification || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Teléfono</p>
-                        <p className="text-sm font-medium">{order.patient?.phone || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sede destino</p>
-                        <p className="text-sm font-medium">—</p>
-                      </div>
-                    </div>
-                    <div className="h-px bg-[#e5e5e9]" />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Laboratorio</p>
-                        <p className="text-sm font-medium">{order.laboratory?.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tipo de lente</p>
-                        <p className="text-sm font-medium">{lensItem?.lensType?.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Material</p>
-                        <p className="text-sm font-medium">{lensItem?.material?.name || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Graduación</p>
-                        <p className="text-sm font-medium">—</p>
-                      </div>
-                    </div>
-                    {order.notes && (
-                      <>
-                        <div className="h-px bg-[#e5e5e9]" />
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Descripción del pedido</p>
-                          <p className="text-sm text-[#0f0f12]">{order.notes}</p>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+            <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
 
-                {order.statusHistory && order.statusHistory.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Historial de la orden</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Cronología completa de cambios de estado
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <LabOrderStatusTimeline history={order.statusHistory} />
-                    </CardContent>
-                  </Card>
+            <div className="flex flex-col gap-1 px-6">
+              <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Estado actual</span>
+              <Badge variant={getStatusVariant(order.status)}>
+                {STATUS_LABELS[order.status] ?? order.status}
+              </Badge>
+            </div>
+
+            <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
+
+            <div className="flex flex-col gap-0.5 px-6">
+              <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Tiempo en proceso</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-bold text-[#121215] text-[22px] leading-[1]">{timeInProcess.split(' ')[0]}</span>
+                {timeInProcess.includes(' ') && (
+                  <span className="text-sm text-[#121215] font-medium">{timeInProcess.split(' ').slice(1).join(' ')}</span>
                 )}
               </div>
+              <span className="text-[11px] text-[#7d7d87]">desde envío al lab.</span>
+            </div>
 
-              <div className="sticky top-4">
-                <LabOrderSidebar order={order} onStatusUpdate={fetchOrder} />
+            <div className="w-px bg-[#e5e5e9] self-stretch mx-0 hidden sm:block" />
+
+            <div className="flex flex-col gap-0.5 px-6 flex-1">
+              <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Entrega estimada</span>
+              <span className="font-bold text-[#121215] text-base">
+                {order.estimated_completion_date ? formatDate(order.estimated_completion_date) : '—'}
+              </span>
+              {relativeDelivery && (
+                <span className="text-[11px] text-[#7d7d87]">{relativeDelivery}</span>
+              )}
+            </div>
+
+            {isUrgent && (
+              <div className="flex flex-col items-end gap-1 pl-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-red-500 inline-block" />
+                  <span className="text-[13px] font-medium text-[#121215]">Urgente</span>
+                </div>
+                <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-[1px]">Prioridad</span>
               </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
+            <div className="space-y-5">
+              <LabOrderTracker order={order} primaryColor="#8753ef" primaryBg="#f1edff" />
+
+              {order.order?.items && order.order.items.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-[14px]">Ítems de la orden</CardTitle>
+                        <p className="text-[12px] text-[#7d7d87] mt-0.5">
+                          Productos asociados a esta orden de laboratorio
+                        </p>
+                      </div>
+                      <span className="text-[11px] text-[#7d7d87] bg-[#f5f5f6] px-2.5 py-1 rounded-full">
+                        {order.order.items.length} {order.order.items.length === 1 ? 'ítem' : 'ítems'}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="pl-5 text-[11px] uppercase tracking-wide text-[#7d7d87]">Descripción</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wide text-[#7d7d87]">Marca</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wide text-[#7d7d87]">Material</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wide text-[#7d7d87]">Tratamiento</TableHead>
+                          <TableHead className="pr-5 text-[11px] uppercase tracking-wide text-[#7d7d87]">Tipo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {order.order.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="pl-5 text-[13px]">{item.lens?.description || '—'}</TableCell>
+                            <TableCell className="text-[13px]">{item.lens?.brand?.name || '—'}</TableCell>
+                            <TableCell className="text-[13px]">{item.lens?.material?.name || '—'}</TableCell>
+                            <TableCell className="text-[13px]">{item.lens?.treatment?.name || '—'}</TableCell>
+                            <TableCell className="pr-5 text-[13px]">{item.lens?.lensType?.name || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div className="sticky top-4">
+              <LabOrderSidebar order={order} onStatusUpdate={fetchOrder} />
             </div>
           </div>
-        )}
-      </PageLayout>
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-60 right-0 bg-white border-t border-[#e5e5e9] px-6 py-4 z-10">
-        <p className="text-sm text-[#7d7d87]">
+        <p className="text-[12px] text-[#7d7d87]">
           Las acciones cambian el estado de la orden y quedan registradas en el historial.
         </p>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

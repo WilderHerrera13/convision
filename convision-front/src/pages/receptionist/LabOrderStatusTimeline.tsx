@@ -51,7 +51,7 @@ const LabOrderStatusTimeline: React.FC<LabOrderStatusTimelineProps> = ({ history
       {sorted.map((entry: HistoryEntry, index: number) => {
         const isLast = index === sorted.length - 1;
         return (
-          <div key={entry.id} className="flex gap-3">
+          <div key={`${entry.id ?? ''}-${index}`} className="flex gap-3">
             <div className="flex flex-col items-center shrink-0">
               <div
                 className={`size-2.5 rounded-full mt-1.5 shrink-0 ${
@@ -74,7 +74,11 @@ const LabOrderStatusTimeline: React.FC<LabOrderStatusTimelineProps> = ({ history
                 {entry.notes && (
                   <p className="text-sm text-[#0f0f12] leading-[1.5]">{entry.notes}</p>
                 )}
-                <p className="text-xs text-[#7d7d87] mt-0.5">{entry.user?.name || '—'}</p>
+                <p className="text-xs text-[#7d7d87] mt-0.5">
+                  {entry.user
+                    ? [entry.user.name, entry.user.last_name].filter(Boolean).join(' ')
+                    : '—'}
+                </p>
               </div>
             </div>
           </div>

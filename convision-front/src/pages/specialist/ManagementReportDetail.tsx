@@ -68,7 +68,7 @@ const ManagementReportDetail: React.FC = () => {
       }),
     onSuccess: () => {
       toast({ title: 'Registro guardado', description: 'El informe de gestión fue actualizado.' });
-      queryClient.invalidateQueries({ queryKey: ['management-report'] });
+      queryClient.removeQueries({ queryKey: ['management-report'] });
       navigate(isAdmin ? '/admin/management-report' : '/specialist/management-report');
     },
     onError: (err: unknown) => {

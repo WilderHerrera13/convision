@@ -3,8 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Eye, Search, FlaskConical } from 'lucide-react';
+import { Plus, Eye, FlaskConical, Search } from 'lucide-react';
 import {
   laboratoryOrderService,
   LaboratoryOrder,
@@ -41,25 +48,25 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-interface MetricCardProps {
+interface StatCardProps {
   label: string;
   count: number;
+  colorClass: string;
   active: boolean;
   onClick: () => void;
 }
 
-function MetricCard({ label, count, active, onClick }: MetricCardProps) {
+function StatCard({ label, count, colorClass, active, onClick }: StatCardProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left p-4 rounded-lg border transition-all cursor-pointer ${
-        active
-          ? 'border-[#8753ef] bg-[#f1edff]'
-          : 'border-[#e5e5e9] bg-white hover:border-[#8753ef]/40'
-      }`}
+      className={cn(
+        'w-full text-left p-5 rounded-xl border transition-all cursor-pointer',
+        active ? 'border-[#8753ef] bg-[#f1edff]' : 'border-[#e5e5e9] bg-white hover:border-[#8753ef]/40',
+      )}
     >
       <p className="text-[12px] text-[#7d7d87]">{label}</p>
-      <p className={`text-[28px] font-bold mt-1 leading-none ${active ? 'text-[#8753ef]' : 'text-[#121215]'}`}>
+      <p className={cn('text-[32px] font-bold mt-1 leading-none', active ? 'text-[#8753ef]' : colorClass)}>
         {count}
       </p>
     </button>
@@ -79,11 +86,7 @@ const LabOrders: React.FC = () => {
     queryKey: ['lab-orders-stats'],
     queryFn: () => laboratoryOrderService.getLaboratoryOrderStats(),
     onError: () =>
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las estadísticas.',
-        variant: 'destructive',
-      }),
+      toast({ title: 'Error', description: 'No se pudieron cargar las estadísticas.', variant: 'destructive' }),
   });
 
   const { data, isLoading } = useQuery({
@@ -101,12 +104,10 @@ const LabOrders: React.FC = () => {
   });
 
   const orders: LaboratoryOrder[] = data?.data ?? [];
-  // Go API returns pagination fields at the top level (total, last_page, current_page).
-  // Laravel API wraps them under "meta". Support both shapes.
   const total: number = (data?.total ?? data?.meta?.total ?? 0) as number;
   const lastPage: number = (data?.last_page ?? data?.meta?.last_page ?? 1) as number;
-  const fromItem: number = (data?.from ?? data?.meta?.from ?? 0) as number;
-  const toItem: number = (data?.to ?? data?.meta?.to ?? 0) as number;
+  const fromItem: number = (data?.from || data?.meta?.from || (total > 0 ? (page - 1) * PER_PAGE + 1 : 0)) as number;
+  const toItem: number = (data?.to || data?.meta?.to || (total > 0 ? Math.min(page * PER_PAGE, total) : 0)) as number;
 
   const inLabCount =
     (statsData?.sent_to_lab ?? 0) + (statsData?.in_transit ?? 0) + (statsData?.in_quality ?? 0);
@@ -119,6 +120,15 @@ const LabOrders: React.FC = () => {
       setActiveMetric(metric);
       setStatusFilter(status);
     }
+    setPage(1);
+  };
+
+  const hasActiveFilters = !!(statusFilter || search);
+
+  const clearFilters = () => {
+    setStatusFilter('');
+    setActiveMetric(null);
+    setSearch('');
     setPage(1);
   };
 
@@ -146,10 +156,12 @@ const LabOrders: React.FC = () => {
       ),
     },
     {
-      id: 'sede',
-      header: 'Sede',
+      id: 'laboratory',
+      header: 'Laboratorio',
       type: 'text',
-      cell: () => <span className="text-[13px] text-[#7d7d87]">Sede Principal</span>,
+      cell: (order) => (
+        <span className="text-[13px] text-[#7d7d87]">{order.laboratory?.name || '—'}</span>
+      ),
     },
     {
       id: 'status',
@@ -173,7 +185,8 @@ const LabOrders: React.FC = () => {
       type: 'actions',
       cell: (order) => (
         <button
-          className="flex items-center justify-center size-8 rounded-[6px] bg-[#f1edff] border border-[#8753ef]/30 text-[#8753ef] hover:opacity-80 transition-colors"
+          className="flex items-center justify-center size-8 rounded-[6px] border text-[#8753ef] hover:opacity-80 transition-colors"
+          style={{ backgroundColor: '#f1edff', borderColor: '#8753ef4d' }}
           onClick={(e) => { e.stopPropagation(); navigate(`/receptionist/lab-orders/${order.id}`); }}
           title="Ver detalle"
         >
@@ -197,35 +210,72 @@ const LabOrders: React.FC = () => {
       }
     >
       <div className="space-y-4">
-        <p className="text-[11px] text-[#7d7d87]">
-          Toca una métrica para filtrar la tabla por ese estado
-        </p>
+        <p className="text-[11px] text-[#7d7d87]">Toca una métrica para filtrar la tabla por ese estado</p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MetricCard
+          <StatCard
             label="Pendiente envío"
             count={statsData?.pending ?? 0}
+            colorClass="text-[#121215]"
             active={activeMetric === 'pending'}
             onClick={() => handleMetricClick('pending', 'pending')}
           />
-          <MetricCard
+          <StatCard
             label="En laboratorio"
             count={inLabCount}
+            colorClass="text-[#121215]"
             active={activeMetric === 'in_lab'}
-            onClick={() => handleMetricClick('in_lab', '')}
+            onClick={() => handleMetricClick('in_lab', 'sent_to_lab')}
           />
-          <MetricCard
+          <StatCard
             label="Listo para entrega"
             count={statsData?.ready_for_delivery ?? 0}
+            colorClass="text-[#121215]"
             active={activeMetric === 'ready_for_delivery'}
             onClick={() => handleMetricClick('ready_for_delivery', 'ready_for_delivery')}
           />
-          <MetricCard
+          <StatCard
             label="Cartera"
             count={statsData?.portfolio ?? 0}
+            colorClass="text-[#121215]"
             active={activeMetric === 'portfolio'}
             onClick={() => handleMetricClick('portfolio', 'portfolio')}
           />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={statusFilter || 'all'}
+            onValueChange={(v) => {
+              setStatusFilter(v === 'all' ? '' : v);
+              setActiveMetric(null);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-8 text-[12px] w-[180px] border-[#e5e5e9]">
+              <SelectValue placeholder="Todos los estados" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="pending">Pendiente</SelectItem>
+              <SelectItem value="in_process">En proceso</SelectItem>
+              <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
+              <SelectItem value="in_transit">En tránsito</SelectItem>
+              <SelectItem value="in_quality">En calidad</SelectItem>
+              <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
+              <SelectItem value="delivered">Entregado</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <button
+              className="text-[12px] text-[#7d7d87] hover:text-[#8753ef] transition-colors"
+              onClick={clearFilters}
+            >
+              × Limpiar filtros
+            </button>
+          )}
         </div>
 
         <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
@@ -263,7 +313,9 @@ const LabOrders: React.FC = () => {
             emptyStateContent={
               <div className="flex flex-col items-center justify-center py-12 text-[#7d7d87] text-sm">
                 <FlaskConical className="h-8 w-8 mb-2 text-gray-300" />
-                No hay órdenes para mostrar
+                {hasActiveFilters
+                  ? 'Ninguna orden coincide con los filtros aplicados.'
+                  : 'Aún no has registrado órdenes de laboratorio.'}
               </div>
             }
           />

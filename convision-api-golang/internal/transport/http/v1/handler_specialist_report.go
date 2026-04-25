@@ -109,6 +109,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 		to,
 		"",
 		"",
+		false,
 		page,
 		perPage,
 	)

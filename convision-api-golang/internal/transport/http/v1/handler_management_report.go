@@ -44,6 +44,7 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 		c.Query("end_date"),
 		c.Query("status"),
 		c.Query("consultation_type"),
+		c.Query("pending_report") == "true",
 		page, perPage,
 	)
 	if err != nil {

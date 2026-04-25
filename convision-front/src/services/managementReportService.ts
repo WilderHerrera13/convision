@@ -53,6 +53,7 @@ export type ListParams = {
   status?: AppointmentStatus;
   consultationType?: ConsultationType;
   specialistId?: string | number;
+  pendingReport?: boolean;
 };
 
 export const CONSULTATION_TYPE_OPTIONS: {
@@ -105,6 +106,7 @@ export const managementReportService = {
     if (params.status) query.status = params.status;
     if (params.consultationType) query.consultation_type = params.consultationType;
     if (params.specialistId) query.specialist_id = params.specialistId;
+    if (params.pendingReport) query.pending_report = 'true';
 
     const response = await api.get('/api/v1/management-report', { params: query });
     return response.data;

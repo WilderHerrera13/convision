@@ -247,6 +247,8 @@ func (r *AppointmentRepository) List(filters map[string]any, page, perPage int) 
 				"(appointments.specialist_id = ? OR appointments.taken_by_id = ?)",
 				value, value,
 			)
+		case "_pending_report":
+			q = q.Where("(appointments.consultation_type IS NULL OR appointments.consultation_type = '')")
 		default:
 			if !appointmentFilterAllowlist[field] {
 				continue

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, Pencil, Search, Trash2, Loader2 } from 'lucide-react';
+import { Eye, Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import {
@@ -72,6 +72,7 @@ const ManagementReport: React.FC = () => {
         perPage: PER_PAGE,
         search: search.trim() || undefined,
         specialistId: specialistId !== 'all' ? specialistId : undefined,
+        pendingReport: !isAdmin,
       }),
     placeholderData: (prev) => prev,
   });
@@ -201,24 +202,6 @@ const ManagementReport: React.FC = () => {
                               className="inline-flex size-8 items-center justify-center rounded-md bg-[#e5f0ff] text-[#3a71f7] hover:bg-[#d7e6ff] transition-colors"
                             >
                               <Eye className="size-3.5" />
-                            </button>
-                            {!isAdmin && (
-                            <button
-                              type="button"
-                              aria-label="Editar"
-                              onClick={() => navigate(`/specialist/management-report/${row.id}`)}
-                              className="inline-flex size-8 items-center justify-center rounded-md bg-convision-background text-convision-text-secondary hover:bg-convision-border-subtle transition-colors"
-                            >
-                              <Pencil className="size-3.5" />
-                            </button>
-                            )}
-                            <button
-                              type="button"
-                              aria-label="Eliminar"
-                              disabled
-                              className="inline-flex size-8 items-center justify-center rounded-md bg-[#fdeaea] text-[#d94545] disabled:opacity-60"
-                            >
-                              <Trash2 className="size-3.5" />
                             </button>
                           </div>
                         </TableCell>
