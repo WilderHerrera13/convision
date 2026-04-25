@@ -5,6 +5,8 @@ import AdminLayout from '@/layouts/AdminLayout';
 import Dashboard from '@/pages/admin/Dashboard';
 import SpecialistDashboard from '@/pages/specialist/SpecialistDashboard';
 import SpecialistAppointmentDetail from '@/pages/specialist/SpecialistAppointmentDetail';
+import SpecialistAppointmentsPage from '@/pages/specialist/SpecialistAppointmentsPage';
+import SpecialistAppointmentDetailPage from '@/pages/specialist/SpecialistAppointmentDetailPage';
 import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
 import ManagementReport from '@/pages/specialist/ManagementReport';
 import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
@@ -524,11 +526,11 @@ const router = createBrowserRouter([
           },
           {
             path: "appointments",
-            element: <Appointments />,
+            element: <SpecialistAppointmentsPage />,
           },
           {
             path: "appointments/:id",
-            element: <SpecialistAppointmentDetail />,
+            element: <SpecialistAppointmentDetailPage />,
           },
           {
             path: "management-report",
