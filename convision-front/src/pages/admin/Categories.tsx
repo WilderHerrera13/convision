@@ -637,7 +637,7 @@ const Categories: React.FC = () => {
               Esta acción no se puede deshacer. La categoría "{selectedCategory?.name}" será eliminada permanentemente.
               {selectedCategory?.products_count && selectedCategory.products_count > 0 && (
                 <span className="block mt-2 text-destructive font-medium">
-                  ⚠️ Esta categoría tiene {selectedCategory.products_count} productos asociados.
+                  Esta categoria tiene {selectedCategory.products_count} productos asociados.
                 </span>
               )}
             </AlertDialogDescription>

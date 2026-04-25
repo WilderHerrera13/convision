@@ -516,7 +516,7 @@ const NewEvolutionForm: React.FC<NewEvolutionFormProps> = ({
             {hasAnyErrors && (
               <Paper sx={{ p: 2, mb: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca' }}>
                 <Typography variant="h6" sx={{ color: '#dc2626', mb: 1, fontSize: '1rem' }}>
-                  ⚠️ Errores en el formulario
+                  Errores en el formulario
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
                   {allErrors.map((error, index) => (
