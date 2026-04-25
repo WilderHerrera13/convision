@@ -14,31 +14,6 @@ func productResponse(p *domain.Product) gin.H {
 	if p == nil {
 		return gin.H{}
 	}
-
-	// Flat convenience fields derived from associations (nil-safe).
-	brandName := ""
-	if p.Brand != nil {
-		brandName = p.Brand.Name
-	}
-
-	var lensTypeName, materialName, treatmentName string
-	var sphereMin, sphereMax, cylinderMin, cylinderMax float64
-	if p.LensAttributes != nil {
-		if p.LensAttributes.LensType != nil {
-			lensTypeName = p.LensAttributes.LensType.Name
-		}
-		if p.LensAttributes.Material != nil {
-			materialName = p.LensAttributes.Material.Name
-		}
-		if p.LensAttributes.Treatment != nil {
-			treatmentName = p.LensAttributes.Treatment.Name
-		}
-		sphereMin = p.LensAttributes.SphereMin
-		sphereMax = p.LensAttributes.SphereMax
-		cylinderMin = p.LensAttributes.CylinderMin
-		cylinderMax = p.LensAttributes.CylinderMax
-	}
-
 	return gin.H{
 		"id":                  p.ID,
 		"internal_code":       p.InternalCode,
@@ -61,15 +36,6 @@ func productResponse(p *domain.Product) gin.H {
 		"lens_attributes":     p.LensAttributes,
 		"frame_attributes":    p.FrameAttributes,
 		"contact_lens_attributes": p.ContactLensAttributes,
-		// Flat convenience fields for catalog cards (avoid repeated nil-checks on the frontend).
-		"brand_name":       brandName,
-		"lens_type_name":   lensTypeName,
-		"material_name":    materialName,
-		"treatment_name":   treatmentName,
-		"sphere_min":       sphereMin,
-		"sphere_max":       sphereMax,
-		"cylinder_min":     cylinderMin,
-		"cylinder_max":     cylinderMax,
 	}
 }
 
@@ -85,32 +51,6 @@ func productResponseSlice(data []*domain.Product) []gin.H {
 
 func (h *Handler) ListProducts(c *gin.Context) {
 	page, perPage := parsePagination(c)
-
-	// If ?search= is provided, delegate to the Search method so the
-	// frontend can use a single endpoint for both listing and searching.
-	if q := c.Query("search"); q != "" {
-		category := c.Query("category")
-		out, err := h.product.Search(q, category, page, perPage)
-		if err != nil {
-			respondError(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"current_page": out.CurrentPage,
-			"data":         productResponseSlice(out.Data),
-			"last_page":    out.LastPage,
-			"per_page":     out.PerPage,
-			"total":        out.Total,
-			"meta": gin.H{
-				"current_page": out.CurrentPage,
-				"last_page":    out.LastPage,
-				"per_page":     out.PerPage,
-				"total":        out.Total,
-			},
-		})
-		return
-	}
-
 	filters := map[string]any{}
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s

@@ -29,7 +29,6 @@ import (
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
-	"github.com/convision/api/internal/platform/filestore"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	productsvc "github.com/convision/api/internal/product"
@@ -137,7 +136,7 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
+	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, logger)
@@ -165,11 +164,6 @@ func main() {
 	router.Use(middleware.Recovery(logger))
 	router.Use(middleware.Logger(logger))
 
-	storage, localUploads := filestore.NewFromEnv()
-	if localUploads.RootPath != "" {
-		router.Static("/uploads", localUploads.RootPath)
-	}
-
 	// Health-check — publicly accessible
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().UTC()})
@@ -177,7 +171,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, storage)
+	handler := v1.NewHandler(authService, patientService, clinicService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----

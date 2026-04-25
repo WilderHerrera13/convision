@@ -204,6 +204,22 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 	return result, nil
 }
 
+// GetActiveBySpecialist returns the single in-progress appointment for the given specialist.
+// Returns ErrNotFound if no active appointment exists.
+func (r *AppointmentRepository) GetActiveBySpecialist(specialistID uint) (*domain.Appointment, error) {
+	var a domain.Appointment
+	err := r.withRelations(r.db).
+		Where("specialist_id = ? AND status = ?", specialistID, domain.AppointmentStatusInProgress).
+		First(&a).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "appointment"}
+		}
+		return nil, err
+	}
+	return &a, nil
+}
+
 func (r *AppointmentRepository) List(filters map[string]any, page, perPage int) ([]*domain.Appointment, int64, error) {
 	var appointments []*domain.Appointment
 	var total int64

@@ -189,11 +189,6 @@ func (h *Handler) ListInventoryItems(c *gin.Context) {
 			filters["warehouse_id"] = uint(id)
 		}
 	}
-	if v := c.Query("warehouse_location_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["warehouse_location_id"] = uint(id)
-		}
-	}
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
 	}
@@ -263,52 +258,7 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 }
 
 func (h *Handler) GetTotalStock(c *gin.Context) {
-	filters := map[string]any{}
-	if v := c.Query("warehouse_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["warehouse_id"] = uint(id)
-		}
-	}
-	if v := c.Query("warehouse_location_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["warehouse_location_id"] = uint(id)
-		}
-	}
-	out, err := h.inventory.TotalStockPerProduct(filters)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	var totalUnits int64
-	for _, e := range out {
-		totalUnits += e.TotalQuantity
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"data":        out,
-		"total_units": totalUnits,
-	})
-}
-
-func (h *Handler) ListLocationInventoryItems(c *gin.Context) {
-	id, err := parseID(c, "id")
-	if err != nil {
-		return
-	}
-	page, perPage := parsePagination(c)
-	out, err := h.inventory.ListItemsByLocation(id, page, perPage)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, out)
-}
-
-func (h *Handler) GetProductInventorySummary(c *gin.Context) {
-	id, err := parseID(c, "id")
-	if err != nil {
-		return
-	}
-	out, err := h.inventory.GetProductInventorySummary(id)
+	out, err := h.inventory.TotalStock()
 	if err != nil {
 		respondError(c, err)
 		return
@@ -394,48 +344,22 @@ func (h *Handler) DeleteInventoryTransfer(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (h *Handler) CompleteInventoryTransfer(c *gin.Context) {
-	id, err := parseID(c, "id")
-	if err != nil {
-		return
-	}
-	t, err := h.inventory.CompleteTransfer(id)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, t)
-}
-
-func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
-	id, err := parseID(c, "id")
-	if err != nil {
-		return
-	}
-	t, err := h.inventory.CancelTransfer(id)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, t)
-}
-
 // ======== Inventory Adjustments ========
 
 func (h *Handler) AdjustInventory(c *gin.Context) {
 	var input struct {
-		InventoryItemID uint   `json:"inventory_item_id" binding:"required"`
-		Delta           int    `json:"delta"             binding:"required"`
-		Reason          string `json:"reason"`
+		ProductID uint  `json:"product_id" binding:"required"`
+		Quantity  int64 `json:"quantity" binding:"required"`
+		Reason    string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	item, err := h.inventory.AdjustStockByItemID(input.InventoryItemID, input.Delta, input.Reason)
+	result, err := h.inventory.AdjustStock(input.ProductID, input.Quantity, input.Reason)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, result)
 }

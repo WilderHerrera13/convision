@@ -9,9 +9,8 @@ import (
 )
 
 var inventoryTransferFilterAllowlist = map[string]bool{
-	"clinic_id":               true,
 	"status":                  true,
-	"product_id":              true,
+	"lens_id":                 true,
 	"source_location_id":      true,
 	"destination_location_id": true,
 	"transferred_by":          true,
@@ -29,7 +28,6 @@ func NewInventoryTransferRepository(db *gorm.DB) *InventoryTransferRepository {
 
 func (r *InventoryTransferRepository) withRelations(q *gorm.DB) *gorm.DB {
 	return q.
-		Preload("Product").
 		Preload("SourceLocation").
 		Preload("DestinationLocation").
 		Preload("TransferredByUser")
@@ -53,9 +51,14 @@ func (r *InventoryTransferRepository) Create(t *domain.InventoryTransfer) error 
 
 func (r *InventoryTransferRepository) Update(t *domain.InventoryTransfer) error {
 	return r.db.Model(t).Updates(map[string]any{
-		"notes":        t.Notes,
-		"status":       t.Status,
-		"completed_at": t.CompletedAt,
+		"lens_id":                 t.LensID,
+		"source_location_id":      t.SourceLocationID,
+		"destination_location_id": t.DestinationLocationID,
+		"quantity":                t.Quantity,
+		"transferred_by":          t.TransferredBy,
+		"notes":                   t.Notes,
+		"status":                  t.Status,
+		"completed_at":            t.CompletedAt,
 	}).Error
 }
 

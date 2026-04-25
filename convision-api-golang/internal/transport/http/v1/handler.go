@@ -28,7 +28,6 @@ import (
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
 	jwtauth "github.com/convision/api/internal/platform/auth"
-	"github.com/convision/api/internal/platform/filestore"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	"github.com/convision/api/internal/product"
@@ -124,7 +123,6 @@ type Handler struct {
 	bulkImport    *bulkimport.Service
 	bulkImportLog domain.BulkImportLogRepository
 	revokedTokens domain.RevokedTokenRepository
-	storage       filestore.Storage
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -156,10 +154,9 @@ func NewHandler(
 	noteSvc *notesvc.Service,
 	dailyActivitySvc *dailyactivitysvc.Service,
 	dashboardRepo *postgresplatform.DashboardRepository,
-	bulkImportSvc *bulkimport.Service,
+	bulkImportSvc    *bulkimport.Service,
 	bulkImportLogRepo domain.BulkImportLogRepository,
-	revokedTokens domain.RevokedTokenRepository,
-	storage filestore.Storage,
+	revokedTokens    domain.RevokedTokenRepository,
 ) *Handler {
 	return &Handler{
 		auth:          auth,
@@ -192,7 +189,6 @@ func NewHandler(
 		bulkImport:    bulkImportSvc,
 		bulkImportLog: bulkImportLogRepo,
 		revokedTokens: revokedTokens,
-		storage:       storage,
 	}
 }
 
@@ -523,24 +519,10 @@ func parseApiFilters(c *gin.Context) map[string]any {
 
 // ListPatients godoc
 // GET /api/v1/patients
-// Supports ?search= for OR-mode search across first_name, last_name, identification, phone.
 func (h *Handler) ListPatients(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	// ?search= shortcut: OR-mode ILIKE across name, identification, phone fields.
-	var filters map[string]any
-	if term := c.Query("search"); term != "" {
-		filters = map[string]any{
-			"first_name":     term,
-			"last_name":      term,
-			"identification": term,
-			"phone":          term,
-			"_or_mode":       "true",
-		}
-	} else {
-		filters = parseApiFilters(c)
-	}
+	filters := parseApiFilters(c)
 
 	out, err := h.patient.List(filters, page, perPage)
 	if err != nil {
