@@ -78,6 +78,8 @@ func (r *AppointmentRepository) Update(a *domain.Appointment) error {
 		"left_eye_annotation_paths":  a.LeftEyeAnnotationPaths,
 		"right_eye_annotation_paths": a.RightEyeAnnotationPaths,
 		"lens_annotation_paths":     a.LensAnnotationPaths,
+		"started_at":                a.StartedAt,
+		"completed_at":              a.CompletedAt,
 	}).Error
 }
 
@@ -206,11 +208,12 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 }
 
 // GetActiveBySpecialist returns the single in-progress appointment for the given specialist.
+// It matches on taken_by_id — the user who actually took the appointment.
 // Returns ErrNotFound if no active appointment exists.
 func (r *AppointmentRepository) GetActiveBySpecialist(specialistID uint) (*domain.Appointment, error) {
 	var a domain.Appointment
 	err := r.withRelations(r.db).
-		Where("specialist_id = ? AND status = ?", specialistID, domain.AppointmentStatusInProgress).
+		Where("taken_by_id = ? AND status = ?", specialistID, domain.AppointmentStatusInProgress).
 		First(&a).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
