@@ -9,8 +9,11 @@ import SpecialistAppointmentsPage from '@/pages/specialist/SpecialistAppointment
 import SpecialistAppointmentDetailPage from '@/pages/specialist/SpecialistAppointmentDetailPage';
 import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
 import ClinicalHistoryNewConsultationPage from '@/pages/specialist/ClinicalHistoryNewConsultationPage';
+import ClinicalHistoryFollowUpPage from '@/pages/specialist/ClinicalHistoryFollowUpPage';
 import ManagementReport from '@/pages/specialist/ManagementReport';
 import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
+import QualityReview from '@/pages/specialist/QualityReview';
+import QualityReviewDetail from '@/pages/specialist/QualityReviewDetail';
 import Login from '@/pages/Login';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -60,6 +63,7 @@ import ClinicalHistory from "./pages/admin/ClinicalHistory";
 import Sales from "./pages/admin/Sales";
 import SaleDetail from "./pages/admin/SaleDetail";
 import ReceptionistSaleDetail from "./pages/receptionist/SaleDetail";
+import ReceptionistSales from "./pages/receptionist/Sales";
 import NewPatient from "./pages/receptionist/NewPatient";
 import EditPatient from "./pages/receptionist/EditPatient";
 import Purchases from "./pages/admin/Purchases";
@@ -90,6 +94,15 @@ import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import LaboratoryOrders from '@/pages/admin/LaboratoryOrders';
 import LaboratoryOrderDetail from '@/pages/admin/LaboratoryOrderDetail';
 import NewLaboratoryOrder from '@/pages/admin/NewLaboratoryOrder';
+
+// Receptionist lab order pages
+import ReceptionistLabOrders from '@/pages/receptionist/LabOrders';
+import ReceptionistLabOrderDetail from '@/pages/receptionist/LabOrderDetail';
+import ConfirmShipment from '@/pages/receptionist/ConfirmShipment';
+import ConfirmReception from '@/pages/receptionist/ConfirmReception';
+import AssignDrawer from '@/pages/receptionist/AssignDrawer';
+import ConfirmDelivery from '@/pages/receptionist/ConfirmDelivery';
+import NotifyClient from '@/pages/receptionist/NotifyClient';
 
 // Import the purchases dashboard and new modules
 import PurchasesDashboard from '@/pages/admin/PurchasesDashboard';
@@ -536,6 +549,10 @@ const router = createBrowserRouter([
             element: <ClinicalHistoryNewConsultationPage />,
           },
           {
+            path: "appointments/:id/follow-up",
+            element: <ClinicalHistoryFollowUpPage />,
+          },
+          {
             path: "management-report",
             element: <ManagementReport />,
           },
@@ -550,6 +567,14 @@ const router = createBrowserRouter([
           {
             path: "catalog",
             element: <Catalog />,
+          },
+          {
+            path: "laboratory-orders",
+            element: <QualityReview />,
+          },
+          {
+            path: "laboratory-orders/:id",
+            element: <QualityReviewDetail />,
           },
           {
             path: "profile",
@@ -619,7 +644,7 @@ const router = createBrowserRouter([
           },
           {
             path: "sales",
-            element: <Sales />,
+            element: <ReceptionistSales />,
           },
           {
             path: "sales/catalog",
@@ -632,6 +657,34 @@ const router = createBrowserRouter([
           {
             path: "sales/:id",
             element: <ReceptionistSaleDetail />,
+          },
+          {
+            path: "lab-orders",
+            element: <ReceptionistLabOrders />,
+          },
+          {
+            path: "lab-orders/:id",
+            element: <ReceptionistLabOrderDetail />,
+          },
+          {
+            path: "lab-orders/:id/confirm-shipment",
+            element: <ConfirmShipment />,
+          },
+          {
+            path: "lab-orders/:id/confirm-reception",
+            element: <ConfirmReception />,
+          },
+          {
+            path: "lab-orders/:id/assign-drawer",
+            element: <AssignDrawer />,
+          },
+          {
+            path: "lab-orders/:id/confirm-delivery",
+            element: <ConfirmDelivery />,
+          },
+          {
+            path: "lab-orders/:id/notify-client",
+            element: <NotifyClient />,
           },
           {
             path: "cash-closes",

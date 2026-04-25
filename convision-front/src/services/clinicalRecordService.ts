@@ -137,3 +137,42 @@ export const upsertPrescription = (appointmentId: number, data: PrescriptionInpu
 
 export const signClinicalRecord = (appointmentId: number, professionalTp: string) =>
   api.post(`/api/v1/appointments/${appointmentId}/clinical-record/sign`, { professional_tp: professionalTp });
+
+export interface FollowUpAnamnesisInput {
+  control_reason: string;
+  correction_satisfaction?: 'muy_buena' | 'buena' | 'regular' | 'mala';
+  subjective_changes?: string;
+  new_medications?: string;
+  systemic_changes?: string;
+  correction_usage?: string;
+  daily_usage_hours?: string;
+  obs_before_exam?: string;
+}
+
+export interface FollowUpEvolutionInput {
+  diagnostic_evolution: 'estable' | 'progresa' | 'mejora' | 'remite';
+  evolution_description?: string;
+  new_diag_code?: string;
+  new_diag_desc?: string;
+  optical_decision?: 'mantener' | 'actualizar' | 'suspender';
+  next_control_date?: string;
+  next_control_interval?: string;
+  patient_education?: string;
+}
+
+export interface FollowUpFormulaInput {
+  formula_decision: 'mantener' | 'actualizar';
+  new_validity_months?: number;
+}
+
+export const upsertFollowUpAnamnesis = (appointmentId: number, data: FollowUpAnamnesisInput) =>
+  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/follow-up/anamnesis`, data);
+
+export const upsertFollowUpEvolution = (appointmentId: number, data: FollowUpEvolutionInput) =>
+  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/follow-up/evolution`, data);
+
+export const upsertFollowUpFormula = (appointmentId: number, data: FollowUpFormulaInput) =>
+  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/follow-up/formula`, data);
+
+export const getPreviousClinicalRecord = (patientId: number, currentAppointmentId: number) =>
+  api.get<ClinicalRecord>(`/api/v1/patients/${patientId}/clinical-records/previous?exclude_appointment_id=${currentAppointmentId}`);
