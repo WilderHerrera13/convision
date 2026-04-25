@@ -45,13 +45,16 @@ type PaymentInput struct {
 
 // ItemInput represents a generic sale line item.
 type ItemInput struct {
-	LensID   *uint   `json:"lens_id"`
-	Name     string  `json:"name"`
-	Quantity int     `json:"quantity"`
-	Price    float64 `json:"price"`
-	Discount float64 `json:"discount"`
-	Total    float64 `json:"total"`
-	Notes    string  `json:"notes"`
+	LensID      *uint   `json:"lens_id"`
+	ProductID   *uint   `json:"product_id"`
+	ProductType string  `json:"product_type"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Quantity    int     `json:"quantity"`
+	Price       float64 `json:"price"`
+	Discount    float64 `json:"discount"`
+	Total       float64 `json:"total"`
+	Notes       string  `json:"notes"`
 }
 
 // CreateInput holds the validated data for creating a sale.
@@ -196,12 +199,16 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 			itemTotal = it.Price*float64(qty) - it.Discount
 		}
 		items[i] = domain.SaleItem{
-			LensID:   it.LensID,
-			Quantity: qty,
-			Price:    it.Price,
-			Discount: it.Discount,
-			Total:    itemTotal,
-			Notes:    it.Notes,
+			LensID:      it.LensID,
+			ProductID:   it.ProductID,
+			ProductType: it.ProductType,
+			Name:        it.Name,
+			Description: it.Description,
+			Quantity:    qty,
+			Price:       it.Price,
+			Discount:    it.Discount,
+			Total:       itemTotal,
+			Notes:       it.Notes,
 		}
 		subtotal += it.Price * float64(qty)
 		discount += it.Discount
