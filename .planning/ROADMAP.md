@@ -170,6 +170,70 @@ Plans:
 - [ ] 09-04: Unit tests — inventory, laboratory, cash-close, finance services
 - [ ] 09-05: Integration tests — HTTP handler suites for all feature groups (role guards + contract validation)
 
+### Phase 10: Unified Table Design — Entity Tables
+**Goal**: Standardize all entity list tables across the frontend to use the centralized `EntityTable` component with the Figma-matching design (Figma node 241:502): `tableLayout='ledger'`, `ledgerBorderMode='figma'`, `paginationVariant='figma'`. Every list page will use EntityTable with its toolbar, search, sort buttons, and Figma-spec pagination — no custom pagination or DataTable wiring outside EntityTable.
+**Depends on**: Phase 9 (or can run independently — frontend-only change)
+**Requirements**: [TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05]
+**Success Criteria** (what must be TRUE):
+  1. `EntityTable` defaults are `tableLayout='ledger'`, `ledgerBorderMode='figma'`, `paginationVariant='figma'` — no per-page callsite config needed
+  2. DataTable sort button in ledger/figma mode is styled to match: 11px header text preserved, sort icon is 12px and muted, no ghost button wrapper artifacts
+  3. All admin entity list pages (Brands, Categories, Products, Patients, Quotes, Sales, Purchases, LaboratoryOrders, Expenses, Payrolls, ServiceOrders, DiscountRequests, CashCloses, CashClosesByAdvisor, CashTransfers, DailyReports) use EntityTable
+  4. All receptionist entity list pages (LabOrders, Patients, Quotes, Sales, DiscountRequests, CashRegisterHistory, DailyReportHistory) use EntityTable
+  5. No page-level custom pagination, page/perPage/search useState, or direct useQuery for table data remains outside EntityTable
+**Plans**: 6 plans
+
+Plans:
+- [ ] 10-01: Core — EntityTable defaults + DataTable ledger sort button
+- [ ] 10-02: Admin entity lists batch 1 — Brands, Categories, Products, CashTransfers
+- [ ] 10-03: Admin entity lists batch 2 — Patients (admin), Quotes, Sales, Purchases
+- [ ] 10-04: Admin entity lists batch 3 — LaboratoryOrders, DailyReports, Expenses, Payrolls, ServiceOrders, DiscountRequests, CashCloses, CashClosesByAdvisor
+- [ ] 10-05: Receptionist entity lists — LabOrders, Patients, Quotes, Sales, DiscountRequests, CashRegisterHistory, DailyReportHistory
+- [ ] 10-06: Shared entity lists — Appointments (receptionist/specialist/admin) + ManagementReport
+
+### Phase 11: Specialist Appointment & Clinical History Flow
+**Goal**: Implement the complete specialist appointment workflow end-to-end: agenda view, appointment detail with status lifecycle (scheduled→in_progress→paused/completed), and the two clinical record flows — New Consultation (4 tabs: Anamnesis, Examen Visual, Diagnóstico, Prescripción) and Follow-up/Control (4 tabs: Anamnesis Control, Examen Comparativo, Evolución Diagnóstica, Actualizar Fórmula). All views must be pixel-perfect Figma matches, all legal requirements from Resolución 1995/1999, Ley 650/2001 Art. 24, and RIPS Res. 2275/2023 must be met, and Go backend unit tests must cover all new service logic.
+**Depends on**: Phase 10 (or can run in parallel — independent feature scope)
+**Requirements**: [CITA-01…CITA-08]
+**Success Criteria** (what must be TRUE):
+  1. Specialist can view their agenda (empty state + list with search/filter) matching Figma exactly
+  2. Appointment detail shows status lifecycle: Tomar cita → En curso (with live timer) → Pausar / Completar
+  3. Conflict modal appears when trying to take a second appointment while one is in progress
+  4. New Consultation 4-tab clinical form saves all data: Anamnesis, Examen Visual, Diagnóstico+Plan, Prescripción
+  5. Follow-up 4-tab form saves all data: Anamnesis Control, Examen Comparativo, Evolución Diagnóstica, Actualizar Fórmula
+  6. Fórmula Óptica is generated as a legal document (Ley 650/2001) with professional signature, CUPS code, vigencia
+  7. RIPS fields (CUPS, CIE-10, tipo diagnóstico) are captured and stored for billing export
+  8. Go service unit tests cover all clinical history write paths and appointment status transitions
+**Plans**: 8 plans
+
+Plans:
+- [ ] 11-01: Go backend — domain models + DB migrations (ClinicalHistory, Anamnesis, VisualExam, Diagnosis, FollowUp entities)
+- [ ] 11-02: Go backend — service layer (appointment status transitions + clinical history CRUD per step)
+- [ ] 11-03: Go backend — HTTP handlers + routes (agenda, appointment lifecycle, clinical history steps)
+- [ ] 11-04: Go backend — unit tests for all new services (appointment transitions + clinical history)
+- [ ] 11-05: Frontend — specialist agenda page (empty state + list with filter, appointment detail + lifecycle buttons)
+- [ ] 11-06: Frontend — new consultation flow (4-tab form: Anamnesis, Examen Visual, Diagnóstico, Prescripción)
+- [ ] 11-07: Frontend — follow-up/control flow (4-tab form: Anamnesis Control, Examen Comparativo, Evolución Diagnóstica, Actualizar Fórmula)
+- [ ] 11-08: Frontend — prescription legal document preview + digital signature modal
+
+### Phase 12: Sale → LaboratoryOrder Unified Flow
+**Goal**: Unify the post-consultation commercial flow in the Go backend: Sale becomes the single master document, SaleItem supports any product type (lens, frame, accessory), Sale creation auto-creates a LaboratoryOrder when lenses are present, and when the LaboratoryOrder reaches `delivered` the Sale is automatically closed. The Order entity (ORD-xxx) is eliminated as a visible concept — it is not exposed to users and its role is absorbed by Sale and LaboratoryOrder.
+**Depends on**: Phase 9 (or can run independently — isolated backend + frontend change)
+**Requirements**: [SALE-01, SALE-02, SALE-03, SALE-04]
+**Success Criteria** (what must be TRUE):
+  1. `SaleItem` supports `product_id`, `product_type`, `name`, `description` for any product (not just lens)
+  2. `POST /api/v1/sales` auto-creates a `LaboratoryOrder` when any SaleItem has `lens_id` or `product_type = lens`
+  3. `PATCH /api/v1/laboratory-orders/:id/status` with `status=delivered` automatically sets the linked Sale to `completed`
+  4. `Order` entity (ORD-xxx) is removed from all visible API contracts and frontend flows — only Sale and LaboratoryOrder are exposed to users
+  5. Frame-only or accessory-only sales (no lenses) complete immediately without creating a LaboratoryOrder
+  6. All existing LaboratoryOrder status lifecycle tests pass with the new sale_id-only linkage
+**Plans**: 4 plans
+
+Plans:
+- [ ] 12-01: Backend — Domain & DB: SaleItem generic products, remove Order from public API
+- [ ] 12-02: Backend — Sale service orchestrator: auto-create LaboratoryOrder on lens sale
+- [ ] 12-03: Backend — Status sync: LaboratoryOrder delivered → Sale completed + Appointment billing
+- [ ] 12-04: Frontend — Update sale creation + lab order tracker to reflect unified flow
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -183,3 +247,6 @@ Plans:
 | 7. Figma — Bodega & Inventory Module Design | 0/4 | Not started | - |
 | 8. Go Inventory Backend Audit & Hardening | 0/4 | Not started | - |
 | 9. Go Backend Test Suite | 0/5 | Not started | - |
+| 10. Unified Table Design — Entity Tables | 0/5 | Not started | - |
+| 11. Specialist Appointment & Clinical History Flow | 0/8 | Not started | - |
+| 12. Sale → LaboratoryOrder Unified Flow | 0/4 | Not started | - |
