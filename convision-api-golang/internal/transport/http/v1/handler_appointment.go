@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -263,6 +264,48 @@ func (h *Handler) TakeAppointment(c *gin.Context) {
 	}
 
 	a, err := h.appointment.Take(id, claims.UserID)
+	if err != nil {
+		var conflictErr *appointmentsvc.ErrActiveAppointment
+		if errors.As(err, &conflictErr) {
+			c.JSON(http.StatusConflict, gin.H{
+				"conflict":              true,
+				"active_appointment_id": conflictErr.ActiveID,
+				"message":               "Ya tienes una cita en curso",
+			})
+			return
+		}
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAppointmentResource(a))
+}
+
+// CompleteAppointment godoc
+// POST /api/v1/appointments/:id/complete
+func (h *Handler) CompleteAppointment(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	a, err := h.appointment.Complete(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAppointmentResource(a))
+}
+
+// GetActiveAppointment godoc
+// GET /api/v1/appointments/active
+func (h *Handler) GetActiveAppointment(c *gin.Context) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	a, err := h.appointment.GetActive(claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
