@@ -46,10 +46,11 @@ type LaboratoryOrder struct {
 	UpdatedAt               time.Time                  `json:"updated_at"`
 
 	// Associations
-	Laboratory    *Laboratory            `json:"laboratory,omitempty"     gorm:"foreignKey:LaboratoryID"`
-	Patient       *Patient               `json:"patient,omitempty"        gorm:"foreignKey:PatientID"`
-	CreatedByUser *User                  `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
+	Laboratory    *Laboratory                  `json:"laboratory,omitempty"     gorm:"foreignKey:LaboratoryID"`
+	Patient       *Patient                     `json:"patient,omitempty"        gorm:"foreignKey:PatientID"`
+	CreatedByUser *User                        `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
 	StatusHistory []LaboratoryOrderStatusEntry `json:"status_history,omitempty" gorm:"foreignKey:LaboratoryOrderID"`
+	Sale          *Sale                        `json:"sale,omitempty"           gorm:"foreignKey:SaleID"`
 }
 
 // LaboratoryOrderStatusEntry represents a status change event in a laboratory order.
@@ -78,12 +79,14 @@ type LaboratoryRepository interface {
 	Update(l *Laboratory) error
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*Laboratory, int64, error)
+	GetFirstActive() (*Laboratory, error)
 }
 
 // LaboratoryOrderRepository defines persistence operations for LaboratoryOrder.
 type LaboratoryOrderRepository interface {
 	GetByID(id uint) (*LaboratoryOrder, error)
 	GetByOrderNumber(number string) (*LaboratoryOrder, error)
+	GetBySaleID(saleID uint) (*LaboratoryOrder, error)
 	Create(o *LaboratoryOrder) error
 	Update(o *LaboratoryOrder) error
 	Delete(id uint) error
