@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, Plus, X, Eye, Edit, Phone, Mail, Loader2, User, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, X, Eye, Edit, Phone, Mail, Loader2, User, Camera } from 'lucide-react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -28,8 +28,8 @@ import { useNavigate } from 'react-router-dom';
 import { ImageUpload } from "@/components/ui/image-upload";
 import { patientService } from "@/services/patientService";
 import { Avatar } from "@/components/ui/avatar";
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
-import { EmptyState } from '@/components/ui/empty-state';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -93,17 +93,6 @@ const patientSchema = z.object({
 
 type PatientFormValues = z.infer<typeof patientSchema>;
 
-function getPaginationPages(current: number, total: number): (number | '...')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | '...')[] = [1];
-  if (current > 3) pages.push('...');
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
-    pages.push(i);
-  }
-  if (current < total - 2) pages.push('...');
-  pages.push(total);
-  return pages;
-}
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   active: { label: 'Activo', className: 'bg-[#ebf5ef] text-[#228b52]' },
@@ -114,13 +103,10 @@ const Patients: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const perPage = 10;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize forms
@@ -179,31 +165,6 @@ const Patients: React.FC = () => {
       company: '',
       notes: '',
       status: 'active',
-    },
-  });
-
-  // Query to fetch patients
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['patients', page, search, filterStatus],
-    queryFn: async () => {
-      const params: Record<string, string | number | boolean | string[]> = {
-        page,
-        per_page: perPage,
-      };
-
-      if (search && search.length >= 3) {
-        params.s_f = JSON.stringify(['first_name', 'last_name', 'identification', 'email']);
-        params.s_v = JSON.stringify([search, search, search, search]);
-        params.s_o = 'or';
-      }
-
-      if (filterStatus && filterStatus !== 'all') {
-        params.f_f = JSON.stringify(['status']);
-        params.f_v = JSON.stringify([filterStatus]);
-      }
-
-      const response = await api.get('/api/v1/patients', { params });
-      return response.data;
     },
   });
 
@@ -380,16 +341,6 @@ const Patients: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setPage(1); // Reset to first page when searching
-  };
-
-  const clearSearch = () => {
-    setSearch('');
-    setPage(1);
-  };
-
   const viewAppointmentHistory = (patientId: number) => {
     // Navigate to appointments filtered by this patient
     navigate(`/receptionist/appointments?patient=${patientId}`);
@@ -478,7 +429,6 @@ const Patients: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* ── Page header ──────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-[18px] font-semibold text-[#121215]">Pacientes</h1>
@@ -492,12 +442,8 @@ const Patients: React.FC = () => {
         </Button>
       </div>
 
-      {/* ── Filter row ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Select
-          value={filterStatus}
-          onValueChange={(v) => { setFilterStatus(v); setPage(1); }}
-        >
+        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v)}>
           <SelectTrigger className="w-[148px] h-9 text-[13px] bg-white border-[#e5e5e9]">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
@@ -507,133 +453,35 @@ const Patients: React.FC = () => {
             <SelectItem value="inactive">Inactivo</SelectItem>
           </SelectContent>
         </Select>
-
-        <Select defaultValue="all">
-          <SelectTrigger className="w-[180px] h-9 text-[13px] bg-white border-[#e5e5e9]">
-            <SelectValue placeholder="Especialista" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los especialistas</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select defaultValue="all">
-          <SelectTrigger className="w-[164px] h-9 text-[13px] bg-white border-[#e5e5e9]">
-            <SelectValue placeholder="Última visita" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Cualquier fecha</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="ml-auto flex items-center h-9 px-3 rounded-md border border-[#e5e5e9] bg-white">
-          <span className="text-[13px] text-[#7d7d87]">
-            {data?.meta?.total ?? 0} pacientes
-          </span>
-        </div>
       </div>
 
-      {/* ── Table card ───────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e5e9]">
-          <div>
-            <h2 className="text-[15px] font-semibold text-[#121215]">Pacientes</h2>
-            <p className="text-[12px] text-[#b4b5bc] mt-0.5">
-              Base de datos · {data?.meta?.total ?? 0} registros
-            </p>
-          </div>
-          <div className="relative w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
-            <Input
-              placeholder="Buscar paciente..."
-              value={search}
-              onChange={handleSearch}
-              className="pl-9 h-[34px] text-[13px] border-[#e5e5e9] bg-[#f7f7f9] focus:bg-white"
-            />
-            {search && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#b4b5bc] hover:text-[#7d7d87]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Table */}
-        <DataTable
-          columns={columns}
-          data={data?.data || []}
-          loading={isLoading}
-          emptyStateContent={
-            search.trim() || filterStatus !== 'all' ? (
-              <EmptyState
-                variant="table-filter"
-                onAction={() => { setSearch(''); setFilterStatus('all'); setPage(1); }}
-              />
-            ) : (
-              <EmptyState
-                variant="patients"
-                onAction={() => navigate('/receptionist/patients/new')}
-              />
-            )
+      <EntityTable<Patient>
+        columns={columns}
+        queryKeyBase="patients"
+        fetcher={async ({ page, per_page, search }) => {
+          const params: Record<string, unknown> = { page, per_page };
+          if (search && search.length >= 3) {
+            params.s_f = JSON.stringify(['first_name', 'last_name', 'identification', 'email']);
+            params.s_v = JSON.stringify([search, search, search, search]);
+            params.s_o = 'or';
           }
-        />
-
-        {/* Pagination */}
-        {data?.meta && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[#e5e5e9]">
-            <p className="text-[12px] text-[#7d7d87]">
-              Mostrando{' '}
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-convision-light text-convision-primary font-semibold text-[12px]">
-                {data.meta.from ?? 0}–{data.meta.to ?? 0}
-              </span>{' '}
-              de {data.meta.total} registros
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              {getPaginationPages(page, data.meta.last_page).map((p, idx) =>
-                p === '...' ? (
-                  <span
-                    key={`dot-${idx}`}
-                    className="h-8 w-8 flex items-center justify-center text-[13px] text-[#7d7d87]"
-                  >
-                    ···
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    className={cn(
-                      'h-8 w-8 flex items-center justify-center rounded-[6px] text-[13px] font-medium transition-colors',
-                      page === p
-                        ? 'bg-[#121212] text-white'
-                        : 'border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8]'
-                    )}
-                    onClick={() => setPage(Number(p))}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-              <button
-                className="h-8 w-8 flex items-center justify-center rounded-[6px] border border-[#e5e5e9] bg-white text-[#7d7d87] hover:bg-[#f5f5f8] disabled:opacity-40 transition-colors"
-                disabled={page === data.meta.last_page}
-                onClick={() => setPage(page + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+          if (filterStatus && filterStatus !== 'all') {
+            params.f_f = JSON.stringify(['status']);
+            params.f_v = JSON.stringify([filterStatus]);
+          }
+          const response = await api.get('/api/v1/patients', { params });
+          return { data: response.data.data, last_page: response.data.meta?.last_page ?? 1, total: response.data.meta?.total };
+        }}
+        searchPlaceholder="Buscar paciente..."
+        extraFilters={{ filterStatus }}
+        onRowClick={(patient) => navigate(`/receptionist/patients/${patient.id}/edit`)}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Pacientes</span>
+            <span className="text-[11px] text-[#7d7d87]">Base de datos</span>
           </div>
-        )}
-      </div>
+        }
+      />
 
       {/* Create Patient Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>

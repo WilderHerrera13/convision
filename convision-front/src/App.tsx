@@ -28,8 +28,6 @@ import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import AppointmentDetail from './pages/receptionist/AppointmentDetail';
 import NewSale from './pages/receptionist/NewSale';
 import SalesCatalog from "./pages/receptionist/SalesCatalog";
-import OrderList from "./pages/receptionist/OrderList";
-
 // Quotes components
 import AdminQuotes from "./pages/admin/Quotes";
 import ReceptionistQuotes from "./pages/receptionist/Quotes";
@@ -629,10 +627,6 @@ const router = createBrowserRouter([
           {
             path: "sales/:id",
             element: <ReceptionistSaleDetail />,
-          },
-          {
-            path: "orders",
-            element: <OrderList />,
           },
           {
             path: "cash-closes",

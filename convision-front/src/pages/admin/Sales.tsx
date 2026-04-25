@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,10 +58,7 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { saleService, Sale, PaymentMethod, SaleStats, SaleFilterParams } from '@/services/saleService';
-import {
-  DataTable,
-  DataTableColumnDef,
-} from '@/components/ui/data-table';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import PageLayout from '@/components/layouts/PageLayout';
@@ -87,13 +85,10 @@ const getStatusColor = (status: string): BadgeVariantProps['variant'] => {
 const Sales: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [sales, setSales] = useState<Sale[]>([]);
+  const queryClient = useQueryClient();
   const [todayStats, setTodayStats] = useState<SaleStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -105,53 +100,20 @@ const Sales: React.FC = () => {
     date_to: '',
     patient_id: undefined,
   });
-  
+
   // Payment form state
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [paymentNotes, setPaymentNotes] = useState('');
-  const [perPage, setPerPage] = useState(10);
   const [cancelSaleTarget, setCancelSaleTarget] = useState<number | null>(null);
   const [removePaymentTarget, setRemovePaymentTarget] = useState<{ saleId: number; paymentId: number } | null>(null);
 
-  // Load sales on component mount and filter changes
   useEffect(() => {
-    fetchSales();
     fetchTodayStats();
     fetchPaymentMethods();
-  }, [currentPage, perPage, filters]);
-
-  const fetchSales = async () => {
-    setLoading(true);
-    try {
-      // Create params with current page and per_page
-      const params: SaleFilterParams = {
-        page: currentPage,
-        per_page: perPage,
-      };
-      
-      // Only add filter values that aren't empty strings
-      if (filters.status) params.status = filters.status;
-      if (filters.payment_status) params.payment_status = filters.payment_status;
-      if (filters.date_from && filters.date_from !== '') params.date_from = filters.date_from;
-      if (filters.date_to && filters.date_to !== '') params.date_to = filters.date_to;
-      if (filters.patient_id) params.patient_id = filters.patient_id;
-
-      const response = await saleService.getSales(params);
-      setSales(response.data);
-      setTotalPages(response.last_page);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las ventas.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, []);
 
   const fetchTodayStats = async () => {
     try {
@@ -204,7 +166,7 @@ const Sales: React.FC = () => {
         title: 'Venta cancelada',
         description: 'La venta ha sido cancelada exitosamente.',
       });
-      fetchSales();
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
       fetchTodayStats();
     } catch (error) {
       toast({
@@ -225,7 +187,7 @@ const Sales: React.FC = () => {
         title: 'Pago eliminado',
         description: 'El pago ha sido eliminado exitosamente.',
       });
-      fetchSales();
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
       fetchTodayStats();
     } catch (error) {
       toast({
@@ -274,7 +236,7 @@ const Sales: React.FC = () => {
       });
       
       setPaymentModalOpen(false);
-      fetchSales();
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
       fetchTodayStats();
     } catch (error) {
       toast({
@@ -286,8 +248,6 @@ const Sales: React.FC = () => {
   };
 
   const applyFilters = () => {
-    setCurrentPage(1);
-    fetchSales();
     setFilterModalOpen(false);
   };
 
@@ -299,7 +259,6 @@ const Sales: React.FC = () => {
       date_to: '',
       patient_id: undefined,
     });
-    setCurrentPage(1);
   };
 
   const goToNewSale = () => {
@@ -472,24 +431,6 @@ const Sales: React.FC = () => {
       title="Gestión de Ventas"
       actions={
         <div className="flex gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setCurrentPage(1);
-              setTimeout(fetchSales, 0);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Items por página" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-              <SelectItem value="100">100 por página</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="outline" onClick={() => setFilterModalOpen(true)}>
             <Filter className="h-4 w-4 mr-2" />
             Filtrar
@@ -576,25 +517,32 @@ const Sales: React.FC = () => {
         </>
       )}
 
-      {/* Sales Table */}
-      <Card className="border-none shadow-md">
-        <CardHeader className="bg-white rounded-t-xl px-6 py-5 border-b">
-          <CardTitle className="text-xl font-semibold text-gray-800">Listado de Ventas</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={sales}
-            columns={columns}
-            loading={loading}
-            emptyMessage="No se encontraron ventas con los filtros aplicados"
-            enablePagination={true}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            className="shadow-sm rounded-lg"
-          />
-        </CardContent>
-      </Card>
+      <EntityTable<Sale>
+        columns={columns}
+        queryKeyBase="sales"
+        fetcher={({ page, per_page }) =>
+          saleService.getSales({
+            page,
+            per_page,
+            status: filters.status || undefined,
+            payment_status: filters.payment_status || undefined,
+            date_from: filters.date_from || undefined,
+            date_to: filters.date_to || undefined,
+            patient_id: filters.patient_id,
+          })
+        }
+        extraFilters={filters}
+        onRowClick={(sale) => {
+          const basePath = user?.role === 'admin' ? '/admin' : '/receptionist';
+          navigate(`${basePath}/sales/${sale.id}`);
+        }}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Ventas</span>
+            <span className="text-[11px] text-[#7d7d87]">Listado de ventas</span>
+          </div>
+        }
+      />
 
       {/* Payment Modal */}
       <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>

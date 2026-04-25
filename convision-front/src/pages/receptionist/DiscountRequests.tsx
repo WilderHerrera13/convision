@@ -1,37 +1,20 @@
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Clock,
-  Check,
-  X,
-  AlertTriangle,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react';
+import { Plus, Clock, Check, X } from 'lucide-react';
 import api from '@/lib/axios';
-import { format } from 'date-fns';
 import { formatDateTime12h } from '@/lib/utils';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
-import { useAuth } from '@/contexts/AuthContext';
-import { DataTable } from '@/components/ui/data-table';
-import type { DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import PageLayout from '@/components/layouts/PageLayout';
 
 // Types for discount requests
 interface Lens {
@@ -75,35 +58,10 @@ interface DiscountRequest {
 const DiscountRequests: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const [tab, setTab] = useState('pending');
-  const [currentPage, setCurrentPage] = useState(1);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRequest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
-  // Query to fetch all discount requests (not just the current user's)
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['discount-requests', tab, currentPage],
-    queryFn: async () => {
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        per_page: 10,
-      };
-
-      // Set status based on active tab
-      if (tab !== 'all') {
-        params.status = tab;
-      }
-
-      const response = await api.get('/api/v1/discount-requests', { params });
-      return response.data;
-    },
-  });
-
-  const handleOpenCreateModal = () => {
-    setIsCreateModalOpen(true);
-  };
 
   const handleViewDiscountDetail = (discount: DiscountRequest) => {
     setSelectedDiscount(discount);
@@ -231,144 +189,64 @@ const DiscountRequests: React.FC = () => {
     }
   ];
 
-  function renderDiscountRequestsContent(status: string) {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 py-8">
-          <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-700">Cargando solicitudes</h3>
-          <p className="text-gray-500">Espere mientras se cargan las solicitudes de descuento...</p>
-        </div>
-      );
-    }
-
-    if (isError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 py-8">
-          <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
-            <AlertTriangle className="h-8 w-8 text-red-500" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Error al cargar solicitudes</h3>
-          <p className="text-gray-500 max-w-md text-center mb-4">
-            No se pudieron cargar las solicitudes de descuento. Por favor, intente nuevamente.
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => refetch()}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
-          </Button>
-        </div>
-      );
-    }
-
-    const discountRequests = data?.data || [];
-    const totalPages = data?.meta?.last_page || 1;
-
-    return (
-      <DataTable
-        data={discountRequests}
-        columns={columns}
-        loading={isLoading}
-        error={isError ? "Error al cargar los datos" : undefined}
-        emptyMessage="No se encontraron solicitudes de descuento para este estado."
-        enablePagination={true}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        onRowClick={(row) => handleViewDiscountDetail(row as DiscountRequest)}
-      />
-    );
-  }
-
   return (
-    <div className="container py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Solicitudes de Descuento</h1>
-        <Button onClick={handleOpenCreateModal}>
+    <PageLayout
+      title="Solicitudes de Descuento"
+      subtitle="Gestión de solicitudes de descuento"
+      actions={
+        <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Nueva Solicitud
         </Button>
-      </div>
-
-      <Tabs defaultValue="pending" value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-4 mb-4">
+      }
+    >
+      <Tabs value={tab} onValueChange={setTab} className="w-full mb-4">
+        <TabsList className="grid grid-cols-4">
           <TabsTrigger value="pending">Pendientes</TabsTrigger>
           <TabsTrigger value="approved">Aprobados</TabsTrigger>
           <TabsTrigger value="rejected">Rechazados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="pending" className="p-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes Pendientes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsContent('pending')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="approved" className="p-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes Aprobadas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsContent('approved')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rejected" className="p-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes Rechazadas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsContent('rejected')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="all" className="p-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Todas las Solicitudes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsContent('all')}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
-      {/* Discount Creation Modal */}
+      <EntityTable<DiscountRequest>
+        columns={columns}
+        queryKeyBase="discount-requests"
+        fetcher={({ page, per_page }) =>
+          api.get('/api/v1/discount-requests', {
+            params: { page, per_page, ...(tab !== 'all' ? { status: tab } : {}) },
+          }).then(r => ({ data: r.data.data, last_page: r.data.meta?.last_page ?? 1, total: r.data.meta?.total }))
+        }
+        extraFilters={{ tab }}
+        onRowClick={(discount) => { setSelectedDiscount(discount); setIsDetailModalOpen(true); }}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Solicitudes de Descuento</span>
+            <span className="text-[11px] text-[#7d7d87]">Listado de solicitudes</span>
+          </div>
+        }
+      />
+
       <DiscountRequestModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         lens={null}
         onSuccess={() => {
           setIsCreateModalOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['discount-requests', tab] });
+          queryClient.invalidateQueries({ queryKey: ['discount-requests'] });
           toast({
             title: "Solicitud enviada",
             description: "Su solicitud de descuento ha sido enviada exitosamente",
           });
         }}
       />
-      
-      {/* Discount Detail Modal */}
+
       <DiscountDetailModal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         discount={selectedDiscount}
         isAdmin={false}
       />
-    </div>
+    </PageLayout>
   );
 };
 

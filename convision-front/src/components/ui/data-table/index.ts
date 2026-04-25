@@ -1,3 +1,7 @@
+// EntityTable — server-side paginated table
+export { default as EntityTable } from './EntityTable';
+export type { PaginatedResult } from './EntityTable';
+
 // Main DataTable component - exporting only the unified component
 export { default as DataTable } from './DataTable';
 export type { DataTableProps, DataTableColumnDef, ColumnType, ActionItem } from './DataTable';

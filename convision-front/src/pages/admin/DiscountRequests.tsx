@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -18,44 +9,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
-import {
-  Search,
-  Plus,
-  X,
-  Check,
-  AlertTriangle,
-  Clock,
-  Calendar,
-  User,
-  DollarSign,
-  Percent,
-  Tag,
-  Loader2,
-  Filter,
-  RefreshCw,
-} from 'lucide-react';
+import { Plus, X, Check, Clock, Loader2 } from 'lucide-react';
 import api from '@/lib/axios';
 import { format } from 'date-fns';
 import { formatDateTime12h } from '@/lib/utils';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
 import PageLayout from '@/components/layouts/PageLayout';
@@ -107,34 +74,12 @@ const DiscountRequests: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('pending');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<DiscountRequest | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<Lens | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const perPage = 10;
-
-  // Query to fetch discount requests
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['discount-requests', page, tab],
-    queryFn: async () => {
-      const params: Record<string, string | number> = {
-        page,
-        per_page: perPage,
-      };
-
-      // Set status based on active tab
-      if (tab !== 'all') {
-        params.status = tab;
-      }
-
-      const response = await api.get('/api/v1/discount-requests', { params });
-      return response.data;
-    },
-  });
 
   // Mutation to approve a discount request
   const approveMutation = useMutation({
@@ -253,6 +198,85 @@ const DiscountRequests: React.FC = () => {
     }
   };
 
+  const columns: DataTableColumnDef<DiscountRequest>[] = [
+    {
+      id: 'lens',
+      header: 'Lente',
+      type: 'text',
+      cell: (r) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-sm">{r.lens?.identifier}</span>
+          <span className="text-xs text-gray-500 truncate max-w-[150px]">{r.lens?.description}</span>
+        </div>
+      ),
+    },
+    {
+      id: 'patient',
+      header: 'Paciente',
+      type: 'text',
+      cell: (r) => r.is_global
+        ? <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Global</Badge>
+        : r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : '-',
+    },
+    {
+      id: 'discount_percentage',
+      header: 'Descuento',
+      type: 'text',
+      cell: (r) => <Badge className="bg-purple-100 text-purple-800 border-purple-200">{r.discount_percentage}%</Badge>,
+    },
+    {
+      id: 'price',
+      header: 'Precio',
+      type: 'text',
+      cell: (r) => (
+        <div className="flex flex-col">
+          <span className="line-through text-xs text-gray-400">${safePriceFormat(r.original_price)}</span>
+          <span className="font-medium text-green-600">${safePriceFormat(r.discounted_price)}</span>
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Estado',
+      type: 'text',
+      cell: (r) => renderStatus(r.status),
+    },
+    {
+      id: 'requested_by',
+      header: 'Solicitado por',
+      type: 'text',
+      cell: (r) => (
+        <div className="flex flex-col">
+          <span className="text-sm">{r.user?.name}</span>
+          <span className="text-xs text-gray-500">{formatDateTime12h(r.created_at)}</span>
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Acciones',
+      type: 'actions',
+      actions: [
+        {
+          label: 'Ver detalles',
+          onClick: (r: DiscountRequest) => handleViewDetails(r),
+        },
+        {
+          label: 'Aprobar',
+          icon: <Check className="h-4 w-4 mr-1" />,
+          onClick: (r: DiscountRequest) => handleApprove(r),
+          show: (r: DiscountRequest) => r.status === 'pending',
+        },
+        {
+          label: 'Rechazar',
+          icon: <X className="h-4 w-4 mr-1" />,
+          onClick: (r: DiscountRequest) => handleOpenRejectModal(r),
+          show: (r: DiscountRequest) => r.status === 'pending',
+        },
+      ],
+    },
+  ];
+
   return (
     <PageLayout
       title="Gestión de Descuentos"
@@ -262,77 +286,33 @@ const DiscountRequests: React.FC = () => {
         </Button>
       }
     >
-      <div className="space-y-6">
-      <Tabs defaultValue="pending" value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-4 mb-4">
+      <div className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid grid-cols-4">
           <TabsTrigger value="pending">Pendientes</TabsTrigger>
           <TabsTrigger value="approved">Aprobados</TabsTrigger>
           <TabsTrigger value="rejected">Rechazados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes de Descuento Pendientes</CardTitle>
-              <CardDescription>
-                Revise y apruebe las solicitudes de descuento enviadas por los recepcionistas.
-              </CardDescription>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-auto">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Actualizar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsTable('pending')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="approved" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Descuentos Aprobados</CardTitle>
-              <CardDescription>
-                Lista de todos los descuentos aprobados y activos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsTable('approved')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rejected" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes Rechazadas</CardTitle>
-              <CardDescription>
-                Lista de solicitudes de descuento que han sido rechazadas.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsTable('rejected')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="all" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Todas las Solicitudes</CardTitle>
-              <CardDescription>
-                Historial completo de solicitudes de descuento.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderDiscountRequestsTable('all')}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      <EntityTable<DiscountRequest>
+        columns={columns}
+        queryKeyBase="discount-requests"
+        fetcher={({ page, per_page }) =>
+          api.get('/api/v1/discount-requests', {
+            params: { page, per_page, ...(tab !== 'all' ? { status: tab } : {}) },
+          }).then(r => ({ data: r.data.data, last_page: r.data.meta?.last_page ?? 1, total: r.data.meta?.total }))
+        }
+        extraFilters={{ tab }}
+        onRowClick={(r) => handleViewDetails(r)}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Solicitudes de Descuento</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestión de descuentos</span>
+          </div>
+        }
+      />
 
       {/* Rejection Modal */}
       <Dialog open={isRejectionModalOpen} onOpenChange={setIsRejectionModalOpen}>
@@ -413,205 +393,6 @@ const DiscountRequests: React.FC = () => {
       </div>
     </PageLayout>
   );
-
-  function renderDiscountRequestsTable(status: string) {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 py-8">
-          <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-700">Cargando solicitudes</h3>
-          <p className="text-gray-500">Espere mientras se cargan las solicitudes de descuento...</p>
-        </div>
-      );
-    }
-
-    if (isError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 py-8">
-          <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
-            <AlertTriangle className="h-8 w-8 text-red-500" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Error al cargar solicitudes</h3>
-          <p className="text-gray-500 max-w-md text-center mb-4">
-            No se pudieron cargar las solicitudes de descuento. Por favor, intente nuevamente.
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => refetch()}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Lente</TableHead>
-              <TableHead>Paciente</TableHead>
-              <TableHead>Descuento</TableHead>
-              <TableHead>Precio</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Solicitado por</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.data?.length > 0 ? (
-              data.data.map((request: DiscountRequest) => (
-                <TableRow 
-                  key={request.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleViewDetails(request)}
-                >
-                  <TableCell className="font-medium">{request.id}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">{request.lens?.identifier}</span>
-                      <span className="text-xs text-gray-500 truncate max-w-[150px]">{request.lens?.description}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {request.is_global ? (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        Global
-                      </Badge>
-                    ) : request.patient ? (
-                      `${request.patient.first_name} ${request.patient.last_name}`
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-                      {request.discount_percentage}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="line-through text-xs text-gray-400">${safePriceFormat(request.original_price)}</span>
-                      <span className="font-medium text-green-600">${safePriceFormat(request.discounted_price)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{renderStatus(request.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-sm">{request.user?.name}</span>
-                      <span className="text-xs text-gray-500">{formatDateTime12h(request.created_at)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    {request.status === 'pending' && (
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleApprove(request);
-                          }}
-                          disabled={approveMutation.isPending}
-                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Aprobar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenRejectModal(request);
-                          }}
-                          disabled={rejectMutation.isPending}
-                          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Rechazar
-                        </Button>
-                      </div>
-                    )}
-                    {request.status === 'rejected' && request.rejection_reason && (
-                      <div className="text-xs text-gray-500 italic">
-                        "{request.rejection_reason.substring(0, 30)}{request.rejection_reason.length > 30 ? '...' : ''}"
-                      </div>
-                    )}
-                    {request.status === 'approved' && request.expiry_date && (
-                      <div className="text-xs text-gray-500">
-                        Expira: {formatDate(request.expiry_date)}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={8} className="h-64">
-                  <div className="flex flex-col items-center justify-center text-center py-12">
-                    <div className="h-16 w-16 rounded-full bg-purple-50 flex items-center justify-center mb-4">
-                      <Percent className="h-8 w-8 text-purple-500" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-700 mb-2">No hay solicitudes de descuento</h3>
-                    <p className="text-gray-500 max-w-md">
-                      {status === 'pending' 
-                        ? 'No hay solicitudes pendientes de revisión en este momento.' 
-                        : status === 'approved'
-                        ? 'No hay descuentos aprobados en el sistema actualmente.'
-                        : status === 'rejected'
-                        ? 'No hay solicitudes rechazadas en el sistema actualmente.'
-                        : 'No hay solicitudes de descuento registradas en el sistema.'}
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-4"
-                      onClick={() => setIsCreateModalOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Crear nuevo descuento
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-
-        {/* Pagination */}
-        {data?.meta && (
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-gray-500">
-              Mostrando {data.meta.from || 0} a {data.meta.to || 0} de {data.meta.total} solicitudes
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Anterior
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === data.meta.last_page}
-                onClick={() => setPage(page + 1)}
-              >
-                Siguiente
-              </Button>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
 };
 
 export default DiscountRequests; 

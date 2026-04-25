@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   Wrench,
   Plus,
-  Search,
-  Filter,
-  Download,
   Clock,
-  DollarSign,
   CheckCircle,
   AlertCircle,
   Eye,
@@ -30,16 +25,7 @@ const ServiceOrders: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const { data: serviceOrders, isLoading } = useQuery({
-    queryKey: ['service-orders', searchTerm, statusFilter],
-    queryFn: () => serviceOrderService.getServiceOrders({
-      search: searchTerm,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
-  });
 
   const { data: stats } = useQuery({
     queryKey: ['service-order-stats'],
@@ -271,51 +257,41 @@ const ServiceOrders: React.FC = () => {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Órdenes de Arreglo</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por cliente, número de orden..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="pending">Pendiente</option>
-                <option value="in_progress">En Progreso</option>
-                <option value="completed">Completado</option>
-                <option value="delivered">Entregado</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
+      <div className="flex gap-2 mb-4">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="pending">Pendiente</option>
+          <option value="in_progress">En Progreso</option>
+          <option value="completed">Completado</option>
+          <option value="delivered">Entregado</option>
+          <option value="cancelled">Cancelado</option>
+        </select>
+      </div>
+      <EntityTable<ServiceOrder>
+        columns={columns}
+        queryKeyBase="service-orders"
+        fetcher={({ page, per_page, search }) =>
+          serviceOrderService.getServiceOrders({
+            page,
+            per_page,
+            search: search || undefined,
+            status: statusFilter !== 'all' ? statusFilter : undefined,
+          }).then((r) => ({ data: r.data || [], last_page: r.last_page ?? 1, total: r.total }))
+        }
+        searchPlaceholder="Buscar por cliente, número de orden..."
+        extraFilters={{ statusFilter }}
+        onRowClick={(row) => navigate(`/admin/service-orders/${row.id}`)}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Órdenes de Arreglo</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestión de reparaciones</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={serviceOrders?.data || []}
-            loading={isLoading}
-          />
-        </CardContent>
-      </Card>
+        }
+      />
       </div>
     </PageLayout>
   );

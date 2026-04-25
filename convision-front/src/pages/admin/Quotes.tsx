@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -35,8 +34,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { quoteService, Quote, QuoteFilterParams } from '@/services/quoteService';
-import { DataTable } from '@/components/ui/data-table';
-import type { DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
 
@@ -54,10 +52,7 @@ const getStatusColor = (status: string): string => {
 
 const Quotes: React.FC = () => {
   const navigate = useNavigate();
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const queryClient = useQueryClient();
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState<QuoteFilterParams>({
     status: '',
@@ -66,51 +61,6 @@ const Quotes: React.FC = () => {
     patient_id: undefined,
     search: '',
   });
-  const [perPage, setPerPage] = useState(10);
-  
-  // Load quotes on component mount and filter changes
-  useEffect(() => {
-    fetchQuotes();
-  }, [currentPage, filters]);
-
-  const fetchQuotes = async () => {
-    setLoading(true);
-    try {
-      // Create params with current page and per_page
-      const params: QuoteFilterParams = {
-        page: currentPage,
-        per_page: perPage,
-        ...filters
-      };
-      
-      // Only add filter values that aren't empty strings
-      if (filters.status) params.status = filters.status;
-      if (filters.date_from && filters.date_from !== '') params.date_from = filters.date_from;
-      if (filters.date_to && filters.date_to !== '') params.date_to = filters.date_to;
-      if (filters.patient_id) params.patient_id = filters.patient_id;
-      if (filters.search) params.search = filters.search;
-
-      const response = await quoteService.getQuotes(params);
-      const receivedQuotes = response.data;
-      
-      // Debug: Log the quotes data to check status field
-      console.log('Received quotes:', receivedQuotes);
-      if (receivedQuotes.length > 0) {
-        console.log('First quote status:', receivedQuotes[0].status);
-      }
-      
-      setQuotes(receivedQuotes);
-      setTotalPages(response.last_page);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las cotizaciones.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDownloadQuote = async (quote: Quote) => {
     try {
@@ -140,7 +90,7 @@ const Quotes: React.FC = () => {
         title: 'Estado actualizado',
         description: 'El estado de la cotización ha sido actualizado exitosamente.'
       });
-      fetchQuotes();
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
     } catch (error) {
       toast({
         title: 'Error',
@@ -157,7 +107,7 @@ const Quotes: React.FC = () => {
         title: 'Cotización convertida',
         description: 'La cotización ha sido convertida a venta exitosamente.',
       });
-      fetchQuotes();
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
       // Navigate to the new sale
       if (response.sale && response.sale.id) {
         navigate(`/admin/sales/${response.sale.id}`);
@@ -172,8 +122,6 @@ const Quotes: React.FC = () => {
   };
 
   const applyFilters = () => {
-    setCurrentPage(1);
-    fetchQuotes();
     setFilterModalOpen(false);
   };
 
@@ -185,7 +133,6 @@ const Quotes: React.FC = () => {
       patient_id: undefined,
       search: '',
     });
-    setCurrentPage(1);
   };
 
   const goToNewQuote = () => {
@@ -328,24 +275,6 @@ const Quotes: React.FC = () => {
       title="Gestión de Cotizaciones"
       actions={
         <div className="flex items-center gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setCurrentPage(1);
-              setTimeout(fetchQuotes, 0);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Items por página" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-              <SelectItem value="100">100 por página</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="outline" onClick={() => setFilterModalOpen(true)}>
             <Filter className="h-4 w-4 mr-2" />
             Filtrar
@@ -358,23 +287,30 @@ const Quotes: React.FC = () => {
       }
     >
       <div className="space-y-6">
-      {/* Quotes DataTable */}
-      <Card className="shadow-md border-none">
-        <CardContent className="p-0">
-          <DataTable
-            data={quotes}
-            columns={columns}
-            loading={loading}
-            onRowClick={handleRowClick}
-            emptyMessage="No se encontraron cotizaciones con los filtros aplicados"
-            enablePagination={true}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            title="Listado de Cotizaciones"
-          />
-        </CardContent>
-      </Card>
+      <EntityTable<Quote>
+        columns={columns}
+        queryKeyBase="quotes"
+        fetcher={({ page, per_page, search }) =>
+          quoteService.getQuotes({
+            page,
+            per_page,
+            search: search || filters.search || undefined,
+            status: filters.status || undefined,
+            date_from: filters.date_from || undefined,
+            date_to: filters.date_to || undefined,
+            patient_id: filters.patient_id,
+          })
+        }
+        searchPlaceholder="Buscar cotización..."
+        extraFilters={filters}
+        onRowClick={(quote) => navigate(`/admin/quotes/${quote.id}`)}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Cotizaciones</span>
+            <span className="text-[11px] text-[#7d7d87]">Listado de cotizaciones</span>
+          </div>
+        }
+      />
 
       {/* Filter Modal */}
       <Dialog open={filterModalOpen} onOpenChange={setFilterModalOpen}>
