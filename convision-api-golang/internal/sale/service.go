@@ -11,10 +11,13 @@ import (
 
 // Service handles sale use-cases.
 type Service struct {
-	saleRepo    domain.SaleRepository
-	adjRepo     domain.SaleLensPriceAdjustmentRepository
-	productRepo domain.ProductRepository
-	logger      *zap.Logger
+	saleRepo        domain.SaleRepository
+	adjRepo         domain.SaleLensPriceAdjustmentRepository
+	productRepo     domain.ProductRepository
+	labOrderRepo    domain.LaboratoryOrderRepository
+	labRepo         domain.LaboratoryRepository
+	appointmentRepo domain.AppointmentRepository
+	logger          *zap.Logger
 }
 
 // NewService creates a new sale Service.
@@ -22,13 +25,19 @@ func NewService(
 	saleRepo domain.SaleRepository,
 	adjRepo domain.SaleLensPriceAdjustmentRepository,
 	productRepo domain.ProductRepository,
+	labOrderRepo domain.LaboratoryOrderRepository,
+	labRepo domain.LaboratoryRepository,
+	appointmentRepo domain.AppointmentRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		saleRepo:    saleRepo,
-		adjRepo:     adjRepo,
-		productRepo: productRepo,
-		logger:      logger,
+		saleRepo:        saleRepo,
+		adjRepo:         adjRepo,
+		productRepo:     productRepo,
+		labOrderRepo:    labOrderRepo,
+		labRepo:         labRepo,
+		appointmentRepo: appointmentRepo,
+		logger:          logger,
 	}
 }
 
@@ -45,27 +54,31 @@ type PaymentInput struct {
 
 // ItemInput represents a generic sale line item.
 type ItemInput struct {
-	LensID   *uint   `json:"lens_id"`
-	Name     string  `json:"name"`
-	Quantity int     `json:"quantity"`
-	Price    float64 `json:"price"`
-	Discount float64 `json:"discount"`
-	Total    float64 `json:"total"`
-	Notes    string  `json:"notes"`
+	LensID      *uint   `json:"lens_id"`
+	ProductID   *uint   `json:"product_id"`
+	ProductType string  `json:"product_type"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Quantity    int     `json:"quantity"`
+	Price       float64 `json:"price"`
+	Discount    float64 `json:"discount"`
+	Total       float64 `json:"total"`
+	Notes       string  `json:"notes"`
 }
 
 // CreateInput holds the validated data for creating a sale.
 type CreateInput struct {
-	PatientID    uint           `json:"patient_id"     binding:"required"`
-	OrderID      *uint          `json:"order_id"`
-	AppointmentID *uint         `json:"appointment_id"`
-	Subtotal     float64        `json:"subtotal"       binding:"min=0"`
-	Tax          float64        `json:"tax"            binding:"min=0"`
-	Discount     float64        `json:"discount"       binding:"min=0"`
-	Total        float64        `json:"total"          binding:"min=0"`
-	Notes        string         `json:"notes"`
-	Payments     []PaymentInput `json:"payments"`
-	Items        []ItemInput    `json:"items"`
+	PatientID     uint           `json:"patient_id"     binding:"required"`
+	OrderID       *uint          `json:"order_id"`
+	AppointmentID *uint          `json:"appointment_id"`
+	LaboratoryID  *uint          `json:"laboratory_id"`
+	Subtotal      float64        `json:"subtotal"       binding:"min=0"`
+	Tax           float64        `json:"tax"            binding:"min=0"`
+	Discount      float64        `json:"discount"       binding:"min=0"`
+	Total         float64        `json:"total"          binding:"min=0"`
+	Notes         string         `json:"notes"`
+	Payments      []PaymentInput `json:"payments"`
+	Items         []ItemInput    `json:"items"`
 }
 
 // UpdateInput holds the validated data for updating a sale.
@@ -196,12 +209,16 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 			itemTotal = it.Price*float64(qty) - it.Discount
 		}
 		items[i] = domain.SaleItem{
-			LensID:   it.LensID,
-			Quantity: qty,
-			Price:    it.Price,
-			Discount: it.Discount,
-			Total:    itemTotal,
-			Notes:    it.Notes,
+			LensID:      it.LensID,
+			ProductID:   it.ProductID,
+			ProductType: it.ProductType,
+			Name:        it.Name,
+			Description: it.Description,
+			Quantity:    qty,
+			Price:       it.Price,
+			Discount:    it.Discount,
+			Total:       itemTotal,
+			Notes:       it.Notes,
 		}
 		subtotal += it.Price * float64(qty)
 		discount += it.Discount
@@ -245,6 +262,11 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 	}
 
 	s.logger.Info("sale created", zap.Uint("id", sale.ID), zap.String("sale_number", sale.SaleNumber))
+
+	s.createLabOrderIfNeeded(sale, input.Items, input.LaboratoryID, userID)
+	s.updateOrderPaymentStatus(sale)
+	s.updateAppointmentBilling(sale)
+
 	return s.saleRepo.GetByID(sale.ID)
 }
 
@@ -490,4 +512,97 @@ func (s *Service) GeneratePdfToken(id uint) (map[string]any, error) {
 		"pdf_token":     token,
 		"guest_pdf_url": fmt.Sprintf("/api/v1/sales/%d/pdf?token=%s", sale.ID, token),
 	}, nil
+}
+
+func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, labID *uint, userID uint) {
+	hasLens := false
+	for _, it := range items {
+		if it.LensID != nil || it.ProductType == "lens" {
+			hasLens = true
+			break
+		}
+	}
+	if !hasLens {
+		return
+	}
+
+	existing, _ := s.labOrderRepo.GetBySaleID(sale.ID)
+	if existing != nil {
+		return
+	}
+
+	resolvedLabID := labID
+	if resolvedLabID == nil {
+		lab, err := s.labRepo.GetFirstActive()
+		if err != nil {
+			s.logger.Warn("no active laboratory found, skipping lab order creation",
+				zap.Uint("sale_id", sale.ID))
+			return
+		}
+		resolvedLabID = &lab.ID
+	}
+
+	lo := &domain.LaboratoryOrder{
+		SaleID:       &sale.ID,
+		LaboratoryID: resolvedLabID,
+		PatientID:    &sale.PatientID,
+		Status:       domain.LaboratoryOrderStatusPending,
+		Priority:     "normal",
+		CreatedBy:    &userID,
+	}
+	if err := s.labOrderRepo.Create(lo); err != nil {
+		s.logger.Warn("failed to create lab order from sale",
+			zap.Uint("sale_id", sale.ID),
+			zap.Error(err))
+		return
+	}
+	_ = s.labOrderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+		LaboratoryOrderID: lo.ID,
+		Status:            string(domain.LaboratoryOrderStatusPending),
+		Notes:             "Order created automatically from sale",
+		UserID:            &userID,
+	})
+	s.logger.Info("lab order created from sale",
+		zap.Uint("sale_id", sale.ID),
+		zap.Uint("lab_order_id", lo.ID))
+}
+
+func (s *Service) updateOrderPaymentStatus(sale *domain.Sale) {
+	if sale.OrderID == nil {
+		return
+	}
+	s.logger.Info("order payment status sync skipped: order repo not injected in sale service",
+		zap.Uint("sale_id", sale.ID),
+		zap.Uint("order_id", *sale.OrderID))
+}
+
+func (s *Service) updateAppointmentBilling(sale *domain.Sale) {
+	if sale.AppointmentID == nil {
+		return
+	}
+	appt, err := s.appointmentRepo.GetByID(*sale.AppointmentID)
+	if err != nil {
+		s.logger.Warn("appointment not found for billing update",
+			zap.Uint("sale_id", sale.ID),
+			zap.Uint("appointment_id", *sale.AppointmentID))
+		return
+	}
+
+	saleID := sale.ID
+	appt.SaleID = &saleID
+
+	if sale.PaymentStatus == "paid" {
+		now := time.Now()
+		appt.IsBilled = true
+		appt.BilledAt = &now
+	} else {
+		appt.IsBilled = false
+	}
+
+	if err := s.appointmentRepo.Update(appt); err != nil {
+		s.logger.Warn("failed to update appointment billing status",
+			zap.Uint("sale_id", sale.ID),
+			zap.Uint("appointment_id", *sale.AppointmentID),
+			zap.Error(err))
+	}
 }

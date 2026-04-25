@@ -8,6 +8,7 @@ import (
 
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	labsvc "github.com/convision/api/internal/laboratory"
+	salesvc "github.com/convision/api/internal/sale"
 )
 
 // --- Laboratories ---
@@ -251,5 +252,14 @@ func (h *Handler) UpdateLaboratoryOrderStatus(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+
+	if input.Status == "delivered" && o.SaleID != nil {
+		saleID := *o.SaleID
+		sale, saleErr := h.sale.GetByID(saleID)
+		if saleErr == nil && sale.Balance <= 0 {
+			_, _ = h.sale.Update(saleID, salesvc.UpdateInput{Status: "completed"})
+		}
+	}
+
 	c.JSON(http.StatusOK, o)
 }

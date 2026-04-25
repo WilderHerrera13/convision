@@ -72,6 +72,18 @@ func (r *LaboratoryRepository) Delete(id uint) error {
 	return r.db.Delete(&domain.Laboratory{}, id).Error
 }
 
+func (r *LaboratoryRepository) GetFirstActive() (*domain.Laboratory, error) {
+	var l domain.Laboratory
+	err := r.db.Where("status = ?", "active").Order("id ASC").First(&l).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "laboratory"}
+		}
+		return nil, err
+	}
+	return &l, nil
+}
+
 func (r *LaboratoryRepository) List(filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
 	var labs []*domain.Laboratory
 	var total int64
@@ -108,8 +120,23 @@ func (r *LaboratoryOrderRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Laboratory").
 		Preload("Patient").
 		Preload("CreatedByUser").
-		Preload("StatusHistory").
-		Preload("StatusHistory.User")
+		Preload("StatusHistory", func(db *gorm.DB) *gorm.DB {
+			return db.Order("laboratory_order_statuses.id ASC")
+		}).
+		Preload("StatusHistory.User").
+		Preload("Sale")
+}
+
+func (r *LaboratoryOrderRepository) GetBySaleID(saleID uint) (*domain.LaboratoryOrder, error) {
+	var o domain.LaboratoryOrder
+	err := r.withRelations(r.db).Where("sale_id = ?", saleID).First(&o).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &o, nil
 }
 
 func (r *LaboratoryOrderRepository) GetByID(id uint) (*domain.LaboratoryOrder, error) {
