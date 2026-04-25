@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
@@ -93,6 +94,7 @@ func toMap(v interface{}) gin.H {
 
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
+	logger        *zap.Logger
 	auth          *authsvc.Service
 	patient       *patient.Service
 	clinic        *clinic.Service
@@ -127,6 +129,7 @@ type Handler struct {
 
 // NewHandler creates a Handler with all required services injected.
 func NewHandler(
+	logger *zap.Logger,
 	auth *authsvc.Service,
 	patient *patient.Service,
 	clinic *clinic.Service,
@@ -159,6 +162,7 @@ func NewHandler(
 	revokedTokens    domain.RevokedTokenRepository,
 ) *Handler {
 	return &Handler{
+		logger:        logger,
 		auth:          auth,
 		patient:       patient,
 		clinic:        clinic,

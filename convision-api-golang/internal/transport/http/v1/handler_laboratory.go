@@ -5,9 +5,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	labsvc "github.com/convision/api/internal/laboratory"
+	salesvc "github.com/convision/api/internal/sale"
 )
 
 // --- Laboratories ---
@@ -251,5 +253,23 @@ func (h *Handler) UpdateLaboratoryOrderStatus(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+
+	if input.Status == "delivered" && o.SaleID != nil {
+		saleID := *o.SaleID
+		sale, saleErr := h.sale.GetByID(saleID)
+		if saleErr == nil {
+			if sale.Balance <= 0 {
+				_, _ = h.sale.Update(saleID, salesvc.UpdateInput{Status: "completed"})
+				h.logger.Info("sale marked completed after lab order delivery",
+					zap.Uint("sale_id", saleID),
+					zap.Uint("lab_order_id", o.ID))
+			} else {
+				h.logger.Info("lab order delivered but sale has outstanding balance, skipping completion",
+					zap.Uint("sale_id", saleID),
+					zap.Float64("balance", sale.Balance))
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, o)
 }

@@ -74,7 +74,6 @@ func (LaboratoryOrderStatusEntry) TableName() string {
 // LaboratoryRepository defines persistence operations for Laboratory.
 type LaboratoryRepository interface {
 	GetByID(id uint) (*Laboratory, error)
-	GetFirstActive() (*Laboratory, error)
 	Create(l *Laboratory) error
 	Update(l *Laboratory) error
 	Delete(id uint) error
@@ -85,7 +84,6 @@ type LaboratoryRepository interface {
 type LaboratoryOrderRepository interface {
 	GetByID(id uint) (*LaboratoryOrder, error)
 	GetByOrderNumber(number string) (*LaboratoryOrder, error)
-	GetBySaleID(saleID uint) (*LaboratoryOrder, error)
 	Create(o *LaboratoryOrder) error
 	Update(o *LaboratoryOrder) error
 	Delete(id uint) error
