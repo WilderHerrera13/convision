@@ -2,6 +2,8 @@ package appointment
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -9,6 +11,16 @@ import (
 
 	"github.com/convision/api/internal/domain"
 )
+
+// ErrActiveAppointment is returned when a specialist tries to take a new
+// appointment while already attending another one in progress.
+type ErrActiveAppointment struct {
+	ActiveID uint
+}
+
+func (e *ErrActiveAppointment) Error() string {
+	return fmt.Sprintf("specialist already has active appointment %d", e.ActiveID)
+}
 
 // Service handles appointment-related use-cases.
 type Service struct {
@@ -188,19 +200,65 @@ func (s *Service) Delete(id uint) error {
 }
 
 // Take sets appointment to in_progress and assigns taken_by.
+// Returns ErrActiveAppointment if the specialist already has another appointment in progress.
 func (s *Service) Take(id uint, specialistID uint) (*domain.Appointment, error) {
+	// Conflict guard: ensure specialist has no other in-progress appointment.
+	existing, err := s.repo.GetActiveBySpecialist(specialistID)
+	if err == nil && existing != nil && existing.ID != id {
+		return nil, &ErrActiveAppointment{ActiveID: existing.ID}
+	}
+	if err != nil {
+		var notFound *domain.ErrNotFound
+		if !errors.As(err, &notFound) {
+			return nil, err
+		}
+		// ErrNotFound means no active appointment — no conflict, proceed.
+	}
+
 	a, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
+	if a.Status != domain.AppointmentStatusScheduled && a.Status != domain.AppointmentStatusPaused {
+		return nil, &domain.ErrValidation{Field: "status", Message: "appointment cannot be taken in current state"}
+	}
 
+	now := time.Now()
 	a.Status = domain.AppointmentStatusInProgress
 	a.TakenByID = &specialistID
+	if a.StartedAt == nil {
+		a.StartedAt = &now
+	}
 
 	if err := s.repo.Update(a); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByID(a.ID)
+}
+
+// Complete marks an in-progress or paused appointment as completed.
+func (s *Service) Complete(id uint) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if a.Status != domain.AppointmentStatusInProgress && a.Status != domain.AppointmentStatusPaused {
+		return nil, &domain.ErrValidation{Field: "status", Message: "appointment is not in progress or paused"}
+	}
+
+	now := time.Now()
+	a.Status = domain.AppointmentStatusCompleted
+	a.CompletedAt = &now
+
+	if err := s.repo.Update(a); err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(a.ID)
+}
+
+// GetActive returns the currently in-progress appointment for a specialist.
+func (s *Service) GetActive(specialistID uint) (*domain.Appointment, error) {
+	return s.repo.GetActiveBySpecialist(specialistID)
 }
 
 // Pause sets appointment to paused (must be in_progress).
