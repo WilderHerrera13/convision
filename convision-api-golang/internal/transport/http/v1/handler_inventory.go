@@ -472,3 +472,105 @@ func (h *Handler) AdjustInventory(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, item)
 }
+
+// ======== Inventory Adjustment Approval Flow ========
+
+func (h *Handler) CreateInventoryAdjustment(c *gin.Context) {
+	var input inventory.AdjustmentCreateInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+	input.RequestedBy = claims.UserID
+	adj, err := h.inventory.CreateAdjustment(input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, adj)
+}
+
+func (h *Handler) ListInventoryAdjustments(c *gin.Context) {
+	page, perPage := parsePagination(c)
+	filters := map[string]any{}
+	if v := c.Query("status"); v != "" {
+		filters["status"] = v
+	}
+	out, err := h.inventory.ListAdjustments(filters, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (h *Handler) ApproveInventoryAdjustment(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+	adj, err := h.inventory.ApproveAdjustment(id, claims.UserID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, adj)
+}
+
+func (h *Handler) RejectInventoryAdjustment(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+	var body struct {
+		Notes string `json:"notes"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	adj, err := h.inventory.RejectAdjustment(id, claims.UserID, body.Notes)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, adj)
+}
+
+// ======== Stock Movements (Kardex) ========
+
+func (h *Handler) ListStockMovements(c *gin.Context) {
+	page, perPage := parsePagination(c)
+	filters := map[string]any{}
+	if v := c.Query("product_id"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil {
+			filters["product_id"] = id
+		}
+	}
+	if v := c.Query("warehouse_id"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil {
+			filters["warehouse_id"] = id
+		}
+	}
+	if v := c.Query("movement_type"); v != "" {
+		filters["movement_type"] = v
+	}
+	out, err := h.inventory.ListMovements(filters, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}

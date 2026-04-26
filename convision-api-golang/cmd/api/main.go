@@ -97,6 +97,8 @@ func main() {
 	warehouseLocationRepo := postgresplatform.NewWarehouseLocationRepository(db)
 	inventoryItemRepo := postgresplatform.NewInventoryItemRepository(db)
 	inventoryTransferRepo := postgresplatform.NewInventoryTransferRepository(db)
+	stockMovementRepo := postgresplatform.NewStockMovementRepository(db)
+	inventoryAdjustmentRepo := postgresplatform.NewInventoryAdjustmentRepository(db)
 
 	// Discount repo
 	discountRepo := postgresplatform.NewDiscountRepository(db)
@@ -141,7 +143,7 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, logger)
+	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)

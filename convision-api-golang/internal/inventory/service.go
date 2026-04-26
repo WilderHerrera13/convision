@@ -51,12 +51,14 @@ func validateTransferStatus(s string) (domain.InventoryTransferStatus, error) {
 
 // Service handles inventory use-cases.
 type Service struct {
-	db            *gorm.DB
-	warehouseRepo domain.WarehouseRepository
-	locationRepo  domain.WarehouseLocationRepository
-	itemRepo      domain.InventoryItemRepository
-	transferRepo  domain.InventoryTransferRepository
-	logger        *zap.Logger
+	db             *gorm.DB
+	warehouseRepo  domain.WarehouseRepository
+	locationRepo   domain.WarehouseLocationRepository
+	itemRepo       domain.InventoryItemRepository
+	transferRepo   domain.InventoryTransferRepository
+	movementRepo   domain.StockMovementRepository
+	adjustmentRepo domain.InventoryAdjustmentRepository
+	logger         *zap.Logger
 }
 
 // NewService creates a new inventory Service.
@@ -66,17 +68,24 @@ func NewService(
 	locationRepo domain.WarehouseLocationRepository,
 	itemRepo domain.InventoryItemRepository,
 	transferRepo domain.InventoryTransferRepository,
+	movementRepo domain.StockMovementRepository,
+	adjustmentRepo domain.InventoryAdjustmentRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		db:            db,
-		warehouseRepo: warehouseRepo,
-		locationRepo:  locationRepo,
-		itemRepo:      itemRepo,
-		transferRepo:  transferRepo,
-		logger:        logger,
+		db:             db,
+		warehouseRepo:  warehouseRepo,
+		locationRepo:   locationRepo,
+		itemRepo:       itemRepo,
+		transferRepo:   transferRepo,
+		movementRepo:   movementRepo,
+		adjustmentRepo: adjustmentRepo,
+		logger:         logger,
 	}
 }
+
+// refType returns a pointer to a ReferenceType value.
+func refType(rt domain.ReferenceType) *domain.ReferenceType { return &rt }
 
 // --- Pagination helpers ---
 
@@ -427,6 +436,20 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 	if err := s.itemRepo.Create(i); err != nil {
 		return nil, err
 	}
+	movement := &domain.StockMovement{
+		ProductID:           i.ProductID,
+		WarehouseID:         i.WarehouseID,
+		WarehouseLocationID: i.WarehouseLocationID,
+		MovementType:        domain.MovementTypeEntry,
+		ReferenceType:       refType(domain.ReferenceTypeManual),
+		QuantityBefore:      0,
+		QuantityDelta:       i.Quantity,
+		QuantityAfter:       i.Quantity,
+		Notes:               "stock entry via CreateItem",
+	}
+	if err := s.movementRepo.Create(movement); err != nil {
+		s.logger.Warn("failed to write stock movement for CreateItem", zap.Error(err))
+	}
 	return s.itemRepo.GetByID(i.ID)
 }
 
@@ -718,6 +741,41 @@ func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
 			}
 		}
 
+		// Double-entry Kardex: transfer_out on source, transfer_in on destination.
+		srcQtyBefore := src.Quantity // captured before the deduction
+		srcMovement := &domain.StockMovement{
+			ProductID:           t.ProductID,
+			WarehouseID:         src.WarehouseID,
+			WarehouseLocationID: &t.SourceLocationID,
+			MovementType:        domain.MovementTypeTransferOut,
+			ReferenceType:       refType(domain.ReferenceTypeTransfer),
+			ReferenceID:         &t.ID,
+			QuantityBefore:      srcQtyBefore,
+			QuantityDelta:       -t.Quantity,
+			QuantityAfter:       srcQtyBefore - t.Quantity,
+		}
+		if err := tx.Create(srcMovement).Error; err != nil {
+			return err
+		}
+		dstQtyBefore := 0
+		if !errors.Is(dstErr, gorm.ErrRecordNotFound) {
+			dstQtyBefore = dst.Quantity - t.Quantity // quantity before addition
+		}
+		dstMovement := &domain.StockMovement{
+			ProductID:           t.ProductID,
+			WarehouseID:         dst.WarehouseID,
+			WarehouseLocationID: &t.DestinationLocationID,
+			MovementType:        domain.MovementTypeTransferIn,
+			ReferenceType:       refType(domain.ReferenceTypeTransfer),
+			ReferenceID:         &t.ID,
+			QuantityBefore:      dstQtyBefore,
+			QuantityDelta:       t.Quantity,
+			QuantityAfter:       dstQtyBefore + t.Quantity,
+		}
+		if err := tx.Create(dstMovement).Error; err != nil {
+			return err
+		}
+
 		now := time.Now()
 		if err := tx.Model(&t).Updates(map[string]any{
 			"status":       string(domain.InventoryTransferStatusCompleted),
@@ -762,6 +820,187 @@ func (s *Service) CancelTransfer(id uint) (*domain.InventoryTransfer, error) {
 		return nil, err
 	}
 	return s.transferRepo.GetByID(id)
+}
+
+// ======== Inventory Adjustments ========
+
+// AdjustmentCreateInput holds validated fields for creating an inventory adjustment request.
+type AdjustmentCreateInput struct {
+	InventoryItemID  uint                     `json:"inventory_item_id" binding:"required"`
+	AdjustmentReason domain.AdjustmentReason  `json:"adjustment_reason" binding:"required"`
+	QuantityDelta    int                      `json:"quantity_delta"`
+	Notes            string                   `json:"notes"`
+	EvidenceURL      string                   `json:"evidence_url"`
+	RequestedBy      uint                     `json:"-"` // set from JWT
+}
+
+// AdjustmentListOutput is the paginated adjustment response.
+type AdjustmentListOutput struct {
+	CurrentPage int                           `json:"current_page"`
+	Data        []*domain.InventoryAdjustment `json:"data"`
+	LastPage    int                           `json:"last_page"`
+	PerPage     int                           `json:"per_page"`
+	Total       int64                         `json:"total"`
+}
+
+// MovementListOutput is the paginated stock movement response.
+type MovementListOutput struct {
+	CurrentPage int                     `json:"current_page"`
+	Data        []*domain.StockMovement `json:"data"`
+	LastPage    int                     `json:"last_page"`
+	PerPage     int                     `json:"per_page"`
+	Total       int64                   `json:"total"`
+}
+
+var validAdjustmentReasons = map[domain.AdjustmentReason]bool{
+	domain.AdjustmentReasonDamage:          true,
+	domain.AdjustmentReasonExpiry:          true,
+	domain.AdjustmentReasonTheft:           true,
+	domain.AdjustmentReasonCountCorrection: true,
+	domain.AdjustmentReasonReturn:          true,
+	domain.AdjustmentReasonWarranty:        true,
+	domain.AdjustmentReasonSupplierDefect:  true,
+}
+
+func (s *Service) CreateAdjustment(input AdjustmentCreateInput) (*domain.InventoryAdjustment, error) {
+	if !validAdjustmentReasons[input.AdjustmentReason] {
+		return nil, &domain.ErrValidation{Field: "adjustment_reason", Message: "motivo de ajuste inválido"}
+	}
+	item, err := s.itemRepo.GetByID(input.InventoryItemID)
+	if err != nil {
+		return nil, err
+	}
+	qtyAfter := item.Quantity + input.QuantityDelta
+	if qtyAfter < 0 {
+		return nil, &domain.ErrValidation{Field: "quantity_delta", Message: "el ajuste resultaría en stock negativo"}
+	}
+	adj := &domain.InventoryAdjustment{
+		InventoryItemID:  input.InventoryItemID,
+		AdjustmentReason: input.AdjustmentReason,
+		QuantityDelta:    input.QuantityDelta,
+		QuantityBefore:   item.Quantity,
+		QuantityAfter:    qtyAfter,
+		Status:           domain.AdjustmentStatusPendingApproval,
+		RequestedBy:      input.RequestedBy,
+		Notes:            input.Notes,
+		EvidenceURL:      input.EvidenceURL,
+	}
+	if err := s.adjustmentRepo.Create(adj); err != nil {
+		return nil, err
+	}
+	return s.adjustmentRepo.GetByID(adj.ID)
+}
+
+func (s *Service) ApproveAdjustment(id uint, approvedBy uint) (*domain.InventoryAdjustment, error) {
+	var result *domain.InventoryAdjustment
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var adj domain.InventoryAdjustment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&adj, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &domain.ErrNotFound{Resource: "inventory_adjustment"}
+			}
+			return err
+		}
+		if adj.Status != domain.AdjustmentStatusPendingApproval {
+			return &domain.ErrValidation{Field: "status", Message: "solo se pueden aprobar ajustes en estado pendiente"}
+		}
+		var item domain.InventoryItem
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, adj.InventoryItemID).Error; err != nil {
+			return err
+		}
+		newQty := item.Quantity + adj.QuantityDelta
+		if newQty < 0 {
+			return &domain.ErrValidation{Field: "quantity_delta", Message: "el ajuste resultaría en stock negativo"}
+		}
+		if err := tx.Model(&item).Update("quantity", newQty).Error; err != nil {
+			return err
+		}
+		movType := domain.MovementTypeAdjustmentAdd
+		if adj.QuantityDelta < 0 {
+			movType = domain.MovementTypeAdjustmentSub
+		}
+		adjRefType := domain.ReferenceTypeAdjustment
+		movement := &domain.StockMovement{
+			ProductID:           item.ProductID,
+			WarehouseID:         item.WarehouseID,
+			WarehouseLocationID: item.WarehouseLocationID,
+			MovementType:        movType,
+			ReferenceType:       &adjRefType,
+			ReferenceID:         &adj.ID,
+			QuantityBefore:      item.Quantity,
+			QuantityDelta:       adj.QuantityDelta,
+			QuantityAfter:       newQty,
+			Notes:               adj.Notes,
+			PerformedBy:         &approvedBy,
+		}
+		if err := tx.Create(movement).Error; err != nil {
+			return err
+		}
+		now := time.Now()
+		adj.Status = domain.AdjustmentStatusApproved
+		adj.ApprovedBy = &approvedBy
+		adj.ReviewedAt = &now
+		if err := tx.Save(&adj).Error; err != nil {
+			return err
+		}
+		result = &adj
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.adjustmentRepo.GetByID(result.ID)
+}
+
+func (s *Service) RejectAdjustment(id uint, approvedBy uint, notes string) (*domain.InventoryAdjustment, error) {
+	adj, err := s.adjustmentRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if adj.Status != domain.AdjustmentStatusPendingApproval {
+		return nil, &domain.ErrValidation{Field: "status", Message: "solo se pueden rechazar ajustes en estado pendiente"}
+	}
+	now := time.Now()
+	adj.Status = domain.AdjustmentStatusRejected
+	adj.ApprovedBy = &approvedBy
+	adj.ReviewedAt = &now
+	if notes != "" {
+		adj.Notes = notes
+	}
+	if err := s.adjustmentRepo.Update(adj); err != nil {
+		return nil, err
+	}
+	return s.adjustmentRepo.GetByID(adj.ID)
+}
+
+func (s *Service) ListAdjustments(filters map[string]any, page, perPage int) (*AdjustmentListOutput, error) {
+	page, perPage = clampPage(page, perPage)
+	data, total, err := s.adjustmentRepo.List(filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &AdjustmentListOutput{
+		CurrentPage: page,
+		Data:        data,
+		LastPage:    calcLastPage(total, perPage),
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
+}
+
+func (s *Service) ListMovements(filters map[string]any, page, perPage int) (*MovementListOutput, error) {
+	page, perPage = clampPage(page, perPage)
+	data, total, err := s.movementRepo.List(filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &MovementListOutput{
+		CurrentPage: page,
+		Data:        data,
+		LastPage:    calcLastPage(total, perPage),
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
 }
 
 // allowedTransitions defines the valid state machine transitions for inventory transfers.
@@ -850,6 +1089,7 @@ func (s *Service) DeleteTransfer(id uint) error {
 
 // AdjustStockByItemID adjusts the quantity of a specific InventoryItem using a
 // signed delta inside a DB transaction with row-level locking (BUG-5, BUG-6).
+// Deprecated: prefer CreateAdjustment / ApproveAdjustment for managed approval flow.
 func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*domain.InventoryItem, error) {
 	s.logger.Info("stock adjusted", zap.Uint("item_id", itemID), zap.Int("delta", delta), zap.String("reason", reason))
 	var result *domain.InventoryItem
@@ -862,7 +1102,8 @@ func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*d
 			}
 			return err
 		}
-		newQty := item.Quantity + delta
+		qtyBefore := item.Quantity
+		newQty := qtyBefore + delta
 		if newQty < 0 {
 			return &domain.ErrValidation{
 				Field:   "delta",
@@ -871,6 +1112,24 @@ func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*d
 		}
 		if err := tx.Model(&item).Update("quantity", newQty).Error; err != nil {
 			return err
+		}
+		movType := domain.MovementTypeAdjustmentAdd
+		if delta < 0 {
+			movType = domain.MovementTypeAdjustmentSub
+		}
+		movement := &domain.StockMovement{
+			ProductID:           item.ProductID,
+			WarehouseID:         item.WarehouseID,
+			WarehouseLocationID: item.WarehouseLocationID,
+			MovementType:        movType,
+			ReferenceType:       refType(domain.ReferenceTypeManual),
+			QuantityBefore:      qtyBefore,
+			QuantityDelta:       delta,
+			QuantityAfter:       newQty,
+			Notes:               reason,
+		}
+		if err := tx.Create(movement).Error; err != nil {
+			s.logger.Warn("failed to write stock movement for AdjustStockByItemID", zap.Error(err))
 		}
 		item.Quantity = newQty
 		result = &item
