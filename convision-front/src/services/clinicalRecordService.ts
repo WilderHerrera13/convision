@@ -51,12 +51,14 @@ export interface VisualExamInput {
   av_cc_oi?: string;
   av_near_cc_od?: string;
   av_near_cc_oi?: string;
+
   autoref_sph_od?: number;
   autoref_cyl_od?: number;
   autoref_axis_od?: number;
   autoref_sph_oi?: number;
   autoref_cyl_oi?: number;
   autoref_axis_oi?: number;
+
   subj_sph_od?: number;
   subj_cyl_od?: number;
   subj_axis_od?: number;
@@ -66,32 +68,41 @@ export interface VisualExamInput {
   subj_axis_oi?: number;
   subj_av_oi?: string;
   addition?: number;
+
   kero_k1_od?: number;
   kero_k2_od?: number;
   kero_axis_od?: number;
   kero_k1_oi?: number;
   kero_k2_oi?: number;
   kero_axis_oi?: number;
+
   iop_method?: string;
   iop_od?: number;
   iop_oi?: number;
-  biomi_cornea_od?: string;
-  biomi_cornea_oi?: string;
-  biomi_lens_od?: string;
-  biomi_lens_oi?: string;
+
+  biomi_lids_od?: string;
+  biomi_lids_oi?: string;
   biomi_conj_od?: string;
   biomi_conj_oi?: string;
+  biomi_cornea_od?: string;
+  biomi_cornea_oi?: string;
   biomi_ac_od?: string;
   biomi_ac_oi?: string;
-  fundus_vitreous_od?: string;
-  fundus_vitreous_oi?: string;
+  biomi_lens_od?: string;
+  biomi_lens_oi?: string;
+
   fundus_disc_od?: string;
   fundus_disc_oi?: string;
   fundus_macula_od?: string;
   fundus_macula_oi?: string;
+  fundus_vessels_od?: string;
+  fundus_vessels_oi?: string;
   fundus_periph_od?: string;
   fundus_periph_oi?: string;
-  ocular_motility?: string;
+
+  motility_versions?: string;
+  motility_hirschberg?: string;
+  motility_cover_test?: string;
 }
 
 export interface DiagnosisInput {
@@ -159,13 +170,13 @@ export const upsertAnamnesis = (appointmentId: number, data: AnamnesisInput) =>
   api.put<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record/anamnesis`, data);
 
 export const upsertVisualExam = (appointmentId: number, data: VisualExamInput) =>
-  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/visual-exam`, data);
+  api.put<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record/visual-exam`, data);
 
 export const upsertDiagnosis = (appointmentId: number, data: DiagnosisInput) =>
-  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/diagnosis`, data);
+  api.put<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record/diagnosis`, data);
 
 export const upsertPrescription = (appointmentId: number, data: PrescriptionInput) =>
-  api.put(`/api/v1/appointments/${appointmentId}/clinical-record/prescription`, data);
+  api.put<ClinicalRecord>(`/api/v1/appointments/${appointmentId}/clinical-record/prescription`, data);
 
 export const signClinicalRecord = (appointmentId: number, professionalTp: string) =>
   api.post(`/api/v1/appointments/${appointmentId}/clinical-record/sign`, { professional_tp: professionalTp });

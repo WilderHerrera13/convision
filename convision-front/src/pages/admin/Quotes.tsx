@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { quoteService, Quote, QuoteFilterParams } from '@/services/quoteService';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
 
@@ -304,12 +305,16 @@ const Quotes: React.FC = () => {
         searchPlaceholder="Buscar cotización..."
         extraFilters={filters}
         onRowClick={(quote) => navigate(`/admin/quotes/${quote.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Cotizaciones</span>
             <span className="text-[11px] text-[#7d7d87]">Listado de cotizaciones</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin cotizaciones" description="No hay cotizaciones registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       {/* Filter Modal */}

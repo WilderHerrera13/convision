@@ -264,14 +264,11 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 
 func (h *Handler) GetTotalStock(c *gin.Context) {
 	filters := map[string]any{}
-	if v := c.Query("warehouse_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["warehouse_id"] = uint(id)
-		}
-	}
-	if v := c.Query("warehouse_location_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["warehouse_location_id"] = uint(id)
+	for _, key := range []string{"warehouse_id", "warehouse_location_id", "brand_id", "supplier_id", "category_id"} {
+		if v := c.Query(key); v != "" {
+			if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+				filters[key] = uint(id)
+			}
 		}
 	}
 	out, err := h.inventory.TotalStockPerProduct(filters)

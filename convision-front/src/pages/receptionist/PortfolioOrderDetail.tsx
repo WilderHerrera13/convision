@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Phone, MessageSquare, Mail, MessageCircle, Calendar } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Phone, MessageSquare, Mail, MessageCircle, Calendar, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import PageLayout from '@/components/layouts/PageLayout';
 import { portfolioService, LaboratoryOrderCall } from '@/services/portfolioService';
 import RegisterCallModal from '@/components/portfolio/RegisterCallModal';
@@ -149,6 +159,16 @@ const PortfolioOrderDetail: React.FC<PortfolioOrderDetailProps> = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
+  const closeMutation = useMutation({
+    mutationFn: () => portfolioService.closeOrder(Number(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-stats'] });
+      navigate(basePath);
+    },
+  });
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['portfolio-order', id],
@@ -189,14 +209,25 @@ const PortfolioOrderDetail: React.FC<PortfolioOrderDetailProps> = ({
             Volver
           </Button>
           {order && (
-            <Button
-              size="sm"
-              className="h-8 text-[12px] bg-[#8753ef] hover:bg-[#7642d8] text-white gap-1.5"
-              onClick={() => setRegisterOpen(true)}
-            >
-              <Phone className="size-3.5" />
-              Registrar llamada
-            </Button>
+            <>
+              <Button
+                size="sm"
+                className="h-8 text-[12px] bg-[#8753ef] hover:bg-[#7642d8] text-white gap-1.5"
+                onClick={() => setRegisterOpen(true)}
+              >
+                <Phone className="size-3.5" />
+                Registrar llamada
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 text-[12px] bg-[#228b52] hover:bg-[#1a7042] text-white gap-1.5"
+                onClick={() => setCloseConfirmOpen(true)}
+                disabled={closeMutation.isPending}
+              >
+                <CheckCircle2 className="size-3.5" />
+                Pago completado
+              </Button>
+            </>
           )}
         </div>
       }
@@ -356,6 +387,28 @@ const PortfolioOrderDetail: React.FC<PortfolioOrderDetailProps> = ({
           onSuccess={handleCallSuccess}
         />
       )}
+
+      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Confirmar pago completado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción marcará la orden <strong>{order?.order_number}</strong> como entregada, cerrará la cartera del
+              paciente y saldará el balance pendiente. Esta operación no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closeMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#228b52] hover:bg-[#1a7042] text-white"
+              disabled={closeMutation.isPending}
+              onClick={() => closeMutation.mutate()}
+            >
+              {closeMutation.isPending ? 'Procesando...' : 'Confirmar pago'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 };

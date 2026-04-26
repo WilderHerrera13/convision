@@ -1,481 +1,157 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/use-toast';
 import { inventoryService, Warehouse } from '@/services/inventoryService';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { Badge } from '@/components/ui/badge';
-
-// Form schema
-const warehouseFormSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  code: z.string().min(1, 'El código es requerido'),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  status: z.enum(['active', 'inactive']),
-  notes: z.string().optional(),
-});
-
-type WarehouseFormValues = z.infer<typeof warehouseFormSchema>;
+import WarehouseFormDialog from './WarehouseFormDialog';
 
 const WarehouseManagement: React.FC = () => {
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
-  const [deleteWarehouseId, setDeleteWarehouseId] = useState<number | null>(null);
-  const [deleteWarehouseName, setDeleteWarehouseName] = useState<string>('');
-  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Warehouse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const form = useForm<WarehouseFormValues>({
-    resolver: zodResolver(warehouseFormSchema),
-    defaultValues: {
-      name: '',
-      code: '',
-      address: '',
-      city: '',
-      status: 'active',
-      notes: '',
-    },
-  });
-
-  const fetchWarehouses = async () => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      setLoading(true);
-      const response = await inventoryService.getWarehouses({ perPage: 50 });
-      setWarehouses(response.data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los almacenes',
-        variant: 'destructive',
-      });
+      await inventoryService.deleteWarehouse(deleteTarget.id);
+      toast({ title: 'Almacén eliminado', description: `"${deleteTarget.name}" fue eliminado del sistema.` });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo eliminar el almacén. Es posible que tenga inventario asociado.', variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
-  useEffect(() => {
-    fetchWarehouses();
-  }, []);
-
-  const handleAddWarehouse = async (data: WarehouseFormValues) => {
-    try {
-      await inventoryService.createWarehouse(data);
-      toast({
-        title: 'Éxito',
-        description: 'Almacén creado correctamente',
-      });
-      setIsAddOpen(false);
-      form.reset();
-      fetchWarehouses();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo crear el almacén',
-        variant: 'destructive',
-      });
-    }
+  const openEdit = (w: Warehouse) => {
+    setEditTarget(w);
+    setFormOpen(true);
   };
 
-  const handleEditWarehouse = async (data: WarehouseFormValues) => {
-    if (!editingWarehouse) return;
-
-    try {
-      await inventoryService.updateWarehouse(editingWarehouse.id, data);
-      toast({
-        title: 'Éxito',
-        description: 'Almacén actualizado correctamente',
-      });
-      setEditingWarehouse(null);
-      fetchWarehouses();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo actualizar el almacén',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDeleteWarehouse = async (id: number) => {
-    try {
-      await inventoryService.deleteWarehouse(id);
-      toast({
-        title: 'Éxito',
-        description: 'Almacén eliminado correctamente',
-      });
-      fetchWarehouses();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el almacén. Es posible que tenga inventario asociado.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const openEditDialog = (warehouse: Warehouse) => {
-    setEditingWarehouse(warehouse);
-    form.reset({
-      name: warehouse.name,
-      code: warehouse.code,
-      address: warehouse.address || '',
-      city: warehouse.city || '',
-      status: warehouse.status,
-      notes: warehouse.notes || '',
-    });
-  };
+  const columns: DataTableColumnDef<Warehouse>[] = [
+    {
+      id: 'name',
+      header: 'Nombre',
+      type: 'text',
+      accessorKey: 'name',
+      cell: (w) => (
+        <div>
+          <p className="text-[13px] font-semibold text-[#121215]">{w.name}</p>
+          <p className="text-[11px] text-[#7d7d87]">{w.code}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'city',
+      header: 'Ciudad',
+      type: 'text',
+      cell: (w) => <span className="text-[13px] text-[#7d7d87]">{w.city ?? '—'}</span>,
+    },
+    {
+      id: 'address',
+      header: 'Dirección',
+      type: 'text',
+      cell: (w) => <span className="text-[13px] text-[#7d7d87]">{w.address ?? '—'}</span>,
+    },
+    {
+      id: 'status',
+      header: 'Estado',
+      type: 'text',
+      cell: (w) => (
+        <span className={cn('inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold',
+          w.status === 'active' ? 'bg-[#ebf5ef] text-[#228b52]' : 'bg-[#f9f9fb] text-[#7d7d87]'
+        )}>
+          {w.status === 'active' ? 'Activo' : 'Inactivo'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Acciones',
+      type: 'actions',
+      cell: (w) => (
+        <div className="flex items-center gap-1.5">
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-[#f5f5f6] border border-[#e5e5e9] text-[#7d7d87] hover:opacity-80 transition-colors"
+            onClick={(e) => { e.stopPropagation(); openEdit(w); }}
+            title="Editar almacén"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            className="flex items-center justify-center size-8 rounded-[6px] bg-red-50 border border-red-200 text-red-500 hover:opacity-80 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setDeleteTarget(w); }}
+            title="Eliminar almacén"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Almacenes</h2>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Almacén
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Crear Nuevo Almacén</DialogTitle>
-              <DialogDescription>
-                Completa la información para crear un nuevo almacén.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleAddWarehouse)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: Almacén Central" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: ALM-001" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Código único para identificar el almacén
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ciudad</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ej: Bogotá" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un estado" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="active">Activo</SelectItem>
-                            <SelectItem value="inactive">Inactivo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Dirección</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: Calle 123 #45-67" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notas</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Información adicional sobre el almacén"
-                          className="min-h-[80px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancelar</Button>
-                  </DialogClose>
-                  <Button type="submit">Crear</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <>
+      <EntityTable<Warehouse>
+        columns={columns}
+        queryKeyBase="warehouses"
+        fetcher={({ page, per_page }) =>
+          inventoryService.getWarehouses({ page, perPage: per_page })
+        }
+        enableSearch={false}
+        showPageSizeSelect={false}
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Almacenes</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestión de bodegas y almacenes</span>
+          </div>
+        }
+        toolbarTrailing={
+          <Button
+            className="bg-[#3a71f7] hover:bg-[#2d5fd6] text-white text-[13px] font-semibold h-9 px-4"
+            onClick={() => { setEditTarget(null); setFormOpen(true); }}
+          >
+            <Plus className="h-4 w-4 mr-1.5" /> Nuevo Almacén
+          </Button>
+        }
+        emptyStateNode={
+          <EmptyState
+            title="Sin almacenes"
+            description="No hay almacenes registrados. Crea uno para comenzar."
+          />
+        }
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
-      {loading ? (
-        <div className="flex justify-center py-8">Cargando almacenes...</div>
-      ) : warehouses.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <AlertCircle className="mx-auto h-8 w-8 mb-2" />
-          <p>No hay almacenes disponibles. Crea uno nuevo para comenzar.</p>
-        </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Ciudad</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {warehouses.map((warehouse) => (
-                <TableRow key={warehouse.id}>
-                  <TableCell className="font-medium">{warehouse.name}</TableCell>
-                  <TableCell>{warehouse.code}</TableCell>
-                  <TableCell>{warehouse.city || '-'}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={warehouse.status === 'active' ? 'default' : 'secondary'}
-                    >
-                      {warehouse.status === 'active' ? 'Activo' : 'Inactivo'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Dialog open={!!editingWarehouse && editingWarehouse.id === warehouse.id} onOpenChange={(open) => !open && setEditingWarehouse(null)}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(warehouse)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Editar Almacén</DialogTitle>
-                            <DialogDescription>
-                              Actualiza la información del almacén.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <Form {...form}>
-                            <form onSubmit={form.handleSubmit(handleEditWarehouse)} className="space-y-4">
-                              <FormField
-                                control={form.control}
-                                name="name"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Nombre</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="code"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Código</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                  control={form.control}
-                                  name="city"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Ciudad</FormLabel>
-                                      <FormControl>
-                                        <Input {...field} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={form.control}
-                                  name="status"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Estado</FormLabel>
-                                      <Select
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value}
-                                        value={field.value}
-                                      >
-                                        <FormControl>
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Selecciona un estado" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          <SelectItem value="active">Activo</SelectItem>
-                                          <SelectItem value="inactive">Inactivo</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </div>
-                              <FormField
-                                control={form.control}
-                                name="address"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Dirección</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="notes"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Notas</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        className="min-h-[80px]"
-                                        {...field}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline" onClick={() => setEditingWarehouse(null)}>Cancelar</Button>
-                                </DialogClose>
-                                <Button type="submit">Guardar Cambios</Button>
-                              </DialogFooter>
-                            </form>
-                          </Form>
-                        </DialogContent>
-                      </Dialog>
-                      <Button variant="ghost" size="icon" onClick={() => { setDeleteWarehouseId(warehouse.id); setDeleteWarehouseName(warehouse.name); }}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <WarehouseFormDialog
+        open={formOpen}
+        onOpenChange={(open) => { setFormOpen(open); if (!open) setEditTarget(null); }}
+        warehouse={editTarget}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['warehouses'] })}
+      />
+
       <ConfirmDialog
-        open={deleteWarehouseId !== null}
-        onOpenChange={(open) => !open && setDeleteWarehouseId(null)}
-        title="Eliminar almacen"
-        description={`Esta accion no se puede deshacer. Se eliminara permanentemente el almacen ${deleteWarehouseName}. No se pueden eliminar almacenes con inventario.`}
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Eliminar almacén "${deleteTarget?.name ?? ''}"`}
+        description="Esta acción no se puede deshacer. El almacén será eliminado permanentemente."
         confirmLabel="Eliminar"
         variant="danger"
-        onConfirm={() => { if (deleteWarehouseId !== null) handleDeleteWarehouse(deleteWarehouseId); setDeleteWarehouseId(null); }}
+        onConfirm={handleDelete}
+        isLoading={deleting}
       />
-    </div>
+    </>
   );
 };
 
-export default WarehouseManagement; 
+export default WarehouseManagement;

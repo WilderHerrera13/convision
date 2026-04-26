@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -28,21 +20,18 @@ import { z } from 'zod';
 import {
   Tag,
   Plus,
-  Search,
   Edit,
   Trash2,
   Loader2,
 } from 'lucide-react';
-import {
-  DataTable,
-  DataTableColumnDef,
-} from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   brandService,
   Brand,
   CreateBrandRequest,
   UpdateBrandRequest,
-  BrandSearchParams,
 } from '@/services/brandService';
 
 const brandSchema = z.object({
@@ -56,17 +45,10 @@ const Brands: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(15);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
-  
-  const [filters, setFilters] = useState<BrandSearchParams>({
-    search: '',
-  });
 
   const createForm = useForm<BrandFormValues>({
     resolver: zodResolver(brandSchema),
@@ -78,15 +60,6 @@ const Brands: React.FC = () => {
 
   const editForm = useForm<BrandFormValues>({
     resolver: zodResolver(brandSchema),
-  });
-
-  const { data: brandsData, isLoading } = useQuery({
-    queryKey: ['brands', page, perPage, filters],
-    queryFn: () => brandService.getBrands({
-      ...filters,
-      page,
-      per_page: perPage,
-    }),
   });
 
   const createMutation = useMutation({
@@ -186,12 +159,6 @@ const Brands: React.FC = () => {
     deleteMutation.mutate(selectedBrand.id);
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setFilters(prev => ({ ...prev, search: value }));
-    setPage(1);
-  };
-
   const columns: DataTableColumnDef<Brand>[] = [
     {
       id: 'name',
@@ -244,73 +211,37 @@ const Brands: React.FC = () => {
     },
   ];
 
-  const brands = brandsData?.data || [];
-  const totalPages = brandsData?.last_page || 1;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Marcas</h1>
-          <p className="text-muted-foreground">
-            Gestiona las marcas de productos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="15">15 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-            </SelectContent>
-          </Select>
+      <EntityTable<Brand>
+        columns={columns}
+        queryKeyBase="brands"
+        fetcher={({ page, per_page, search }) =>
+          brandService.getBrands({ page, per_page, search })
+        }
+        searchPlaceholder="Buscar marcas..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Marcas</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestiona las marcas de productos</span>
+          </div>
+        }
+        toolbarTrailing={
           <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Marca
           </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Marcas</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar marcas..."
-                  value={search}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={brands}
-            columns={columns}
-            loading={isLoading}
-            enablePagination={true}
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            emptyMessage="No se encontraron marcas"
+        }
+        emptyStateNode={
+          <EmptyState
+            leadingIcon={Tag}
+            accentColor="#7d7d87"
+            title="Sin marcas registradas"
+            description="Comienza creando la primera marca."
           />
-        </CardContent>
-      </Card>
+        }
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
       {/* Create Brand Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>

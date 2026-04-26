@@ -1,7 +1,7 @@
 import React from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
-import type { DataTableColumnDef } from '@/components/ui/data-table/DataTable';
+import type { DataTableColumnDef } from '@/components/ui/data-table';
 import type { Appointment } from '@/services/appointmentsService';
 import { Button } from '@/components/ui/button';
 import { parseLocalDatetime, formatTime12h } from '@/lib/utils';

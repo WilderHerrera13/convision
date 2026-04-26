@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -11,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Eye, Pencil, Trash2, FlaskConical, Search, FileDown } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2, FileDown } from 'lucide-react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
   laboratoryOrderService,
@@ -22,7 +21,9 @@ import { laboratoryService } from '@/services/laboratoryService';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   LABORATORY_ORDER_STATUS_LABELS,
   LAB_ORDER_STATUS_TOKENS,
@@ -52,15 +53,12 @@ function StatCard({ label, count, colorClass }: StatCardProps) {
   );
 }
 
-const PER_PAGE = 10;
-
 const LaboratoryOrders: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [laboratoryFilter, setLaboratoryFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<LaboratoryOrder | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -76,37 +74,13 @@ const LaboratoryOrders: React.FC = () => {
     queryFn: () => laboratoryService.getLaboratories(),
   });
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['admin-lab-orders', page, search, statusFilter, priorityFilter, laboratoryFilter],
-    queryFn: () =>
-      laboratoryOrderService.getLaboratoryOrders({
-        page,
-        per_page: PER_PAGE,
-        search: search || undefined,
-        status: statusFilter || undefined,
-        priority: priorityFilter || undefined,
-        laboratory_id: laboratoryFilter ? Number(laboratoryFilter) : undefined,
-        sort_field: 'created_at',
-        sort_direction: 'desc',
-      }),
-    placeholderData: (prev) => prev,
-  });
-
-  const orders: LaboratoryOrder[] = data?.data ?? [];
-  const total: number = (data?.total ?? data?.meta?.total ?? 0) as number;
-  const lastPage: number = (data?.last_page ?? data?.meta?.last_page ?? 1) as number;
-  const fromItem: number = (data?.from || data?.meta?.from || (total > 0 ? (page - 1) * PER_PAGE + 1 : 0)) as number;
-  const toItem: number = (data?.to || data?.meta?.to || (total > 0 ? Math.min(page * PER_PAGE, total) : 0)) as number;
-
   const inProcessCount = (statsData?.in_process ?? 0) + (statsData?.sent_to_lab ?? 0);
-  const hasActiveFilters = !!(statusFilter || priorityFilter || laboratoryFilter || search);
+  const hasActiveFilters = !!(statusFilter || priorityFilter || laboratoryFilter);
 
   const clearFilters = () => {
     setStatusFilter('');
     setPriorityFilter('');
     setLaboratoryFilter('');
-    setSearch('');
-    setPage(1);
   };
 
   const handleDelete = async () => {
@@ -115,7 +89,7 @@ const LaboratoryOrders: React.FC = () => {
     try {
       await laboratoryOrderService.deleteLaboratoryOrder(deleteTarget.id);
       toast({ title: 'Orden eliminada', description: `La orden ${deleteTarget.order_number} fue eliminada.` });
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin-lab-orders'] });
     } catch {
       toast({ title: 'Error', description: 'No se pudo eliminar la orden.', variant: 'destructive' });
     } finally {
@@ -265,7 +239,7 @@ const LaboratoryOrders: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter || 'all'} onValueChange={(v) => { setStatusFilter(v === 'all' ? '' : v); setPage(1); }}>
+          <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="h-8 text-[12px] w-[160px] border-[#e5e5e9]">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
@@ -283,7 +257,7 @@ const LaboratoryOrders: React.FC = () => {
             </SelectContent>
           </Select>
 
-          <Select value={priorityFilter || 'all'} onValueChange={(v) => { setPriorityFilter(v === 'all' ? '' : v); setPage(1); }}>
+          <Select value={priorityFilter || 'all'} onValueChange={(v) => setPriorityFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="h-8 text-[12px] w-[140px] border-[#e5e5e9]">
               <SelectValue placeholder="Prioridad" />
             </SelectTrigger>
@@ -296,7 +270,7 @@ const LaboratoryOrders: React.FC = () => {
             </SelectContent>
           </Select>
 
-          <Select value={laboratoryFilter || 'all'} onValueChange={(v) => { setLaboratoryFilter(v === 'all' ? '' : v); setPage(1); }}>
+          <Select value={laboratoryFilter || 'all'} onValueChange={(v) => setLaboratoryFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="h-8 text-[12px] w-[180px] border-[#e5e5e9]">
               <SelectValue placeholder="Laboratorio" />
             </SelectTrigger>
@@ -318,49 +292,40 @@ const LaboratoryOrders: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e5e9]">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#121215]">Órdenes de laboratorio</h2>
-              <p className="text-[12px] text-[#b4b5bc] mt-0.5">
-                {total} {total === 1 ? 'orden' : 'órdenes'}
-                {hasActiveFilters && ` (${[statusFilter, priorityFilter, laboratoryFilter, search].filter(Boolean).length} filtros activos)`}
-              </p>
+        <EntityTable<LaboratoryOrder>
+          columns={columns}
+          queryKeyBase="admin-lab-orders"
+          fetcher={({ page, per_page, search }) =>
+            laboratoryOrderService.getLaboratoryOrders({
+              page,
+              per_page,
+              search: search || undefined,
+              status: statusFilter || undefined,
+              priority: priorityFilter || undefined,
+              laboratory_id: laboratoryFilter ? Number(laboratoryFilter) : undefined,
+              sort_field: 'created_at',
+              sort_direction: 'desc',
+            })
+          }
+          extraFilters={{ status: statusFilter, priority: priorityFilter, laboratory_id: laboratoryFilter }}
+          searchPlaceholder="Buscar por # o paciente..."
+          showPageSizeSelect={false}
+          onRowClick={(order) => navigate(`/admin/laboratory-orders/${order.id}`)}
+          toolbarLeading={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-[#121215]">Órdenes de laboratorio</span>
+              <span className="text-[11px] text-[#7d7d87]">Listado de órdenes</span>
             </div>
-            <div className="relative w-[260px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
-              <Input
-                placeholder="Buscar por # o paciente..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-8 h-[34px] text-[12px] border-[#e5e5e9] rounded-md"
-              />
-            </div>
-          </div>
-
-          <DataTable
-            columns={columns}
-            data={orders}
-            loading={isLoading}
-            onRowClick={(order) => navigate(`/admin/laboratory-orders/${order.id}`)}
-            enablePagination={total > 0}
-            currentPage={page}
-            totalPages={lastPage}
-            onPageChange={setPage}
-            paginationSummary={total > 0 ? { from: fromItem, to: toItem, total } : null}
-            paginationVariant="figma"
-            tableLayout="ledger"
-            ledgerBorderMode="figma"
-            emptyStateContent={
-              <div className="flex flex-col items-center justify-center py-12 text-[#7d7d87] text-sm">
-                <FlaskConical className="h-8 w-8 mb-2 text-gray-300" />
-                {hasActiveFilters
-                  ? 'Ninguna orden coincide con los filtros aplicados.'
-                  : 'Aún no has registrado órdenes de laboratorio.'}
-              </div>
-            }
-          />
-        </div>
+          }
+          emptyStateNode={
+            <EmptyState
+              variant="default"
+              title="Sin órdenes"
+              description="Aún no has registrado órdenes de laboratorio."
+            />
+          }
+          filterEmptyStateNode={<EmptyState variant="table-filter" />}
+        />
       </div>
 
       <ConfirmDialog

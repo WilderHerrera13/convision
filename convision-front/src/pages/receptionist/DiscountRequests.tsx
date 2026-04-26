@@ -14,6 +14,7 @@ import { formatDateTime12h } from '@/lib/utils';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
 
 // Types for discount requests
@@ -218,12 +219,16 @@ const DiscountRequests: React.FC = () => {
         }
         extraFilters={{ tab }}
         onRowClick={(discount) => { setSelectedDiscount(discount); setIsDetailModalOpen(true); }}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Solicitudes de Descuento</span>
             <span className="text-[11px] text-[#7d7d87]">Listado de solicitudes</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin solicitudes de descuento" description="No hay solicitudes de descuento registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       <DiscountRequestModal

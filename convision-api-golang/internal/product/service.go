@@ -232,6 +232,30 @@ func (s *Service) Delete(id uint) error {
 	if _, err := s.repo.GetByID(id); err != nil {
 		return err
 	}
+	// Block deletion when the product has inventory stock.
+	stock, err := s.repo.StockByProduct(id)
+	if err != nil {
+		return err
+	}
+	for _, entry := range stock {
+		if entry.Quantity > 0 {
+			return &domain.ErrValidation{
+				Field:   "product_id",
+				Message: "no se puede eliminar el producto porque tiene existencias en inventario",
+			}
+		}
+	}
+	// Block deletion when the product has active approved discounts.
+	activeDiscounts, err := s.discountRepo.GetActiveForProduct(id)
+	if err != nil {
+		return err
+	}
+	if len(activeDiscounts) > 0 {
+		return &domain.ErrValidation{
+			Field:   "product_id",
+			Message: "no se puede eliminar el producto porque tiene descuentos activos",
+		}
+	}
 	return s.repo.Delete(id)
 }
 
@@ -255,6 +279,41 @@ func (s *Service) BulkUpdateStatus(ids []uint, status string) (int64, error) {
 		return 0, &domain.ErrValidation{Field: "status", Message: "must be 'enabled' or 'disabled'"}
 	}
 	return s.repo.BulkUpdateStatus(ids, status)
+}
+
+// ListByCategoryOutput is the paginated response for category-scoped product listing.
+type ListByCategoryOutput struct {
+	CurrentPage int               `json:"current_page"`
+	Data        []*domain.Product `json:"data"`
+	LastPage    int               `json:"last_page"`
+	PerPage     int               `json:"per_page"`
+	Total       int64             `json:"total"`
+}
+
+func (s *Service) ListByCategory(slug string, filters map[string]any, page, perPage int) (*ListByCategoryOutput, error) {
+	page, perPage = clampPage(page, perPage)
+	data, total, err := s.repo.ListByCategory(slug, filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &ListByCategoryOutput{
+		CurrentPage: page,
+		Data:        data,
+		LastPage:    calcLastPage(total, perPage),
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
+}
+
+func (s *Service) ListByPrescription(f domain.PrescriptionFilter) ([]*domain.Product, error) {
+	return s.repo.ListByPrescription(f)
+}
+
+func (s *Service) GetProductStock(id uint) ([]*domain.ProductStockByWarehouse, error) {
+	if _, err := s.repo.GetByID(id); err != nil {
+		return nil, err
+	}
+	return s.repo.StockByProduct(id)
 }
 
 func (s *Service) GetDiscountInfo(productID uint, patientID *uint) (*DiscountInfoOutput, error) {

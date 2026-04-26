@@ -84,7 +84,7 @@ export interface InventorySearchParams {
   sortDirection?: string;
 }
 
-interface LensWithInventory extends Lens {
+export interface LensWithInventory extends Lens {
   total_quantity: number;
 }
 
@@ -227,12 +227,14 @@ class InventoryService {
     return await ApiService.delete<void>(`/api/v1/inventory-items/${id}`);
   }
   
-  async getTotalStock(params?: { warehouseId?: number, locationId?: number }): Promise<PaginatedResponse<LensWithInventory>> {
+  async getTotalStock(params?: { warehouseId?: number; locationId?: number; page?: number; perPage?: number }): Promise<PaginatedResponse<LensWithInventory>> {
     const searchParams = new URLSearchParams();
-    
+
     if (params?.warehouseId) searchParams.append('warehouse_id', params.warehouseId.toString());
     if (params?.locationId) searchParams.append('warehouse_location_id', params.locationId.toString());
-    
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
+
     return await ApiService.get<PaginatedResponse<LensWithInventory>>(`/api/v1/inventory/total-stock?${searchParams.toString()}`);
   }
   
@@ -241,17 +243,16 @@ class InventoryService {
   }
   
   // Inventory Transfer methods
-  async getTransfers(params?: { page?: number, perPage?: number, status?: string }): Promise<PaginatedResponse<InventoryTransfer>> {
+  async getTransfers(params?: { page?: number; perPage?: number; status?: string }): Promise<PaginatedResponse<InventoryTransfer>> {
     const searchParams = new URLSearchParams();
-    
+
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
-    
     if (params?.status) {
       searchParams.append('s_f', JSON.stringify(['status']));
       searchParams.append('s_v', JSON.stringify([params.status]));
     }
-    
+
     return await ApiService.get<PaginatedResponse<InventoryTransfer>>(`/api/v1/inventory-transfers?${searchParams.toString()}`);
   }
   

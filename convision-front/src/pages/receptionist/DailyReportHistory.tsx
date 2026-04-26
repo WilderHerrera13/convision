@@ -6,6 +6,7 @@ import { Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import dailyActivityReportService, {
   DailyActivityReport,
@@ -145,6 +146,16 @@ const DailyReportHistory: React.FC = () => {
         enableSearch={false}
         extraFilters={extraFilters}
         onRowClick={(row) => navigate(`/receptionist/daily-report-history/${row.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Historial de Reportes</span>
+            <span className="text-[11px] text-[#7d7d87]">Reportes diarios registrados</span>
+          </div>
+        }
+        emptyStateNode={<EmptyState variant="default" title="Sin reportes" description="No hay reportes diarios registrados." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
     </div>
   );

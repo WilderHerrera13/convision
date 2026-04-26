@@ -166,7 +166,6 @@ const CashClosesByAdvisor: React.FC = () => {
             showPageSizeSelect={false}
             initialPerPage={10}
             perPageOptions={[10]}
-            enableSorting={false}
             tableLayout="ledger"
             paginationVariant="figma"
             extraFilters={extraFilters}

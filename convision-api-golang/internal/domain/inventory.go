@@ -46,11 +46,13 @@ const (
 	InventoryItemStatusLost      InventoryItemStatus = "lost"
 )
 
-// InventoryItem represents stock of a product at a specific warehouse location.
+// InventoryItem represents stock of a product or lens at a specific warehouse location.
+// Exactly one of ProductID or LensID must be set.
 type InventoryItem struct {
 	ID                  uint                `json:"id"                    gorm:"primaryKey;autoIncrement"`
 	ClinicID            uint                `json:"clinic_id"             gorm:"not null;index"`
-	ProductID           uint                `json:"product_id"            gorm:"not null;index"`
+	ProductID           *uint               `json:"product_id"            gorm:"index"`
+	LensID              *uint               `json:"lens_id"               gorm:"column:lens_id;index"`
 	WarehouseID         uint                `json:"warehouse_id"          gorm:"not null;index"`
 	WarehouseLocationID *uint               `json:"warehouse_location_id" gorm:"column:warehouse_location_id"`
 	Quantity            int                 `json:"quantity"              gorm:"not null;default:0"`
@@ -61,6 +63,7 @@ type InventoryItem struct {
 
 	// Associations
 	Product           *Product           `json:"product,omitempty"            gorm:"foreignKey:ProductID"`
+	Lens              *Lens              `json:"lens,omitempty"               gorm:"foreignKey:LensID"`
 	Warehouse         *Warehouse         `json:"warehouse,omitempty"          gorm:"foreignKey:WarehouseID"`
 	WarehouseLocation *WarehouseLocation `json:"warehouse_location,omitempty" gorm:"foreignKey:WarehouseLocationID"`
 }
@@ -122,6 +125,15 @@ type ProductStockEntry struct {
 	TotalQuantity int64  `json:"total_quantity"`
 }
 
+// LensStockEntry holds aggregated stock for a lens, returned by the total-stock endpoint.
+type LensStockEntry struct {
+	ID            uint   `json:"id"`
+	InternalCode  string `json:"internal_code"`
+	Identifier    string `json:"identifier"`
+	BrandName     string `json:"brand_name"`
+	TotalQuantity int64  `json:"total_quantity"`
+}
+
 // InventoryItemRepository defines persistence operations for InventoryItem.
 type InventoryItemRepository interface {
 	GetByID(id uint) (*InventoryItem, error)
@@ -133,10 +145,19 @@ type InventoryItemRepository interface {
 	// TotalStockPerProduct returns aggregated stock grouped by product.
 	// Supported filter keys: warehouse_id, warehouse_location_id.
 	TotalStockPerProduct(filters map[string]any) ([]*ProductStockEntry, error)
+	// TotalStockPerLens returns all lenses with their aggregated available stock.
+	// Uses a LEFT JOIN so lenses with zero inventory are included.
+	// Supported filter keys: warehouse_id, warehouse_location_id.
+	TotalStockPerLens(filters map[string]any, page, perPage int) ([]*LensStockEntry, int64, error)
+	// GetLensInventory returns all inventory items for a given lens.
+	GetLensInventory(lensID uint) ([]*InventoryItem, int64, error)
 	// ExistsByProductAndLocation returns true when an InventoryItem already
 	// exists for the given (productID, locationID) pair, optionally excluding
 	// the item with excludeID (use 0 to skip the exclusion).
 	ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error)
+	// ExistsByLensAndLocation returns true when an InventoryItem already
+	// exists for the given (lensID, locationID) pair, optionally excluding excludeID.
+	ExistsByLensAndLocation(lensID, locationID, excludeID uint) (bool, error)
 }
 
 // InventoryTransferRepository defines persistence operations for InventoryTransfer.

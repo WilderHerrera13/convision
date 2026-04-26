@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 import { formatDateTime12h } from '@/lib/utils';
 import { Order, orderService } from '@/services/orderService';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
 
 const OrderList: React.FC = () => {
@@ -200,12 +201,16 @@ const OrderList: React.FC = () => {
         searchPlaceholder="Buscar por número o paciente..."
         extraFilters={{ statusFilter, paymentFilter }}
         onRowClick={(order) => navigate(`/receptionist/orders/${order.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Órdenes de Venta</span>
             <span className="text-[11px] text-[#7d7d87]">Listado de órdenes</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin órdenes" description="No hay órdenes de venta registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
     </PageLayout>
   );

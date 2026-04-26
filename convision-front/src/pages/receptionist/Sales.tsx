@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, FileText, Plus, Filter, Download, Search } from 'lucide-react';
+import { Eye, FileText, Filter, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,24 +23,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { saleService, Sale, SaleFilterParams, SaleStats } from '@/services/saleService';
 import { formatCurrency } from '@/lib/utils';
 import { PDFViewer } from '@/components/ui/pdf-viewer';
 import PageLayout from '@/components/layouts/PageLayout';
-
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  partial: 'Parcial',
-  paid: 'Pagada',
-  refunded: 'Reembolsada',
-};
-
-const SALE_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  completed: 'Completada',
-  cancelled: 'Cancelada',
-};
 
 function SaleStatusBadge({ status }: { status: string }) {
   if (status === 'completed') {
@@ -55,35 +43,6 @@ function SaleStatusBadge({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center px-[10px] py-[3px] rounded-full bg-[#ffeeed] text-[#b82626] text-[11px] font-semibold whitespace-nowrap">
         Cancelada
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center px-[10px] py-[3px] rounded-full bg-[#fff6e3] text-[#b57218] text-[11px] font-semibold whitespace-nowrap">
-      Pendiente
-    </span>
-  );
-}
-
-function PaymentStatusBadge({ status }: { status: string }) {
-  if (status === 'paid') {
-    return (
-      <span className="inline-flex items-center px-[10px] py-[3px] rounded-full bg-[#ebf5ef] text-[#228b52] text-[11px] font-semibold whitespace-nowrap">
-        Pagada
-      </span>
-    );
-  }
-  if (status === 'partial') {
-    return (
-      <span className="inline-flex items-center px-[10px] py-[3px] rounded-full bg-[#eff4ff] text-[#3b5fc0] text-[11px] font-semibold whitespace-nowrap">
-        Parcial
-      </span>
-    );
-  }
-  if (status === 'refunded') {
-    return (
-      <span className="inline-flex items-center px-[10px] py-[3px] rounded-full bg-[#f5f5f7] text-[#7d7d87] text-[11px] font-semibold whitespace-nowrap">
-        Reembolsada
       </span>
     );
   }
@@ -127,10 +86,7 @@ const EMPTY_STATS: SaleStats = {
 
 const ReceptionistSales: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [perPage] = useState(10);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
@@ -146,22 +102,6 @@ const ReceptionistSales: React.FC = () => {
     queryKey: ['sales-today-stats'],
     queryFn: () => saleService.getTodayStats(),
   });
-
-  const { data: salesData, isLoading } = useQuery({
-    queryKey: ['receptionist-sales', currentPage, perPage, filters],
-    queryFn: () => {
-      const params: SaleFilterParams = { page: currentPage, per_page: perPage };
-      if (filters.status) params.status = filters.status;
-      if (filters.payment_status) params.payment_status = filters.payment_status;
-      if (filters.date_from) params.date_from = filters.date_from;
-      if (filters.date_to) params.date_to = filters.date_to;
-      return saleService.getSales(params);
-    },
-    placeholderData: (prev) => prev,
-  });
-
-  const sales: Sale[] = salesData?.data ?? [];
-  const totalPages: number = salesData?.last_page ?? 1;
 
   const stats = todayStats ?? EMPTY_STATS;
   const pendingPercent =
@@ -192,14 +132,11 @@ const ReceptionistSales: React.FC = () => {
   };
 
   const applyFilters = () => {
-    setCurrentPage(1);
     setFilterModalOpen(false);
-    queryClient.invalidateQueries({ queryKey: ['receptionist-sales'] });
   };
 
   const clearFilters = () => {
     setFilters({ status: '', payment_status: '', date_from: '', date_to: '' });
-    setCurrentPage(1);
   };
 
   const columns: DataTableColumnDef<Sale>[] = [
@@ -291,21 +228,12 @@ const ReceptionistSales: React.FC = () => {
       subtitle="Ventas / Lista"
       titleStackClassName="flex-col-reverse gap-[2px]"
       actions={
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setFilterModalOpen(true)}
-            className="flex items-center gap-2 h-[36px] px-3 bg-white border border-[#e5e5e9] rounded-[6px] text-[13px] text-[#121215] hover:bg-[#f5f5f6] transition-colors"
-          >
-            <Filter className="size-[14px]" />
-            Filtrar
-          </button>
-          <button
-            onClick={() => navigate('/receptionist/sales/new')}
-            className="flex items-center gap-2 h-[36px] px-5 bg-[#8753ef] rounded-[8px] text-[13px] text-white font-semibold hover:bg-[#7340d8] transition-colors whitespace-nowrap"
-          >
-            + Nueva venta
-          </button>
-        </div>
+        <button
+          onClick={() => navigate('/receptionist/sales/new')}
+          className="flex items-center gap-2 h-[36px] px-5 bg-[#8753ef] rounded-[8px] text-[13px] text-white font-semibold hover:bg-[#7340d8] transition-colors whitespace-nowrap"
+        >
+          + Nueva venta
+        </button>
       }
     >
       <div className="space-y-5">
@@ -332,31 +260,39 @@ const ReceptionistSales: React.FC = () => {
           />
         </div>
 
-        <div className="bg-white border border-[#e5e5e9] rounded-[8px] overflow-hidden">
-          <div className="flex items-center justify-between px-5 h-[52px] border-b border-[#e5e5e9]">
+        <EntityTable<Sale>
+          columns={columns}
+          queryKeyBase="receptionist-sales"
+          fetcher={({ page, per_page, search }) => {
+            const params: SaleFilterParams = { page, per_page };
+            if (search) params.search = search;
+            if (filters.status) params.status = filters.status;
+            if (filters.payment_status) params.payment_status = filters.payment_status;
+            if (filters.date_from) params.date_from = filters.date_from;
+            if (filters.date_to) params.date_to = filters.date_to;
+            return saleService.getSales(params);
+          }}
+          extraFilters={{ status: filters.status, payment_status: filters.payment_status, date_from: filters.date_from, date_to: filters.date_to }}
+          searchPlaceholder="Buscar venta..."
+          onRowClick={(sale) => navigate(`/receptionist/sales/${sale.id}`)}
+          toolbarLeading={
             <div className="flex flex-col gap-[2px]">
               <span className="text-[14px] font-semibold text-[#121215]">Ventas</span>
               <span className="text-[11px] text-[#7d7d87] capitalize">{todayLabel}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center h-[34px] px-3 bg-white border border-[#e5e5e9] rounded-[6px] w-[220px] gap-2">
-                <Search className="size-[13px] text-[#b4b5bc] shrink-0" />
-                <span className="text-[12px] text-[#b4b5bc]">Buscar venta...</span>
-              </div>
-            </div>
-          </div>
-
-          <DataTable
-            data={sales}
-            columns={columns}
-            loading={isLoading}
-            emptyMessage="No se encontraron ventas"
-            enablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
+          }
+          toolbarTrailing={
+            <button
+              onClick={() => setFilterModalOpen(true)}
+              className="flex items-center gap-2 h-[34px] px-3 bg-white border border-[#e5e5e9] rounded-[6px] text-[12px] text-[#121215] hover:bg-[#f5f5f6] transition-colors"
+            >
+              <Filter className="size-[13px]" />
+              Filtrar
+            </button>
+          }
+          emptyStateNode={<EmptyState variant="default" title="Sin ventas" description="No hay ventas registradas aún." />}
+          filterEmptyStateNode={<EmptyState variant="table-filter" />}
+        />
       </div>
 
       <Dialog open={filterModalOpen} onOpenChange={setFilterModalOpen}>

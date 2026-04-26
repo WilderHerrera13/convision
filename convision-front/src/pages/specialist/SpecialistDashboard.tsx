@@ -165,7 +165,6 @@ const SpecialistDashboard: React.FC = () => {
               ledgerBorderMode="figma"
               tableLayout="ledger"
               tableClassName="table-fixed min-w-[960px]"
-              enableSorting={false}
               showPageSizeSelect={false}
               initialPerPage={10}
               tableAriaLabel="Agenda del día"

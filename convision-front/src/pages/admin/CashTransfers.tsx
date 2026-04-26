@@ -1,22 +1,19 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   ArrowUpDown,
   Plus,
-  Search,
-  Filter,
-  Download,
   CheckCircle,
   Clock,
-  XCircle,
   DollarSign,
 } from 'lucide-react';
 import { cashTransferService } from '@/services/cashTransferService';
@@ -26,16 +23,7 @@ const CashTransfers: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const { data: cashTransfers, isLoading } = useQuery({
-    queryKey: ['cash-transfers', searchTerm, statusFilter],
-    queryFn: () => cashTransferService.getCashTransfers({
-      search: searchTerm,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
-  });
 
   const { data: stats } = useQuery({
     queryKey: ['cash-transfer-stats'],
@@ -306,50 +294,41 @@ const CashTransfers: React.FC = () => {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Traslados de Efectivo</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar por número, razón..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="pending">Pendiente</option>
-                <option value="approved">Aprobado</option>
-                <option value="completed">Completado</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            </div>
+      <EntityTable<CashTransferRow>
+        columns={columns}
+        queryKeyBase="cash-transfers"
+        fetcher={({ page, per_page, search }) =>
+          cashTransferService.getCashTransfers({
+            page,
+            per_page,
+            search: search || undefined,
+            status: statusFilter !== 'all' ? statusFilter : undefined,
+          })
+        }
+        extraFilters={{ status: statusFilter }}
+        searchPlaceholder="Buscar por número, razón..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Traslados de Efectivo</span>
+            <span className="text-[11px] text-[#7d7d87]">Movimientos internos de fondos</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={cashTransfers?.data || []}
-            loading={isLoading}
-          />
-        </CardContent>
-      </Card>
+        }
+        toolbarTrailing={
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-[34px] px-3 border border-[#e5e5e9] bg-white rounded-[6px] text-[12px]"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="approved">Aprobado</option>
+            <option value="completed">Completado</option>
+            <option value="cancelled">Cancelado</option>
+          </select>
+        }
+        emptyStateNode={<EmptyState variant="default" title="Sin traslados" description="No hay traslados de efectivo registrados." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
       </div>
     </PageLayout>
   );

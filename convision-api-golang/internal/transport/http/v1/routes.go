@@ -167,6 +167,22 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				jwtauth.RequireRole(domain.RoleSpecialist),
 				h.UpsertAppointmentAnamnesis,
 			)
+			appointments.PUT("/:id/clinical-record/visual-exam",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.UpsertAppointmentVisualExam,
+			)
+			appointments.PUT("/:id/clinical-record/diagnosis",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.UpsertAppointmentDiagnosis,
+			)
+			appointments.PUT("/:id/clinical-record/prescription",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.UpsertAppointmentPrescription,
+			)
+			appointments.POST("/:id/clinical-record/sign",
+				jwtauth.RequireRole(domain.RoleSpecialist),
+				h.SignAppointmentClinicalRecord,
+			)
 		}
 
 		// Management report ("Informe de gestión") — specialist writes their own
@@ -282,6 +298,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		productCategories := protected.Group("/product-categories")
 		{
 			productCategories.GET("", h.ListProductCategories)
+			productCategories.GET("/all", h.ListAllProductCategories)
+			productCategories.GET("/products-count", h.ListProductCategoriesWithCount)
 			productCategories.GET("/:id", h.GetProductCategory)
 			productCategories.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProductCategory)
 			productCategories.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProductCategory)
@@ -292,6 +310,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		categories := protected.Group("/categories")
 		{
 			categories.GET("", h.ListProductCategories)
+			categories.GET("/all", h.ListAllProductCategories)
+			categories.GET("/products-count", h.ListProductCategoriesWithCount)
 			categories.GET("/:id", h.GetProductCategory)
 			categories.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProductCategory)
 			categories.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProductCategory)
@@ -304,6 +324,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			products.GET("", h.ListProducts)
 			products.GET("/search", h.SearchProducts)
 			products.POST("/bulk-status", jwtauth.RequireRole(domain.RoleAdmin), h.BulkProductStatus)
+			products.POST("/lenses/by-prescription", h.ListLensesByPrescription)
+			products.GET("/category/:slug", h.ListProductsByCategory)
 			products.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProduct)
 			products.GET("/:id", h.GetProduct)
 			products.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProduct)
@@ -314,6 +336,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			products.GET("/:id/active-discounts", h.GetProductActiveDiscounts)
 			products.GET("/:id/calculate-price", h.CalculateProductPrice)
 			products.GET("/:id/inventory-summary", h.GetProductInventorySummary)
+			products.GET("/:id/inventory", h.GetProductInventorySummary)
 		}
 
 		// Warehouses — admin only for write
@@ -569,6 +592,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			portfolio.GET("/orders/:id/calls",
 				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
 				h.GetPortfolioOrderCalls,
+			)
+			portfolio.POST("/orders/:id/close",
+				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				h.ClosePortfolioOrder,
 			)
 		}
 

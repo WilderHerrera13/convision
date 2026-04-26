@@ -24,6 +24,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Plus, Filter, Download, CreditCard, DollarSign } from 'lucide-react';
 import { quoteService, Quote, QuoteFilterParams } from '@/services/quoteService';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
 
 const ReceptionistQuotes: React.FC = () => {
@@ -175,12 +176,16 @@ const ReceptionistQuotes: React.FC = () => {
         searchPlaceholder="Buscar por número o cliente..."
         extraFilters={{ status: filters.status, date_from: filters.date_from, date_to: filters.date_to, patient_id: filters.patient_id }}
         onRowClick={(quote) => navigate(`/receptionist/quotes/${quote.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Cotizaciones</span>
             <span className="text-[11px] text-[#7d7d87]">Listado de cotizaciones</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin cotizaciones" description="No hay cotizaciones registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       <Dialog open={filterModalOpen} onOpenChange={setFilterModalOpen}>

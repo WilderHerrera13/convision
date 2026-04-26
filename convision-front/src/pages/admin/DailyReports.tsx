@@ -120,7 +120,6 @@ const AdminDailyReports: React.FC = () => {
             fetcher={fetcher}
             queryKeyBase="admin-daily-reports"
             enableSearch={false}
-            enableSorting={false}
             showPageSizeSelect={false}
             initialPerPage={10}
             extraFilters={extraFilters}

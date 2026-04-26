@@ -146,7 +146,7 @@ func main() {
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
-	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, logger)
+	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, saleRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
 	purchaseService := purchasesvc.NewService(purchaseRepo, logger)
 	expenseService := expensesvc.NewService(expenseRepo, logger)

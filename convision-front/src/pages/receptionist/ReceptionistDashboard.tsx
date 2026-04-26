@@ -148,7 +148,6 @@ const ReceptionistDashboard: React.FC = () => {
               ledgerBorderMode="figma"
               tableLayout="ledger"
               tableClassName="table-fixed w-full min-w-[680px]"
-              enableSorting={false}
               showPageSizeSelect={false}
               initialPerPage={7}
               tableAriaLabel="Cola de ventas"

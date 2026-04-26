@@ -23,6 +23,7 @@ import api from '@/lib/axios';
 import { format } from 'date-fns';
 import { formatDateTime12h } from '@/lib/utils';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import DiscountRequestModal from '@/components/discounts/DiscountRequestModal';
 import DiscountDetailModal from '@/components/discounts/DiscountDetailModal';
 import PageLayout from '@/components/layouts/PageLayout';
@@ -306,12 +307,16 @@ const DiscountRequests: React.FC = () => {
         }
         extraFilters={{ tab }}
         onRowClick={(r) => handleViewDetails(r)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Solicitudes de Descuento</span>
             <span className="text-[11px] text-[#7d7d87]">Gestión de descuentos</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin solicitudes de descuento" description="No hay solicitudes de descuento registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       {/* Rejection Modal */}

@@ -97,6 +97,12 @@ type ProductCategory struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 }
 
+// CategoryWithCount pairs a category with how many products belong to it.
+type CategoryWithCount struct {
+	*ProductCategory
+	ProductCount int64 `json:"product_count"`
+}
+
 // ProductCategoryRepository defines persistence operations for ProductCategory.
 type ProductCategoryRepository interface {
 	GetByID(id uint) (*ProductCategory, error)
@@ -104,6 +110,12 @@ type ProductCategoryRepository interface {
 	Update(c *ProductCategory) error
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*ProductCategory, int64, error)
+	// All returns every active category without pagination.
+	All() ([]*ProductCategory, error)
+	// ListWithProductCount returns all categories annotated with the count of associated products.
+	ListWithProductCount() ([]*CategoryWithCount, error)
+	// GetBySlug returns a single category by its slug.
+	GetBySlug(slug string) (*ProductCategory, error)
 }
 
 // Brand represents a product brand.

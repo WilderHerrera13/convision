@@ -65,6 +65,34 @@ func (h *Handler) ListProducts(c *gin.Context) {
 			filters["brand_id"] = uint(id)
 		}
 	}
+	if v := c.Query("supplier_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["supplier_id"] = uint(id)
+		}
+	}
+
+	// Inline search falls through to the Search endpoint logic when present.
+	if q := c.Query("search"); q != "" {
+		out, err := h.product.Search(q, "", page, perPage)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"current_page": out.CurrentPage,
+			"data":         productResponseSlice(out.Data),
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+			"meta": gin.H{
+				"current_page": out.CurrentPage,
+				"last_page":    out.LastPage,
+				"per_page":     out.PerPage,
+				"total":        out.Total,
+			},
+		})
+		return
+	}
 
 	out, err := h.product.List(filters, page, perPage)
 	if err != nil {
@@ -174,8 +202,84 @@ func (h *Handler) GetProductStock(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	// Return stock from inventory total filtered to this product
-	c.JSON(http.StatusOK, gin.H{"product_id": id, "message": "use /inventory-items?product_id=X for detailed stock"})
+	stock, err := h.product.GetProductStock(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"product_id": id, "data": stock})
+}
+
+func (h *Handler) ListProductsByCategory(c *gin.Context) {
+	slug := c.Param("slug")
+	page, perPage := parsePagination(c)
+	filters := map[string]any{}
+	for _, key := range []string{
+		"brand_id", "supplier_id", "status", "search",
+		"lens_type_id", "material_id", "lens_class_id", "treatment_id", "photochromic_id",
+		"frame_type", "gender", "color", "shape",
+		"contact_type", "replacement_schedule",
+	} {
+		if v := c.Query(key); v != "" {
+			filters[key] = v
+		}
+	}
+	// Convert numeric ID filters from string to uint.
+	for _, key := range []string{"brand_id", "supplier_id", "lens_type_id", "material_id", "lens_class_id", "treatment_id", "photochromic_id"} {
+		if v, ok := filters[key]; ok {
+			if id, err := strconv.ParseUint(v.(string), 10, 64); err == nil {
+				filters[key] = uint(id)
+			} else {
+				delete(filters, key)
+			}
+		}
+	}
+	out, err := h.product.ListByCategory(slug, filters, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"current_page": out.CurrentPage,
+		"data":         productResponseSlice(out.Data),
+		"last_page":    out.LastPage,
+		"per_page":     out.PerPage,
+		"total":        out.Total,
+		"meta": gin.H{
+			"current_page": out.CurrentPage,
+			"last_page":    out.LastPage,
+			"per_page":     out.PerPage,
+			"total":        out.Total,
+		},
+	})
+}
+
+func (h *Handler) ListLensesByPrescription(c *gin.Context) {
+	var f struct {
+		SphereOD   *float64 `json:"sphere_od"`
+		CylinderOD *float64 `json:"cylinder_od"`
+		AdditionOD *float64 `json:"addition_od"`
+		SphereOS   *float64 `json:"sphere_os"`
+		CylinderOS *float64 `json:"cylinder_os"`
+		AdditionOS *float64 `json:"addition_os"`
+	}
+	if err := c.ShouldBindJSON(&f); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+	lenses, err := h.product.ListByPrescription(domain.PrescriptionFilter{
+		SphereOD:   f.SphereOD,
+		CylinderOD: f.CylinderOD,
+		AdditionOD: f.AdditionOD,
+		SphereOS:   f.SphereOS,
+		CylinderOS: f.CylinderOS,
+		AdditionOS: f.AdditionOS,
+	})
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": productResponseSlice(lenses)})
 }
 
 func (h *Handler) GetProductDiscounts(c *gin.Context) {
@@ -325,4 +429,22 @@ func (h *Handler) DeleteProductCategory(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) ListAllProductCategories(c *gin.Context) {
+	cats, err := h.category.All()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": cats})
+}
+
+func (h *Handler) ListProductCategoriesWithCount(c *gin.Context) {
+	cats, err := h.category.ListWithCount()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": cats})
 }

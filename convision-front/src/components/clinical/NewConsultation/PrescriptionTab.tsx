@@ -10,37 +10,58 @@ const TREATMENTS = [
   { key: 'hidrofobico', label: 'Hidrofóbico' },
 ];
 
-interface PrescriptionTabProps {
+interface Props {
   defaultValues?: Partial<PrescriptionInput>;
-  visualExamData?: VisualExamInput;
+  visualExamData?: Partial<VisualExamInput>;
   onSave: (data: PrescriptionInput) => Promise<void>;
+  onBack?: () => void;
   onSign: () => void;
   isSaving?: boolean;
 }
 
-export function PrescriptionTab({ defaultValues, visualExamData, onSave, onSign, isSaving }: PrescriptionTabProps) {
+function OpticalInput({ name, register, step = '0.25', width = 'w-[72px]' }: {
+  name: string; register: ReturnType<typeof useForm>['register']; step?: string; width?: string;
+}) {
+  return (
+    <input
+      type="number"
+      step={step}
+      {...register(name, { valueAsNumber: true })}
+      className={`${width} text-center text-[12px] border border-[#e0e0e4] rounded-[4px] px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0f8f64] text-[#121215]`}
+    />
+  );
+}
+
+export function PrescriptionTab({ defaultValues, visualExamData, onSave, onBack, onSign, isSaving }: Props) {
   const { register, handleSubmit, setValue, watch } = useForm<PrescriptionInput>({
     defaultValues: { validity_months: 12, ...defaultValues },
   });
 
-  const [activeTreatments, setActiveTreatments] = useState<string[]>(defaultValues?.treatments || []);
-  const validityMonths = watch('validity_months') || 12;
+  const [activeTreatments, setActiveTreatments] = useState<string[]>(defaultValues?.treatments ?? []);
+  const [prefilled, setPrefilled] = useState(false);
+
+  const validityMonths = watch('validity_months') ?? 12;
 
   useEffect(() => {
-    if (visualExamData) {
-      if (visualExamData.subj_sph_od !== undefined) setValue('sph_od', visualExamData.subj_sph_od);
-      if (visualExamData.subj_cyl_od !== undefined) setValue('cyl_od', visualExamData.subj_cyl_od);
-      if (visualExamData.subj_axis_od !== undefined) setValue('axis_od', visualExamData.subj_axis_od);
-      if (visualExamData.subj_sph_oi !== undefined) setValue('sph_oi', visualExamData.subj_sph_oi);
-      if (visualExamData.subj_cyl_oi !== undefined) setValue('cyl_oi', visualExamData.subj_cyl_oi);
-      if (visualExamData.subj_axis_oi !== undefined) setValue('axis_oi', visualExamData.subj_axis_oi);
-    }
+    if (!visualExamData) return;
+    const fields: Array<[keyof PrescriptionInput, keyof VisualExamInput]> = [
+      ['sph_od', 'subj_sph_od'], ['cyl_od', 'subj_cyl_od'], ['axis_od', 'subj_axis_od'],
+      ['sph_oi', 'subj_sph_oi'], ['cyl_oi', 'subj_cyl_oi'], ['axis_oi', 'subj_axis_oi'],
+      ['add_od', 'addition'], ['add_oi', 'addition'],
+    ];
+    let filled = false;
+    fields.forEach(([target, source]) => {
+      const val = visualExamData[source];
+      if (val !== undefined && val !== null) {
+        setValue(target, val as never);
+        filled = true;
+      }
+    });
+    if (filled) setPrefilled(true);
   }, [visualExamData, setValue]);
 
   const toggleTreatment = (key: string) => {
-    setActiveTreatments(prev =>
-      prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key]
-    );
+    setActiveTreatments(prev => prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key]);
   };
 
   const validUntilDate = () => {
@@ -53,56 +74,82 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onSign,
     await onSave({ ...data, treatments: activeTreatments });
   };
 
+  const handleSignClick = handleSubmit(async (formData) => {
+    try {
+      await onSave({ ...formData, treatments: activeTreatments });
+      onSign();
+    } catch {
+      // error already surfaced by parent's onSave
+    }
+  });
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-3">Fórmula Óptica</p>
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th className="text-xs font-semibold text-[#7d7d87] pb-2 w-12">Ojo</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">Esférico</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">Cilindro</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">Eje</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">AV cc</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">Adición</th>
-              <th className="text-center text-xs font-semibold text-[#7d7d87] pb-2">DP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[{ eye: 'od', label: 'OD' }, { eye: 'oi', label: 'OI' }].map(({ eye, label }) => (
-              <tr key={eye}>
-                <td className="text-xs font-medium text-[#0f0f12] py-1">{label}</td>
-                <td className="py-1 text-center">
-                  <input type="number" step="0.25" {...register(`sph_${eye}` as keyof PrescriptionInput, { valueAsNumber: true })} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
-                <td className="py-1 text-center">
-                  <input type="number" step="0.25" {...register(`cyl_${eye}` as keyof PrescriptionInput, { valueAsNumber: true })} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
-                <td className="py-1 text-center">
-                  <input type="number" step="1" {...register(`axis_${eye}` as keyof PrescriptionInput, { valueAsNumber: true })} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
-                <td className="py-1 text-center">
-                  <input type="text" {...register(`avcc_${eye}` as keyof PrescriptionInput)} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
-                <td className="py-1 text-center">
-                  <input type="number" step="0.25" {...register(`add_${eye}` as keyof PrescriptionInput, { valueAsNumber: true })} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
-                <td className="py-1 text-center">
-                  <input type="number" step="0.5" {...register(`dp_${eye}` as keyof PrescriptionInput, { valueAsNumber: true })} className="w-16 text-xs text-center border border-[#e5e5e9] rounded px-1 py-1" />
-                </td>
+    <form onSubmit={handleSubmit(onSubmit)} className="px-8 py-6 space-y-6">
+
+      {prefilled && (
+        <div className="flex items-center gap-2 bg-[#e5f6ef] border border-[#0f8f64] rounded-[6px] px-3 py-2">
+          <span className="text-[#0f8f64] text-[11px] font-semibold">✓ Valores pre-cargados desde la refracción subjetiva del examen visual</span>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[13px] font-semibold text-[#121215] mb-1">Fórmula óptica</p>
+        <hr className="border-[#e5e5e9] mb-3" />
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="bg-[#fafafb] border border-[#e5e5e9]">
+                <th className="px-3 py-2 text-left font-semibold text-[#7d7d87] w-12">Ojo</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">Esférico</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">Cilindro</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">Eje</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">AV c/c</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">Adición</th>
+                <th className="px-2 py-2 text-center font-semibold text-[#7d7d87]">D.P.</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {([['od', 'OD'], ['oi', 'OI']] as const).map(([eye, label]) => (
+                <tr key={eye} className="border-b border-[#e5e5e9]">
+                  <td className="px-3 py-2">
+                    <span className="bg-[#121215] text-white text-[10px] font-bold rounded-[3px] px-1.5 py-0.5">{label}</span>
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <OpticalInput name={`sph_${eye}`} register={register} />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <OpticalInput name={`cyl_${eye}`} register={register} />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <OpticalInput name={`axis_${eye}`} register={register} step="1" />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <input
+                      type="text"
+                      {...register(`avcc_${eye}` as keyof PrescriptionInput)}
+                      className="w-[72px] text-center text-[12px] border border-[#e0e0e4] rounded-[4px] px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0f8f64] text-[#121215]"
+                    />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <OpticalInput name={`add_${eye}`} register={register} />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <OpticalInput name={`dp_${eye}`} register={register} step="0.5" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-3">Tipo de Lente</p>
-        <div className="grid grid-cols-3 gap-3">
+      <div>
+        <p className="text-[13px] font-semibold text-[#121215] mb-1">Especificaciones del lente</p>
+        <hr className="border-[#e5e5e9] mb-3" />
+        <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
-            <label className="block text-xs text-[#7d7d87] mb-1">Tipo</label>
-            <select {...register('lens_type')} className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]">
+            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Tipo de lente</label>
+            <select {...register('lens_type')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
               <option value="monofocal">Monofocal</option>
               <option value="bifocal">Bifocal</option>
@@ -111,8 +158,8 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onSign,
             </select>
           </div>
           <div>
-            <label className="block text-xs text-[#7d7d87] mb-1">Material</label>
-            <select {...register('lens_material')} className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]">
+            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Material</label>
+            <select {...register('lens_material')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
               <option value="policarbonato">Policarbonato</option>
               <option value="cr39">CR-39</option>
@@ -121,8 +168,8 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onSign,
             </select>
           </div>
           <div>
-            <label className="block text-xs text-[#7d7d87] mb-1">Uso</label>
-            <select {...register('lens_use')} className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]">
+            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Uso indicado</label>
+            <select {...register('lens_use')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
               <option value="permanente">Permanente</option>
               <option value="lectura">Lectura</option>
@@ -130,63 +177,86 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onSign,
             </select>
           </div>
         </div>
-        <div className="mt-3">
-          <label className="block text-xs text-[#7d7d87] mb-1">Altura de montaje (mm)</label>
-          <input type="number" step="0.5" {...register('mounting_height', { valueAsNumber: true })} className="w-32 border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Vigencia (meses)</label>
+            <select {...register('validity_months', { valueAsNumber: true })} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
+              <option value={6}>6 meses</option>
+              <option value={12}>12 meses</option>
+            </select>
+            <p className="text-[11px] text-[#7d7d87] mt-1">Válida hasta: {validUntilDate()}</p>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Altura de montaje (mm)</label>
+            <input
+              type="number"
+              step="0.5"
+              {...register('mounting_height', { valueAsNumber: true })}
+              placeholder="Ej: 18.0"
+              className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] placeholder:text-[#b4b5bc]"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-3">Tratamientos</p>
+      <div>
+        <p className="text-[13px] font-semibold text-[#121215] mb-1">Tratamientos</p>
+        <hr className="border-[#e5e5e9] mb-3" />
         <div className="flex flex-wrap gap-2">
-          {TREATMENTS.map(t => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => toggleTreatment(t.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                activeTreatments.includes(t.key)
-                  ? 'bg-[#e5f6ef] border-[#0f8f64] text-[#0f8f64]'
-                  : 'border-[#e5e5e9] text-[#7d7d87] hover:border-[#0f8f64]'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TREATMENTS.map(t => {
+            const active = activeTreatments.includes(t.key);
+            return (
+              <button key={t.key} type="button" onClick={() => toggleTreatment(t.key)}
+                className={`text-[11px] px-3 py-1 rounded-full border transition-colors ${active ? 'bg-[#e5f6ef] border-[#0f8f64] text-[#0f8f64] font-semibold' : 'bg-[#f5f5f6] border-[#e0e0e4] text-[#7d7d87] hover:border-[#0f8f64] hover:text-[#0f8f64]'}`}>
+                {t.label}
+              </button>
+            );
+          })}
         </div>
+        {activeTreatments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {activeTreatments.map(k => (
+              <span key={k} className="bg-[#0f8f64] text-white text-[10px] font-semibold rounded-full px-2 py-0.5">
+                {TREATMENTS.find(t => t.key === k)?.label}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-3">Vigencia</p>
-        <div className="flex items-center gap-3">
-          <select {...register('validity_months', { valueAsNumber: true })} className="border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]">
-            <option value={6}>6 meses</option>
-            <option value={12}>12 meses</option>
-          </select>
-          <p className="text-sm text-[#7d7d87]">Válida hasta: {validUntilDate()}</p>
-        </div>
-      </div>
-
-      <div className="bg-[#f5f5f6] border border-[#e5e5e9] rounded-xl p-4">
-        <p className="text-sm font-medium text-[#0f0f12] mb-3">Firma</p>
+      <div>
+        <p className="text-[13px] font-semibold text-[#121215] mb-1">Firma y cierre</p>
+        <hr className="border-[#e5e5e9] mb-3" />
         <div className="mb-3">
-          <label className="block text-xs text-[#7d7d87] mb-1">Tarjeta profesional (T.P.)</label>
+          <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Tarjeta profesional (T.P. CTNPO)</label>
           <input
             {...register('professional_tp')}
-            className="w-full border border-[#e5e5e9] rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f8f64]"
             placeholder="CTNPO-XXXX"
+            className="w-full border border-[#e0e0e4] rounded-[6px] px-3 py-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] placeholder:text-[#b4b5bc]"
           />
         </div>
-        <button
-          type="button"
-          onClick={onSign}
-          className="w-full bg-[#0f8f64] text-white py-3 rounded-lg hover:bg-[#0a7050] font-medium"
-        >
-          Firmar y completar consulta
-        </button>
-        <p className="text-xs text-[#7d7d87] mt-2 text-center">
-          Ley 650/2001 Art. 24 — La fórmula óptica es un documento legal
-        </p>
+        <div className="bg-[#f9f9fb] border border-[#e0e0e4] rounded-[6px] px-3 py-2 text-[11px] text-[#7d7d87] mb-3">
+          Ley 650/2001 Art. 24 — La fórmula óptica es un documento legal con vigencia máxima de 12 meses (Decreto 2200/2005)
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        {onBack && (
+          <button type="button" onClick={onBack}
+            className="border border-[#e0e0e4] bg-white text-[#121215] h-9 px-5 rounded-[6px] text-[13px] font-semibold hover:bg-[#f5f5f6] transition-colors">
+            ← Diagnóstico
+          </button>
+        )}
+        <div className="flex gap-3 ml-auto">
+          <button type="submit" disabled={isSaving}
+            className="border border-[#0f8f64] text-[#0f8f64] bg-white h-9 px-5 rounded-[6px] text-[13px] font-semibold hover:bg-[#e5f6ef] transition-colors disabled:opacity-50">
+            {isSaving ? 'Guardando...' : 'Guardar borrador'}
+          </button>
+          <button type="button" onClick={handleSignClick} disabled={isSaving}
+            className="bg-[#0f8f64] text-white h-9 px-6 rounded-[6px] text-[13px] font-semibold hover:bg-[#0a7050] transition-colors disabled:opacity-50">
+            Firmar y completar consulta →
+          </button>
+        </div>
       </div>
     </form>
   );

@@ -248,6 +248,40 @@ export const appointmentsService = {
     };
   },
 
+  async getSpecialistAgendaTable(params: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    startDate: string;
+    endDate: string;
+    status?: string;
+  }): Promise<PaginatedAppointmentsTable> {
+    const page = params.page ?? 1;
+    const per_page = params.per_page ?? 15;
+    const query: Record<string, string | number> = {
+      page,
+      per_page,
+      sort: 'scheduled_at,asc',
+      start_date: params.startDate,
+      end_date: params.endDate,
+    };
+    if (params.search?.trim()) query.search = params.search.trim();
+    if (params.status) query.status = params.status;
+    const response = await api.get('/api/v1/appointments', {
+      params: query,
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache', Expires: '0' },
+    });
+    const body = response.data;
+    const meta = body.meta ?? {};
+    const last_page =
+      typeof meta.last_page === 'number' ? meta.last_page
+      : Array.isArray(meta.last_page) ? Number(meta.last_page[0]) : 1;
+    const total =
+      typeof meta.total === 'number' ? meta.total
+      : Array.isArray(meta.total) ? Number(meta.total[0]) : 0;
+    return { data: Array.isArray(body.data) ? body.data : [], last_page: last_page || 1, total };
+  },
+
   async getBookedSlots(specialistId: number, date: string): Promise<string[]> {
     const response = await api.get('/api/v1/appointments/available-slots', {
       params: { specialist_id: specialistId, date },

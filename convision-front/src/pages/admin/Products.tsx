@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,29 +28,19 @@ import { z } from 'zod';
 import {
   Package,
   Plus,
-  Search,
-  Filter,
   Edit,
   Trash2,
-  Eye,
-  MoreVertical,
-  Download,
-  Upload,
-  CheckCircle,
-  XCircle,
   Loader2,
 } from 'lucide-react';
-import {
-  DataTable,
-  DataTableColumnDef,
-} from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency } from '@/lib/utils';
 import {
   productService,
   Product,
   CreateProductRequest,
   UpdateProductRequest,
-  ProductSearchParams,
 } from '@/services/productService';
 import { brandService, Brand } from '@/services/brandService';
 import { categoryService, ProductCategory } from '@/services/categoryService';
@@ -87,22 +76,14 @@ const Products: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(15);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  
-  const [filters, setFilters] = useState<ProductSearchParams>({
-    search: '',
-    category: '',
-    brand_id: undefined,
-    supplier_id: undefined,
-    status: '',
-  });
+
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterBrandId, setFilterBrandId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const createForm = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -121,15 +102,6 @@ const Products: React.FC = () => {
 
   const editForm = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-  });
-
-  const { data: productsData, isLoading, error } = useQuery({
-    queryKey: ['products', page, perPage, filters],
-    queryFn: () => productService.getProducts({
-      ...filters,
-      page,
-      per_page: perPage,
-    }),
   });
 
   const { data: categories = [] } = useQuery({
@@ -265,31 +237,6 @@ const Products: React.FC = () => {
     deleteMutation.mutate(selectedProduct.id);
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setFilters(prev => ({ ...prev, search: value }));
-    setPage(1);
-  };
-
-  const applyFilters = (newFilters: Partial<ProductSearchParams>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPage(1);
-    setIsFilterModalOpen(false);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      category: '',
-      brand_id: undefined,
-      supplier_id: undefined,
-      status: '',
-    });
-    setSearch('');
-    setPage(1);
-    setIsFilterModalOpen(false);
-  };
-
   const columns: DataTableColumnDef<Product>[] = [
     {
       id: 'internal_code',
@@ -387,77 +334,83 @@ const Products: React.FC = () => {
     },
   ];
 
-  const products = productsData?.data || [];
-  const totalPages = productsData?.last_page || 1;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Productos</h1>
-          <p className="text-muted-foreground">
-            Gestiona el catálogo de productos de la empresa
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="15">15 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => setIsFilterModalOpen(true)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Producto
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Productos</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar productos..."
-                  value={search}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-            </div>
+      <EntityTable<Product>
+        columns={columns}
+        queryKeyBase="products"
+        fetcher={({ page, per_page, search }) =>
+          productService.getProducts({
+            page,
+            per_page,
+            search,
+            category: filterCategory || undefined,
+            brand_id: filterBrandId ? Number(filterBrandId) : undefined,
+            status: filterStatus || undefined,
+          })
+        }
+        extraFilters={{ filterCategory, filterBrandId, filterStatus }}
+        searchPlaceholder="Buscar productos..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Productos</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestiona el catálogo de productos de la empresa</span>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={products}
-            columns={columns}
-            loading={isLoading}
-            enablePagination={true}
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            emptyMessage="No se encontraron productos"
+        }
+        toolbarTrailing={
+          <div className="flex items-center gap-2">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Todas las categorías" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas las categorías</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.slug}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterBrandId} onValueChange={setFilterBrandId}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Todas las marcas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas las marcas</SelectItem>
+                {brands.map((brand) => (
+                  <SelectItem key={brand.id} value={brand.id.toString()}>
+                    {brand.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos los estados</SelectItem>
+                <SelectItem value="enabled">Activo</SelectItem>
+                <SelectItem value="disabled">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Producto
+            </Button>
+          </div>
+        }
+        emptyStateNode={
+          <EmptyState
+            leadingIcon={Package}
+            accentColor="#7d7d87"
+            title="Sin productos registrados"
+            description="Comienza creando el primer producto."
           />
-        </CardContent>
-      </Card>
+        }
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
       {/* Create Product Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
@@ -839,109 +792,6 @@ const Products: React.FC = () => {
         isLoading={deleteMutation.isPending}
       />
 
-      {/* Filter Modal */}
-      <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Filtros de Productos</DialogTitle>
-            <DialogDescription>
-              Aplique filtros para refinar la búsqueda
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Categoría</Label>
-              <Select
-                value={filters.category || ''}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas las categorías</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.slug}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Marca</Label>
-              <Select
-                value={filters.brand_id?.toString() || ''}
-                onValueChange={(value) => setFilters(prev => ({ 
-                  ...prev, 
-                  brand_id: value ? Number(value) : undefined 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las marcas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas las marcas</SelectItem>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id.toString()}>
-                      {brand.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Proveedor</Label>
-              <Select
-                value={filters.supplier_id?.toString() || ''}
-                onValueChange={(value) => setFilters(prev => ({ 
-                  ...prev, 
-                  supplier_id: value ? Number(value) : undefined 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los proveedores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los proveedores</SelectItem>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Estado</Label>
-              <Select
-                value={filters.status || ''}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los estados</SelectItem>
-                  <SelectItem value="enabled">Activo</SelectItem>
-                  <SelectItem value="disabled">Inactivo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={clearFilters}>
-              Limpiar Filtros
-            </Button>
-            <Button onClick={() => applyFilters(filters)}>
-              Aplicar Filtros
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

@@ -51,12 +51,12 @@ func validateTransferStatus(s string) (domain.InventoryTransferStatus, error) {
 
 // Service handles inventory use-cases.
 type Service struct {
-	db             *gorm.DB
-	warehouseRepo  domain.WarehouseRepository
-	locationRepo   domain.WarehouseLocationRepository
-	itemRepo       domain.InventoryItemRepository
-	transferRepo   domain.InventoryTransferRepository
-	logger         *zap.Logger
+	db            *gorm.DB
+	warehouseRepo domain.WarehouseRepository
+	locationRepo  domain.WarehouseLocationRepository
+	itemRepo      domain.InventoryItemRepository
+	transferRepo  domain.InventoryTransferRepository
+	logger        *zap.Logger
 }
 
 // NewService creates a new inventory Service.
@@ -125,11 +125,11 @@ type WarehouseUpdateInput struct {
 
 // WarehouseListOutput is the paginated warehouse response.
 type WarehouseListOutput struct {
-	CurrentPage int                  `json:"current_page"`
-	Data        []*domain.Warehouse  `json:"data"`
-	LastPage    int                  `json:"last_page"`
-	PerPage     int                  `json:"per_page"`
-	Total       int64                `json:"total"`
+	CurrentPage int                 `json:"current_page"`
+	Data        []*domain.Warehouse `json:"data"`
+	LastPage    int                 `json:"last_page"`
+	PerPage     int                 `json:"per_page"`
+	Total       int64               `json:"total"`
 }
 
 func (s *Service) ListWarehouses(filters map[string]any, page, perPage int) (*WarehouseListOutput, error) {
@@ -239,11 +239,11 @@ type LocationUpdateInput struct {
 
 // LocationListOutput is the paginated location response.
 type LocationListOutput struct {
-	CurrentPage int                          `json:"current_page"`
-	Data        []*domain.WarehouseLocation  `json:"data"`
-	LastPage    int                          `json:"last_page"`
-	PerPage     int                          `json:"per_page"`
-	Total       int64                        `json:"total"`
+	CurrentPage int                         `json:"current_page"`
+	Data        []*domain.WarehouseLocation `json:"data"`
+	LastPage    int                         `json:"last_page"`
+	PerPage     int                         `json:"per_page"`
+	Total       int64                       `json:"total"`
 }
 
 func (s *Service) ListLocations(filters map[string]any, page, perPage int) (*LocationListOutput, error) {
@@ -344,8 +344,10 @@ func (s *Service) validateLocationBelongsToWarehouse(locationID, warehouseID uin
 // ======== InventoryItem ========
 
 // ItemCreateInput holds validated fields for creating an inventory item.
+// Exactly one of ProductID or LensID must be provided.
 type ItemCreateInput struct {
-	ProductID           uint   `json:"product_id"            binding:"required"`
+	ProductID           *uint  `json:"product_id"`
+	LensID              *uint  `json:"lens_id"`
 	WarehouseID         uint   `json:"warehouse_id"          binding:"required"`
 	WarehouseLocationID *uint  `json:"warehouse_location_id"`
 	Quantity            int    `json:"quantity"`
@@ -365,11 +367,11 @@ type ItemUpdateInput struct {
 
 // ItemListOutput is the paginated inventory item response.
 type ItemListOutput struct {
-	CurrentPage int                    `json:"current_page"`
+	CurrentPage int                     `json:"current_page"`
 	Data        []*domain.InventoryItem `json:"data"`
-	LastPage    int                    `json:"last_page"`
-	PerPage     int                    `json:"per_page"`
-	Total       int64                  `json:"total"`
+	LastPage    int                     `json:"last_page"`
+	PerPage     int                     `json:"per_page"`
+	Total       int64                   `json:"total"`
 }
 
 // TotalStockOutput holds total stock summary.

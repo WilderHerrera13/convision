@@ -129,6 +129,10 @@ const portfolioService = {
     const raw = response.data?.data ?? response.data;
     return Array.isArray(raw) ? raw : [];
   },
+
+  async closeOrder(orderId: number): Promise<void> {
+    await api.post(`/api/v1/portfolio/orders/${orderId}/close`);
+  },
 };
 
 export { portfolioService };

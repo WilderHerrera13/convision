@@ -95,6 +95,26 @@ type ProductContactLensAttributes struct {
 	UVProtection        bool    `json:"uv_protection"`
 }
 
+// ProductStockByWarehouse holds aggregated stock for a product grouped by warehouse and location.
+type ProductStockByWarehouse struct {
+	WarehouseID   uint   `json:"warehouse_id"`
+	WarehouseName string `json:"warehouse_name"`
+	LocationID    *uint  `json:"location_id"`
+	LocationName  string `json:"location_name"`
+	Quantity      int    `json:"quantity"`
+	Status        string `json:"status"`
+}
+
+// PrescriptionFilter holds ranges used to filter lens products by prescription compatibility.
+type PrescriptionFilter struct {
+	SphereOD   *float64 `json:"sphere_od"`
+	CylinderOD *float64 `json:"cylinder_od"`
+	AdditionOD *float64 `json:"addition_od"`
+	SphereOS   *float64 `json:"sphere_os"`
+	CylinderOS *float64 `json:"cylinder_os"`
+	AdditionOS *float64 `json:"addition_os"`
+}
+
 // ProductRepository defines persistence operations for Product.
 type ProductRepository interface {
 	GetByID(id uint) (*Product, error)
@@ -104,4 +124,13 @@ type ProductRepository interface {
 	List(filters map[string]any, page, perPage int) ([]*Product, int64, error)
 	Search(query string, category string, page, perPage int) ([]*Product, int64, error)
 	BulkUpdateStatus(ids []uint, status string) (int64, error)
+	// ListByCategory returns products in a category identified by slug, with optional attribute filters.
+	// Supported attribute filter keys for lens: lens_type_id, material_id, lens_class_id, treatment_id, photochromic_id.
+	// For frame: frame_type, gender, color, shape. For contact_lens: contact_type, replacement_schedule.
+	// Common filters: brand_id, supplier_id, search.
+	ListByCategory(slug string, filters map[string]any, page, perPage int) ([]*Product, int64, error)
+	// ListByPrescription returns lens products whose sphere/cylinder/addition ranges cover the prescription.
+	ListByPrescription(f PrescriptionFilter) ([]*Product, error)
+	// StockByProduct returns inventory items for a product grouped by warehouse/location.
+	StockByProduct(productID uint) ([]*ProductStockByWarehouse, error)
 }

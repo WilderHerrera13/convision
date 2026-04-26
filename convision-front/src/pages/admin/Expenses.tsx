@@ -16,6 +16,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { expenseService, type Expense } from '@/services/expenseService';
 import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
 import { DataTableColumnDef } from '@/components/ui/data-table';
 
@@ -189,27 +190,22 @@ const Expenses: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Gastos</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="mr-2 h-4 w-4" />
-                Filtros
-              </Button>
-            </div>
+      <EntityTable<Expense>
+        columns={columns}
+        queryKeyBase="expenses"
+        fetcher={({ page, per_page }) => expenseService.getExpenses({ page, per_page })}
+        searchPlaceholder="Buscar por factura, proveedor o concepto..."
+        tableLayout="ledger"
+        paginationVariant="figma"
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Gastos</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestión de gastos</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <EntityTable<Expense>
-            columns={columns}
-            queryKeyBase="expenses"
-            fetcher={({ page, per_page }) => expenseService.getExpenses({ page, per_page })}
-            searchPlaceholder="Buscar por factura, proveedor o concepto..."
-          />
-        </CardContent>
-      </Card>
+        }
+        emptyStateNode={<EmptyState variant="default" title="Sin gastos registrados" description="No hay gastos registrados aún." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>

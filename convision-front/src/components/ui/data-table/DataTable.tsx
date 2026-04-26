@@ -179,14 +179,14 @@ const DataTable = <T extends Record<string, any>>({
   addNewButton,
   filters,
   onShowFilters,
-  enableSorting = true,
+  enableSorting = false,
   className = "",
-  tableLayout = 'default',
+  tableLayout = 'ledger',
   paginationSummary = null,
-  paginationVariant = 'default',
+  paginationVariant = 'figma',
   tableAriaLabel,
   tableScrollClassName,
-  ledgerBorderMode = 'grid',
+  ledgerBorderMode = 'figma',
   tableClassName,
   ledgerToolbar,
 }: DataTableProps<T>) => {
@@ -593,9 +593,9 @@ const DataTable = <T extends Record<string, any>>({
                   <span>de {paginationSummary.total} resultados</span>
                 </>
               )
-            ) : (
+            ) : paginationVariant !== 'figma' ? (
               <>Página {currentPageValue} de {totalPagesValue}</>
-            )}
+            ) : null}
           </div>
           <Pagination
             currentPage={currentPageValue}

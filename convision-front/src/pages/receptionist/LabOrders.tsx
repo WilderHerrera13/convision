@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -11,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Eye, FlaskConical, Search, FileDown } from 'lucide-react';
+import { Plus, Eye, FileDown } from 'lucide-react';
 import {
   laboratoryOrderService,
   LaboratoryOrder,
@@ -20,7 +19,9 @@ import {
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
@@ -77,14 +78,10 @@ function StatCard({ label, count, colorClass, active, onClick }: StatCardProps) 
   );
 }
 
-const PER_PAGE = 10;
-
 const LabOrders: React.FC = () => {
   const navigate = useNavigate();
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
   const { data: statsData } = useQuery<LaboratoryOrderStats>({
     queryKey: ['lab-orders-stats'],
@@ -92,26 +89,6 @@ const LabOrders: React.FC = () => {
     onError: () =>
       toast({ title: 'Error', description: 'No se pudieron cargar las estadísticas.', variant: 'destructive' }),
   });
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['lab-orders', page, search, statusFilter],
-    queryFn: () =>
-      laboratoryOrderService.getLaboratoryOrders({
-        page,
-        per_page: PER_PAGE,
-        search: search || undefined,
-        status: statusFilter || undefined,
-        sort_field: 'created_at',
-        sort_direction: 'desc',
-      }),
-    placeholderData: (prev) => prev,
-  });
-
-  const orders: LaboratoryOrder[] = data?.data ?? [];
-  const total: number = (data?.total ?? data?.meta?.total ?? 0) as number;
-  const lastPage: number = (data?.last_page ?? data?.meta?.last_page ?? 1) as number;
-  const fromItem: number = (data?.from || data?.meta?.from || (total > 0 ? (page - 1) * PER_PAGE + 1 : 0)) as number;
-  const toItem: number = (data?.to || data?.meta?.to || (total > 0 ? Math.min(page * PER_PAGE, total) : 0)) as number;
 
   const inLabCount =
     (statsData?.sent_to_lab ?? 0) + (statsData?.in_transit ?? 0) + (statsData?.in_quality ?? 0);
@@ -124,16 +101,13 @@ const LabOrders: React.FC = () => {
       setActiveMetric(metric);
       setStatusFilter(status);
     }
-    setPage(1);
   };
 
-  const hasActiveFilters = !!(statusFilter || search);
+  const hasActiveFilters = !!statusFilter;
 
   const clearFilters = () => {
     setStatusFilter('');
     setActiveMetric(null);
-    setSearch('');
-    setPage(1);
   };
 
   const columns: DataTableColumnDef<LaboratoryOrder>[] = [
@@ -271,7 +245,6 @@ const LabOrders: React.FC = () => {
             onValueChange={(v) => {
               setStatusFilter(v === 'all' ? '' : v);
               setActiveMetric(null);
-              setPage(1);
             }}
           >
             <SelectTrigger className="h-8 text-[12px] w-[180px] border-[#e5e5e9]">
@@ -300,48 +273,38 @@ const LabOrders: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e5e9]">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#121215]">Órdenes de laboratorio</h2>
-              <p className="text-[12px] text-[#b4b5bc] mt-0.5">
-                {total} {total === 1 ? 'orden' : 'órdenes'}
-              </p>
+        <EntityTable<LaboratoryOrder>
+          columns={columns}
+          queryKeyBase="lab-orders"
+          fetcher={({ page, per_page, search }) =>
+            laboratoryOrderService.getLaboratoryOrders({
+              page,
+              per_page,
+              search: search || undefined,
+              status: statusFilter || undefined,
+              sort_field: 'created_at',
+              sort_direction: 'desc',
+            })
+          }
+          extraFilters={{ status: statusFilter }}
+          searchPlaceholder="Buscar por # o paciente..."
+          showPageSizeSelect={false}
+          onRowClick={(order) => navigate(`/receptionist/lab-orders/${order.id}`)}
+          toolbarLeading={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-[#121215]">Órdenes de laboratorio</span>
+              <span className="text-[11px] text-[#7d7d87]">Listado de órdenes</span>
             </div>
-            <div className="relative w-[260px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
-              <Input
-                placeholder="Buscar por # o paciente..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-8 h-[34px] text-[12px] border-[#e5e5e9] rounded-md"
-              />
-            </div>
-          </div>
-
-          <DataTable
-            columns={columns}
-            data={orders}
-            loading={isLoading}
-            onRowClick={(order) => navigate(`/receptionist/lab-orders/${order.id}`)}
-            enablePagination={total > 0}
-            currentPage={page}
-            totalPages={lastPage}
-            onPageChange={setPage}
-            paginationSummary={total > 0 ? { from: fromItem, to: toItem, total } : null}
-            paginationVariant="figma"
-            tableLayout="ledger"
-            ledgerBorderMode="figma"
-            emptyStateContent={
-              <div className="flex flex-col items-center justify-center py-12 text-[#7d7d87] text-sm">
-                <FlaskConical className="h-8 w-8 mb-2 text-gray-300" />
-                {hasActiveFilters
-                  ? 'Ninguna orden coincide con los filtros aplicados.'
-                  : 'Aún no has registrado órdenes de laboratorio.'}
-              </div>
-            }
-          />
-        </div>
+          }
+          emptyStateNode={
+            <EmptyState
+              variant="default"
+              title="Sin órdenes"
+              description="Aún no has registrado órdenes de laboratorio."
+            />
+          }
+          filterEmptyStateNode={<EmptyState variant="table-filter" />}
+        />
       </div>
     </PageLayout>
   );

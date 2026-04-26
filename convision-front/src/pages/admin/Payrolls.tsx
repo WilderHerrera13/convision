@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
 import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -259,42 +260,46 @@ const Payrolls: React.FC = () => {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nóminas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex gap-2">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="paid">Pagado</option>
-              <option value="cancelled">Cancelado</option>
-            </select>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-3 border border-[#e5e5e9] bg-white rounded-[6px] text-[13px]"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="pending">Pendiente</option>
+          <option value="paid">Pagado</option>
+          <option value="cancelled">Cancelado</option>
+        </select>
+        <Button variant="outline" size="sm">
+          <Download className="h-4 w-4 mr-2" />
+          Exportar
+        </Button>
+      </div>
+
+      <EntityTable<Payroll>
+        columns={columns}
+        queryKeyBase="payrolls"
+        fetcher={({ page, per_page, search }) => payrollService.getPayrolls({
+          page,
+          per_page,
+          search,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+        })}
+        searchPlaceholder="Buscar por empleado..."
+        initialPerPage={15}
+        extraFilters={{ status: statusFilter }}
+        tableLayout="ledger"
+        paginationVariant="figma"
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Nóminas</span>
+            <span className="text-[11px] text-[#7d7d87]">Pagos de empleados</span>
           </div>
-          <EntityTable<Payroll>
-            columns={columns}
-            queryKeyBase="payrolls"
-            fetcher={({ page, per_page, search }) => payrollService.getPayrolls({
-              page,
-              per_page,
-              search,
-              status: statusFilter !== 'all' ? statusFilter : undefined,
-            })}
-            searchPlaceholder="Buscar por empleado..."
-            initialPerPage={15}
-            extraFilters={{ status: statusFilter }}
-          />
-        </CardContent>
-      </Card>
+        }
+        emptyStateNode={<EmptyState variant="default" title="Sin nóminas registradas" description="No hay nóminas registradas aún." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
       </div>
     </PageLayout>
   );

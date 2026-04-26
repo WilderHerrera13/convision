@@ -80,3 +80,50 @@ func (r *ProductCategoryRepository) List(filters map[string]any, page, perPage i
 
 	return cats, total, nil
 }
+
+func (r *ProductCategoryRepository) All() ([]*domain.ProductCategory, error) {
+	var cats []*domain.ProductCategory
+	err := r.db.Model(&domain.ProductCategory{}).
+		Where("is_active = ?", true).
+		Order("product_categories.id asc").
+		Find(&cats).Error
+	return cats, err
+}
+
+func (r *ProductCategoryRepository) ListWithProductCount() ([]*domain.CategoryWithCount, error) {
+	type row struct {
+		domain.ProductCategory
+		ProductCount int64 `gorm:"column:product_count"`
+	}
+	var rows []row
+	err := r.db.Table("product_categories").
+		Select("product_categories.*, COUNT(p.id) AS product_count").
+		Joins("LEFT JOIN products p ON p.product_category_id = product_categories.id AND p.deleted_at IS NULL").
+		Group("product_categories.id").
+		Order("product_categories.id asc").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.CategoryWithCount, len(rows))
+	for i, r := range rows {
+		cat := r.ProductCategory
+		out[i] = &domain.CategoryWithCount{
+			ProductCategory: &cat,
+			ProductCount:    r.ProductCount,
+		}
+	}
+	return out, nil
+}
+
+func (r *ProductCategoryRepository) GetBySlug(slug string) (*domain.ProductCategory, error) {
+	var c domain.ProductCategory
+	err := r.db.Where("slug = ?", slug).First(&c).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "product_category"}
+		}
+		return nil, err
+	}
+	return &c, nil
+}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,24 +29,18 @@ import { z } from 'zod';
 import {
   Folder,
   Plus,
-  Search,
-  Filter,
   Edit,
   Trash2,
-  CheckCircle,
-  XCircle,
   Loader2,
 } from 'lucide-react';
-import {
-  DataTable,
-  DataTableColumnDef,
-} from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
+import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   categoryService,
   ProductCategory,
   CreateCategoryRequest,
   UpdateCategoryRequest,
-  CategorySearchParams,
 } from '@/services/categoryService';
 
 const categorySchema = z.object({
@@ -64,19 +57,12 @@ const Categories: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(15);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
-  
-  const [filters, setFilters] = useState<CategorySearchParams>({
-    search: '',
-    is_active: undefined,
-  });
+
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string>('');
 
   const createForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -91,15 +77,6 @@ const Categories: React.FC = () => {
 
   const editForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
-  });
-
-  const { data: categoriesData, isLoading } = useQuery({
-    queryKey: ['categories', page, perPage, filters],
-    queryFn: () => categoryService.getCategories({
-      ...filters,
-      page,
-      per_page: perPage,
-    }),
   });
 
   const createMutation = useMutation({
@@ -222,28 +199,6 @@ const Categories: React.FC = () => {
     deleteMutation.mutate(selectedCategory.id);
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setFilters(prev => ({ ...prev, search: value }));
-    setPage(1);
-  };
-
-  const applyFilters = (newFilters: Partial<CategorySearchParams>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPage(1);
-    setIsFilterModalOpen(false);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      is_active: undefined,
-    });
-    setSearch('');
-    setPage(1);
-    setIsFilterModalOpen(false);
-  };
-
   const columns: DataTableColumnDef<ProductCategory>[] = [
     {
       id: 'name',
@@ -347,77 +302,55 @@ const Categories: React.FC = () => {
     },
   ];
 
-  const categories = categoriesData?.data || [];
-  const totalPages = categoriesData?.last_page || 1;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Categorías</h1>
-          <p className="text-muted-foreground">
-            Gestiona las categorías de productos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={perPage.toString()}
-            onValueChange={(value) => {
-              setPerPage(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 por página</SelectItem>
-              <SelectItem value="15">15 por página</SelectItem>
-              <SelectItem value="25">25 por página</SelectItem>
-              <SelectItem value="50">50 por página</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => setIsFilterModalOpen(true)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Categoría
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Categorías</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar categorías..."
-                  value={search}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-            </div>
+      <EntityTable<ProductCategory>
+        columns={columns}
+        queryKeyBase="categories"
+        fetcher={({ page, per_page, search }) =>
+          categoryService.getCategories({
+            page,
+            per_page,
+            search,
+            is_active: activeStatusFilter === '' ? undefined : activeStatusFilter === 'true',
+          })
+        }
+        extraFilters={{ activeStatusFilter }}
+        searchPlaceholder="Buscar categorías..."
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Categorías</span>
+            <span className="text-[11px] text-[#7d7d87]">Gestiona las categorías de productos</span>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DataTable
-            data={categories}
-            columns={columns}
-            loading={isLoading}
-            enablePagination={true}
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            emptyMessage="No se encontraron categorías"
+        }
+        toolbarTrailing={
+          <div className="flex items-center gap-2">
+            <Select value={activeStatusFilter} onValueChange={setActiveStatusFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos los estados</SelectItem>
+                <SelectItem value="true">Activas</SelectItem>
+                <SelectItem value="false">Inactivas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Categoría
+            </Button>
+          </div>
+        }
+        emptyStateNode={
+          <EmptyState
+            leadingIcon={Folder}
+            accentColor="#7d7d87"
+            title="Sin categorías registradas"
+            description="Comienza creando la primera categoría."
           />
-        </CardContent>
-      </Card>
+        }
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
       {/* Create Category Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
@@ -631,46 +564,6 @@ const Categories: React.FC = () => {
         isLoading={deleteMutation.isPending}
       />
 
-      {/* Filter Modal */}
-      <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Filtros de Categorías</DialogTitle>
-            <DialogDescription>
-              Aplique filtros para refinar la búsqueda
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Estado</Label>
-              <Select
-                value={filters.is_active?.toString() || ''}
-                onValueChange={(value) => setFilters(prev => ({ 
-                  ...prev, 
-                  is_active: value === '' ? undefined : value === 'true' 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los estados</SelectItem>
-                  <SelectItem value="true">Activas</SelectItem>
-                  <SelectItem value="false">Inactivas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={clearFilters}>
-              Limpiar Filtros
-            </Button>
-            <Button onClick={() => applyFilters(filters)}>
-              Aplicar Filtros
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

@@ -3,8 +3,11 @@ package v1
 import (
 	"bytes"
 	"fmt"
+	"image/png"
 	"strings"
 
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/code128"
 	"github.com/jung-kurt/gofpdf"
 	qrcode "github.com/skip2/go-qrcode"
 
@@ -27,109 +30,23 @@ func buildLabOrderPDF(order *domain.LaboratoryOrder) ([]byte, error) {
 	pageW, _ := pdf.GetPageSize()
 	contentW := pageW - 20
 
-	accentBlue := [3]int{37, 99, 235}
-	lightBlue := [3]int{239, 246, 255}
-	darkText := [3]int{18, 18, 21}
-	mutedText := [3]int{125, 125, 135}
-	borderGray := [3]int{229, 229, 233}
-	white := [3]int{255, 255, 255}
+	navyDark   := [3]int{26, 51, 102}
+	navyMid    := [3]int{26, 75, 142}
+	brightBlue := [3]int{58, 113, 247}
+	lightBlue  := [3]int{232, 239, 247}
+	darkText   := [3]int{17, 24, 36}
+	bodyText   := [3]int{45, 55, 72}
+	mutedText  := [3]int{138, 148, 166}
+	borderGray := [3]int{221, 226, 234}
+	cardBg     := [3]int{248, 249, 251}
+	tableBg    := [3]int{239, 242, 247}
+	white      := [3]int{255, 255, 255}
+	footerBg   := [3]int{15, 15, 18}
+	logoBlue   := [3]int{54, 63, 128}
 
-	setRGB := func(r, g, b int) {
-		pdf.SetTextColor(r, g, b)
-	}
-	setFillRGB := func(r, g, b int) {
-		pdf.SetFillColor(r, g, b)
-	}
-	setDrawRGB := func(r, g, b int) {
-		pdf.SetDrawColor(r, g, b)
-	}
-
-	// ── Top accent bar ──────────────────────────────────────────────
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(10, 10, contentW, 2, "F")
-
-	// ── Header ──────────────────────────────────────────────────────
-	setFillRGB(white[0], white[1], white[2])
-	pdf.Rect(10, 12, contentW, 28, "F")
-
-	// Logo text (since we don't have an embedded image)
-	pdf.SetXY(12, 14)
-	pdf.SetFont("Helvetica", "B", 11)
-	setRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.CellFormat(40, 6, "OPTICA", "", 0, "L", false, 0, "")
-	pdf.SetXY(12, 20)
-	pdf.SetFont("Helvetica", "B", 11)
-	pdf.CellFormat(40, 6, "CONVISION", "", 0, "L", false, 0, "")
-
-	// Center: title + order number
-	pdf.SetXY(60, 13)
-	pdf.SetFont("Helvetica", "", 7)
-	setRGB(mutedText[0], mutedText[1], mutedText[2])
-	pdf.CellFormat(80, 5, "ORDEN DE LABORATORIO", "", 0, "C", false, 0, "")
-	pdf.SetXY(60, 17)
-	pdf.SetFont("Helvetica", "B", 18)
-	setRGB(darkText[0], darkText[1], darkText[2])
-	pdf.CellFormat(80, 12, fmt.Sprintf("N\u00B0 %s", order.OrderNumber), "", 0, "C", false, 0, "")
-	pdf.SetXY(60, 30)
-	pdf.SetFont("Helvetica", "", 7)
-	setRGB(mutedText[0], mutedText[1], mutedText[2])
-	saleRef := ""
-	if order.SaleID != nil {
-		saleRef = fmt.Sprintf("%d", *order.SaleID)
-	}
-	pdf.CellFormat(80, 5, fmt.Sprintf("Pedido N\u00B0: %s", pdfDash(saleRef)), "", 0, "C", false, 0, "")
-
-	// Right clinic card
-	cardX := float64(145)
-	cardW := float64(55)
-	setFillRGB(lightBlue[0], lightBlue[1], lightBlue[2])
-	setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-	pdf.Rect(cardX, 12, cardW, 28, "FD")
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(cardX, 12, 2, 28, "F")
-
-	lineH := float64(4.2)
-	startY := 13.5
-	labelX := cardX + 3
-	valueX := cardX + 14
-
-	clinicLines := []struct{ label, value string }{
-		{"Optica", "CONVISION"},
-		{"Sede", pdfDash(order.Branch)},
-	}
-	for i, cl := range clinicLines {
-		y := startY + float64(i)*lineH
-		pdf.SetXY(labelX, y)
-		pdf.SetFont("Helvetica", "", 5.5)
-		setRGB(mutedText[0], mutedText[1], mutedText[2])
-		pdf.CellFormat(10, lineH, cl.label, "", 0, "L", false, 0, "")
-		pdf.SetXY(valueX, y)
-		pdf.SetFont("Helvetica", "B", 5.5)
-		setRGB(darkText[0], darkText[1], darkText[2])
-		pdf.CellFormat(cardW-14, lineH, cl.value, "", 0, "L", false, 0, "")
-	}
-
-	// ORIGINAL badge
-	setFillRGB(239, 246, 255)
-	pdf.Rect(148, 12, 24, 7, "F")
-	pdf.SetXY(148, 12)
-	pdf.SetFont("Helvetica", "B", 6)
-	setRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.CellFormat(24, 7, "ORIGINAL", "", 0, "C", false, 0, "")
-
-	// ── Divider ─────────────────────────────────────────────────────
-	y := 42.0
-	setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-	pdf.SetLineWidth(0.3)
-	pdf.Line(10, y, 10+contentW, y)
-	y += 2
-
-	// ── Info row ────────────────────────────────────────────────────
-	setFillRGB(250, 250, 251)
-	pdf.Rect(10, y, contentW, 20, "FD")
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(10, y, 2, 20, "F")
-	pdf.Line(10+contentW/2, y, 10+contentW/2, y+20)
+	setRGB  := func(c [3]int) { pdf.SetTextColor(c[0], c[1], c[2]) }
+	setFill := func(c [3]int) { pdf.SetFillColor(c[0], c[1], c[2]) }
+	setDraw := func(c [3]int) { pdf.SetDrawColor(c[0], c[1], c[2]) }
 
 	patientName := ""
 	patientDoc := ""
@@ -137,259 +54,385 @@ func buildLabOrderPDF(order *domain.LaboratoryOrder) ([]byte, error) {
 		patientName = strings.TrimSpace(order.Patient.FirstName + " " + order.Patient.LastName)
 		patientDoc = order.Patient.Identification
 	}
-
-	labName := ""
-	labPhone := ""
+	labName, labPhone := "", ""
 	if order.Laboratory != nil {
 		labName = order.Laboratory.Name
 		labPhone = order.Laboratory.Phone
 	}
-
+	saleRef := ""
+	if order.SaleID != nil {
+		saleRef = fmt.Sprintf("%d", *order.SaleID)
+	}
 	createdAt := order.CreatedAt.Format("02/01/2006 15:04")
-	estDelivery := ""
 	if order.EstimatedCompletionDate != nil {
-		estDelivery = "  Entrega: " + order.EstimatedCompletionDate.Format("02/01/2006")
+		createdAt += "    Entrega: " + order.EstimatedCompletionDate.Format("02/01/2006")
 	}
 
-	leftLines := []struct{ label, value string }{
+	// ── Top accent bar ──────────────────────────────────────────────
+	setFill(navyDark)
+	pdf.Rect(10, 10, contentW, 1, "F")
+
+	// ── Header ──────────────────────────────────────────────────────
+	setFill(white)
+	pdf.Rect(10, 11, contentW, 26, "F")
+
+	// Logo
+	pdf.SetXY(12, 14.5)
+	pdf.SetFont("Helvetica", "B", 10)
+	setRGB(logoBlue)
+	pdf.CellFormat(38, 5, "ÓPTICA", "", 0, "L", false, 0, "")
+	pdf.SetXY(12, 20)
+	pdf.CellFormat(38, 5, "CONVISIÓN", "", 0, "L", false, 0, "")
+
+	// Clinic card (right side)
+	cardW := 64.0
+	cardX := 10 + contentW - cardW
+	setFill(lightBlue)
+	setDraw([3]int{197, 214, 237})
+	pdf.SetLineWidth(0.2)
+	pdf.RoundedRect(cardX, 12, cardW, 25, 1.5, "1234", "FD")
+	setFill(navyMid)
+	pdf.Rect(cardX, 12, 1, 25, "F")
+
+	for i, cl := range [][2]string{
+		{"Óptica", "CONVISION"},
+		{"Sede", pdfDash(order.Branch)},
+	} {
+		ly := 14.0 + float64(i)*5.0
+		pdf.SetXY(cardX+2.5, ly)
+		pdf.SetFont("Helvetica", "B", 5.5)
+		setRGB(navyMid)
+		pdf.CellFormat(13, 4.5, cl[0], "", 0, "L", false, 0, "")
+		pdf.SetXY(cardX+16, ly)
+		pdf.SetFont("Helvetica", "", 5.5)
+		setRGB(bodyText)
+		pdf.CellFormat(cardW-17, 4.5, cl[1], "", 0, "L", false, 0, "")
+	}
+
+	// ORIGINAL badge (pill in top-right of clinic card)
+	badgeX := cardX + cardW - 21
+	setFill(navyMid)
+	pdf.RoundedRect(badgeX, 13, 20, 5.5, 2.5, "1234", "F")
+	pdf.SetXY(badgeX, 13)
+	pdf.SetFont("Helvetica", "B", 5.5)
+	setRGB(white)
+	pdf.CellFormat(20, 5.5, "ORIGINAL", "", 0, "C", false, 0, "")
+
+	// Title block (between logo and clinic card)
+	titleX := 50.0
+	titleW := cardX - titleX - 2
+	pdf.SetXY(titleX, 14.5)
+	pdf.SetFont("Helvetica", "", 6)
+	setRGB(mutedText)
+	pdf.CellFormat(titleW, 4, "ORDEN DE LABORATORIO", "", 0, "C", false, 0, "")
+	pdf.SetXY(titleX, 18.5)
+	pdf.SetFont("Helvetica", "B", 17)
+	setRGB(navyMid)
+	pdf.CellFormat(titleW, 11, fmt.Sprintf("N° %s", order.OrderNumber), "", 0, "C", false, 0, "")
+	pdf.SetXY(titleX-6, 30)
+	pdf.SetFont("Helvetica", "", 6)
+	setRGB(mutedText)
+	pdf.CellFormat(titleW+12, 4, fmt.Sprintf("Pedido N°: %s", pdfDash(saleRef)), "", 0, "C", false, 0, "")
+
+	y := 37.0
+
+	// ── Header divider ──────────────────────────────────────────────
+	setDraw(borderGray)
+	pdf.SetLineWidth(0.2)
+	pdf.Line(10, y, 10+contentW, y)
+	y += 1.5
+
+	// ── Info card ───────────────────────────────────────────────────
+	infoH := 17.0
+	setFill(cardBg)
+	setDraw(borderGray)
+	pdf.RoundedRect(10, y, contentW, infoH, 1.5, "1234", "FD")
+	setFill(navyMid)
+	pdf.Rect(10, y, 1, infoH, "F")
+	splitX := 10 + contentW*0.54
+	pdf.Rect(splitX, y, 1, infoH, "F")
+
+	lLines := [][2]string{
 		{"Paciente:", patientName},
 		{"Documento:", pdfDash(patientDoc)},
 		{"Vendedor:", pdfDash(order.SellerName)},
 	}
-	rightLines := []struct{ label, value string }{
+	rLines := [][2]string{
 		{"Proveedor:", labName},
-		{"Tel. Prov.:", labPhone},
-		{"Fecha crea.:", createdAt + estDelivery},
+		{"Tel. Prov.:", pdfDash(labPhone)},
+		{"Fecha crea.:", createdAt},
 	}
-
-	for i, l := range leftLines {
-		iy := y + 2.5 + float64(i)*5.5
+	ilh := 5.0
+	lbW := 22.0
+	for i, l := range lLines {
+		iy := y + 2 + float64(i)*ilh
 		pdf.SetXY(13, iy)
-		pdf.SetFont("Helvetica", "", 6)
-		setRGB(mutedText[0], mutedText[1], mutedText[2])
-		pdf.CellFormat(20, 5, l.label, "", 0, "L", false, 0, "")
-		pdf.SetXY(34, iy)
-		pdf.SetFont("Helvetica", "B", 6.5)
-		setRGB(darkText[0], darkText[1], darkText[2])
-		pdf.CellFormat(60, 5, l.value, "", 0, "L", false, 0, "")
+		pdf.SetFont("Helvetica", "", 5.8)
+		setRGB(mutedText)
+		pdf.CellFormat(lbW, ilh, l[0], "", 0, "L", false, 0, "")
+		pdf.SetXY(13+lbW, iy)
+		pdf.SetFont("Helvetica", "B", 6)
+		setRGB(darkText)
+		pdf.CellFormat(contentW*0.54-lbW-5, ilh, l[1], "", 0, "L", false, 0, "")
 	}
-	midX := 10 + contentW/2 + 2
-	for i, l := range rightLines {
-		iy := y + 2.5 + float64(i)*5.5
+	midX := splitX + 3
+	rlbW := 24.0
+	for i, l := range rLines {
+		iy := y + 2 + float64(i)*ilh
 		pdf.SetXY(midX, iy)
-		pdf.SetFont("Helvetica", "", 6)
-		setRGB(mutedText[0], mutedText[1], mutedText[2])
-		pdf.CellFormat(20, 5, l.label, "", 0, "L", false, 0, "")
-		pdf.SetXY(midX+21, iy)
-		pdf.SetFont("Helvetica", "B", 6.5)
-		setRGB(darkText[0], darkText[1], darkText[2])
-		pdf.CellFormat(70, 5, l.value, "", 0, "L", false, 0, "")
+		pdf.SetFont("Helvetica", "", 5.8)
+		setRGB(mutedText)
+		pdf.CellFormat(rlbW, ilh, l[0], "", 0, "L", false, 0, "")
+		pdf.SetXY(midX+rlbW, iy)
+		pdf.SetFont("Helvetica", "B", 6)
+		setRGB(darkText)
+		pdf.CellFormat(contentW*0.46-rlbW-5, ilh, l[1], "", 0, "L", false, 0, "")
 	}
-	y += 22
+	y += infoH + 1.5
 
-	// ── RX Section header ────────────────────────────────────────────
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(10, y, contentW, 7, "F")
-	pdf.SetXY(13, y)
+	// ── RX section header ────────────────────────────────────────────
+	setFill(brightBlue)
+	pdf.RoundedRect(10, y, contentW, 6.5, 1.5, "1234", "F")
+	pdf.SetXY(13, y+0.8)
 	pdf.SetFont("Helvetica", "B", 7)
-	setRGB(white[0], white[1], white[2])
-	pdf.CellFormat(contentW-3, 7, "PRESCRIPCI\u00D3N \u00D3PTICA \u2014 F\u00D3RMULA RX Y PRISMA", "", 0, "L", false, 0, "")
-	y += 7
+	setRGB(white)
+	pdf.CellFormat(contentW-3, 6.5, "PRESCRIPCIÓN ÓPTICA — FÓRMULA RX Y PRISMA", "", 0, "L", false, 0, "")
+	y += 6.5
 
-	// RX table columns
+	// RX table: column widths proportional to Figma (738px content → 190mm)
 	rxCols := []struct {
 		label string
 		w     float64
 	}{
-		{"", 12},
-		{"Esfera", 17},
-		{"Cilindro", 17},
-		{"Eje", 14},
-		{"Adicion", 16},
-		{"DP", 13},
-		{"AF", 13},
-		{"\u00D8", 13},
-		{"Curva B", 16},
-		{"Poder", 15},
-		{"Prisma H", 16},
-		{"Prisma V", 16},
+		{"", 8},
+		{"Esfera", 15},
+		{"Cilindro", 15},
+		{"Eje", 12},
+		{"Adición", 13},
+		{"DP", 10},
+		{"AF", 10},
+		{"Ø", 10},
+		{"Curva B", 14},
+		{"Poder", 14},
+		{"", 16},
+		{"", 16},
+		{"", 16},
+		{"", 21},
 	}
+	thH := 6.2
+	rwH := 7.2
 
-	// Table header row
-	setFillRGB(240, 244, 255)
-	pdf.Rect(10, y, contentW, 7, "F")
-	x := 10.0
-	for _, col := range rxCols {
-		pdf.SetXY(x, y)
-		pdf.SetFont("Helvetica", "B", 6)
-		setRGB(darkText[0], darkText[1], darkText[2])
-		setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-		pdf.CellFormat(col.w, 7, col.label, "R", 0, "C", false, 0, "")
-		x += col.w
+	setFill(tableBg)
+	setDraw(borderGray)
+	pdf.SetLineWidth(0.2)
+	pdf.Rect(10, y, contentW, thH, "FD")
+
+	prismaStart := 10.0
+	for _, c := range rxCols[:10] {
+		prismaStart += c.w
 	}
-	y += 7
+	prismaW := contentW - (prismaStart - 10)
+	setFill(brightBlue)
+	pdf.Rect(prismaStart, y, prismaW, thH, "F")
 
-	rxToRow := func(rx *domain.RxEye) [11]string {
+	cx := 10.0 + rxCols[0].w
+	for _, col := range rxCols[1:10] {
+		pdf.SetXY(cx, y)
+		pdf.SetFont("Helvetica", "B", 5.8)
+		setRGB(navyMid)
+		pdf.CellFormat(col.w, thH, col.label, "", 0, "C", false, 0, "")
+		cx += col.w
+	}
+	pdf.SetXY(prismaStart, y)
+	pdf.SetFont("Helvetica", "B", 6)
+	setRGB(white)
+	pdf.CellFormat(prismaW, thH, "PRISMA", "", 0, "C", false, 0, "")
+
+	setDraw(borderGray)
+	divX := 10.0
+	for _, c := range rxCols {
+		divX += c.w
+		if divX < 10+contentW-0.1 {
+			pdf.Line(divX, y, divX, y+thH+rwH*2)
+		}
+	}
+	y += thH
+
+	rxToRow := func(rx *domain.RxEye) [13]string {
 		if rx == nil {
-			return [11]string{"—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"}
+			return [13]string{"—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"}
 		}
-		return [11]string{
-			pdfDash(rx.Sphere),
-			pdfDash(rx.Cylinder),
-			pdfDash(rx.Axis),
-			pdfDash(rx.Addition),
-			pdfDash(rx.DP),
-			pdfDash(rx.AF),
-			pdfDash(rx.Diameter),
-			pdfDash(rx.BaseCurve),
-			pdfDash(rx.Power),
-			pdfDash(rx.PrismH),
-			pdfDash(rx.PrismV),
+		return [13]string{
+			pdfDash(rx.Sphere), pdfDash(rx.Cylinder), pdfDash(rx.Axis),
+			pdfDash(rx.Addition), pdfDash(rx.DP), pdfDash(rx.AF),
+			pdfDash(rx.Diameter), pdfDash(rx.BaseCurve), pdfDash(rx.Power),
+			pdfDash(rx.PrismH), pdfDash(rx.PrismV), "—", "—",
 		}
 	}
 
-	rxRows := []struct {
-		eye  string
-		vals [11]string
+	for ri, eye := range []struct {
+		label string
+		rx    *domain.RxEye
 	}{
-		{"OD", rxToRow(order.RxOD)},
-		{"OI", rxToRow(order.RxOI)},
-	}
-
-	for ri, row := range rxRows {
-		bg := white
+		{"OD", order.RxOD},
+		{"OI", order.RxOI},
+	} {
+		rowBg := white
 		if ri%2 == 1 {
-			bg = [3]int{248, 249, 255}
+			rowBg = cardBg
 		}
-		setFillRGB(bg[0], bg[1], bg[2])
-		pdf.Rect(10, y, contentW, 8, "FD")
-		x = 10.0
-		// Eye label
-		pdf.SetXY(x, y)
-		pdf.SetFont("Helvetica", "B", 7)
-		setRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-		pdf.CellFormat(rxCols[0].w, 8, row.eye, "R", 0, "C", false, 0, "")
-		x += rxCols[0].w
-		// Value cells
-		for ci, val := range row.vals {
-			pdf.SetXY(x, y)
+		setFill(rowBg)
+		pdf.Rect(10, y, contentW, rwH, "F")
+		setFill(lightBlue)
+		pdf.Rect(10, y, rxCols[0].w, rwH, "F")
+		pdf.SetXY(10, y)
+		pdf.SetFont("Helvetica", "B", 7.5)
+		setRGB(navyMid)
+		pdf.CellFormat(rxCols[0].w, rwH, eye.label, "", 0, "C", false, 0, "")
+		vals := rxToRow(eye.rx)
+		vx := 10.0 + rxCols[0].w
+		for vi, val := range vals {
+			pdf.SetXY(vx, y)
 			pdf.SetFont("Helvetica", "", 6.5)
-			setRGB(darkText[0], darkText[1], darkText[2])
-			pdf.CellFormat(rxCols[ci+1].w, 8, val, "R", 0, "C", false, 0, "")
-			x += rxCols[ci+1].w
+			setRGB(bodyText)
+			pdf.CellFormat(rxCols[vi+1].w, rwH, val, "", 0, "C", false, 0, "")
+			vx += rxCols[vi+1].w
 		}
-		y += 8
+		if ri == 0 {
+			setDraw(borderGray)
+			pdf.Line(10, y+rwH, 10+contentW, y+rwH)
+		}
+		y += rwH
 	}
 	y += 3
 
-	// ── Lenses + Frame specs ──────────────────────────────────────────
-	halfW := contentW / 2
+	// ── Lenses + Frame specs (Figma ratio 488:250) ────────────────────
+	lensW := contentW * 488 / 738
+	frameW := contentW - lensW
 
-	// Left: Lenses
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(10, y, halfW-1, 7, "F")
-	pdf.SetXY(13, y)
+	setFill(brightBlue)
+	pdf.RoundedRect(10, y, lensW, 6.5, 1.5, "1234", "F")
+	pdf.SetXY(13, y+0.8)
 	pdf.SetFont("Helvetica", "B", 7)
-	setRGB(white[0], white[1], white[2])
-	pdf.CellFormat(halfW-3, 7, "LENTES PRESCRITOS", "", 0, "L", false, 0, "")
+	setRGB(white)
+	pdf.CellFormat(lensW-3, 6.5, "LENTES PRESCRITOS", "", 0, "L", false, 0, "")
 
-	// Right: Frame specs
-	pdf.Rect(10+halfW+1, y, halfW-1, 7, "F")
-	pdf.SetXY(13+halfW+1, y)
-	pdf.CellFormat(halfW-3, 7, "ESPECIFICACIONES DE MONTURA", "", 0, "L", false, 0, "")
-	y += 7
+	pdf.RoundedRect(10+lensW, y, frameW, 6.5, 1.5, "1234", "F")
+	pdf.SetXY(10+lensW+3, y+0.8)
+	pdf.CellFormat(frameW-3, 6.5, "ESPECIFICACIONES DE MONTURA", "", 0, "L", false, 0, "")
+	y += 6.5
 
-	// Lenses content
-	lensH := 22.0
-	setFillRGB(250, 250, 251)
-	setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-	pdf.Rect(10, y, halfW-1, lensH, "FD")
+	sectH := 26.0
+	halfH := sectH / 2
 
-	lensOD := pdfDash(order.LensOD)
-	lensOI := pdfDash(order.LensOI)
-	pdf.SetXY(13, y+2)
-	pdf.SetFont("Helvetica", "B", 7)
-	setRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.CellFormat(8, 5, "OD", "", 0, "L", false, 0, "")
-	pdf.SetXY(22, y+2)
-	pdf.SetFont("Helvetica", "", 6.5)
-	setRGB(darkText[0], darkText[1], darkText[2])
-	pdf.MultiCell(halfW-13, 5, lensOD, "", "L", false)
+	// Lens panel
+	setFill(cardBg)
+	setDraw(borderGray)
+	pdf.Rect(10, y, lensW, halfH, "FD")
+	setFill(white)
+	pdf.Rect(10, y+halfH, lensW, halfH, "FD")
+	setDraw(borderGray)
+	pdf.Line(10, y+halfH, 10+lensW, y+halfH)
 
-	pdf.SetXY(13, y+11)
-	pdf.SetFont("Helvetica", "B", 7)
-	setRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.CellFormat(8, 5, "OI", "", 0, "L", false, 0, "")
-	pdf.SetXY(22, y+11)
-	pdf.SetFont("Helvetica", "", 6.5)
-	setRGB(darkText[0], darkText[1], darkText[2])
-	pdf.MultiCell(halfW-13, 5, lensOI, "", "L", false)
+	for _, row := range []struct {
+		label string
+		text  string
+		off   float64
+	}{
+		{"OD", pdfDash(order.LensOD), 2.5},
+		{"OI", pdfDash(order.LensOI), halfH + 2.5},
+	} {
+		pdf.SetXY(12, y+row.off)
+		pdf.SetFont("Helvetica", "B", 7.5)
+		setRGB(navyMid)
+		pdf.CellFormat(8, 5, row.label, "", 0, "L", false, 0, "")
+		pdf.SetXY(21, y+row.off)
+		pdf.SetFont("Helvetica", "", 7)
+		setRGB(darkText)
+		pdf.MultiCell(lensW-12, 4.5, row.text, "", "L", false)
+	}
 
-	// Frame specs content
-	pdf.Rect(10+halfW+1, y, halfW-1, lensH, "FD")
+	// Frame specs panel
+	setFill(white)
+	setDraw(borderGray)
+	pdf.Rect(10+lensW, y, frameW, sectH, "FD")
 
 	fs := order.FrameSpecs
-	frameLines := [][2]string{
-		{"Montura:", ""},
-		{"Tipo:", ""},
-		{"Gen.:", ""},
-		{"Color:", ""},
-		{"Horiz.:", ""},
-		{"Puente:", ""},
-		{"Vert.:", ""},
-		{"\u00C1ng.pant:", ""},
-		{"Dist.Mec:", ""},
-		{"\u00C1ng.panor:", ""},
-		{"\u00D8 Efect.:", ""},
+	fsName := "—"
+	if fs != nil && strings.TrimSpace(fs.Name) != "" {
+		fsName = fs.Name
 	}
+	setFill(lightBlue)
+	pdf.Rect(10+lensW, y, frameW, 5.5, "F")
+	pdf.SetXY(10+lensW, y)
+	pdf.SetFont("Helvetica", "B", 6.5)
+	setRGB(navyMid)
+	pdf.CellFormat(frameW, 5.5, fsName, "", 0, "C", false, 0, "")
+
+	type fsRowT struct{ l1, v1, l2, v2 string }
+	var fsRows []fsRowT
 	if fs != nil {
-		frameLines[0][1] = pdfDash(fs.Name)
-		frameLines[1][1] = pdfDash(fs.Type)
-		frameLines[2][1] = pdfDash(fs.Gender)
-		frameLines[3][1] = pdfDash(fs.Color)
-		frameLines[4][1] = pdfDash(fs.Horizontal)
-		frameLines[5][1] = pdfDash(fs.Bridge)
-		frameLines[6][1] = pdfDash(fs.Vertical)
-		frameLines[7][1] = pdfDash(fs.PantoscopicAngle)
-		frameLines[8][1] = pdfDash(fs.MechanicalDistance)
-		frameLines[9][1] = pdfDash(fs.PanoramicAngle)
-		frameLines[10][1] = pdfDash(fs.EffectiveDiameter)
+		fsRows = []fsRowT{
+			{pdfDash(fs.Type), "", pdfDash(fs.Gender), ""},
+			{"Color:", pdfDash(fs.Color), "Horizontal:", pdfDash(fs.Horizontal)},
+			{"Puente:", pdfDash(fs.Bridge), "Vertical:", pdfDash(fs.Vertical)},
+			{"Áng. pant:", pdfDash(fs.PantoscopicAngle), "Dist Mec:", pdfDash(fs.MechanicalDistance)},
+			{"Áng. panor:", pdfDash(fs.PanoramicAngle), "Ø Efectivo:", pdfDash(fs.EffectiveDiameter)},
+		}
 	} else {
-		for i := range frameLines {
-			frameLines[i][1] = "—"
+		fsRows = []fsRowT{
+			{"—", "", "—", ""},
+			{"Color:", "—", "Horizontal:", "—"},
+			{"Puente:", "—", "Vertical:", "—"},
+			{"Áng. pant:", "—", "Dist Mec:", "—"},
+			{"Áng. panor:", "—", "Ø Efectivo:", "—"},
 		}
 	}
 
-	colsPerRow := 2
-	fxBase := 10 + halfW + 3
-	fyBase := y + 1.5
-	fLineH := 3.8
-	itemW := (halfW - 4) / float64(colsPerRow)
-	for i, fl := range frameLines {
-		col := i % colsPerRow
-		row := i / colsPerRow
-		fx := fxBase + float64(col)*itemW
-		fy := fyBase + float64(row)*fLineH
-		pdf.SetXY(fx, fy)
-		pdf.SetFont("Helvetica", "", 5.5)
-		setRGB(mutedText[0], mutedText[1], mutedText[2])
-		pdf.CellFormat(12, fLineH, fl[0], "", 0, "L", false, 0, "")
-		pdf.SetXY(fx+12, fy)
-		pdf.SetFont("Helvetica", "B", 5.5)
-		setRGB(darkText[0], darkText[1], darkText[2])
-		pdf.CellFormat(itemW-12, fLineH, fl[1], "", 0, "L", false, 0, "")
+	fBase := 10 + lensW
+	fRowH := (sectH - 5.5) / float64(len(fsRows))
+	halfFW := frameW / 2
+	fLabelW := 16.0
+
+	// Row 0: Type left / Gender right (bold, no labels)
+	fr0y := y + 5.5 + fRowH*0.2
+	pdf.SetXY(fBase+2, fr0y)
+	pdf.SetFont("Helvetica", "B", 6)
+	setRGB(bodyText)
+	pdf.CellFormat(halfFW-2, fRowH, fsRows[0].l1, "", 0, "L", false, 0, "")
+	pdf.SetXY(fBase+halfFW, fr0y)
+	pdf.CellFormat(halfFW-2, fRowH, fsRows[0].l2, "", 0, "R", false, 0, "")
+
+	// Rows 1-4: label/value pairs in 2 columns
+	for i, row := range fsRows[1:] {
+		fy := y + 5.5 + fRowH*float64(i+1) + fRowH*0.1
+		pdf.SetXY(fBase+2, fy)
+		pdf.SetFont("Helvetica", "", 5.8)
+		setRGB(mutedText)
+		pdf.CellFormat(fLabelW, fRowH, row.l1, "", 0, "L", false, 0, "")
+		pdf.SetXY(fBase+2+fLabelW, fy)
+		pdf.SetFont("Helvetica", "B", 5.8)
+		setRGB(darkText)
+		pdf.CellFormat(halfFW-fLabelW-2, fRowH, row.v1, "", 0, "L", false, 0, "")
+		pdf.SetXY(fBase+halfFW, fy)
+		pdf.SetFont("Helvetica", "", 5.8)
+		setRGB(mutedText)
+		pdf.CellFormat(fLabelW, fRowH, row.l2, "", 0, "L", false, 0, "")
+		pdf.SetXY(fBase+halfFW+fLabelW, fy)
+		pdf.SetFont("Helvetica", "B", 5.8)
+		setRGB(darkText)
+		pdf.CellFormat(halfFW-fLabelW-2, fRowH, row.v2, "", 0, "L", false, 0, "")
 	}
+	y += sectH + 1.5
 
-	y += lensH + 3
-
-	// ── Special instructions ─────────────────────────────────────────
-	setFillRGB(accentBlue[0], accentBlue[1], accentBlue[2])
-	pdf.Rect(10, y, contentW, 7, "F")
-	pdf.SetXY(13, y)
+	// ── Observations section ─────────────────────────────────────────
+	setFill(brightBlue)
+	pdf.RoundedRect(10, y, contentW, 6.5, 1.5, "1234", "F")
+	pdf.SetXY(13, y+0.8)
 	pdf.SetFont("Helvetica", "B", 7)
-	setRGB(white[0], white[1], white[2])
-	pdf.CellFormat(contentW-3, 7, "OBSERVACIONES E INSTRUCCIONES ESPECIALES", "", 0, "L", false, 0, "")
-	y += 7
+	setRGB(white)
+	pdf.CellFormat(contentW-3, 6.5, "OBSERVACIONES E INSTRUCCIONES ESPECIALES", "", 0, "L", false, 0, "")
+	y += 6.5
 
 	instrText := order.SpecialInstructions
 	if instrText == "" {
@@ -398,65 +441,91 @@ func buildLabOrderPDF(order *domain.LaboratoryOrder) ([]byte, error) {
 	if instrText == "" {
 		instrText = "Sin observaciones adicionales."
 	}
-
-	setFillRGB(250, 250, 251)
-	setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-	pdf.Rect(10, y, contentW, 18, "FD")
-	pdf.SetXY(13, y+2)
+	setFill(white)
+	setDraw(borderGray)
+	pdf.Rect(10, y, contentW, 16, "FD")
+	pdf.SetXY(13, y+2.5)
 	pdf.SetFont("Helvetica", "", 7)
-	setRGB(darkText[0], darkText[1], darkText[2])
+	setRGB(bodyText)
 	pdf.MultiCell(contentW-6, 4.5, instrText, "", "L", false)
-	y += 21
+	y += 19
 
 	// ── Signatures ───────────────────────────────────────────────────
-	setDrawRGB(borderGray[0], borderGray[1], borderGray[2])
-	pdf.SetFont("Helvetica", "", 5.5)
-	setRGB(mutedText[0], mutedText[1], mutedText[2])
+	setDraw(borderGray)
+	pdf.SetLineWidth(0.2)
+	pdf.Line(10, y, 10+contentW, y)
+	y += 3
+	pdf.SetXY(10, y)
+	pdf.SetFont("Helvetica", "B", 5.5)
+	setRGB(mutedText)
+	pdf.CellFormat(contentW, 5, "AUTORIZACIONES Y CONFORMIDAD", "", 0, "L", false, 0, "")
+	y += 8
+
 	sigW := contentW / 3
-	sigs := []string{"Firma Responsable \u00D3ptica", "Firma Laboratorio", "Firma Cliente / Acudiente"}
-	for i, sig := range sigs {
+	for i, sig := range []string{
+		"Firma Responsable Óptica",
+		"Firma Laboratorio",
+		"Firma Cliente / Acudiente",
+	} {
 		sx := 10 + float64(i)*sigW
-		pdf.Line(sx+5, y+10, sx+sigW-5, y+10)
-		pdf.SetXY(sx, y+11)
+		setDraw(borderGray)
+		pdf.Line(sx+5, y, sx+sigW-5, y)
+		pdf.SetXY(sx, y+1.5)
+		pdf.SetFont("Helvetica", "", 6)
+		setRGB(mutedText)
 		pdf.CellFormat(sigW, 5, sig, "", 0, "C", false, 0, "")
 	}
-	y += 18
+	y += 10
 
 	// ── Footer ───────────────────────────────────────────────────────
-	setFillRGB(darkText[0], darkText[1], darkText[2])
-	pdf.Rect(10, y, contentW, 22, "F")
+	setFill(footerBg)
+	pdf.Rect(10, y, contentW, 24, "F")
+	setFill(brightBlue)
+	pdf.Rect(10, y+20, contentW, 4, "F")
 
 	// QR code
 	qrContent := fmt.Sprintf("Orden:%s|Paciente:%s|Lab:%s|Fecha:%s",
 		order.OrderNumber, patientName, labName, order.CreatedAt.Format("2006-01-02"))
-	qrBytes, qrErr := qrcode.Encode(qrContent, qrcode.Medium, 80)
-	if qrErr == nil {
+	if qrBytes, err := qrcode.Encode(qrContent, qrcode.Medium, 64); err == nil {
 		imgOpts := gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}
 		pdf.RegisterImageOptionsReader("qr", imgOpts, bytes.NewReader(qrBytes))
-		pdf.ImageOptions("qr", 12, y+2, 18, 18, false, imgOpts, 0, "")
+		pdf.ImageOptions("qr", 13, y+2, 14, 14, false, imgOpts, 0, "")
 	}
 
-	// Footer text
-	pdf.SetXY(32, y+4)
+	// CONVISION label
+	pdf.SetXY(29, y+3)
 	pdf.SetFont("Helvetica", "B", 9)
-	setRGB(white[0], white[1], white[2])
-	pdf.CellFormat(50, 6, "CONVISION", "", 0, "L", false, 0, "")
-	pdf.SetXY(32, y+10)
-	pdf.SetFont("Helvetica", "", 6.5)
-	setRGB(200, 200, 210)
-	pdf.CellFormat(50, 5, "Software de Gesti\u00F3n \u00D3ptica", "", 0, "L", false, 0, "")
+	setRGB(white)
+	pdf.CellFormat(50, 5, "CONVISION", "", 0, "L", false, 0, "")
+	pdf.SetXY(29, y+9)
+	pdf.SetFont("Helvetica", "", 6)
+	pdf.SetTextColor(128, 128, 143)
+	pdf.CellFormat(50, 5, "Software de Gestión Óptica", "", 0, "L", false, 0, "")
 
-	// Order number as barcode substitute
-	pdf.SetXY(10+contentW/2-30, y+7)
-	pdf.SetFont("Helvetica", "B", 9)
-	setRGB(white[0], white[1], white[2])
-	pdf.CellFormat(60, 8, order.OrderNumber, "1", 0, "C", false, 0, "")
+	// Barcode (Code128, real scannable barcode)
+	bcX := 10 + contentW/2 - 30.0
+	setFill(white)
+	pdf.RoundedRect(bcX, y+2, 60, 16, 1.5, "1234", "F")
+	if bc, err := code128.Encode(order.OrderNumber); err == nil {
+		if scaled, err := barcode.Scale(bc, 220, 50); err == nil {
+			var bcBuf bytes.Buffer
+			if png.Encode(&bcBuf, scaled) == nil {
+				opts := gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: false}
+				pdf.RegisterImageOptionsReader("barcode", opts, &bcBuf)
+				pdf.ImageOptions("barcode", bcX+2, y+3, 56, 9, false, opts, 0, "")
+			}
+		}
+	}
+	pdf.SetXY(bcX, y+13)
+	pdf.SetFont("Helvetica", "", 5.5)
+	pdf.SetTextColor(footerBg[0], footerBg[1], footerBg[2])
+	pdf.CellFormat(60, 4, order.OrderNumber, "", 0, "C", false, 0, "")
 
 	// Legal note
-	pdf.SetXY(10+contentW/2+35, y+3)
+	pdf.SetXY(10+contentW*0.67, y+3)
 	pdf.SetFont("Helvetica", "", 5.5)
-	setRGB(200, 200, 210)
-	pdf.MultiCell(55, 4, "Documento generado digitalmente — No requiere firma manual cuando lleva sello digital", "", "L", false)
+	pdf.SetTextColor(128, 128, 143)
+	pdf.MultiCell(contentW*0.33-2, 3.5, "Documento generado digitalmente — No requiere firma manual cuando lleva sello digital", "", "R", false)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

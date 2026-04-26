@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import PageLayout from '@/components/layouts/PageLayout';
 import EntityTable from '@/components/ui/data-table/EntityTable';
-import { DataTableColumnDef } from '@/components/ui/data-table/DataTable';
+import { DataTableColumnDef } from '@/components/ui/data-table';
 import { laboratoryOrderService, LaboratoryOrder } from '@/services/laboratoryOrderService';
 import { LABORATORY_ORDER_STATUS_LABELS, LAB_ORDER_STATUS_TOKENS } from '@/constants/laboratoryOrderStatus';
 import { useAuth } from '@/contexts/AuthContext';
@@ -181,7 +181,6 @@ const QualityReview: React.FC = () => {
               <span className="text-[14px] font-semibold text-[#121215]">Pendientes de revisión</span>
             </div>
           }
-          enableSorting={false}
         />
 
         <p className="text-[12px] text-[#7d7d87] text-center pb-2">

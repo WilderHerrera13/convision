@@ -9,6 +9,7 @@ import SpecialistAppointmentsPage from '@/pages/specialist/SpecialistAppointment
 import SpecialistAppointmentDetailPage from '@/pages/specialist/SpecialistAppointmentDetailPage';
 import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
 import ClinicalHistoryNewConsultationPage from '@/pages/specialist/ClinicalHistoryNewConsultationPage';
+import PrescriptionPreviewPage from '@/pages/specialist/PrescriptionPreviewPage';
 import ClinicalHistoryFollowUpPage from '@/pages/specialist/ClinicalHistoryFollowUpPage';
 import ManagementReport from '@/pages/specialist/ManagementReport';
 import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
@@ -61,6 +62,7 @@ import LaboratoryCreatePage from "./pages/admin/laboratories/LaboratoryCreatePag
 import LaboratoryEditPage from "./pages/admin/laboratories/LaboratoryEditPage";
 import LaboratoryDetailPage from "./pages/admin/laboratories/LaboratoryDetailPage";
 import ClinicalHistory from "./pages/admin/ClinicalHistory";
+import PatientDetail from "./pages/admin/PatientDetail";
 import Sales from "./pages/admin/Sales";
 import SaleDetail from "./pages/admin/SaleDetail";
 import ReceptionistSaleDetail from "./pages/receptionist/SaleDetail";
@@ -290,6 +292,10 @@ const router = createBrowserRouter([
           {
             path: "patients/new",
             element: <NewPatient />,
+          },
+          {
+            path: "patients/:patientId",
+            element: <PatientDetail />,
           },
           {
             path: "patients/:patientId/edit",
@@ -586,6 +592,10 @@ const router = createBrowserRouter([
             element: <ClinicalHistoryNewConsultationPage />,
           },
           {
+            path: "appointments/:id/prescription-preview",
+            element: <PrescriptionPreviewPage />,
+          },
+          {
             path: "appointments/:id/follow-up",
             element: <ClinicalHistoryFollowUpPage />,
           },
@@ -666,6 +676,10 @@ const router = createBrowserRouter([
           {
             path: "patients/new",
             element: <NewPatient />,
+          },
+          {
+            path: "patients/:patientId",
+            element: <PatientDetail />,
           },
           {
             path: "patients/:patientId/edit",

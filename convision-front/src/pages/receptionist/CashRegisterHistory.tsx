@@ -158,7 +158,6 @@ const CashRegisterHistory: React.FC = () => {
           queryKeyBase="cash-close-history"
           enableSearch={false}
           showPageSizeSelect
-          enableSorting={false}
           tableLayout="ledger"
           paginationVariant="figma"
           extraFilters={extraFilters}

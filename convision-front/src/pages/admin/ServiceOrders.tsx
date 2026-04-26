@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -285,12 +286,16 @@ const ServiceOrders: React.FC = () => {
         searchPlaceholder="Buscar por cliente, número de orden..."
         extraFilters={{ statusFilter }}
         onRowClick={(row) => navigate(`/admin/service-orders/${row.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Órdenes de Arreglo</span>
             <span className="text-[11px] text-[#7d7d87]">Gestión de reparaciones</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin órdenes de arreglo" description="No hay órdenes de servicio registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
       </div>
     </PageLayout>

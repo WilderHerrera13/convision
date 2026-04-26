@@ -29,6 +29,7 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import { patientService } from "@/services/patientService";
 import { Avatar } from "@/components/ui/avatar";
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -475,12 +476,16 @@ const Patients: React.FC = () => {
         searchPlaceholder="Buscar paciente..."
         extraFilters={{ filterStatus }}
         onRowClick={(patient) => navigate(`/receptionist/patients/${patient.id}/edit`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Pacientes</span>
             <span className="text-[11px] text-[#7d7d87]">Base de datos</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="patients" />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       {/* Create Patient Modal */}

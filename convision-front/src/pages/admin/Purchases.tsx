@@ -20,8 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { DataTable, DataTableColumnDef } from '@/components/ui/data-table';
+import { DataTableColumnDef } from '@/components/ui/data-table';
 import EntityTable from '@/components/ui/data-table/EntityTable';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -368,27 +369,29 @@ const Purchases: React.FC = () => {
         </Card>
       </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Compras</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EntityTable
-            columns={columns}
-            queryKeyBase="purchases"
-            fetcher={({ page, per_page, search }) => purchaseService.getPurchases({
-              ...filters,
-              page,
-              per_page,
-              search,
-            })}
-            onRowClick={handleViewPurchase}
-            searchPlaceholder="Buscar por número de factura, proveedor o concepto..."
-            initialPerPage={15}
-          />
-        </CardContent>
-      </Card>
+      <EntityTable
+        columns={columns}
+        queryKeyBase="purchases"
+        fetcher={({ page, per_page, search }) => purchaseService.getPurchases({
+          ...filters,
+          page,
+          per_page,
+          search,
+        })}
+        onRowClick={handleViewPurchase}
+        searchPlaceholder="Buscar por número de factura, proveedor o concepto..."
+        initialPerPage={15}
+        tableLayout="ledger"
+        paginationVariant="figma"
+        toolbarLeading={
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[14px] font-semibold text-[#121215]">Compras</span>
+            <span className="text-[11px] text-[#7d7d87]">Facturas de proveedores</span>
+          </div>
+        }
+        emptyStateNode={<EmptyState variant="default" title="Sin compras registradas" description="No hay compras registradas aún." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>

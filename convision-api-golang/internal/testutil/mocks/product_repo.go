@@ -54,6 +54,30 @@ func (m *MockProductRepository) BulkUpdateStatus(ids []uint, status string) (int
 	return args.Get(0).(int64), args.Error(1)
 }
 
+func (m *MockProductRepository) ListByCategory(slug string, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+	args := m.Called(slug, filters, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.Product), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockProductRepository) ListByPrescription(f domain.PrescriptionFilter) ([]*domain.Product, error) {
+	args := m.Called(f)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Product), args.Error(1)
+}
+
+func (m *MockProductRepository) StockByProduct(productID uint) ([]*domain.ProductStockByWarehouse, error) {
+	args := m.Called(productID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.ProductStockByWarehouse), args.Error(1)
+}
+
 type MockProductCategoryRepository struct {
 	mock.Mock
 }
@@ -84,4 +108,28 @@ func (m *MockProductCategoryRepository) List(filters map[string]any, page, perPa
 		return nil, 0, args.Error(2)
 	}
 	return args.Get(0).([]*domain.ProductCategory), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockProductCategoryRepository) All() ([]*domain.ProductCategory, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.ProductCategory), args.Error(1)
+}
+
+func (m *MockProductCategoryRepository) ListWithProductCount() ([]*domain.CategoryWithCount, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.CategoryWithCount), args.Error(1)
+}
+
+func (m *MockProductCategoryRepository) GetBySlug(slug string) (*domain.ProductCategory, error) {
+	args := m.Called(slug)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.ProductCategory), args.Error(1)
 }

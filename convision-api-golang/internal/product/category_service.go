@@ -128,3 +128,15 @@ func (s *CategoryService) Delete(id uint) error {
 	}
 	return s.repo.Delete(id)
 }
+
+func (s *CategoryService) All() ([]*domain.ProductCategory, error) {
+	return s.repo.All()
+}
+
+func (s *CategoryService) ListWithCount() ([]*domain.CategoryWithCount, error) {
+	return s.repo.ListWithProductCount()
+}
+
+func (s *CategoryService) GetBySlug(slug string) (*domain.ProductCategory, error) {
+	return s.repo.GetBySlug(slug)
+}

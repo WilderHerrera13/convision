@@ -59,6 +59,7 @@ import {
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { saleService, Sale, PaymentMethod, SaleStats, SaleFilterParams } from '@/services/saleService';
 import { DataTableColumnDef, EntityTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import PageLayout from '@/components/layouts/PageLayout';
@@ -536,12 +537,16 @@ const Sales: React.FC = () => {
           const basePath = user?.role === 'admin' ? '/admin' : '/receptionist';
           navigate(`${basePath}/sales/${sale.id}`);
         }}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Ventas</span>
             <span className="text-[11px] text-[#7d7d87]">Listado de ventas</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="default" title="Sin ventas" description="No hay ventas registradas." />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       {/* Payment Modal */}

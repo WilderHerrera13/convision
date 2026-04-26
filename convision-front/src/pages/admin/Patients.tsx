@@ -62,6 +62,7 @@ import {
   DataTableColumnDef,
   EntityTable,
 } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -870,9 +871,9 @@ const Patients: React.FC = () => {
       cell: (patient) => (
         <div className="flex items-center justify-end gap-1.5">
           <Link
-            to={`${basePath}/patients/${patient.id}/history`}
+            to={`${basePath}/patients/${patient.id}`}
             className="flex items-center justify-center size-8 rounded-[6px] bg-convision-light border border-convision-primary/30 text-convision-primary hover:opacity-80 transition-colors"
-            title="Ver historial"
+            title="Ver detalle"
           >
             <Eye className="h-4 w-4" />
           </Link>
@@ -970,13 +971,17 @@ const Patients: React.FC = () => {
         }}
         extraFilters={{ filterStatus }}
         searchPlaceholder="Buscar paciente..."
-        onRowClick={(patient) => navigate(`${basePath}/patients/${patient.id}/history`)}
+        onRowClick={(patient) => navigate(`${basePath}/patients/${patient.id}`)}
+        tableLayout="ledger"
+        paginationVariant="figma"
         toolbarLeading={
           <div className="flex flex-col gap-0.5">
             <span className="text-[14px] font-semibold text-[#121215]">Pacientes</span>
             <span className="text-[11px] text-[#7d7d87]">Base de datos</span>
           </div>
         }
+        emptyStateNode={<EmptyState variant="patients" />}
+        filterEmptyStateNode={<EmptyState variant="table-filter" />}
       />
 
       {/* Create Patient Modal */}

@@ -49,7 +49,6 @@ const UsersListPage: React.FC = () => {
           ledgerBorderMode="figma"
           tableLayout="ledger"
           tableClassName="table-fixed min-w-[960px]"
-          enableSorting={false}
           showPageSizeSelect={false}
           initialPerPage={15}
           tableAriaLabel="Usuarios del sistema"

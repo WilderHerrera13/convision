@@ -193,7 +193,6 @@ const WalletManagement: React.FC<WalletManagementProps> = ({ basePath = '/admin/
             ledgerBorderMode="figma"
             tableLayout="ledger"
             tableClassName="table-fixed min-w-[960px]"
-            enableSorting={false}
             showPageSizeSelect={false}
             initialPerPage={10}
             tableAriaLabel="Cartera pendiente"

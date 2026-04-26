@@ -82,6 +82,9 @@ func Migrate(db *gorm.DB) error {
 		&domain.ClinicalEvolution{},
 		&domain.ClinicalRecord{},
 		&domain.Anamnesis{},
+		&domain.VisualExam{},
+		&domain.Diagnosis{},
+		&domain.ClinicalPrescription{},
 		// Catalogue
 		&domain.LensType{},
 		&domain.LensClass{},

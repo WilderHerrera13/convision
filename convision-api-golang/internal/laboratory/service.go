@@ -16,6 +16,7 @@ type Service struct {
 	orderRepo    domain.LaboratoryOrderRepository
 	callRepo     domain.LaboratoryOrderCallRepository
 	evidenceRepo domain.LaboratoryOrderEvidenceRepository
+	saleRepo     domain.SaleRepository
 	logger       *zap.Logger
 }
 
@@ -25,9 +26,10 @@ func NewService(
 	orderRepo domain.LaboratoryOrderRepository,
 	callRepo domain.LaboratoryOrderCallRepository,
 	evidenceRepo domain.LaboratoryOrderEvidenceRepository,
+	saleRepo domain.SaleRepository,
 	logger *zap.Logger,
 ) *Service {
-	return &Service{labRepo: labRepo, orderRepo: orderRepo, callRepo: callRepo, evidenceRepo: evidenceRepo, logger: logger}
+	return &Service{labRepo: labRepo, orderRepo: orderRepo, callRepo: callRepo, evidenceRepo: evidenceRepo, saleRepo: saleRepo, logger: logger}
 }
 
 // --- Laboratory DTOs ---
@@ -674,6 +676,42 @@ func (s *Service) GetPortfolioOrder(orderID uint) (*PortfolioOrderItem, error) {
 	}
 
 	return item, nil
+}
+
+func (s *Service) ClosePortfolioOrder(orderID uint, userID uint) error {
+	o, err := s.orderRepo.GetByID(orderID)
+	if err != nil {
+		return err
+	}
+
+	if o.Status != domain.LaboratoryOrderStatusPortfolio {
+		return &domain.ErrValidation{Field: "status", Message: "order is not in portfolio status"}
+	}
+
+	o.Status = domain.LaboratoryOrderStatusDelivered
+	if err := s.orderRepo.Update(o); err != nil {
+		return err
+	}
+
+	_ = s.orderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+		LaboratoryOrderID: orderID,
+		Status:            string(domain.LaboratoryOrderStatusDelivered),
+		Notes:             "Pago completado — cartera cerrada",
+		UserID:            &userID,
+	})
+
+	if o.SaleID != nil {
+		sale, err := s.saleRepo.GetByID(*o.SaleID)
+		if err == nil {
+			sale.Balance = 0
+			sale.AmountPaid = sale.Total
+			sale.PaymentStatus = "paid"
+			_ = s.saleRepo.Update(sale)
+		}
+	}
+
+	s.logger.Info("portfolio order closed", zap.Uint("order_id", orderID))
+	return nil
 }
 
 // --- Evidence Methods ---
