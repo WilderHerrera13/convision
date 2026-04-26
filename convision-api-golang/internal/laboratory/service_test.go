@@ -14,7 +14,7 @@ import (
 )
 
 func newLabSvc(labRepo *mocks.MockLaboratoryRepository, orderRepo *mocks.MockLaboratoryOrderRepository) *laboratory.Service {
-	return laboratory.NewService(labRepo, orderRepo, zap.NewNop())
+	return laboratory.NewService(labRepo, orderRepo, &mocks.MockLaboratoryOrderCallRepository{}, &mocks.MockLaboratoryOrderEvidenceRepository{}, &mocks.MockSaleRepository{}, zap.NewNop())
 }
 
 func TestCreateLab_Success(t *testing.T) {

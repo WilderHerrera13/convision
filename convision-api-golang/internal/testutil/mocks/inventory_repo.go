@@ -10,6 +10,8 @@ var _ domain.WarehouseRepository = (*MockWarehouseRepository)(nil)
 var _ domain.WarehouseLocationRepository = (*MockWarehouseLocationRepository)(nil)
 var _ domain.InventoryItemRepository = (*MockInventoryItemRepository)(nil)
 var _ domain.InventoryTransferRepository = (*MockInventoryTransferRepository)(nil)
+var _ domain.StockMovementRepository = (*MockStockMovementRepository)(nil)
+var _ domain.InventoryAdjustmentRepository = (*MockInventoryAdjustmentRepository)(nil)
 
 type MockWarehouseRepository struct {
 	mock.Mock
@@ -163,4 +165,56 @@ func (m *MockInventoryTransferRepository) List(filters map[string]any, page, per
 		return nil, 0, args.Error(2)
 	}
 	return args.Get(0).([]*domain.InventoryTransfer), args.Get(1).(int64), args.Error(2)
+}
+
+type MockStockMovementRepository struct {
+	mock.Mock
+}
+
+func (m *MockStockMovementRepository) Create(mv *domain.StockMovement) error {
+	return m.Called(mv).Error(0)
+}
+
+func (m *MockStockMovementRepository) List(filters map[string]any, page, perPage int) ([]*domain.StockMovement, int64, error) {
+	args := m.Called(filters, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.StockMovement), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockStockMovementRepository) ListByProduct(productID uint, page, perPage int) ([]*domain.StockMovement, int64, error) {
+	args := m.Called(productID, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.StockMovement), args.Get(1).(int64), args.Error(2)
+}
+
+type MockInventoryAdjustmentRepository struct {
+	mock.Mock
+}
+
+func (m *MockInventoryAdjustmentRepository) GetByID(id uint) (*domain.InventoryAdjustment, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.InventoryAdjustment), args.Error(1)
+}
+
+func (m *MockInventoryAdjustmentRepository) Create(a *domain.InventoryAdjustment) error {
+	return m.Called(a).Error(0)
+}
+
+func (m *MockInventoryAdjustmentRepository) Update(a *domain.InventoryAdjustment) error {
+	return m.Called(a).Error(0)
+}
+
+func (m *MockInventoryAdjustmentRepository) List(filters map[string]any, page, perPage int) ([]*domain.InventoryAdjustment, int64, error) {
+	args := m.Called(filters, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.InventoryAdjustment), args.Get(1).(int64), args.Error(2)
 }

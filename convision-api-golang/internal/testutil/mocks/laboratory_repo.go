@@ -8,6 +8,8 @@ import (
 
 var _ domain.LaboratoryRepository = (*MockLaboratoryRepository)(nil)
 var _ domain.LaboratoryOrderRepository = (*MockLaboratoryOrderRepository)(nil)
+var _ domain.LaboratoryOrderCallRepository = (*MockLaboratoryOrderCallRepository)(nil)
+var _ domain.LaboratoryOrderEvidenceRepository = (*MockLaboratoryOrderEvidenceRepository)(nil)
 
 type MockLaboratoryRepository struct {
 	mock.Mock
@@ -107,4 +109,52 @@ func (m *MockLaboratoryOrderRepository) Stats() (map[string]int64, error) {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(map[string]int64), args.Error(1)
+}
+
+type MockLaboratoryOrderCallRepository struct {
+	mock.Mock
+}
+
+func (m *MockLaboratoryOrderCallRepository) Create(call *domain.LaboratoryOrderCall) error {
+	return m.Called(call).Error(0)
+}
+
+func (m *MockLaboratoryOrderCallRepository) GetByOrderID(orderID uint) ([]*domain.LaboratoryOrderCall, error) {
+	args := m.Called(orderID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.LaboratoryOrderCall), args.Error(1)
+}
+
+func (m *MockLaboratoryOrderCallRepository) GetByOrderIDs(orderIDs []uint) ([]*domain.LaboratoryOrderCall, error) {
+	args := m.Called(orderIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.LaboratoryOrderCall), args.Error(1)
+}
+
+func (m *MockLaboratoryOrderCallRepository) PortfolioStats() (map[string]int64, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]int64), args.Error(1)
+}
+
+type MockLaboratoryOrderEvidenceRepository struct {
+	mock.Mock
+}
+
+func (m *MockLaboratoryOrderEvidenceRepository) Create(e *domain.LaboratoryOrderEvidence) error {
+	return m.Called(e).Error(0)
+}
+
+func (m *MockLaboratoryOrderEvidenceRepository) ListByOrderID(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	args := m.Called(orderID, transitionType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.LaboratoryOrderEvidence), args.Error(1)
 }

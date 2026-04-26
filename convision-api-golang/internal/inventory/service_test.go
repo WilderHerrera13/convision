@@ -21,7 +21,7 @@ func newInventorySvc(
 	item *mocks.MockInventoryItemRepository,
 	transfer *mocks.MockInventoryTransferRepository,
 ) *inventory.Service {
-	return inventory.NewService(nil, wh, loc, item, transfer, zap.NewNop())
+	return inventory.NewService(nil, wh, loc, item, transfer, &mocks.MockStockMovementRepository{}, &mocks.MockInventoryAdjustmentRepository{}, zap.NewNop())
 }
 
 // TestCreateTransfer_SourceEqualsDestination verifies the early-return guard before any DB transaction.
