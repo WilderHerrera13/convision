@@ -11,7 +11,6 @@ import (
 var inventoryItemFilterAllowlist = map[string]bool{
 	"clinic_id":             true,
 	"product_id":            true,
-	"lens_id":               true,
 	"warehouse_id":          true,
 	"warehouse_location_id": true,
 	"status":                true,
@@ -30,7 +29,6 @@ func NewInventoryItemRepository(db *gorm.DB) *InventoryItemRepository {
 func (r *InventoryItemRepository) withRelations(q *gorm.DB) *gorm.DB {
 	return q.
 		Preload("Product").
-		Preload("Lens").
 		Preload("Warehouse").
 		Preload("WarehouseLocation")
 }
@@ -146,73 +144,6 @@ func (r *InventoryItemRepository) TotalStockPerProduct(filters map[string]any) (
 func (r *InventoryItemRepository) ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error) {
 	q := r.db.Model(&domain.InventoryItem{}).
 		Where("product_id = ? AND warehouse_location_id = ?", productID, locationID)
-	if excludeID != 0 {
-		q = q.Where("id != ?", excludeID)
-	}
-	var count int64
-	if err := q.Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
-var totalStockLensFilterAllowlist = map[string]bool{
-	"warehouse_id":          true,
-	"warehouse_location_id": true,
-}
-
-func (r *InventoryItemRepository) TotalStockPerLens(filters map[string]any, page, perPage int) ([]*domain.LensStockEntry, int64, error) {
-	countQ := r.db.Table("lenses").
-		Where("lenses.status = 'enabled'")
-
-	dataQ := r.db.Table("lenses").
-		Select("lenses.id, lenses.internal_code, lenses.identifier, COALESCE(brands.name, '') AS brand_name, COALESCE(SUM(CASE WHEN inventory_items.status = ? THEN inventory_items.quantity ELSE 0 END), 0) AS total_quantity", domain.InventoryItemStatusAvailable).
-		Joins("LEFT JOIN brands ON brands.id = lenses.brand_id").
-		Joins("LEFT JOIN inventory_items ON inventory_items.lens_id = lenses.id").
-		Where("lenses.status = 'enabled'").
-		Group("lenses.id, lenses.internal_code, lenses.identifier, brands.name").
-		Order("lenses.internal_code ASC")
-
-	for field, value := range filters {
-		if !totalStockLensFilterAllowlist[field] {
-			continue
-		}
-		countQ = countQ.Joins("LEFT JOIN inventory_items ii_filter ON ii_filter.lens_id = lenses.id").
-			Where("ii_filter."+field+" = ?", value)
-		dataQ = dataQ.Where("inventory_items."+field+" = ?", value)
-	}
-
-	var total int64
-	if err := countQ.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * perPage
-	var results []*domain.LensStockEntry
-	if err := dataQ.Offset(offset).Limit(perPage).Scan(&results).Error; err != nil {
-		return nil, 0, err
-	}
-	return results, total, nil
-}
-
-func (r *InventoryItemRepository) GetLensInventory(lensID uint) ([]*domain.InventoryItem, int64, error) {
-	var items []*domain.InventoryItem
-	q := r.withRelations(r.db.Model(&domain.InventoryItem{})).
-		Where("inventory_items.lens_id = ?", lensID).
-		Order("inventory_items.id desc")
-	var total int64
-	if err := r.db.Model(&domain.InventoryItem{}).Where("lens_id = ?", lensID).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	if err := q.Find(&items).Error; err != nil {
-		return nil, 0, err
-	}
-	return items, total, nil
-}
-
-func (r *InventoryItemRepository) ExistsByLensAndLocation(lensID, locationID, excludeID uint) (bool, error) {
-	q := r.db.Model(&domain.InventoryItem{}).
-		Where("lens_id = ? AND warehouse_location_id = ?", lensID, locationID)
 	if excludeID != 0 {
 		q = q.Where("id != ?", excludeID)
 	}

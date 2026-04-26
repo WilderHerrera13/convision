@@ -344,10 +344,8 @@ func (s *Service) validateLocationBelongsToWarehouse(locationID, warehouseID uin
 // ======== InventoryItem ========
 
 // ItemCreateInput holds validated fields for creating an inventory item.
-// Exactly one of ProductID or LensID must be provided.
 type ItemCreateInput struct {
-	ProductID           *uint  `json:"product_id"`
-	LensID              *uint  `json:"lens_id"`
+	ProductID           uint   `json:"product_id"            binding:"required"`
 	WarehouseID         uint   `json:"warehouse_id"          binding:"required"`
 	WarehouseLocationID *uint  `json:"warehouse_location_id"`
 	Quantity            int    `json:"quantity"`
