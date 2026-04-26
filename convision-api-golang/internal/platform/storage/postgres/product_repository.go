@@ -14,6 +14,9 @@ var productFilterAllowlist = map[string]bool{
 	"product_category_id": true,
 	"brand_id":            true,
 	"supplier_id":         true,
+	"product_type":        true,
+	"tracks_stock":        true,
+	"internal_code":       true,
 }
 
 // ProductRepository is the PostgreSQL-backed implementation of domain.ProductRepository.
@@ -264,4 +267,62 @@ func (r *ProductRepository) StockByProduct(productID uint) ([]*domain.ProductSto
 		Order("ii.warehouse_id, ii.warehouse_location_id").
 		Scan(&results).Error
 	return results, err
+}
+
+func (r *ProductRepository) ListLensCatalog(filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+	var data []*domain.Product
+	var total int64
+
+	q := r.db.Model(&domain.Product{}).
+		Where("products.product_type = ?", domain.ProductTypeLens).
+		Preload("Brand").
+		Preload("LensAttributes").
+		Preload("LensAttributes.LensType").
+		Preload("LensAttributes.Material").
+		Preload("LensAttributes.LensClass").
+		Preload("LensAttributes.Treatment")
+
+	if v, ok := filters["brand_id"]; ok {
+		q = q.Where("products.brand_id = ?", v)
+	}
+	if v, ok := filters["supplier_id"]; ok {
+		q = q.Where("products.supplier_id = ?", v)
+	}
+	if v, ok := filters["status"]; ok {
+		q = q.Where("products.status = ?", v)
+	}
+	if v, ok := filters["search"]; ok && v != "" {
+		q = q.Where("products.internal_code ILIKE ? OR products.identifier ILIKE ?",
+			"%"+v.(string)+"%", "%"+v.(string)+"%")
+	}
+
+	prescriptionKeys := []string{"sphere_od", "cylinder_od", "addition_od", "sphere_os", "cylinder_os", "addition_os"}
+	hasPrescription := false
+	for _, k := range prescriptionKeys {
+		if _, ok := filters[k]; ok {
+			hasPrescription = true
+			break
+		}
+	}
+	if hasPrescription {
+		q = q.Joins("JOIN product_lens_attributes pla ON pla.product_id = products.id")
+		if v, ok := filters["sphere_od"]; ok {
+			q = q.Where("pla.sphere_min <= ? AND pla.sphere_max >= ?", v, v)
+		}
+		if v, ok := filters["cylinder_od"]; ok {
+			q = q.Where("pla.cylinder_min <= ? AND pla.cylinder_max >= ?", v, v)
+		}
+		if v, ok := filters["addition_od"]; ok {
+			q = q.Where("pla.addition_min <= ? AND pla.addition_max >= ?", v, v)
+		}
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * perPage
+	err := q.Order("products.internal_code ASC").
+		Offset(offset).Limit(perPage).Find(&data).Error
+	return data, total, err
 }

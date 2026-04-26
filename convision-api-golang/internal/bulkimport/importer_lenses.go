@@ -18,19 +18,19 @@ var lensImportColumns = []string{
 }
 
 type lensImporter struct {
-	lensRepo        domain.LensRepository
-	lensTypeRepo    domain.LensTypeRepository
-	brandRepo       domain.BrandRepository
-	materialRepo    domain.MaterialRepository
-	lensClassRepo   domain.LensClassRepository
-	treatmentRepo   domain.TreatmentRepository
+	productRepo      domain.ProductRepository
+	lensTypeRepo     domain.LensTypeRepository
+	brandRepo        domain.BrandRepository
+	materialRepo     domain.MaterialRepository
+	lensClassRepo    domain.LensClassRepository
+	treatmentRepo    domain.TreatmentRepository
 	photochromicRepo domain.PhotochromicRepository
-	supplierRepo    domain.SupplierRepository
-	logger          *zap.Logger
+	supplierRepo     domain.SupplierRepository
+	logger           *zap.Logger
 }
 
 func newLensImporter(
-	lensRepo domain.LensRepository,
+	productRepo domain.ProductRepository,
 	lensTypeRepo domain.LensTypeRepository,
 	brandRepo domain.BrandRepository,
 	materialRepo domain.MaterialRepository,
@@ -41,15 +41,15 @@ func newLensImporter(
 	logger *zap.Logger,
 ) Importer {
 	return &lensImporter{
-		lensRepo:        lensRepo,
-		lensTypeRepo:    lensTypeRepo,
-		brandRepo:       brandRepo,
-		materialRepo:    materialRepo,
-		lensClassRepo:   lensClassRepo,
-		treatmentRepo:   treatmentRepo,
+		productRepo:      productRepo,
+		lensTypeRepo:     lensTypeRepo,
+		brandRepo:        brandRepo,
+		materialRepo:     materialRepo,
+		lensClassRepo:    lensClassRepo,
+		treatmentRepo:    treatmentRepo,
 		photochromicRepo: photochromicRepo,
-		supplierRepo:    supplierRepo,
-		logger:          logger,
+		supplierRepo:     supplierRepo,
+		logger:           logger,
 	}
 }
 
@@ -65,7 +65,12 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 		return rec
 	}
 
-	if _, err := i.lensRepo.GetByInternalCode(internalCode); err == nil {
+	// Duplicate check: look for existing product with same internal_code and product_type=lens.
+	existing, _, err := i.productRepo.List(map[string]any{
+		"internal_code": internalCode,
+		"product_type":  string(domain.ProductTypeLens),
+	}, 1, 1)
+	if err == nil && len(existing) > 0 {
 		rec.Status = RecordStatusSkipped
 		rec.Reason = "lente ya existe (CodigoInterno duplicado)"
 		return rec
@@ -84,30 +89,41 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 		return rec
 	}
 
-	lens := &domain.Lens{
+	p := &domain.Product{
 		InternalCode: internalCode,
 		Identifier:   strings.TrimSpace(data["identificador"]),
 		Description:  strings.TrimSpace(data["descripción"]),
 		Price:        price,
-		Status:       domain.LensStatusEnabled,
+		Status:       domain.ProductStatusEnabled,
+		ProductType:  domain.ProductTypeLens,
+		TracksStock:  false,
 	}
 
 	if costStr := strings.TrimSpace(data["costo"]); costStr != "" {
 		if cost, err := parsePrice(costStr); err == nil {
-			lens.Cost = cost
+			p.Cost = cost
 		}
 	}
 
-	lens.TypeID = i.resolveOrCreateLensType(rowNum, strings.TrimSpace(data["tipolente"]))
-	lens.BrandID = i.resolveOrCreateBrand(rowNum, strings.TrimSpace(data["marca"]))
-	lens.MaterialID = i.resolveOrCreateMaterial(rowNum, strings.TrimSpace(data["material"]))
-	lens.LensClassID = i.resolveOrCreateLensClass(rowNum, strings.TrimSpace(data["claselente"]))
-	lens.TreatmentID = i.resolveOrCreateTreatment(rowNum, strings.TrimSpace(data["tratamiento"]))
-	lens.PhotochromicID = i.resolveOrCreatePhotochromic(rowNum, strings.TrimSpace(data["fotocromático"]))
-	lens.SupplierID = i.resolveSupplier(rowNum, strings.TrimSpace(data["proveedor"]))
+	p.BrandID = i.resolveOrCreateBrand(rowNum, strings.TrimSpace(data["marca"]))
+	p.SupplierID = i.resolveSupplier(rowNum, strings.TrimSpace(data["proveedor"]))
 
-	if err := i.lensRepo.Create(lens); err != nil {
-		i.logger.Warn("bulk import lenses: failed to create lens",
+	lensTypeID := i.resolveOrCreateLensType(rowNum, strings.TrimSpace(data["tipolente"]))
+	materialID := i.resolveOrCreateMaterial(rowNum, strings.TrimSpace(data["material"]))
+	lensClassID := i.resolveOrCreateLensClass(rowNum, strings.TrimSpace(data["claselente"]))
+	treatmentID := i.resolveOrCreateTreatment(rowNum, strings.TrimSpace(data["tratamiento"]))
+	photochromicID := i.resolveOrCreatePhotochromic(rowNum, strings.TrimSpace(data["fotocromático"]))
+
+	p.LensAttributes = &domain.ProductLensAttributes{
+		LensTypeID:     lensTypeID,
+		MaterialID:     materialID,
+		LensClassID:    lensClassID,
+		TreatmentID:    treatmentID,
+		PhotochromicID: photochromicID,
+	}
+
+	if err := i.productRepo.Create(p); err != nil {
+		i.logger.Warn("bulk import lenses: failed to create product",
 			zap.Int("row", rowNum),
 			zap.String("internal_code", internalCode),
 			zap.Error(err),

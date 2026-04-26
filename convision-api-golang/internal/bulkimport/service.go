@@ -62,7 +62,7 @@ func NewService(
 	patientRepo domain.PatientRepository,
 	userRepo domain.UserRepository,
 	appointmentRepo domain.AppointmentRepository,
-	lensRepo domain.LensRepository,
+	productRepo domain.ProductRepository,
 	lensTypeRepo domain.LensTypeRepository,
 	brandRepo domain.BrandRepository,
 	materialRepo domain.MaterialRepository,
@@ -77,7 +77,7 @@ func NewService(
 			ImportTypePatients:              newPatientImporter(patientRepo, logger),
 			ImportTypeDoctors:               newDoctorImporter(userRepo, logger),
 			ImportTypeScheduledAppointments: newScheduledAppointmentsImporter(patientRepo, userRepo, appointmentRepo, logger),
-			ImportTypeLenses:                newLensImporter(lensRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
+			ImportTypeLenses:                newLensImporter(productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
 		},
 		logger: logger,
 	}

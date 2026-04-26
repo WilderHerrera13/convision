@@ -344,6 +344,33 @@ func (s *Service) GetDiscountInfo(productID uint, patientID *uint) (*DiscountInf
 	}, nil
 }
 
+// LensCatalogListOutput is the paginated lens catalog response.
+type LensCatalogListOutput struct {
+	CurrentPage int               `json:"current_page"`
+	Data        []*domain.Product `json:"data"`
+	LastPage    int               `json:"last_page"`
+	PerPage     int               `json:"per_page"`
+	Total       int64             `json:"total"`
+}
+
+// ListLensCatalog returns paginated products with product_type = 'lens'.
+// Supported filter keys: brand_id, supplier_id, status, search,
+// sphere_od, cylinder_od, addition_od (prescription ranges).
+func (s *Service) ListLensCatalog(filters map[string]any, page, perPage int) (*LensCatalogListOutput, error) {
+	page, perPage = clampPage(page, perPage)
+	data, total, err := s.repo.ListLensCatalog(filters, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &LensCatalogListOutput{
+		CurrentPage: page,
+		Data:        data,
+		LastPage:    calcLastPage(total, perPage),
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
+}
+
 func (s *Service) CalculatePrice(productID uint, patientID *uint) (*PriceOutput, error) {
 	p, err := s.repo.GetByID(productID)
 	if err != nil {

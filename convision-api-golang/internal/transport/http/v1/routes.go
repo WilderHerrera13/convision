@@ -377,6 +377,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			inventoryGroup.GET("", h.ListInventoryItems)
 			inventoryGroup.POST("/adjust", jwtauth.RequireRole(domain.RoleAdmin), h.AdjustInventory)
 			inventoryGroup.GET("/total-stock", h.GetTotalStock)
+			inventoryGroup.GET("/lens-catalog", h.ListLensCatalog)
 		}
 
 		// Inventory transfers — admin only for write

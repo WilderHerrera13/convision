@@ -157,8 +157,7 @@ func main() {
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
-	lensRepo := postgresplatform.NewLensRepository(db)
-	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, lensRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
+	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// ---- HTTP Router (Gin) ----

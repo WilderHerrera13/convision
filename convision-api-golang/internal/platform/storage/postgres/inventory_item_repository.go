@@ -117,6 +117,7 @@ func (r *InventoryItemRepository) TotalStockPerProduct(filters map[string]any) (
 		Select("inventory_items.product_id, products.description AS product_name, COALESCE(SUM(inventory_items.quantity), 0) AS total_quantity").
 		Joins("JOIN products ON products.id = inventory_items.product_id").
 		Where("inventory_items.status = ?", domain.InventoryItemStatusAvailable).
+		Where("products.tracks_stock = true").
 		Group("inventory_items.product_id, products.description").
 		Order("inventory_items.product_id")
 

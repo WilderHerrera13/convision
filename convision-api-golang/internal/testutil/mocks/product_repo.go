@@ -78,6 +78,14 @@ func (m *MockProductRepository) StockByProduct(productID uint) ([]*domain.Produc
 	return args.Get(0).([]*domain.ProductStockByWarehouse), args.Error(1)
 }
 
+func (m *MockProductRepository) ListLensCatalog(filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+	args := m.Called(filters, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.Product), args.Get(1).(int64), args.Error(2)
+}
+
 type MockProductCategoryRepository struct {
 	mock.Mock
 }

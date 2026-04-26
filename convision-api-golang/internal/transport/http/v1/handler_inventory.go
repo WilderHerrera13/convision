@@ -419,6 +419,42 @@ func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
 
 // ======== Inventory Adjustments ========
 
+// ListLensCatalog returns the paginated lens product catalog (product_type = 'lens').
+// GET /api/v1/inventory/lens-catalog
+func (h *Handler) ListLensCatalog(c *gin.Context) {
+	page, perPage := parsePagination(c)
+	filters := map[string]any{}
+	if v := c.Query("brand_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["brand_id"] = uint(id)
+		}
+	}
+	if v := c.Query("supplier_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["supplier_id"] = uint(id)
+		}
+	}
+	if v := c.Query("status"); v != "" {
+		filters["status"] = v
+	}
+	if v := c.Query("search"); v != "" {
+		filters["search"] = v
+	}
+	for _, key := range []string{"sphere_od", "cylinder_od", "addition_od", "sphere_os", "cylinder_os", "addition_os"} {
+		if v := c.Query(key); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				filters[key] = f
+			}
+		}
+	}
+	out, err := h.product.ListLensCatalog(filters, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
+}
+
 func (h *Handler) AdjustInventory(c *gin.Context) {
 	var input struct {
 		InventoryItemID uint   `json:"inventory_item_id" binding:"required"`
