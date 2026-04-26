@@ -147,3 +147,109 @@ type InventoryTransferRepository interface {
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*InventoryTransfer, int64, error)
 }
+
+// MovementType enumerates valid stock movement types for the Kardex.
+type MovementType string
+
+const (
+	MovementTypeEntry         MovementType = "entry"
+	MovementTypeExit          MovementType = "exit"
+	MovementTypeTransferOut   MovementType = "transfer_out"
+	MovementTypeTransferIn    MovementType = "transfer_in"
+	MovementTypeAdjustmentAdd MovementType = "adjustment_add"
+	MovementTypeAdjustmentSub MovementType = "adjustment_sub"
+	MovementTypeReserve       MovementType = "reserve"
+	MovementTypeRelease       MovementType = "release"
+)
+
+// ReferenceType enumerates the origin document types for stock movements.
+type ReferenceType string
+
+const (
+	ReferenceTypeManual     ReferenceType = "manual"
+	ReferenceTypeTransfer   ReferenceType = "transfer"
+	ReferenceTypeSale       ReferenceType = "sale"
+	ReferenceTypePurchase   ReferenceType = "purchase"
+	ReferenceTypeAdjustment ReferenceType = "adjustment"
+)
+
+// StockMovement is an immutable Kardex entry recording every quantity change on an InventoryItem.
+type StockMovement struct {
+	ID                  uint           `json:"id"                    gorm:"primaryKey;autoIncrement"`
+	ProductID           uint           `json:"product_id"            gorm:"not null;index"`
+	WarehouseID         uint           `json:"warehouse_id"          gorm:"not null;index"`
+	WarehouseLocationID *uint          `json:"warehouse_location_id"`
+	MovementType        MovementType   `json:"movement_type"         gorm:"type:varchar(30);not null;index"`
+	ReferenceType       *ReferenceType `json:"reference_type"        gorm:"type:varchar(30)"`
+	ReferenceID         *uint          `json:"reference_id"`
+	QuantityBefore      int            `json:"quantity_before"       gorm:"not null"`
+	QuantityDelta       int            `json:"quantity_delta"        gorm:"not null"`
+	QuantityAfter       int            `json:"quantity_after"        gorm:"not null"`
+	UnitCost            float64        `json:"unit_cost"             gorm:"type:decimal(12,2);not null;default:0"`
+	PerformedBy         *uint          `json:"performed_by"          gorm:"index"`
+	Notes               string         `json:"notes"                 gorm:"type:text"`
+	CreatedAt           time.Time      `json:"created_at"`
+
+	// Associations
+	Product           *Product           `json:"product,omitempty"            gorm:"foreignKey:ProductID"`
+	Warehouse         *Warehouse         `json:"warehouse,omitempty"          gorm:"foreignKey:WarehouseID"`
+	WarehouseLocation *WarehouseLocation `json:"warehouse_location,omitempty" gorm:"foreignKey:WarehouseLocationID"`
+}
+
+// StockMovementRepository defines persistence for StockMovement (Kardex).
+type StockMovementRepository interface {
+	Create(m *StockMovement) error
+	List(filters map[string]any, page, perPage int) ([]*StockMovement, int64, error)
+	ListByProduct(productID uint, page, perPage int) ([]*StockMovement, int64, error)
+}
+
+// AdjustmentStatus enumerates valid statuses for inventory adjustments.
+type AdjustmentStatus string
+
+const (
+	AdjustmentStatusPendingApproval AdjustmentStatus = "pending_approval"
+	AdjustmentStatusApproved        AdjustmentStatus = "approved"
+	AdjustmentStatusRejected        AdjustmentStatus = "rejected"
+)
+
+// AdjustmentReason enumerates valid reason codes for manual inventory adjustments.
+type AdjustmentReason string
+
+const (
+	AdjustmentReasonDamage          AdjustmentReason = "damage"
+	AdjustmentReasonExpiry          AdjustmentReason = "expiry"
+	AdjustmentReasonTheft           AdjustmentReason = "theft"
+	AdjustmentReasonCountCorrection AdjustmentReason = "count_correction"
+	AdjustmentReasonReturn          AdjustmentReason = "return"
+	AdjustmentReasonWarranty        AdjustmentReason = "warranty"
+	AdjustmentReasonSupplierDefect  AdjustmentReason = "supplier_defect"
+)
+
+// InventoryAdjustment represents a manual stock adjustment pending admin approval.
+type InventoryAdjustment struct {
+	ID               uint             `json:"id"                gorm:"primaryKey;autoIncrement"`
+	InventoryItemID  uint             `json:"inventory_item_id" gorm:"not null;index"`
+	AdjustmentReason AdjustmentReason `json:"adjustment_reason" gorm:"type:varchar(50);not null"`
+	QuantityDelta    int              `json:"quantity_delta"    gorm:"not null"`
+	QuantityBefore   int              `json:"quantity_before"   gorm:"not null"`
+	QuantityAfter    int              `json:"quantity_after"    gorm:"not null"`
+	Status           AdjustmentStatus `json:"status"            gorm:"type:varchar(20);not null;default:'pending_approval'"`
+	RequestedBy      uint             `json:"requested_by"      gorm:"not null;index"`
+	ApprovedBy       *uint            `json:"approved_by"`
+	Notes            string           `json:"notes"             gorm:"type:text"`
+	EvidenceURL      string           `json:"evidence_url"`
+	ReviewedAt       *time.Time       `json:"reviewed_at"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
+
+	// Associations
+	InventoryItem *InventoryItem `json:"inventory_item,omitempty" gorm:"foreignKey:InventoryItemID"`
+}
+
+// InventoryAdjustmentRepository defines persistence for InventoryAdjustment.
+type InventoryAdjustmentRepository interface {
+	GetByID(id uint) (*InventoryAdjustment, error)
+	Create(a *InventoryAdjustment) error
+	Update(a *InventoryAdjustment) error
+	List(filters map[string]any, page, perPage int) ([]*InventoryAdjustment, int64, error)
+}

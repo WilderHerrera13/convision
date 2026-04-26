@@ -14,6 +14,18 @@ const (
 	ProductStatusDisabled ProductStatus = "disabled"
 )
 
+// ProductType classifies a product for catalog and inventory behavior.
+type ProductType string
+
+const (
+	ProductTypeLens        ProductType = "lens"
+	ProductTypeFrame       ProductType = "frame"
+	ProductTypeContactLens ProductType = "contact_lens"
+	ProductTypeLiquid      ProductType = "liquid"
+	ProductTypeAccessory   ProductType = "accessory"
+	ProductTypeOther       ProductType = "other"
+)
+
 // Product represents a generic product in the catalogue (frames, contact lenses, accessories).
 type Product struct {
 	ID                uint          `json:"id"                  gorm:"primaryKey;autoIncrement"`
@@ -26,6 +38,8 @@ type Product struct {
 	BrandID           *uint         `json:"brand_id"            gorm:"column:brand_id"`
 	SupplierID        *uint         `json:"supplier_id"         gorm:"column:supplier_id"`
 	Status            ProductStatus `json:"status"              gorm:"type:varchar(20);not null;default:'enabled'"`
+	ProductType       ProductType   `json:"product_type"        gorm:"type:varchar(30);not null;default:'other'"`
+	TracksStock       bool          `json:"tracks_stock"        gorm:"not null;default:true"`
 	CreatedAt         time.Time        `json:"created_at"`
 	UpdatedAt         time.Time        `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt   `json:"deleted_at,omitempty" gorm:"index"`
@@ -133,4 +147,8 @@ type ProductRepository interface {
 	ListByPrescription(f PrescriptionFilter) ([]*Product, error)
 	// StockByProduct returns inventory items for a product grouped by warehouse/location.
 	StockByProduct(productID uint) ([]*ProductStockByWarehouse, error)
+	// ListLensCatalog returns products with product_type = 'lens', paginated.
+	// Supported filter keys: brand_id, supplier_id, lens_type_id, search.
+	// Prescription filter keys: sphere_od, cylinder_od, addition_od, sphere_os, cylinder_os, addition_os.
+	ListLensCatalog(filters map[string]any, page, perPage int) ([]*Product, int64, error)
 }
