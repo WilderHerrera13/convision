@@ -88,6 +88,80 @@ export interface LensWithInventory extends Lens {
   total_quantity: number;
 }
 
+export interface LensCatalogItem {
+  id: number;
+  internal_code: string;
+  identifier: string;
+  description?: string;
+  cost?: number;
+  price: number;
+  product_type: string;
+  tracks_stock: boolean;
+  status: string;
+  brand?: { id: number; name: string };
+  lens_attributes?: {
+    lens_type?: { id: number; name: string };
+    material?: { id: number; name: string };
+    lens_class?: { id: number; name: string };
+    treatment?: { id: number; name: string };
+    sphere_min: number;
+    sphere_max: number;
+    cylinder_min: number;
+    cylinder_max: number;
+    addition_min: number;
+    addition_max: number;
+  };
+}
+
+export interface LensCatalogParams {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  brand_id?: number;
+  supplier_id?: number;
+  status?: string;
+}
+
+export interface StockMovement {
+  id: number;
+  product_id: number;
+  warehouse_id: number;
+  movement_type: string;
+  reference_type?: string;
+  reference_id?: number;
+  quantity_before: number;
+  quantity_delta: number;
+  quantity_after: number;
+  unit_cost: number;
+  notes?: string;
+  created_at: string;
+  product?: { id: number; internal_code: string; identifier: string };
+  warehouse?: { id: number; name: string };
+}
+
+export interface CreateAdjustmentParams {
+  inventory_item_id: number;
+  adjustment_reason: string;
+  quantity_delta: number;
+  notes?: string;
+  evidence_url?: string;
+}
+
+export interface InventoryAdjustment {
+  id: number;
+  inventory_item_id: number;
+  adjustment_reason: string;
+  quantity_delta: number;
+  quantity_before: number;
+  quantity_after: number;
+  status: 'pending_approval' | 'approved' | 'rejected';
+  requested_by: number;
+  approved_by?: number;
+  notes?: string;
+  reviewed_at?: string;
+  created_at: string;
+}
+
 class InventoryService {
   // Warehouse methods
   async getWarehouses(params?: { page?: number, perPage?: number, status?: string }): Promise<PaginatedResponse<Warehouse>> {
@@ -266,6 +340,37 @@ class InventoryService {
   
   async updateTransfer(id: number, data: Partial<InventoryTransfer>): Promise<InventoryTransfer> {
     return await ApiService.put<InventoryTransfer>(`/api/v1/inventory-transfers/${id}`, data);
+  }
+
+  async getLensCatalog(params: LensCatalogParams = {}): Promise<PaginatedResponse<LensCatalogItem>> {
+    const { page = 1, perPage = 15, search, brand_id, supplier_id, status } = params;
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (search) query.set('search', search);
+    if (brand_id) query.set('brand_id', String(brand_id));
+    if (supplier_id) query.set('supplier_id', String(supplier_id));
+    if (status) query.set('status', status);
+    return await ApiService.get<PaginatedResponse<LensCatalogItem>>(`/api/v1/inventory/lens-catalog?${query.toString()}`);
+  }
+
+  async getStockMovements(params: { page?: number; perPage?: number; product_id?: number; warehouse_id?: number; movement_type?: string } = {}): Promise<PaginatedResponse<StockMovement>> {
+    const { page = 1, perPage = 20, product_id, warehouse_id, movement_type } = params;
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (product_id) query.set('product_id', String(product_id));
+    if (warehouse_id) query.set('warehouse_id', String(warehouse_id));
+    if (movement_type) query.set('movement_type', movement_type);
+    return await ApiService.get<PaginatedResponse<StockMovement>>(`/api/v1/inventory/movements?${query.toString()}`);
+  }
+
+  async createAdjustment(data: CreateAdjustmentParams): Promise<InventoryAdjustment> {
+    return await ApiService.post<InventoryAdjustment>('/api/v1/inventory/adjustments', data);
+  }
+
+  async approveAdjustment(id: number): Promise<InventoryAdjustment> {
+    return await ApiService.patch<InventoryAdjustment>(`/api/v1/inventory/adjustments/${id}/approve`);
+  }
+
+  async rejectAdjustment(id: number, notes?: string): Promise<InventoryAdjustment> {
+    return await ApiService.patch<InventoryAdjustment>(`/api/v1/inventory/adjustments/${id}/reject`, { notes });
   }
 }
 

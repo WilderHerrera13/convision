@@ -262,6 +262,16 @@ class ApiService {
     }
   }
 
+  public async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    try {
+      const response = await api.patch<T>(url, data, config);
+      return response.data;
+    } catch (error) {
+      const { message, metadata } = this.processApiError(error);
+      throw new ApiError(message, metadata);
+    }
+  }
+
   public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await api.delete<T>(url, config);

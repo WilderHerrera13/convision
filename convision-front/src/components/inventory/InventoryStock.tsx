@@ -3,7 +3,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Eye, Plus } from 'lucide-react';
-import { inventoryService, Warehouse } from '@/services/inventoryService';
+import { inventoryService, Warehouse, LensCatalogItem } from '@/services/inventoryService';
 import { DataTableColumnDef } from '@/components/ui/data-table';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -18,6 +18,44 @@ interface LensWithInventory {
   total_quantity: number;
 }
 
+const lensCatalogColumns: DataTableColumnDef<LensCatalogItem>[] = [
+  {
+    id: 'internal_code',
+    header: 'Código',
+    type: 'text',
+    accessorKey: 'internal_code',
+    cell: (item) => (
+      <span className="text-[13px] font-semibold text-[#121215]">{item.internal_code}</span>
+    ),
+  },
+  {
+    id: 'identifier',
+    header: 'Lente',
+    type: 'text',
+    cell: (item) => <span className="text-[13px] text-[#121215]">{item.identifier}</span>,
+  },
+  {
+    id: 'brand',
+    header: 'Marca',
+    type: 'text',
+    cell: (item) => <span className="text-[13px] text-[#7d7d87]">{item.brand?.name ?? '—'}</span>,
+  },
+  {
+    id: 'status',
+    header: 'Estado',
+    type: 'text',
+    cell: (item) => (
+      <span className={`inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold ${
+        item.status === 'enabled'
+          ? 'bg-[#ebf5ef] text-[#228b52]'
+          : 'bg-[#f9f9fb] text-[#7d7d87]'
+      }`}>
+        {item.status === 'enabled' ? 'Activo' : 'Inactivo'}
+      </span>
+    ),
+  },
+];
+
 const InventoryStock: React.FC = () => {
   const queryClient = useQueryClient();
   const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -29,7 +67,7 @@ const InventoryStock: React.FC = () => {
     queryFn: () => inventoryService.getWarehouses({ perPage: 100, status: 'active' }),
   });
 
-  const columns: DataTableColumnDef<LensWithInventory>[] = [
+  const stockColumns: DataTableColumnDef<LensWithInventory>[] = [
     {
       id: 'internal_code',
       header: 'Código',
@@ -106,8 +144,34 @@ const InventoryStock: React.FC = () => {
           )}
         </div>
 
+        <EntityTable<LensCatalogItem>
+          columns={lensCatalogColumns}
+          queryKeyBase="lens-catalog"
+          fetcher={({ page, per_page, search }) =>
+            inventoryService.getLensCatalog({ page, perPage: per_page, search })
+          }
+          enableSearch={true}
+          searchPlaceholder="Buscar por código o descripción..."
+          showPageSizeSelect={false}
+          toolbarLeading={
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-[#121215]">Catálogo de Lentes</span>
+              <span className="text-[11px] text-[#7d7d87]">Productos tipo lente — fabricados bajo pedido</span>
+            </div>
+          }
+          emptyStateNode={
+            <EmptyState
+              title="Sin lentes en catálogo"
+              description="No hay lentes importados. Usa la opción de carga masiva para importarlos."
+            />
+          }
+          filterEmptyStateNode={<EmptyState variant="table-filter" />}
+        />
+
+        <div className="border-t border-[#e5e5e9] my-6" />
+
         <EntityTable<LensWithInventory>
-          columns={columns}
+          columns={stockColumns}
           queryKeyBase="inventory-stock"
           fetcher={({ page, per_page }) =>
             inventoryService.getTotalStock({
@@ -121,8 +185,8 @@ const InventoryStock: React.FC = () => {
           showPageSizeSelect={false}
           toolbarLeading={
             <div className="flex flex-col gap-0.5">
-              <span className="text-[14px] font-semibold text-[#121215]">Stock de Lentes</span>
-              <span className="text-[11px] text-[#7d7d87]">Inventario por lente</span>
+              <span className="text-[14px] font-semibold text-[#121215]">Stock Físico</span>
+              <span className="text-[11px] text-[#7d7d87]">Inventario físico por producto</span>
             </div>
           }
           toolbarTrailing={
