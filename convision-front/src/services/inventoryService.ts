@@ -98,18 +98,34 @@ export interface LensCatalogItem {
   product_type: string;
   tracks_stock: boolean;
   status: string;
+  supplier_id?: number;
   brand?: { id: number; name: string };
+  supplier?: { id: number; name: string };
   lens_attributes?: {
-    lens_type?: { id: number; name: string };
-    material?: { id: number; name: string };
-    lens_class?: { id: number; name: string };
-    treatment?: { id: number; name: string };
+    id: number;
+    product_id: number;
+    lens_type_id?: number;
+    material_id?: number;
+    lens_class_id?: number;
+    treatment_id?: number;
+    photochromic_id?: number;
     sphere_min: number;
     sphere_max: number;
     cylinder_min: number;
     cylinder_max: number;
     addition_min: number;
     addition_max: number;
+    diameter: number;
+    base_curve: number;
+    prism: number;
+    uv_protection: boolean;
+    engraving: string;
+    availability: string;
+    lens_type?: { id: number; name: string };
+    material?: { id: number; name: string };
+    lens_class?: { id: number; name: string };
+    treatment?: { id: number; name: string };
+    photochromic?: { id: number; name: string };
   };
 }
 
@@ -340,6 +356,10 @@ class InventoryService {
   
   async updateTransfer(id: number, data: Partial<InventoryTransfer>): Promise<InventoryTransfer> {
     return await ApiService.put<InventoryTransfer>(`/api/v1/inventory-transfers/${id}`, data);
+  }
+
+  async getLensProduct(id: number): Promise<LensCatalogItem> {
+    return await ApiService.get<LensCatalogItem>(`/api/v1/products/${id}`);
   }
 
   async getLensCatalog(params: LensCatalogParams = {}): Promise<PaginatedResponse<LensCatalogItem>> {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Eye, Plus } from 'lucide-react';
@@ -18,46 +19,9 @@ interface LensWithInventory {
   total_quantity: number;
 }
 
-const lensCatalogColumns: DataTableColumnDef<LensCatalogItem>[] = [
-  {
-    id: 'internal_code',
-    header: 'Código',
-    type: 'text',
-    accessorKey: 'internal_code',
-    cell: (item) => (
-      <span className="text-[13px] font-semibold text-[#121215]">{item.internal_code}</span>
-    ),
-  },
-  {
-    id: 'identifier',
-    header: 'Lente',
-    type: 'text',
-    cell: (item) => <span className="text-[13px] text-[#121215]">{item.identifier}</span>,
-  },
-  {
-    id: 'brand',
-    header: 'Marca',
-    type: 'text',
-    cell: (item) => <span className="text-[13px] text-[#7d7d87]">{item.brand?.name ?? '—'}</span>,
-  },
-  {
-    id: 'status',
-    header: 'Estado',
-    type: 'text',
-    cell: (item) => (
-      <span className={`inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold ${
-        item.status === 'enabled'
-          ? 'bg-[#ebf5ef] text-[#228b52]'
-          : 'bg-[#f9f9fb] text-[#7d7d87]'
-      }`}>
-        {item.status === 'enabled' ? 'Activo' : 'Inactivo'}
-      </span>
-    ),
-  },
-];
-
 const InventoryStock: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [detailLensId, setDetailLensId] = useState<number | null>(null);
@@ -67,6 +31,58 @@ const InventoryStock: React.FC = () => {
     queryFn: () => inventoryService.getWarehouses({ perPage: 100, status: 'active' }),
   });
 
+  const lensCatalogColumns: DataTableColumnDef<LensCatalogItem>[] = [
+    {
+      id: 'internal_code',
+      header: 'Código',
+      type: 'text',
+      accessorKey: 'internal_code',
+      cell: (item) => (
+        <span className="text-[13px] font-semibold text-[#121215]">{item.internal_code}</span>
+      ),
+    },
+    {
+      id: 'identifier',
+      header: 'Lente',
+      type: 'text',
+      cell: (item) => <span className="text-[13px] text-[#121215]">{item.identifier}</span>,
+    },
+    {
+      id: 'brand',
+      header: 'Marca',
+      type: 'text',
+      cell: (item) => <span className="text-[13px] text-[#7d7d87]">{item.brand?.name ?? '—'}</span>,
+    },
+    {
+      id: 'status',
+      header: 'Estado',
+      type: 'text',
+      cell: (item) => (
+        <span className={`inline-flex items-center px-[10px] py-0.5 rounded-full text-[11px] font-semibold ${
+          item.status === 'enabled'
+            ? 'bg-[#ebf5ef] text-[#228b52]'
+            : 'bg-[#f9f9fb] text-[#7d7d87]'
+        }`}>
+          {item.status === 'enabled' ? 'Activo' : 'Inactivo'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      type: 'actions',
+      cell: (item) => (
+        <button
+          className="flex items-center justify-center size-8 rounded-[6px] bg-[#eff1ff] border border-[#3a71f7]/30 text-[#3a71f7] hover:opacity-80 transition-opacity"
+          onClick={(e) => { e.stopPropagation(); navigate(`/admin/inventory/lens-catalog/${item.id}`); }}
+          title="Ver detalle"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+      ),
+    },
+  ];
+
   const stockColumns: DataTableColumnDef<LensWithInventory>[] = [
     {
       id: 'internal_code',
@@ -74,9 +90,7 @@ const InventoryStock: React.FC = () => {
       type: 'text',
       accessorKey: 'internal_code',
       cell: (item) => (
-        <div>
-          <p className="text-[13px] font-semibold text-[#121215]">{item.internal_code}</p>
-        </div>
+        <p className="text-[13px] font-semibold text-[#121215]">{item.internal_code}</p>
       ),
     },
     {
@@ -200,7 +214,7 @@ const InventoryStock: React.FC = () => {
           emptyStateNode={
             <EmptyState
               title="Sin stock"
-              description="No hay lentes en inventario. Agrega stock para comenzar."
+              description="No hay productos en inventario. Agrega stock para comenzar."
             />
           }
           filterEmptyStateNode={<EmptyState variant="table-filter" />}

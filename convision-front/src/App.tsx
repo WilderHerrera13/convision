@@ -50,6 +50,7 @@ import UserEditPage from "./pages/admin/users/UserEditPage";
 import UserDetailPage from "./pages/admin/users/UserDetailPage";
 import AdminUsersOutlet from "./pages/admin/users/AdminUsersOutlet";
 import Inventory from "./pages/admin/Inventory";
+import LensCatalogDetailPage from "./pages/admin/inventory/LensCatalogDetailPage";
 import Patients from "./pages/admin/Patients";
 import Suppliers from "./pages/admin/Suppliers";
 import AdminSuppliersOutlet from "./pages/admin/suppliers/AdminSuppliersOutlet";
@@ -372,6 +373,10 @@ const router = createBrowserRouter([
           {
             path: "inventory",
             element: <Inventory />,
+          },
+          {
+            path: "inventory/lens-catalog/:id",
+            element: <LensCatalogDetailPage />,
           },
           {
             path: "profile",
