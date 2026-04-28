@@ -10,6 +10,7 @@ import (
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
+	branchsvc "github.com/convision/api/internal/branch"
 	"github.com/convision/api/internal/bulkimport"
 	cashsvc "github.com/convision/api/internal/cash"
 	cashclosesvc "github.com/convision/api/internal/cashclose"
@@ -95,6 +96,7 @@ func toMap(v interface{}) gin.H {
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
 	auth           *authsvc.Service
+	branch         *branchsvc.Service
 	patient        *patient.Service
 	clinic         *clinic.Service
 	clinicalRecord *clinicalrecordsvc.Service
@@ -124,12 +126,14 @@ type Handler struct {
 	dashboard     *postgresplatform.DashboardRepository
 	bulkImport    *bulkimport.Service
 	bulkImportLog domain.BulkImportLogRepository
+	branchRepo    domain.BranchRepository
 	revokedTokens domain.RevokedTokenRepository
 }
 
 // NewHandler creates a Handler with all required services injected.
 func NewHandler(
 	auth *authsvc.Service,
+	branchSvc *branchsvc.Service,
 	patient *patient.Service,
 	clinic *clinic.Service,
 	clinicalRecord *clinicalrecordsvc.Service,
@@ -159,10 +163,13 @@ func NewHandler(
 	dashboardRepo *postgresplatform.DashboardRepository,
 	bulkImportSvc    *bulkimport.Service,
 	bulkImportLogRepo domain.BulkImportLogRepository,
+	bulkImportLogRepo domain.BulkImportLogRepository,
 	revokedTokens    domain.RevokedTokenRepository,
+	branchRepo       domain.BranchRepository,
 ) *Handler {
 	return &Handler{
 		auth:           auth,
+		branch:         branchSvc,
 		patient:        patient,
 		clinic:         clinic,
 		clinicalRecord: clinicalRecord,
@@ -192,6 +199,7 @@ func NewHandler(
 		dashboard:     dashboardRepo,
 		bulkImport:    bulkImportSvc,
 		bulkImportLog: bulkImportLogRepo,
+		branchRepo:    branchRepo,
 		revokedTokens: revokedTokens,
 	}
 }
@@ -218,6 +226,7 @@ func (h *Handler) Login(c *gin.Context) {
 		"token_type":   out.TokenType,
 		"expires_in":   out.ExpiresIn,
 		"user":         toUserResource(out.User),
+		"branches":     out.Branches,
 	})
 }
 
@@ -276,6 +285,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		"token_type":   out.TokenType,
 		"expires_in":   out.ExpiresIn,
 		"user":         toUserResource(out.User),
+		"branches":     out.Branches,
 	})
 }
 
