@@ -59,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (!token || !storedUser) {
           setUser(null);
+          setBranches([]);
           setIsLoading(false);
           return;
         }
