@@ -8,6 +8,7 @@ import (
 
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	salesvc "github.com/convision/api/internal/sale"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // ListSales godoc
@@ -17,6 +18,10 @@ func (h *Handler) ListSales(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
 	filters := map[string]any{}
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	if v := c.Query("patient_id"); v != "" {
 		filters["patient_id"] = v
 	}
@@ -64,6 +69,8 @@ func (h *Handler) CreateSale(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 		return
 	}
+
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 
 	s, err := h.sale.Create(input, claims.UserID)
 	if err != nil {

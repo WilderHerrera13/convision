@@ -11,6 +11,7 @@ import (
 )
 
 var saleFilterAllowlist = map[string]bool{
+	"branch_id":      true,
 	"patient_id":     true,
 	"status":         true,
 	"payment_status": true,
@@ -101,6 +102,10 @@ func (r *SaleRepository) List(filters map[string]any, page, perPage int) ([]*dom
 
 	q := r.db.Model(&domain.Sale{})
 	for field, value := range filters {
+		if field == "branch_id" {
+			q = q.Where("sales.branch_id = ?", value)
+			continue
+		}
 		if !saleFilterAllowlist[field] {
 			continue
 		}

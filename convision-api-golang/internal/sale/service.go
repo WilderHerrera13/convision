@@ -68,6 +68,7 @@ type ItemInput struct {
 
 // CreateInput holds the validated data for creating a sale.
 type CreateInput struct {
+	BranchID      uint           `json:"branch_id"`
 	PatientID     uint           `json:"patient_id"     binding:"required"`
 	OrderID       *uint          `json:"order_id"`
 	AppointmentID *uint          `json:"appointment_id"`
@@ -242,6 +243,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 	balance := input.Total - amountPaid
 
 	sale := &domain.Sale{
+		BranchID:      input.BranchID,
 		PatientID:     input.PatientID,
 		OrderID:       input.OrderID,
 		AppointmentID: input.AppointmentID,
