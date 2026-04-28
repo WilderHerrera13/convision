@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
-import { authService } from '@/services/auth';
+import { authService, BranchInfo } from '@/services/auth';
 import { User } from '@/types/user';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
@@ -21,6 +21,7 @@ function applyRoleColors(role: string | undefined) {
 
 interface AuthContextType {
   user: User | null;
+  branches: BranchInfo[];
   isAuthenticated: boolean;
   isLoading: boolean;
   isLoggingIn: boolean;
@@ -44,6 +45,7 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [branches, setBranches] = useState<BranchInfo[]>(() => authService.getBranches());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
@@ -99,14 +101,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authService.login({ email, password });
       setUser(response.user);
 
-      if (response.user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (response.user.role === 'specialist') {
-        navigate('/specialist/dashboard');
-      } else if (response.user.role === 'receptionist') {
-        navigate('/receptionist/dashboard');
+      const userBranches = response.branches ?? [];
+      setBranches(userBranches);
+
+      if (userBranches.length === 1) {
+        localStorage.setItem('convision_branch_id', String(userBranches[0].id));
+        localStorage.setItem('convision_branch_name', userBranches[0].name);
+
+        if (response.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (response.user.role === 'specialist') {
+          navigate('/specialist/dashboard');
+        } else {
+          navigate('/receptionist/dashboard');
+        }
       } else {
-        navigate('/catalog');
+        navigate('/select-branch');
       }
     } catch (error) {
       const message =
@@ -127,6 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         new Promise(resolve => setTimeout(resolve, 1500))
       ]);
       setUser(null);
+      setBranches([]);
+      localStorage.removeItem('convision_branch_id');
+      localStorage.removeItem('convision_branch_name');
       setTimeout(() => {
         navigate('/login');
         setIsLoggingOut(false);
@@ -151,6 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
+    branches,
     isAuthenticated: !!user && !!user.role,
     isLoading,
     isLoggingIn,

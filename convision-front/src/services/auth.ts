@@ -7,11 +7,19 @@ interface LoginCredentials {
   password: string;
 }
 
+export interface BranchInfo {
+  id: number;
+  name: string;
+  city: string;
+  is_primary: boolean;
+}
+
 interface AuthResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
   user: User;
+  branches: BranchInfo[];
 }
 
 export const authService = {
@@ -19,12 +27,13 @@ export const authService = {
     try {
       // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/login', credentials);
-      const { access_token, token_type, expires_in, user } = response.data;
+      const { access_token, token_type, expires_in, user, branches } = response.data;
       
       // Store auth data
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
       localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_branches', JSON.stringify(branches ?? []));
       
       return response.data;
     } catch (error) {
@@ -41,6 +50,7 @@ export const authService = {
       localStorage.removeItem('access_token');
       localStorage.removeItem('token_type');
       localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_branches');
     }
   },
 
@@ -54,12 +64,13 @@ export const authService = {
     try {
       // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/refresh');
-      const { access_token, token_type, expires_in, user } = response.data;
+      const { access_token, token_type, expires_in, user, branches } = response.data;
       
       // Update stored auth data
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
       localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_branches', JSON.stringify(branches ?? []));
       
       return response.data;
     } catch (error) {
@@ -79,5 +90,11 @@ export const authService = {
 
   getToken(): string | null {
     return localStorage.getItem('access_token');
-  }
+  },
+
+  getBranches(): BranchInfo[] {
+    const raw = localStorage.getItem('auth_branches');
+    if (!raw) return [];
+    try { return JSON.parse(raw) as BranchInfo[]; } catch { return []; }
+  },
 }; 
