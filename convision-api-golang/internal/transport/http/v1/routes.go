@@ -5,6 +5,7 @@ import (
 
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // RegisterRoutes mounts all v1 API routes on the given router group.
@@ -58,6 +59,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			auth.GET("/me", h.Me)
 			auth.POST("/refresh", h.Refresh)
 		}
+
+		// Branches — admin only for management (no branch context required)
+		branchesAdmin := protected.Group("/branches")
+		branchesAdmin.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		{
+			branchesAdmin.GET("", h.ListBranches)
+			branchesAdmin.GET("/:id", h.GetBranch)
+			branchesAdmin.POST("", h.CreateBranch)
+			branchesAdmin.PUT("/:id", h.UpdateBranch)
+			branchesAdmin.POST("/users/:id/assign", h.AssignUserBranches)
+		}
+
+		// Branch-scoped routes: require X-Branch-ID header
+		branchScoped := protected.Group("/")
+		branchScoped.Use(branchmw.BranchContext(h.branchRepo))
 
 		// Users — admin only
 		users := protected.Group("/users")
@@ -116,7 +132,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Appointments — all authenticated roles (CRUD); take/lens-annotation are specialist-only
-		appointments := protected.Group("/appointments")
+		appointments := branchScoped.Group("/appointments")
 		{
 			appointments.GET("", h.ListAppointments)
 			appointments.GET("/available-slots", h.GetAppointmentAvailableSlots)
@@ -340,7 +356,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Warehouses — admin only for write
-		warehouses := protected.Group("/warehouses")
+		warehouses := branchScoped.Group("/warehouses")
 		{
 			warehouses.GET("", h.ListWarehouses)
 			warehouses.GET("/:id", h.GetWarehouse)
@@ -351,7 +367,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Warehouse locations — admin only for write
-		warehouseLocations := protected.Group("/warehouse-locations")
+		warehouseLocations := branchScoped.Group("/warehouse-locations")
 		{
 			warehouseLocations.GET("", h.ListWarehouseLocations)
 			warehouseLocations.GET("/:id", h.GetWarehouseLocation)
@@ -362,7 +378,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Inventory items — all roles read; admin write
-		inventoryItems := protected.Group("/inventory-items")
+		inventoryItems := branchScoped.Group("/inventory-items")
 		{
 			inventoryItems.GET("", h.ListInventoryItems)
 			inventoryItems.GET("/:id", h.GetInventoryItem)
@@ -372,7 +388,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Inventory summary and operations (GOQA-010)
-		inventoryGroup := protected.Group("/inventory")
+		inventoryGroup := branchScoped.Group("/inventory")
 		{
 			inventoryGroup.GET("", h.ListInventoryItems)
 			inventoryGroup.POST("/adjust", jwtauth.RequireRole(domain.RoleAdmin), h.AdjustInventory)
@@ -386,7 +402,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Inventory transfers — admin only for write
-		inventoryTransfers := protected.Group("/inventory-transfers")
+		inventoryTransfers := branchScoped.Group("/inventory-transfers")
 		{
 			inventoryTransfers.GET("", h.ListInventoryTransfers)
 			inventoryTransfers.GET("/:id", h.GetInventoryTransfer)
@@ -455,7 +471,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Sales — admin and receptionist
-		sales := protected.Group("/sales")
+		sales := branchScoped.Group("/sales")
 		{
 			// Static routes BEFORE /:id to avoid conflicts
 			sales.GET("/stats", h.GetSaleStats)
@@ -490,15 +506,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			)
 		}
 		// These routes use additional param segments — registered directly to avoid wildcard conflicts
-		protected.DELETE("/sales/:id/payments/:paymentId",
+		branchScoped.DELETE("/sales/:id/payments/:paymentId",
 			jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
 			h.RemoveSalePayment,
 		)
-		protected.DELETE("/sales/:id/lens-price-adjustments/:adjId",
+		branchScoped.DELETE("/sales/:id/lens-price-adjustments/:adjId",
 			jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
 			h.DeleteLensPriceAdjustment,
 		)
-		protected.GET("/sales/:id/lenses/:lensId/adjusted-price", h.GetAdjustedLensPrice)
+		branchScoped.GET("/sales/:id/lenses/:lensId/adjusted-price", h.GetAdjustedLensPrice)
 
 		// Orders — read: all roles; write: admin + specialist
 		orders := protected.Group("/orders")
@@ -679,7 +695,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Cash Register Closes — admin + specialist + receptionist
-		cashRegisterCloses := protected.Group("/cash-register-closes")
+		cashRegisterCloses := branchScoped.Group("/cash-register-closes")
 		{
 			cashRegisterCloses.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListCashRegisterCloses)
 			cashRegisterCloses.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetCashRegisterClose)
@@ -691,9 +707,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequireRole(domain.RoleAdmin), h.PutCashRegisterCloseAdminActuals)
 		}
 
-		protected.GET("/cash-register-closes-advisors-pending", jwtauth.RequireRole(domain.RoleAdmin), h.ListCashRegisterClosesAdvisorsPending)
-		protected.GET("/cash-register-closes-calendar", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesCalendar)
-		protected.GET("/cash-register-closes-consolidated", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesConsolidated)
+		branchScoped.GET("/cash-register-closes-advisors-pending", jwtauth.RequireRole(domain.RoleAdmin), h.ListCashRegisterClosesAdvisorsPending)
+		branchScoped.GET("/cash-register-closes-calendar", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesCalendar)
+		branchScoped.GET("/cash-register-closes-consolidated", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesConsolidated)
 
 		// Dashboard — all authenticated roles
 		dashboard := protected.Group("/dashboard")
@@ -736,7 +752,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		}
 
 		// Daily Activity Reports — all authenticated roles
-		dailyActivity := protected.Group("/daily-activity-reports")
+		dailyActivity := branchScoped.Group("/daily-activity-reports")
 		{
 			dailyActivity.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListDailyActivityReports)
 			dailyActivity.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetDailyActivityReport)
