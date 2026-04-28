@@ -24,6 +24,7 @@ func NewService(repo domain.DailyActivityRepository, logger *zap.Logger) *Servic
 // CreateInput holds validated fields for creating a daily activity report.
 // report_date and shift are no longer required; the backend sets today and 'full' automatically.
 type CreateInput struct {
+	BranchID                       uint    `json:"branch_id"`
 	InquiriesMale                  int     `json:"preguntas_hombre"`
 	InquiriesFemale                int     `json:"preguntas_mujeres"`
 	InquiriesChildren              int     `json:"preguntas_ninos"`
@@ -70,10 +71,11 @@ type UpdateInput = CreateInput
 // QuickAttentionInput holds fields for the quick-attention endpoint.
 // report_date and shift are no longer required; the backend uses today automatically.
 type QuickAttentionInput struct {
-	Item    string  `json:"item"    binding:"required"`
-	Profile string  `json:"profile"`
-	Amount  float64 `json:"amount"`
-	Note    string  `json:"note"`
+	BranchID uint    `json:"branch_id"`
+	Item     string  `json:"item"    binding:"required"`
+	Profile  string  `json:"profile"`
+	Amount   float64 `json:"amount"`
+	Note     string  `json:"note"`
 }
 
 // ListOutput is the paginated list response.
@@ -203,6 +205,7 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 			return nil, err
 		}
 		report = &domain.DailyActivityReport{
+			BranchID:   input.BranchID,
 			UserID:     userID,
 			ReportDate: &today,
 			Shift:      domain.DailyShiftFull,
@@ -256,6 +259,7 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 
 func buildReport(input CreateInput, userID uint, reportDate time.Time) *domain.DailyActivityReport {
 	return &domain.DailyActivityReport{
+		BranchID:                       input.BranchID,
 		UserID:                         userID,
 		ReportDate:                     &reportDate,
 		Shift:                          domain.DailyShiftFull,

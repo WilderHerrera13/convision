@@ -16,6 +16,7 @@ import (
 	notificationsvc "github.com/convision/api/internal/notification"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // DailyActivityNestedInput is the nested structure accepted from the frontend.
@@ -521,6 +522,10 @@ func (h *Handler) ListDailyActivityReports(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := map[string]any{}
 	claims, ok := jwtauth.GetClaims(c)
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	if ok && claims.Role != "admin" {
 		filters["user_id"] = claims.UserID
 	}
@@ -590,6 +595,8 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		return
 	}
 
+	branchID := branchmw.BranchIDFromCtx(c)
+
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "error leyendo cuerpo de la solicitud"})
@@ -599,6 +606,7 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 	var nestedInput DailyActivityNestedInput
 	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
 		input := flattenDailyActivityInput(nestedInput)
+		input.BranchID = branchID
 		report, err := h.dailyActivity.Create(input, uint(claims.UserID))
 		if err != nil {
 			respondError(c, err)
@@ -615,6 +623,7 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+	input.BranchID = branchID
 	report, err := h.dailyActivity.Create(input, uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)
@@ -720,6 +729,7 @@ func (h *Handler) QuickAttentionDailyActivity(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 	report, err := h.dailyActivity.QuickAttention(input, uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)

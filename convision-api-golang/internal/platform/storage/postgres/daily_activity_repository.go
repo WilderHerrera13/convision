@@ -51,6 +51,9 @@ func (r *DailyActivityRepository) List(filters map[string]any, page, perPage int
 
 	q := r.db.Model(&domain.DailyActivityReport{})
 
+	if branchID, ok := filters["branch_id"]; ok {
+		q = q.Where("branch_id = ?", branchID)
+	}
 	if userID, ok := filters["user_id"]; ok {
 		q = q.Where("user_id = ?", userID)
 	}
