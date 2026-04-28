@@ -14,12 +14,13 @@ import (
 type Service struct {
 	users         domain.UserRepository
 	revokedTokens domain.RevokedTokenRepository
+	branches      domain.BranchRepository
 	logger        *zap.Logger
 }
 
 // NewService creates a new auth Service.
-func NewService(users domain.UserRepository, revokedTokens domain.RevokedTokenRepository, logger *zap.Logger) *Service {
-	return &Service{users: users, revokedTokens: revokedTokens, logger: logger}
+func NewService(users domain.UserRepository, revokedTokens domain.RevokedTokenRepository, branches domain.BranchRepository, logger *zap.Logger) *Service {
+	return &Service{users: users, revokedTokens: revokedTokens, branches: branches, logger: logger}
 }
 
 // LoginInput holds credentials for the login use-case.
@@ -35,6 +36,15 @@ type LoginOutput struct {
 	ExpiresIn   int64        `json:"expires_in"`
 	JTI         string       `json:"-"` // used internally for revocation; not sent to client
 	User        *domain.User `json:"-"` // handler converts to UserResource
+	Branches    []BranchInfo `json:"branches"`
+}
+
+// BranchInfo is the lightweight branch reference returned in the login response.
+type BranchInfo struct {
+	ID        uint   `json:"id"`
+	Name      string `json:"name"`
+	City      string `json:"city"`
+	IsPrimary bool   `json:"is_primary"`
 }
 
 // Login validates credentials and returns a signed JWT.
@@ -66,6 +76,7 @@ func (s *Service) Login(input LoginInput) (*LoginOutput, error) {
 		ExpiresIn:   expiresIn,
 		JTI:         jti,
 		User:        user,
+		Branches:    s.loadBranches(user),
 	}, nil
 }
 
@@ -102,5 +113,32 @@ func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
 		ExpiresIn:   expiresIn,
 		JTI:         jti,
 		User:        user,
+		Branches:    s.loadBranches(user),
 	}, nil
+}
+
+func (s *Service) loadBranches(user *domain.User) []BranchInfo {
+	if user.Role == domain.RoleAdmin {
+		rawBranches, err := s.branches.ListAll()
+		if err != nil {
+			s.logger.Warn("could not load branches for admin", zap.Uint("user_id", user.ID), zap.Error(err))
+			return []BranchInfo{}
+		}
+		out := make([]BranchInfo, len(rawBranches))
+		for i, b := range rawBranches {
+			out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City, IsPrimary: i == 0}
+		}
+		return out
+	}
+
+	rawBranches, err := s.branches.ListForUser(user.ID)
+	if err != nil {
+		s.logger.Warn("could not load branches for user", zap.Uint("user_id", user.ID), zap.Error(err))
+		return []BranchInfo{}
+	}
+	out := make([]BranchInfo, len(rawBranches))
+	for i, b := range rawBranches {
+		out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City}
+	}
+	return out
 }
