@@ -43,6 +43,8 @@ export function AnamnesisSection5() {
           >
             <input
               type="checkbox"
+              readOnly={false}
+              aria-readonly={false}
               {...register(field)}
               className="w-3 h-3 border border-[#e0e0e4] rounded-sm accent-[#0f8f64] shrink-0"
             />

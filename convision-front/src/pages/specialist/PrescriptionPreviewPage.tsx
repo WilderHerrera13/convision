@@ -288,6 +288,7 @@ export default function PrescriptionPreviewPage() {
         onClose={() => setShowSignModal(false)}
         onConfirm={handleConfirmSign}
         isSigning={isSigning}
+        defaultTp={record?.prescription?.professional_tp ?? ''}
       />
     </div>
   );

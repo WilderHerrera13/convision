@@ -52,6 +52,7 @@ const UsersListPage: React.FC = () => {
           showPageSizeSelect={false}
           initialPerPage={15}
           tableAriaLabel="Usuarios del sistema"
+          onRowClick={(row) => navigate(`/admin/users/${row.id}`)}
           toolbarLeading={
             <div className="flex min-w-0 flex-col gap-0.5 leading-normal">
               <span className="text-[14px] font-semibold text-[#121215]">Usuarios del sistema</span>

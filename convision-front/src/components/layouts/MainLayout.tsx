@@ -144,15 +144,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <button 
-                        onClick={handleLogout} 
-                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left hover:bg-red-100 hover:text-red-600"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        <span>Cerrar Sesión</span>
-                      </button>
-                    </SidebarMenuButton>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left hover:bg-red-100 hover:text-red-600 transition-colors"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      <span>Cerrar Sesión</span>
+                    </button>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>

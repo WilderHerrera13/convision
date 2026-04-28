@@ -70,13 +70,18 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onBack,
     return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
+  const sanitize = (data: PrescriptionInput): PrescriptionInput =>
+    Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, typeof v === 'number' && isNaN(v) ? undefined : v])
+    ) as PrescriptionInput;
+
   const onSubmit = async (data: PrescriptionInput) => {
-    await onSave({ ...data, treatments: activeTreatments });
+    await onSave({ ...sanitize(data), treatments: activeTreatments });
   };
 
   const handleSignClick = handleSubmit(async (formData) => {
     try {
-      await onSave({ ...formData, treatments: activeTreatments });
+      await onSave({ ...sanitize(formData), treatments: activeTreatments });
       onSign();
     } catch {
       // error already surfaced by parent's onSave

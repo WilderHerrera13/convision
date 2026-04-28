@@ -164,6 +164,7 @@ const InventoryStock: React.FC = () => {
           fetcher={({ page, per_page, search }) =>
             inventoryService.getLensCatalog({ page, perPage: per_page, search })
           }
+          onRowClick={(item) => navigate(`/admin/inventory/lens-catalog/${item.id}`)}
           enableSearch={true}
           searchPlaceholder="Buscar por código o descripción..."
           showPageSizeSelect={false}

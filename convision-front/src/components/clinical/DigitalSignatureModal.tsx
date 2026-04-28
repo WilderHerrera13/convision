@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Lock } from 'lucide-react';
 
 interface DigitalSignatureModalProps {
   open: boolean;
@@ -16,6 +17,13 @@ export function DigitalSignatureModal({ open, onClose, onConfirm, isSigning, def
   const [tp, setTp] = useState(defaultTp || '');
   const [confirmed, setConfirmed] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setTp(defaultTp || '');
+      setConfirmed(false);
+    }
+  }, [open, defaultTp]);
+
   const canSign = tp.trim().length >= 4 && confirmed;
 
   const handleConfirm = async () => {
@@ -28,7 +36,7 @@ export function DigitalSignatureModal({ open, onClose, onConfirm, isSigning, def
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span>🔒</span>
+            <Lock className="h-4 w-4 shrink-0" />
             <span>Firmar fórmula óptica</span>
           </DialogTitle>
         </DialogHeader>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAppointmentById } from '@/services/appointmentService';
@@ -37,6 +37,11 @@ export default function ClinicalHistoryNewConsultationPage() {
   const apptId = parseInt(id || '0');
 
   const [activeTab, setActiveTab] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab]);
   const [stepsCompleted, setStepsCompleted] = useState([false, false, false, false]);
   const [isSaving, setIsSaving] = useState(false);
   const [savedVisualExam, setSavedVisualExam] = useState<VisualExamInput | undefined>();
@@ -80,8 +85,12 @@ export default function ClinicalHistoryNewConsultationPage() {
       const res = await upsertAnamnesis(apptId, data);
       setRecord(res.data);
       markCompleted(0);
+    } catch {
+      // navigation still advances regardless of save outcome
+    } finally {
       setActiveTab(1);
-    } finally { setIsSaving(false); }
+      setIsSaving(false);
+    }
   };
 
   const handleSaveVisualExam = async (data: VisualExamInput) => {
@@ -91,8 +100,12 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedVisualExam(data);
       markCompleted(1);
+    } catch {
+      // navigation still advances regardless of save outcome
+    } finally {
       setActiveTab(2);
-    } finally { setIsSaving(false); }
+      setIsSaving(false);
+    }
   };
 
   const handleSaveDiagnosis = async (data: DiagnosisInput) => {
@@ -102,8 +115,12 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedDiagnosis(data);
       markCompleted(2);
+    } catch {
+      // navigation still advances regardless of save outcome
+    } finally {
       setActiveTab(3);
-    } finally { setIsSaving(false); }
+      setIsSaving(false);
+    }
   };
 
   const handleSavePrescription = async (data: PrescriptionInput) => {
@@ -113,8 +130,6 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedPrescription(data);
       markCompleted(3);
-    } catch (err) {
-      throw err;
     } finally { setIsSaving(false); }
   };
 
@@ -146,7 +161,7 @@ export default function ClinicalHistoryNewConsultationPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <ClinicalTabBar tabs={tabs} activeIndex={activeTab} onTabChange={setActiveTab} />
 
-          <div className="flex-1 overflow-y-auto bg-[#f5f5f6] p-6">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto bg-[#f5f5f6] p-6">
             <div className="max-w-2xl mx-auto bg-white border border-[#e5e5e9] rounded-xl p-6">
               {activeTab === 0 && (
                 <AnamnesisTab key={`anamnesis-${record?.id ?? 0}`} defaultValues={record?.anamnesis} onSave={handleSaveAnamnesis} isSaving={isSaving} />

@@ -5,8 +5,13 @@ import { cn } from '@/lib/utils';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import type { Appointment } from '@/services/appointmentsService';
 
+function toLocalDate(dateStr: string): Date {
+  const hasOffset = dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr);
+  return parseISO(hasOffset ? dateStr : dateStr + 'Z');
+}
+
 function formatAppointmentDate(dateStr: string) {
-  const d = parseISO(dateStr);
+  const d = toLocalDate(dateStr);
   if (isToday(d)) return 'Hoy';
   if (isTomorrow(d)) return 'Mañana';
   return format(d, "EEE d", { locale: es });
@@ -41,7 +46,7 @@ export function buildAppointmentColumns({ onView, onEdit, onDelete }: ColActions
       header: 'Hora',
       type: 'text',
       cell: (row) => (
-        <span className="text-[13px] text-[#7d7d87]">{format(parseISO(row.scheduled_at), 'HH:mm')}</span>
+        <span className="text-[13px] text-[#7d7d87]">{format(toLocalDate(row.scheduled_at), 'HH:mm')}</span>
       ),
     },
     {

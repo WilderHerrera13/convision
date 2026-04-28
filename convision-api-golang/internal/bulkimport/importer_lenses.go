@@ -106,7 +106,7 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 	}
 
 	p.BrandID = i.resolveOrCreateBrand(rowNum, strings.TrimSpace(data["marca"]))
-	p.SupplierID = i.resolveSupplier(rowNum, strings.TrimSpace(data["proveedor"]))
+	p.SupplierID = i.resolveOrCreateSupplier(rowNum, strings.TrimSpace(data["proveedor"]))
 
 	lensTypeID := i.resolveOrCreateLensType(rowNum, strings.TrimSpace(data["tipolente"]))
 	materialID := i.resolveOrCreateMaterial(rowNum, strings.TrimSpace(data["material"]))
@@ -251,7 +251,7 @@ func (i *lensImporter) resolveOrCreatePhotochromic(rowNum int, name string) *uin
 	return &id
 }
 
-func (i *lensImporter) resolveSupplier(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateSupplier(rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
@@ -260,9 +260,14 @@ func (i *lensImporter) resolveSupplier(rowNum int, name string) *uint {
 		id := suppliers[0].ID
 		return &id
 	}
-	i.logger.Debug("bulk import lenses: supplier not found, skipping supplier link",
-		zap.Int("row", rowNum), zap.String("name", name))
-	return nil
+	newEntry := &domain.Supplier{Name: name}
+	if err := i.supplierRepo.Create(newEntry); err != nil {
+		i.logger.Warn("bulk import lenses: failed to create supplier",
+			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
+		return nil
+	}
+	id := newEntry.ID
+	return &id
 }
 
 // parsePrice parses a numeric string that may contain thousands separators.
