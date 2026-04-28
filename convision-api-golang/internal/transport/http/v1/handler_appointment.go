@@ -16,33 +16,34 @@ import (
 
 // AppointmentResource is the JSON shape returned for every appointment response.
 type AppointmentResource struct {
-	ID                       uint            `json:"id"`
-	BranchID                 uint            `json:"branch_id"`
-	PatientID                uint            `json:"patient_id"`
-	SpecialistID             *uint           `json:"specialist_id"`
-	ReceptionistID           *uint           `json:"receptionist_id"`
-	ScheduledAt              *string         `json:"scheduled_at"`
-	Notes                    string          `json:"notes"`
-	Reason                   string          `json:"reason"`
-	Status                   string          `json:"status"`
-	CreatedAt                string          `json:"created_at"`
-	UpdatedAt                string          `json:"updated_at"`
-	Patient                  *PatientResource `json:"patient"`
-	Specialist               *UserResource   `json:"specialist"`
-	Receptionist             *UserResource   `json:"receptionist"`
-	Prescription             interface{}     `json:"prescription"`
-	TakenBy                  *UserResource   `json:"taken_by"`
-	IsBilled                 bool            `json:"is_billed"`
-	Billing                  interface{}     `json:"billing"`
-	SaleID                   *uint           `json:"sale_id"`
-	LeftEyeAnnotationPaths   json.RawMessage `json:"left_eye_annotation_paths"`
-	LeftEyeAnnotationImageURL *string        `json:"left_eye_annotation_image_url"`
-	RightEyeAnnotationPaths  json.RawMessage `json:"right_eye_annotation_paths"`
-	RightEyeAnnotationImageURL *string       `json:"right_eye_annotation_image_url"`
-	LensAnnotationImage      *string         `json:"lens_annotation_image"`
-	LensAnnotationPaths      json.RawMessage `json:"lens_annotation_paths"`
-	ConsultationType         *string         `json:"consultation_type"`
-	ReportNotes              *string         `json:"report_notes"`
+	ID                         uint             `json:"id"`
+	BranchID                   uint             `json:"branch_id"`
+	Branch                     *BranchResource  `json:"branch"`
+	PatientID                  uint             `json:"patient_id"`
+	SpecialistID               *uint            `json:"specialist_id"`
+	ReceptionistID             *uint            `json:"receptionist_id"`
+	ScheduledAt                *string          `json:"scheduled_at"`
+	Notes                      string           `json:"notes"`
+	Reason                     string           `json:"reason"`
+	Status                     string           `json:"status"`
+	CreatedAt                  string           `json:"created_at"`
+	UpdatedAt                  string           `json:"updated_at"`
+	Patient                    *PatientResource `json:"patient"`
+	Specialist                 *UserResource    `json:"specialist"`
+	Receptionist               *UserResource    `json:"receptionist"`
+	Prescription               interface{}      `json:"prescription"`
+	TakenBy                    *UserResource    `json:"taken_by"`
+	IsBilled                   bool             `json:"is_billed"`
+	Billing                    interface{}      `json:"billing"`
+	SaleID                     *uint            `json:"sale_id"`
+	LeftEyeAnnotationPaths     json.RawMessage  `json:"left_eye_annotation_paths"`
+	LeftEyeAnnotationImageURL  *string          `json:"left_eye_annotation_image_url"`
+	RightEyeAnnotationPaths    json.RawMessage  `json:"right_eye_annotation_paths"`
+	RightEyeAnnotationImageURL *string          `json:"right_eye_annotation_image_url"`
+	LensAnnotationImage        *string          `json:"lens_annotation_image"`
+	LensAnnotationPaths        json.RawMessage  `json:"lens_annotation_paths"`
+	ConsultationType           *string          `json:"consultation_type"`
+	ReportNotes                *string          `json:"report_notes"`
 }
 
 func parseRawJSON(s string) json.RawMessage {
@@ -100,6 +101,18 @@ func toAppointmentResource(a *domain.Appointment) AppointmentResource {
 	if a.Patient != nil {
 		pr := toPatientResource(a.Patient)
 		r.Patient = &pr
+	}
+	if a.Branch != nil {
+		br := BranchResource{
+			ID:       a.Branch.ID,
+			Name:     a.Branch.Name,
+			Address:  a.Branch.Address,
+			City:     a.Branch.City,
+			Phone:    a.Branch.Phone,
+			Email:    a.Branch.Email,
+			IsActive: a.Branch.IsActive,
+		}
+		r.Branch = &br
 	}
 	if a.Specialist != nil {
 		ur := toUserResource(a.Specialist)

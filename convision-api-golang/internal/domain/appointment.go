@@ -18,11 +18,11 @@ const (
 type ConsultationType string
 
 const (
-	ConsultationTypeEffective         ConsultationType = "effective"
-	ConsultationTypeFormulaSale       ConsultationType = "formula_sale"
-	ConsultationTypeIneffective       ConsultationType = "ineffective"
-	ConsultationTypeFollowUp          ConsultationType = "follow_up"
-	ConsultationTypeWarrantyFollowUp  ConsultationType = "warranty_follow_up"
+	ConsultationTypeEffective        ConsultationType = "effective"
+	ConsultationTypeFormulaSale      ConsultationType = "formula_sale"
+	ConsultationTypeIneffective      ConsultationType = "ineffective"
+	ConsultationTypeFollowUp         ConsultationType = "follow_up"
+	ConsultationTypeWarrantyFollowUp ConsultationType = "warranty_follow_up"
 )
 
 // IsValidConsultationType reports whether v is a recognized ConsultationType.
@@ -73,6 +73,7 @@ type Appointment struct {
 
 	// Associations
 	Patient      *Patient      `json:"patient,omitempty"      gorm:"foreignKey:PatientID"`
+	Branch       *Branch       `json:"branch,omitempty"       gorm:"foreignKey:BranchID"`
 	Specialist   *User         `json:"specialist,omitempty"   gorm:"foreignKey:SpecialistID"`
 	Receptionist *User         `json:"receptionist,omitempty" gorm:"foreignKey:ReceptionistID"`
 	TakenBy      *User         `json:"taken_by,omitempty"     gorm:"foreignKey:TakenByID"`
@@ -103,7 +104,7 @@ type AppointmentRepository interface {
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*Appointment, int64, error)
 	SaveManagementReport(id uint, consultationType, reportNotes string) error
-	GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*SpecialistReportSummary, error)
+	GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*SpecialistReportSummary, error)
 	ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error)
 	HasConflictForSpecialist(specialistID uint, scheduledAt time.Time, excludeID uint, durationMins int) (bool, error)
 	GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error)

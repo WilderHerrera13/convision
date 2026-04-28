@@ -34,8 +34,15 @@ func (h *Handler) GetConsolidatedSpecialistReport(c *gin.Context) {
 			}
 		}
 	}
+	var branchID *uint
+	if rawBranchID := c.Query("branch_id"); rawBranchID != "" && rawBranchID != "all" {
+		if parsed, err := strconv.ParseUint(rawBranchID, 10, 32); err == nil {
+			branchValue := uint(parsed)
+			branchID = &branchValue
+		}
+	}
 
-	rows, err := h.appointment.GetConsolidatedReport(from, to, specialistIDs)
+	rows, err := h.appointment.GetConsolidatedReport(from, to, specialistIDs, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -58,11 +65,11 @@ func (h *Handler) GetConsolidatedSpecialistReport(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"from":               from,
-		"to":                 to,
-		"specialists_count":  len(rows),
-		"kpis":               kpis,
-		"rows":               rows,
+		"from":              from,
+		"to":                to,
+		"specialists_count": len(rows),
+		"kpis":              kpis,
+		"rows":              rows,
 	})
 }
 
@@ -83,7 +90,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
 	// KPI aggregation for this specialist only.
-	rows, err := h.appointment.GetConsolidatedReport(from, to, []uint{specialistID})
+	rows, err := h.appointment.GetConsolidatedReport(from, to, []uint{specialistID}, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -109,6 +116,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 		to,
 		"",
 		"",
+		nil,
 		false,
 		page,
 		perPage,

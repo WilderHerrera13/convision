@@ -25,6 +25,7 @@ export type ManagementReportPatient = {
 
 export type ManagementReportRecord = {
   id: number;
+  branch_id: number;
   patient_id: number;
   specialist_id: number | null;
   scheduled_at: string | null;
@@ -33,6 +34,7 @@ export type ManagementReportRecord = {
   report_notes: string | null;
   patient: ManagementReportPatient | null;
   specialist: { id: number; name: string; last_name?: string } | null;
+  branch: { id: number; name: string } | null;
   updated_at: string;
 };
 
@@ -53,6 +55,7 @@ export type ListParams = {
   status?: AppointmentStatus;
   consultationType?: ConsultationType;
   specialistId?: string | number;
+  branchId?: string | number;
   pendingReport?: boolean;
 };
 
@@ -106,6 +109,7 @@ export const managementReportService = {
     if (params.status) query.status = params.status;
     if (params.consultationType) query.consultation_type = params.consultationType;
     if (params.specialistId) query.specialist_id = params.specialistId;
+    if (params.branchId) query.branch_id = params.branchId;
     if (params.pendingReport) query.pending_report = 'true';
 
     const response = await api.get('/api/v1/management-report', { params: query });

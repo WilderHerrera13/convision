@@ -32,6 +32,7 @@ func NewAppointmentRepository(db *gorm.DB) *AppointmentRepository {
 
 func (r *AppointmentRepository) withRelations(q *gorm.DB) *gorm.DB {
 	return q.
+		Preload("Branch").
 		Preload("Patient").
 		Preload("Specialist").
 		Preload("Receptionist").
@@ -65,20 +66,20 @@ func (r *AppointmentRepository) Create(a *domain.Appointment) error {
 
 func (r *AppointmentRepository) Update(a *domain.Appointment) error {
 	return r.db.Model(a).Updates(map[string]any{
-		"patient_id":                a.PatientID,
-		"specialist_id":             a.SpecialistID,
-		"receptionist_id":           a.ReceptionistID,
-		"taken_by_id":               a.TakenByID,
-		"scheduled_at":              a.ScheduledAt,
-		"status":                    a.Status,
-		"notes":                     a.Notes,
-		"reason":                    a.Reason,
-		"is_billed":                 a.IsBilled,
-		"billed_at":                 a.BilledAt,
-		"sale_id":                   a.SaleID,
+		"patient_id":                 a.PatientID,
+		"specialist_id":              a.SpecialistID,
+		"receptionist_id":            a.ReceptionistID,
+		"taken_by_id":                a.TakenByID,
+		"scheduled_at":               a.ScheduledAt,
+		"status":                     a.Status,
+		"notes":                      a.Notes,
+		"reason":                     a.Reason,
+		"is_billed":                  a.IsBilled,
+		"billed_at":                  a.BilledAt,
+		"sale_id":                    a.SaleID,
 		"left_eye_annotation_paths":  a.LeftEyeAnnotationPaths,
 		"right_eye_annotation_paths": a.RightEyeAnnotationPaths,
-		"lens_annotation_paths":     a.LensAnnotationPaths,
+		"lens_annotation_paths":      a.LensAnnotationPaths,
 	}).Error
 }
 
@@ -130,7 +131,7 @@ func (r *AppointmentRepository) SaveManagementReport(id uint, consultationType, 
 // GetConsolidatedReport returns per-specialist aggregated consultation counts
 // for the given date range. specialistIDs restricts results to those IDs when
 // non-empty; pass nil/empty for all specialists.
-func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*domain.SpecialistReportSummary, error) {
+func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
 	type row struct {
 		SpecialistID     uint   `gorm:"column:specialist_id"`
 		SpecialistName   string `gorm:"column:specialist_name"`
@@ -160,6 +161,10 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 	if len(specialistIDs) > 0 {
 		conditions = append(conditions, "COALESCE(a.taken_by_id, a.specialist_id) IN ?")
 		args = append(args, specialistIDs)
+	}
+	if branchID != nil && *branchID != 0 {
+		conditions = append(conditions, "a.branch_id = ?")
+		args = append(args, *branchID)
 	}
 
 	where := strings.Join(conditions, " AND ")

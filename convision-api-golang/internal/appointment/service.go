@@ -23,15 +23,15 @@ func NewService(repo domain.AppointmentRepository, logger *zap.Logger) *Service 
 
 // CreateInput holds validated fields for creating an appointment.
 type CreateInput struct {
-	BranchID          uint            `json:"branch_id"`
-	PatientID         uint            `json:"patient_id"          binding:"required"`
-	SpecialistID      *uint           `json:"specialist_id"`
-	ScheduledAt       string          `json:"scheduled_at"`
-	Date              string          `json:"date"`
-	Time              string          `json:"time"`
-	Notes             string          `json:"notes"`
-	Reason            string          `json:"reason"`
-	AppointmentTypeID *uint           `json:"appointment_type_id"`
+	BranchID          uint   `json:"branch_id"`
+	PatientID         uint   `json:"patient_id"          binding:"required"`
+	SpecialistID      *uint  `json:"specialist_id"`
+	ScheduledAt       string `json:"scheduled_at"`
+	Date              string `json:"date"`
+	Time              string `json:"time"`
+	Notes             string `json:"notes"`
+	Reason            string `json:"reason"`
+	AppointmentTypeID *uint  `json:"appointment_type_id"`
 }
 
 // UpdateInput holds validated fields for updating an appointment.
@@ -280,6 +280,7 @@ func (s *Service) Resume(id uint) (*domain.Appointment, error) {
 func (s *Service) ListManagementReport(
 	specialistID uint,
 	search, startDate, endDate, status, consultationType string,
+	branchID *uint,
 	pendingReport bool,
 	page, perPage int,
 ) (*ListOutput, error) {
@@ -302,6 +303,9 @@ func (s *Service) ListManagementReport(
 	if consultationType != "" {
 		filters["consultation_type"] = consultationType
 	}
+	if branchID != nil && *branchID != 0 {
+		filters["branch_id"] = *branchID
+	}
 	if pendingReport {
 		filters["_pending_report"] = true
 	}
@@ -310,8 +314,8 @@ func (s *Service) ListManagementReport(
 
 // GetConsolidatedReport returns per-specialist aggregated consultation counts
 // for the given date range. specialistIDs restricts to those IDs when non-empty.
-func (s *Service) GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*domain.SpecialistReportSummary, error) {
-	return s.repo.GetConsolidatedReport(from, to, specialistIDs)
+func (s *Service) GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
+	return s.repo.GetConsolidatedReport(from, to, specialistIDs, branchID)
 }
 
 // SaveManagementReport validates the report input and persists the

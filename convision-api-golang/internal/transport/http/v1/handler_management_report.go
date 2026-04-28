@@ -42,6 +42,13 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 	if !isAdmin {
 		statusFilter = "completed"
 	}
+	var branchID *uint
+	if rawBranchID := c.Query("branch_id"); rawBranchID != "" && rawBranchID != "all" {
+		if parsed, err := strconv.ParseUint(rawBranchID, 10, 32); err == nil {
+			branchValue := uint(parsed)
+			branchID = &branchValue
+		}
+	}
 
 	out, err := h.appointment.ListManagementReport(
 		specialistID,
@@ -50,6 +57,7 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 		c.Query("end_date"),
 		statusFilter,
 		c.Query("consultation_type"),
+		branchID,
 		c.Query("pending_report") == "true",
 		page, perPage,
 	)

@@ -67,11 +67,13 @@ export const specialistReportService = {
     from?: string;
     to?: string;
     specialistIds?: number[];
+    branchId?: number;
   }): Promise<ConsolidatedReport> {
     const query: Record<string, string> = {};
     if (params.from) query.from = params.from;
     if (params.to) query.to = params.to;
     if (params.specialistIds?.length) query.specialist_ids = params.specialistIds.join(',');
+    if (params.branchId) query.branch_id = String(params.branchId);
     const res = await api.get('/api/v1/specialist-reports/consolidated', { params: query });
     return res.data;
   },

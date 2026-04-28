@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,6 +53,7 @@ function consultationLabel(value: ConsultationType | null): string {
 const ManagementReport: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { branchId } = useBranch();
   const isAdmin = user?.role === 'admin';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -65,13 +67,14 @@ const ManagementReport: React.FC = () => {
   const specialists = useMemo(() => users.filter((u) => u.role === 'specialist'), [users]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['management-report', page, search, specialistId],
+    queryKey: ['management-report', page, search, specialistId, branchId],
     queryFn: () =>
       managementReportService.list({
         page,
         perPage: PER_PAGE,
         search: search.trim() || undefined,
         specialistId: specialistId !== 'all' ? specialistId : undefined,
+        branchId: branchId ?? undefined,
         status: !isAdmin ? 'completed' : undefined,
         pendingReport: !isAdmin ? true : undefined,
       }),
@@ -189,7 +192,7 @@ const ManagementReport: React.FC = () => {
                           {consultationLabel(row.consultation_type)}
                         </TableCell>
                         <TableCell className="text-[13px] text-convision-text-secondary">
-                          Sede Principal
+                          {row.branch?.name ?? '—'}
                         </TableCell>
                         <TableCell>
                           <AppointmentStatusBadge status={row.status} />

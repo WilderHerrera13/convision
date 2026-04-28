@@ -8,6 +8,7 @@ import {
   SpecialistSummaryRow,
 } from '@/services/specialistReportService';
 import { userService } from '@/services/userService';
+import { branchService } from '@/services/branchService';
 import { DatePicker } from '@/components/ui/date-picker';
 import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
 
@@ -75,15 +76,20 @@ const SpecialistManagementReport: React.FC = () => {
     queryFn: () => userService.getAll(),
     select: (users) => users.filter((u) => u.role === 'specialist'),
   });
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches-list'],
+    queryFn: () => branchService.listAll(),
+  });
 
   const { data: report, isLoading } = useQuery({
-    queryKey: ['specialist-report-consolidated', fromStr, toStr, selectedSpecialistId],
+    queryKey: ['specialist-report-consolidated', fromStr, toStr, selectedSpecialistId, selectedSedeId],
     queryFn: () =>
       specialistReportService.getConsolidated({
         from: fromStr,
         to: toStr,
         specialistIds:
           selectedSpecialistId !== 'all' ? [Number(selectedSpecialistId)] : undefined,
+        branchId: selectedSedeId !== 'all' ? Number(selectedSedeId) : undefined,
       }),
     enabled: activeTab === 'consolidado',
   });
@@ -128,8 +134,14 @@ const SpecialistManagementReport: React.FC = () => {
   );
 
   const sedeOptions = useMemo<ComboboxOption[]>(
-    () => [{ value: 'all', label: 'Todas' }],
-    [],
+    () => [
+      { value: 'all', label: `Todas (${branches.length})` },
+      ...branches.map((branch) => ({
+        value: String(branch.id),
+        label: branch.name,
+      })),
+    ],
+    [branches],
   );
 
   const applyPreset = (p: DatePreset) => {
@@ -144,6 +156,7 @@ const SpecialistManagementReport: React.FC = () => {
       : 'bg-[#f5f5f6] border border-[#e0e0e4] text-[#7d7d87] text-[11px] px-2 py-0.5 rounded-full cursor-pointer';
 
   const selectedSpecialist = specialists.find((s) => String(s.id) === selectedSpecialistId);
+  const selectedBranch = branches.find((branch) => String(branch.id) === selectedSedeId);
 
   return (
     <PageLayout
@@ -237,7 +250,7 @@ const SpecialistManagementReport: React.FC = () => {
                 {daysDiff} {daysDiff === 1 ? 'día' : 'dias'} · {report?.specialists_count ?? specialists.length} especialistas
               </div>
             </div>
-            {selectedSpecialistId !== 'all' && (
+            {(selectedSpecialistId !== 'all' || selectedSedeId !== 'all') && (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-medium text-[#7d7d87]">Filtros activos</span>
                 {selectedSpecialist && (
@@ -246,6 +259,15 @@ const SpecialistManagementReport: React.FC = () => {
                     className="flex items-center gap-1 bg-[#eff1ff] text-[#3a71f7] text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-[#dde6ff] transition-colors"
                   >
                     {selectedSpecialist.name} {selectedSpecialist.last_name}
+                    <span className="text-[10px] leading-none">×</span>
+                  </button>
+                )}
+                {selectedBranch && (
+                  <button
+                    onClick={() => setSelectedSedeId('all')}
+                    className="flex items-center gap-1 bg-[#eff1ff] text-[#3a71f7] text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-[#dde6ff] transition-colors"
+                  >
+                    {selectedBranch.name}
                     <span className="text-[10px] leading-none">×</span>
                   </button>
                 )}

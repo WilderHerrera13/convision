@@ -62,8 +62,8 @@ func (m *MockAppointmentRepository) SaveManagementReport(id uint, consultationTy
 	return m.Called(id, consultationType, reportNotes).Error(0)
 }
 
-func (m *MockAppointmentRepository) GetConsolidatedReport(from, to string, specialistIDs []uint) ([]*domain.SpecialistReportSummary, error) {
-	args := m.Called(from, to, specialistIDs)
+func (m *MockAppointmentRepository) GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
+	args := m.Called(from, to, specialistIDs, branchID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
