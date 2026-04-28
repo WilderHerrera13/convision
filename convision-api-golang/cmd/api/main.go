@@ -13,6 +13,7 @@ import (
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
+	branchsvc "github.com/convision/api/internal/branch"
 	"github.com/convision/api/internal/bulkimport"
 	cashsvc "github.com/convision/api/internal/cash"
 	cashclosesvc "github.com/convision/api/internal/cashclose"
@@ -128,8 +129,11 @@ func main() {
 	dailyActivityRepo := postgresplatform.NewDailyActivityRepository(db)
 	dashboardRepo := postgresplatform.NewDashboardRepository(db)
 
+	// Branch repo
+	branchRepo := postgresplatform.NewBranchRepository(db)
+
 	// ---- Services (use-case layer) ----
-	authService := authsvc.NewService(userRepo, revokedTokenRepo, logger)
+	authService := authsvc.NewService(userRepo, revokedTokenRepo, branchRepo, logger)
 	patientService := patient.NewService(patientRepo, logger)
 	userService := usersvc.NewService(userRepo, logger)
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
@@ -162,6 +166,9 @@ func main() {
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
+	// Branch service
+	branchService := branchsvc.NewService(branchRepo, logger)
+
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
 		gin.SetMode(gin.ReleaseMode)
@@ -188,7 +195,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo)
+	handler := v1.NewHandler(authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo)
 	handler.RegisterRoutes(api)
 
 	// ---- Start server ----

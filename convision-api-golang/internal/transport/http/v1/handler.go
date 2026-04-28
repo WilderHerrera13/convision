@@ -163,7 +163,6 @@ func NewHandler(
 	dashboardRepo *postgresplatform.DashboardRepository,
 	bulkImportSvc    *bulkimport.Service,
 	bulkImportLogRepo domain.BulkImportLogRepository,
-	bulkImportLogRepo domain.BulkImportLogRepository,
 	revokedTokens    domain.RevokedTokenRepository,
 	branchRepo       domain.BranchRepository,
 ) *Handler {
