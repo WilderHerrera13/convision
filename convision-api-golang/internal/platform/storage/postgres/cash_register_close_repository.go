@@ -10,6 +10,7 @@ import (
 )
 
 var cashRegisterCloseFilterAllowlist = map[string]bool{
+	"branch_id":  true,
 	"user_id":    true,
 	"status":     true,
 	"close_date": true,
@@ -80,6 +81,10 @@ func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage
 
 	q := r.db.Model(&domain.CashRegisterClose{})
 	for k, v := range filters {
+		if k == "branch_id" {
+			q = q.Where("branch_id = ?", v)
+			continue
+		}
 		if !cashRegisterCloseFilterAllowlist[k] {
 			continue
 		}

@@ -69,6 +69,7 @@ type DenominationInput struct {
 }
 
 type CreateInput struct {
+	BranchID       uint                 `json:"branch_id"`
 	CloseDate      string               `json:"close_date" binding:"required"`
 	PaymentMethods []PaymentMethodInput `json:"payment_methods" binding:"required"`
 	Denominations  []DenominationInput  `json:"denominations"`
@@ -185,6 +186,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.CashRegisterCl
 
 	// No existing close — create a new one.
 	item := &domain.CashRegisterClose{
+		BranchID:     input.BranchID,
 		UserID:       userID,
 		CloseDate:    closeDate,
 		Status:       domain.CashRegisterCloseStatusDraft,

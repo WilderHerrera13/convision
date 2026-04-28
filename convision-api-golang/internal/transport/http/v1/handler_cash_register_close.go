@@ -10,6 +10,7 @@ import (
 	cashclosesvc "github.com/convision/api/internal/cashclose"
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 type cashClosePaymentResource struct {
@@ -113,6 +114,10 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
 	filters := map[string]any{}
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	if v := c.Query("status"); v != "" {
 		filters["status"] = v
 	}
@@ -194,6 +199,8 @@ func (h *Handler) CreateCashRegisterClose(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 
 	item, err := h.cashClose.Create(input, claims.UserID)
 	if err != nil {
