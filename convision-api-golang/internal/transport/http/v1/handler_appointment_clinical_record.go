@@ -8,6 +8,7 @@ import (
 	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // GetAppointmentClinicalRecord godoc
@@ -60,7 +61,7 @@ func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
 		AppointmentID: apptID,
 		PatientID:     appt.PatientID,
 		SpecialistID:  specialistID,
-		BranchID:      1,
+		BranchID:      branchmw.BranchIDFromCtx(c),
 		RecordType:    body.RecordType,
 	}
 
