@@ -1,6 +1,8 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { BranchProvider, useBranch } from '@/contexts/BranchContext';
+import SelectBranchPage from '@/pages/SelectBranchPage';
 import AdminLayout from '@/layouts/AdminLayout';
 import Dashboard from '@/pages/admin/Dashboard';
 import SpecialistDashboard from '@/pages/specialist/SpecialistDashboard';
@@ -157,6 +159,32 @@ const ProtectedRoute: React.FC<{
   return <>{children}</>;
 };
 
+const BranchProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}> = ({ children, allowedRoles }) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const { branchId } = useBranch();
+
+  if (isLoading) {
+    return <LoadingScreen variant="auth" />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (user?.role !== 'admin' && !branchId) {
+    return <Navigate to="/select-branch" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
@@ -180,6 +208,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const HomePage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { branchId } = useBranch();
 
   if (isLoading) {
     return <LoadingScreen variant="auth" />;
@@ -187,6 +216,10 @@ const HomePage: React.FC = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'admin' && !branchId) {
+    return <Navigate to="/select-branch" replace />;
   }
 
   if (user?.role === 'admin') {
@@ -197,7 +230,6 @@ const HomePage: React.FC = () => {
     return <Navigate to="/receptionist/dashboard" replace />;
   }
 
-  // If user has an unknown role, redirect to login instead of catalog
   return <Navigate to="/login" replace />;
 };
 
@@ -205,9 +237,11 @@ const queryClient = new QueryClient();
 
 const RootLayout: React.FC = () => {
   return (
-    <AuthProvider>
-      <Outlet />
-    </AuthProvider>
+    <BranchProvider>
+      <AuthProvider>
+        <Outlet />
+      </AuthProvider>
+    </BranchProvider>
   );
 };
 
@@ -221,6 +255,14 @@ const router = createBrowserRouter([
           <PublicRoute>
             <Login />
           </PublicRoute>
+        ),
+      },
+      {
+        path: "/select-branch",
+        element: (
+          <ProtectedRoute>
+            <SelectBranchPage />
+          </ProtectedRoute>
         ),
       },
       {
@@ -258,9 +300,9 @@ const router = createBrowserRouter([
       {
         path: "/admin",
         element: (
-          <ProtectedRoute allowedRoles={['admin']}>
+          <BranchProtectedRoute allowedRoles={['admin']}>
             <AdminLayout />
-          </ProtectedRoute>
+          </BranchProtectedRoute>
         ),
         children: [
           {
@@ -563,9 +605,9 @@ const router = createBrowserRouter([
       {
         path: "/specialist",
         element: (
-          <ProtectedRoute allowedRoles={['specialist', 'admin']}>
+          <BranchProtectedRoute allowedRoles={['specialist', 'admin']}>
             <AdminLayout />
-          </ProtectedRoute>
+          </BranchProtectedRoute>
         ),
         children: [
           {
@@ -637,9 +679,9 @@ const router = createBrowserRouter([
       {
         path: "/receptionist",
         element: (
-          <ProtectedRoute allowedRoles={['receptionist', 'admin']}>
+          <BranchProtectedRoute allowedRoles={['receptionist', 'admin']}>
             <AdminLayout />
-          </ProtectedRoute>
+          </BranchProtectedRoute>
         ),
         children: [
           {
