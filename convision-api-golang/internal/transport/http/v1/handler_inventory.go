@@ -8,6 +8,7 @@ import (
 
 	"github.com/convision/api/internal/inventory"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // ======== Warehouses ========
@@ -15,6 +16,10 @@ import (
 func (h *Handler) ListWarehouses(c *gin.Context) {
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
 	}
@@ -45,6 +50,7 @@ func (h *Handler) CreateWarehouse(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 	w, err := h.inventory.CreateWarehouse(input)
 	if err != nil {
 		respondError(c, err)
@@ -179,6 +185,10 @@ func (h *Handler) DeleteWarehouseLocation(c *gin.Context) {
 func (h *Handler) ListInventoryItems(c *gin.Context) {
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	if v := c.Query("product_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			filters["product_id"] = uint(id)
@@ -224,6 +234,7 @@ func (h *Handler) CreateInventoryItem(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 	item, err := h.inventory.CreateItem(input)
 	if err != nil {
 		respondError(c, err)
@@ -264,6 +275,10 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 
 func (h *Handler) GetTotalStock(c *gin.Context) {
 	filters := map[string]any{}
+
+	branchID := branchmw.BranchIDFromCtx(c)
+	filters["branch_id"] = branchID
+
 	for _, key := range []string{"warehouse_id", "warehouse_location_id", "brand_id", "supplier_id", "category_id"} {
 		if v := c.Query(key); v != "" {
 			if id, err := strconv.ParseUint(v, 10, 64); err == nil {

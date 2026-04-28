@@ -9,7 +9,8 @@ import (
 )
 
 var warehouseFilterAllowlist = map[string]bool{
-	"status": true,
+	"branch_id": true,
+	"status":    true,
 }
 
 // WarehouseRepository is the PostgreSQL-backed implementation of domain.WarehouseRepository.
@@ -59,6 +60,10 @@ func (r *WarehouseRepository) List(filters map[string]any, page, perPage int) ([
 
 	q := r.db.Model(&domain.Warehouse{})
 	for field, value := range filters {
+		if field == "branch_id" {
+			q = q.Where("warehouses.branch_id = ?", value)
+			continue
+		}
 		if !warehouseFilterAllowlist[field] {
 			continue
 		}

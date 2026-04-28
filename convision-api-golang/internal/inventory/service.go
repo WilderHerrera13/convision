@@ -114,12 +114,13 @@ func clampPage(page, perPage int) (int, int) {
 
 // WarehouseCreateInput holds validated fields for creating a warehouse.
 type WarehouseCreateInput struct {
-	Name    string `json:"name"    binding:"required"`
-	Code    string `json:"code"`
-	Address string `json:"address"`
-	City    string `json:"city"`
-	Status  string `json:"status"`
-	Notes   string `json:"notes"`
+	BranchID uint   `json:"branch_id"`
+	Name     string `json:"name"    binding:"required"`
+	Code     string `json:"code"`
+	Address  string `json:"address"`
+	City     string `json:"city"`
+	Status   string `json:"status"`
+	Notes    string `json:"notes"`
 }
 
 // WarehouseUpdateInput holds validated fields for updating a warehouse.
@@ -166,12 +167,13 @@ func (s *Service) CreateWarehouse(input WarehouseCreateInput) (*domain.Warehouse
 		status = "active"
 	}
 	w := &domain.Warehouse{
-		Name:    input.Name,
-		Code:    input.Code,
-		Address: input.Address,
-		City:    input.City,
-		Status:  status,
-		Notes:   input.Notes,
+		BranchID: input.BranchID,
+		Name:     input.Name,
+		Code:     input.Code,
+		Address:  input.Address,
+		City:     input.City,
+		Status:   status,
+		Notes:    input.Notes,
 	}
 	if err := s.warehouseRepo.Create(w); err != nil {
 		return nil, err
@@ -354,6 +356,7 @@ func (s *Service) validateLocationBelongsToWarehouse(locationID, warehouseID uin
 
 // ItemCreateInput holds validated fields for creating an inventory item.
 type ItemCreateInput struct {
+	BranchID            uint   `json:"branch_id"`
 	ProductID           uint   `json:"product_id"            binding:"required"`
 	WarehouseID         uint   `json:"warehouse_id"          binding:"required"`
 	WarehouseLocationID *uint  `json:"warehouse_location_id"`
@@ -426,6 +429,7 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		return nil, err
 	}
 	i := &domain.InventoryItem{
+		BranchID:            input.BranchID,
 		ProductID:           input.ProductID,
 		WarehouseID:         input.WarehouseID,
 		WarehouseLocationID: input.WarehouseLocationID,

@@ -9,6 +9,7 @@ import (
 )
 
 var inventoryItemFilterAllowlist = map[string]bool{
+	"branch_id":             true,
 	"clinic_id":             true,
 	"product_id":            true,
 	"warehouse_id":          true,
@@ -70,6 +71,10 @@ func (r *InventoryItemRepository) List(filters map[string]any, page, perPage int
 
 	q := r.db.Model(&domain.InventoryItem{})
 	for field, value := range filters {
+		if field == "branch_id" {
+			q = q.Where("inventory_items.branch_id = ?", value)
+			continue
+		}
 		if !inventoryItemFilterAllowlist[field] {
 			continue
 		}
