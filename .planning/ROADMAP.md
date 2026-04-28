@@ -148,7 +148,7 @@ Plans:
 
 Plans:
 - [x] 14-01: DB — `branches`, `user_branches`, add/rename `branch_id` on scoped tables
-- [ ] 14-02: Backend Domain & Service — Branch entity, BranchRepository, UserBranch service, middleware
+- [x] 14-02: Backend Domain & Service — Branch entity, BranchRepository, UserBranch service, middleware
 - [ ] 14-03: Backend Auth & Endpoints — login enrichment, branch-validation middleware, branch CRUD routes
 - [ ] 14-04: Backend Scoped Queries — wire `branch_id` filter into appointment, sale, cash-close, inventory handlers
 - [ ] 14-05: Frontend — branch context (React Context + localStorage), axios interceptor, branch-selector screen
@@ -164,4 +164,4 @@ Plans:
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
 | 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
 | 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
-| 14. Multi-Branch / Clinic Support | 1/5 | In Progress|  |
+| 14. Multi-Branch / Clinic Support | 2/5 | In Progress|  |
