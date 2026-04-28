@@ -69,6 +69,18 @@ func (r *branchRepository) UserHasAccess(userID, branchID uint) (bool, error) {
 	return count > 0, err
 }
 
+func (r *branchRepository) GetUserBranchPrimaryMap(userID uint) (map[uint]bool, error) {
+	var ubs []domain.UserBranch
+	if err := r.db.Where("user_id = ?", userID).Find(&ubs).Error; err != nil {
+		return nil, err
+	}
+	m := make(map[uint]bool, len(ubs))
+	for _, ub := range ubs {
+		m[ub.BranchID] = ub.IsPrimary
+	}
+	return m, nil
+}
+
 func (r *branchRepository) Create(b *domain.Branch) error {
 	return r.db.Create(b).Error
 }

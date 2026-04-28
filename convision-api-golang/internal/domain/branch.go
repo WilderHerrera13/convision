@@ -33,6 +33,7 @@ type BranchRepository interface {
 	ListAll() ([]*Branch, error)
 	ListForUser(userID uint) ([]*Branch, error)
 	UserHasAccess(userID, branchID uint) (bool, error)
+	GetUserBranchPrimaryMap(userID uint) (map[uint]bool, error)
 	Create(b *Branch) error
 	Update(b *Branch) error
 	AssignUserBranches(userID uint, assignments []UserBranchInput) error

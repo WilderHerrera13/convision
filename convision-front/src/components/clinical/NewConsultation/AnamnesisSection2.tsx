@@ -91,6 +91,8 @@ export function AnamnesisSection2() {
                   <label key={cond} className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
+                      readOnly={false}
+                      aria-readonly={false}
                       checked={checked}
                       onChange={() => {
                         const current = field.value ?? [];

@@ -163,8 +163,8 @@ const BranchProtectedRoute: React.FC<{
   children: React.ReactNode;
   allowedRoles?: string[];
 }> = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const { branchId } = useBranch();
+  const { user, isAuthenticated, isLoading, branches } = useAuth();
+  const { branchId, setBranch } = useBranch();
 
   if (isLoading) {
     return <LoadingScreen variant="auth" />;
@@ -178,7 +178,15 @@ const BranchProtectedRoute: React.FC<{
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (user?.role !== 'admin' && !branchId) {
+  if (!branchId) {
+    if (user?.role === 'admin' && branches.length > 0) {
+      const primary = branches.find((b) => b.is_primary) ?? branches[0];
+      setBranch(primary.id, primary.name);
+      return <>{children}</>;
+    }
+    if (user?.role !== 'admin') {
+      return <Navigate to="/select-branch" replace />;
+    }
     return <Navigate to="/select-branch" replace />;
   }
 

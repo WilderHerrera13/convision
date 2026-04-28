@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
+import SidebarBranchSwitcher from '@/components/sidebar/SidebarBranchSwitcher';
 
 type NavItem = { title: string; path: string; icon: React.ComponentType<{ className?: string }> };
 type NavSection = { label: string | null; items: NavItem[] };
@@ -163,15 +164,24 @@ const AdminLayout: React.FC = () => {
         '--role-light': colors.light,
       } as React.CSSProperties}
     >
-      {/* Collapsed toggle */}
+      {/* Collapsed toggle + logout */}
       {isCollapsed && (
-        <button
-          onClick={toggleSidebar}
-          className="fixed top-4 left-3 z-[70] bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-convision-background transition-colors"
-          aria-label="Expandir sidebar"
-        >
-          <Menu className="size-4 text-convision-text-secondary" />
-        </button>
+        <div className="fixed top-4 left-3 z-[70] flex flex-col gap-2">
+          <button
+            onClick={toggleSidebar}
+            className="bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-convision-background transition-colors"
+            aria-label="Expandir sidebar"
+          >
+            <Menu className="size-4 text-convision-text-secondary" />
+          </button>
+          <button
+            onClick={() => logout()}
+            className="bg-white border border-convision-border-subtle rounded-full shadow-sm p-2 hover:bg-red-50 transition-colors"
+            aria-label="Cerrar sesión"
+          >
+            <LogOut className="size-4 text-red-500" />
+          </button>
+        </div>
       )}
 
       {isMobile && openMobile && (
@@ -246,6 +256,9 @@ const AdminLayout: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Branch switcher — specialist and receptionist only */}
+          {user?.role !== 'admin' && <SidebarBranchSwitcher />}
 
           {/* User footer */}
           <div className="bg-white border-t border-convision-border-subtle h-16 flex items-center justify-between px-[14px] shrink-0">

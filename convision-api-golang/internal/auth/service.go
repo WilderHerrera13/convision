@@ -124,9 +124,14 @@ func (s *Service) loadBranches(user *domain.User) []BranchInfo {
 			s.logger.Warn("could not load branches for admin", zap.Uint("user_id", user.ID), zap.Error(err))
 			return []BranchInfo{}
 		}
+		primaryMap, err := s.branches.GetUserBranchPrimaryMap(user.ID)
+		if err != nil {
+			s.logger.Warn("could not load primary map for admin", zap.Uint("user_id", user.ID), zap.Error(err))
+			primaryMap = map[uint]bool{}
+		}
 		out := make([]BranchInfo, len(rawBranches))
 		for i, b := range rawBranches {
-			out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City, IsPrimary: i == 0}
+			out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City, IsPrimary: primaryMap[b.ID]}
 		}
 		return out
 	}
@@ -136,9 +141,16 @@ func (s *Service) loadBranches(user *domain.User) []BranchInfo {
 		s.logger.Warn("could not load branches for user", zap.Uint("user_id", user.ID), zap.Error(err))
 		return []BranchInfo{}
 	}
+
+	primaryMap, err := s.branches.GetUserBranchPrimaryMap(user.ID)
+	if err != nil {
+		s.logger.Warn("could not load primary map for user", zap.Uint("user_id", user.ID), zap.Error(err))
+		primaryMap = map[uint]bool{}
+	}
+
 	out := make([]BranchInfo, len(rawBranches))
 	for i, b := range rawBranches {
-		out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City}
+		out[i] = BranchInfo{ID: b.ID, Name: b.Name, City: b.City, IsPrimary: primaryMap[b.ID]}
 	}
 	return out
 }

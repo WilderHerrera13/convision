@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         setUser(storedUser);
+        setBranches(authService.getBranches());
         
         try {
           const currentUser = await authService.getCurrentUser();

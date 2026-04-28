@@ -46,6 +46,9 @@ INSERT INTO branches (id, name, address, city, phone, email, is_active, created_
 VALUES (1, 'Principal', '', '', '', '', TRUE, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
+-- Advance sequence past the seeded id to prevent duplicate key on next insert
+SELECT setval('branches_id_seq', GREATEST(1, (SELECT COALESCE(MAX(id), 0) FROM branches)));
+
 -- 5. CREATE user_branches table
 CREATE TABLE IF NOT EXISTS user_branches (
     id         SERIAL PRIMARY KEY,

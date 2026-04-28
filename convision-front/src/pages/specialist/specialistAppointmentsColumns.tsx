@@ -6,8 +6,7 @@ import type { DataTableColumnDef } from '@/components/ui/data-table';
 import type { Appointment } from '@/services/appointmentsService';
 
 function toLocalDate(dateStr: string): Date {
-  const hasOffset = dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr);
-  return parseISO(hasOffset ? dateStr : dateStr + 'Z');
+  return parseISO(dateStr);
 }
 
 function formatAppointmentDate(dateStr: string) {

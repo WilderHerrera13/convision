@@ -141,7 +141,7 @@ export function AppointmentClinicalForm({ apptId, appt }: Props) {
             ))}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scroll-pt-[54px]">
             {activeTab === 0 && (
               <AnamnesisTab
                 key={`anamnesis-${record?.id ?? 0}`}
