@@ -17,7 +17,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [ ] **Phase 5: Quality Hardening & Verification** - Close gaps in conventions, regressions, and verification evidence
 - [x] **Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor** - Cierre de caja, reporte de gestión diaria, aprobación admin (2026-04-14)
 - [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
-- [ ] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login
+- [x] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login (completed 2026-04-28)
 
 ## Phase Details
 
@@ -149,9 +149,9 @@ Plans:
 Plans:
 - [x] 14-01: DB — `branches`, `user_branches`, add/rename `branch_id` on scoped tables
 - [x] 14-02: Backend Domain & Service — Branch entity, BranchRepository, UserBranch service, middleware
-- [ ] 14-03: Backend Auth & Endpoints — login enrichment, branch-validation middleware, branch CRUD routes
-- [ ] 14-04: Backend Scoped Queries — wire `branch_id` filter into appointment, sale, cash-close, inventory handlers
-- [ ] 14-05: Frontend — branch context (React Context + localStorage), axios interceptor, branch-selector screen
+- [x] 14-03: Backend Auth & Endpoints — login enrichment, branch-validation middleware, branch CRUD routes
+- [x] 14-04: Backend Scoped Queries — wire `branch_id` filter into appointment, sale, cash-close, inventory handlers
+- [x] 14-05: Frontend — branch context (React Context + localStorage), axios interceptor, branch-selector screen
 
 ## Progress
 
@@ -164,4 +164,4 @@ Plans:
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
 | 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
 | 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
-| 14. Multi-Branch / Clinic Support | 2/5 | In Progress|  |
+| 14. Multi-Branch / Clinic Support | 5/5 | Complete    | 2026-04-28 |
