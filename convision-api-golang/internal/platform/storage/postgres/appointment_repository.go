@@ -12,6 +12,7 @@ import (
 
 // appointmentFilterAllowlist prevents SQL injection via column name injection.
 var appointmentFilterAllowlist = map[string]bool{
+	"branch_id":         true,
 	"status":            true,
 	"patient_id":        true,
 	"specialist_id":     true,
@@ -286,6 +287,8 @@ func (r *AppointmentRepository) List(filters map[string]any, page, perPage int) 
 	needsPatientJoin := false
 	for field, value := range filters {
 		switch field {
+		case "branch_id":
+			q = q.Where("appointments.branch_id = ?", value)
 		case "_start_date":
 			// When filtering by date range, only include rows that have a scheduled_at value.
 			q = q.Where("appointments.scheduled_at IS NOT NULL AND appointments.scheduled_at >= ?", value)

@@ -11,6 +11,7 @@ import (
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // AppointmentResource is the JSON shape returned for every appointment response.
@@ -146,6 +147,13 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseAppointmentApiFilters(c)
 
+	branchID := branchmw.BranchIDFromCtx(c)
+	if branchID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Sede requerida"})
+		return
+	}
+	filters["branch_id"] = branchID
+
 	if v := c.Query("start_date"); v != "" {
 		filters["_start_date"] = v
 	}
@@ -203,6 +211,8 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
 		return
 	}
+
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 
 	a, err := h.appointment.Create(input, claims.UserID)
 	if err != nil {

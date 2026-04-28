@@ -23,6 +23,7 @@ func NewService(repo domain.AppointmentRepository, logger *zap.Logger) *Service 
 
 // CreateInput holds validated fields for creating an appointment.
 type CreateInput struct {
+	BranchID          uint            `json:"branch_id"`
 	PatientID         uint            `json:"patient_id"          binding:"required"`
 	SpecialistID      *uint           `json:"specialist_id"`
 	ScheduledAt       string          `json:"scheduled_at"`
@@ -144,6 +145,7 @@ func (s *Service) Create(input CreateInput, receptionistID uint) (*domain.Appoin
 	}
 
 	a := &domain.Appointment{
+		BranchID:          input.BranchID,
 		PatientID:         input.PatientID,
 		SpecialistID:      input.SpecialistID,
 		ReceptionistID:    &receptionistID,
