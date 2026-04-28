@@ -16,6 +16,8 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [ ] **Phase 4: Finance & Orders Consistency** - Stabilize expenses/payroll/purchases/service-lab orders and related API contracts
 - [ ] **Phase 5: Quality Hardening & Verification** - Close gaps in conventions, regressions, and verification evidence
 - [x] **Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor** - Cierre de caja, reporte de gestión diaria, aprobación admin (2026-04-14)
+- [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
+- [ ] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login
 
 ## Phase Details
 
@@ -112,6 +114,45 @@ Plans:
 - [x] 06-03: Frontend — Vistas del Asesor (formulario cierre, conteo efectivo, reporte diario, historiales)
 - [x] 06-04: Frontend — Vistas del Admin (lista cierres, detalle + aprobación, lista reportes)
 
+### Phase 13: Unified Product-Inventory WMS Foundation
+**Goal**: Construir el núcleo del WMS para ópticas: modelo unificado de productos (lens/frame/contact_lens/liquid/accessory), Kardex transaccional (stock_movements), flujo de ajustes con aprobación, y catálogo de lentes visible en el módulo de inventario. Los lentes importados son Productos con product_type='lens' y tracks_stock=false. Las monturas y líquidos son Productos con tracks_stock=true y tienen InventoryItems físicos.
+**Depends on**: Phase 12 (lab order flow)
+**Requirements**: [INV-01, INV-02, INV-03, INV-04, INV-05, INV-06]
+**Success Criteria** (what must be TRUE):
+  1. `products` table has `product_type` and `tracks_stock` columns; all products imported as lenses are visible in inventory as catalog items
+  2. Every stock operation (create item, transfer complete, adjustment approved) writes a `stock_movements` record with before/after quantities
+  3. Manual inventory adjustments go through `pending_approval → approved` flow before modifying stock
+  4. Frontend inventory module shows lens catalog (no stock) and physical stock items (tracks_stock=true) in separate sections
+  5. The lens bulk import creates `Product` + `ProductLensAttributes` records (not `Lens` records) with `product_type='lens'` and `tracks_stock=false`
+**Plans**: 5 plans
+
+Plans:
+- [ ] 13-01: DB Migrations — product_type, tracks_stock, stock_movements Kardex, inventory_adjustments
+- [ ] 13-02: Domain Layer — Product type classification, StockMovement, InventoryAdjustment domain models
+- [ ] 13-03: Backend — Lens-as-Product unification (bulk import → products, product_type filtering, catalog endpoint)
+- [ ] 13-04: Backend — Kardex service (movement recording on all inventory ops), AdjustmentService with approval flow, new endpoints
+- [ ] 13-05: Frontend — Inventory module: lens catalog tab + physical stock tab, adjustment UI, movement history
+
+### Phase 14: Multi-Branch / Clinic Support
+**Goal**: Add first-class branch (sede/clínica) support so every clinic-scoped operation (appointments, inventory, cash-close, daily-activity) is isolated per branch, while users, patients, and the master product catalog remain global.
+**Depends on**: Phase 13 (WMS inventory models already use `clinic_id` that will be renamed to `branch_id`)
+**Requirements**: [BRANCH-01, BRANCH-02, BRANCH-03, BRANCH-04, BRANCH-05, BRANCH-06, BRANCH-07, BRANCH-08, BRANCH-09, BRANCH-10]
+**Success Criteria** (what must be TRUE):
+  1. `branches` table and `user_branches` junction exist with FK integrity; admin CRUD endpoints work
+  2. Login response includes `branches[]` for the authenticated user; branch-selector UI appears when >1 branch
+  3. `X-Branch-ID` middleware rejects requests from users without access to that branch (403)
+  4. Appointments, sales, cash-closes, daily-activity-reports created in a session are stored with the active `branch_id`; list endpoints return only records for that branch
+  5. `clinic_id` columns in inventory tables renamed to `branch_id` with real FK to `branches`
+  6. Global entities (patients, users, products, lenses, discounts) are unaffected and visible from any branch
+**Plans**: 5 plans
+
+Plans:
+- [x] 14-01: DB — `branches`, `user_branches`, add/rename `branch_id` on scoped tables
+- [ ] 14-02: Backend Domain & Service — Branch entity, BranchRepository, UserBranch service, middleware
+- [ ] 14-03: Backend Auth & Endpoints — login enrichment, branch-validation middleware, branch CRUD routes
+- [ ] 14-04: Backend Scoped Queries — wire `branch_id` filter into appointment, sale, cash-close, inventory handlers
+- [ ] 14-05: Frontend — branch context (React Context + localStorage), axios interceptor, branch-selector screen
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -122,3 +163,5 @@ Plans:
 | 4. Finance & Orders Consistency | 0/4 | Not started | - |
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
 | 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
+| 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
+| 14. Multi-Branch / Clinic Support | 1/5 | In Progress|  |
