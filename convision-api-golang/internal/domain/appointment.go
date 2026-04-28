@@ -41,6 +41,7 @@ func IsValidConsultationType(v string) bool {
 // Appointment represents a scheduled patient visit.
 type Appointment struct {
 	ID                      uint              `json:"id"                        gorm:"primaryKey;autoIncrement"`
+	BranchID                uint              `json:"branch_id"                 gorm:"column:branch_id;not null;index"`
 	PatientID               uint              `json:"patient_id"                gorm:"not null;index"`
 	SpecialistID            *uint             `json:"specialist_id"             gorm:"column:specialist_id;index"`
 	ReceptionistID          *uint             `json:"receptionist_id"           gorm:"column:receptionist_id;index"`

@@ -60,7 +60,7 @@ func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
 		AppointmentID: apptID,
 		PatientID:     appt.PatientID,
 		SpecialistID:  specialistID,
-		ClinicID:      1,
+		BranchID:      1,
 		RecordType:    body.RecordType,
 	}
 
@@ -97,7 +97,7 @@ func (h *Handler) UpsertAppointmentVisualExam(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertVisualExam(rec.ID, rec.ClinicID, input); err != nil {
+	if err := h.clinicalRecord.UpsertVisualExam(rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -130,7 +130,7 @@ func (h *Handler) UpsertAppointmentDiagnosis(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertDiagnosis(rec.ID, rec.ClinicID, input); err != nil {
+	if err := h.clinicalRecord.UpsertDiagnosis(rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -163,7 +163,7 @@ func (h *Handler) UpsertAppointmentPrescription(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertPrescription(rec.ID, rec.ClinicID, input); err != nil {
+	if err := h.clinicalRecord.UpsertPrescription(rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -229,7 +229,7 @@ func (h *Handler) UpsertAppointmentAnamnesis(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertAnamnesis(rec.ID, rec.ClinicID, input); err != nil {
+	if err := h.clinicalRecord.UpsertAnamnesis(rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}

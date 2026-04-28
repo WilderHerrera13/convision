@@ -15,6 +15,7 @@ const (
 // Sale represents a commercial transaction with a patient.
 type Sale struct {
 	ID            uint       `json:"id"             gorm:"primaryKey;autoIncrement"`
+	BranchID      uint       `json:"branch_id"      gorm:"column:branch_id;not null;index"`
 	SaleNumber    string     `json:"sale_number"    gorm:"uniqueIndex;not null"`
 	OrderID       *uint      `json:"order_id"       gorm:"column:order_id"`
 	PatientID     uint       `json:"patient_id"     gorm:"not null;index"`

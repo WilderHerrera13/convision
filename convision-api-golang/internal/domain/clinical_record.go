@@ -37,7 +37,7 @@ func (s *StringSlice) Scan(src any) error {
 // ClinicalRecord is the root document for an appointment's clinical session.
 type ClinicalRecord struct {
 	ID            uint       `json:"id"             gorm:"primaryKey;autoIncrement"`
-	ClinicID      uint       `json:"clinic_id"      gorm:"not null;index"`
+	BranchID      uint       `json:"branch_id"      gorm:"column:branch_id;not null;index"`
 	AppointmentID uint       `json:"appointment_id" gorm:"not null;uniqueIndex"`
 	PatientID     uint       `json:"patient_id"     gorm:"not null;index"`
 	SpecialistID  uint       `json:"specialist_id"  gorm:"not null;index"`
@@ -58,7 +58,7 @@ type ClinicalRecord struct {
 type Anamnesis struct {
 	ID               uint `json:"id"                gorm:"primaryKey;autoIncrement"`
 	ClinicalRecordID uint `json:"clinical_record_id" gorm:"not null;uniqueIndex"`
-	ClinicID         uint `json:"clinic_id"          gorm:"not null;index"`
+	BranchID         uint `json:"branch_id"          gorm:"column:branch_id;not null;index"`
 
 	// Section 1 — chief complaint and current illness
 	ReasonForVisit     string      `json:"reason_for_visit"     gorm:"type:text"`
@@ -106,7 +106,7 @@ type Anamnesis struct {
 type VisualExam struct {
 	ID               uint `json:"id"                gorm:"primaryKey;autoIncrement"`
 	ClinicalRecordID uint `json:"clinical_record_id" gorm:"not null;uniqueIndex"`
-	ClinicID         uint `json:"clinic_id"          gorm:"not null;index"`
+	BranchID         uint `json:"branch_id"          gorm:"column:branch_id;not null;index"`
 
 	// Agudeza Visual — sin corrección
 	AvScOd     string `json:"av_sc_od"      gorm:"column:av_sc_dist_od;type:varchar(20)"`
@@ -193,7 +193,7 @@ type VisualExam struct {
 type Diagnosis struct {
 	ID               uint `json:"id"                 gorm:"primaryKey;autoIncrement"`
 	ClinicalRecordID uint `json:"clinical_record_id"  gorm:"not null;uniqueIndex"`
-	ClinicID         uint `json:"clinic_id"           gorm:"not null;index"`
+	BranchID         uint `json:"branch_id"           gorm:"column:branch_id;not null;index"`
 
 	PrimaryCode        string `json:"primary_code"        gorm:"type:varchar(20);not null"`
 	PrimaryDescription string `json:"primary_description" gorm:"type:text;not null"`
@@ -225,7 +225,7 @@ func (ClinicalPrescription) TableName() string { return "prescriptions" }
 type ClinicalPrescription struct {
 	ID               uint `json:"id"                gorm:"primaryKey;autoIncrement"`
 	ClinicalRecordID uint `json:"clinical_record_id" gorm:"not null;uniqueIndex"`
-	ClinicID         uint `json:"clinic_id"          gorm:"not null;index"`
+	BranchID         uint `json:"branch_id"          gorm:"column:branch_id;not null;index"`
 
 	SphOd  *float64 `json:"sph_od"  gorm:"type:numeric(10,4)"`
 	CylOd  *float64 `json:"cyl_od"  gorm:"type:numeric(10,4)"`
@@ -259,9 +259,9 @@ type ClinicalPrescription struct {
 type ClinicalRecordRepository interface {
 	GetByAppointmentID(appointmentID uint) (*ClinicalRecord, error)
 	Create(r *ClinicalRecord) error
-	UpsertAnamnesis(clinicalRecordID uint, clinicID uint, a *Anamnesis) error
-	UpsertVisualExam(clinicalRecordID uint, clinicID uint, v *VisualExam) error
-	UpsertDiagnosis(clinicalRecordID uint, clinicID uint, d *Diagnosis) error
-	UpsertPrescription(clinicalRecordID uint, clinicID uint, p *ClinicalPrescription) error
+	UpsertAnamnesis(clinicalRecordID uint, branchID uint, a *Anamnesis) error
+	UpsertVisualExam(clinicalRecordID uint, branchID uint, v *VisualExam) error
+	UpsertDiagnosis(clinicalRecordID uint, branchID uint, d *Diagnosis) error
+	UpsertPrescription(clinicalRecordID uint, branchID uint, p *ClinicalPrescription) error
 	SignClinicalRecord(clinicalRecordID uint, professionalTp string) error
 }

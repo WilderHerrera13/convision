@@ -72,6 +72,9 @@ func Migrate(db *gorm.DB) error {
 		&domain.PaymentMethod{},
 		&domain.ProductCategory{},
 		&domain.Brand{},
+		// Branch / multi-clinic
+		&domain.Branch{},
+		&domain.UserBranch{},
 		// Core entities
 		&domain.User{},
 		&domain.Patient{},

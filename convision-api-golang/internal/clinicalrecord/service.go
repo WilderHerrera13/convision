@@ -49,7 +49,7 @@ type CreateRecordInput struct {
 	AppointmentID uint
 	PatientID     uint
 	SpecialistID  uint
-	ClinicID      uint
+	BranchID      uint
 	RecordType    string `json:"record_type"`
 }
 
@@ -75,7 +75,7 @@ func (s *Service) Create(in CreateRecordInput) (*domain.ClinicalRecord, error) {
 		in.RecordType = "new_consultation"
 	}
 	rec := &domain.ClinicalRecord{
-		ClinicID:      in.ClinicID,
+		BranchID:      in.BranchID,
 		AppointmentID: in.AppointmentID,
 		PatientID:     in.PatientID,
 		SpecialistID:  in.SpecialistID,
@@ -179,7 +179,7 @@ type DiagnosisInput struct {
 }
 
 // UpsertDiagnosis saves or updates the diagnosis section of a clinical record.
-func (s *Service) UpsertDiagnosis(clinicalRecordID uint, clinicID uint, in DiagnosisInput) error {
+func (s *Service) UpsertDiagnosis(clinicalRecordID uint, branchID uint, in DiagnosisInput) error {
 	diagType := in.DiagnosisType
 	if diagType < 1 || diagType > 3 {
 		diagType = 1
@@ -207,7 +207,7 @@ func (s *Service) UpsertDiagnosis(clinicalRecordID uint, clinicID uint, in Diagn
 			d.NextControlDate = &t
 		}
 	}
-	if err := s.repo.UpsertDiagnosis(clinicalRecordID, clinicID, d); err != nil {
+	if err := s.repo.UpsertDiagnosis(clinicalRecordID, branchID, d); err != nil {
 		s.logger.Error("clinical_record: upsert diagnosis failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -218,7 +218,7 @@ func (s *Service) UpsertDiagnosis(clinicalRecordID uint, clinicID uint, in Diagn
 }
 
 // UpsertVisualExam saves or updates the visual exam section of a clinical record.
-func (s *Service) UpsertVisualExam(clinicalRecordID uint, clinicID uint, in VisualExamInput) error {
+func (s *Service) UpsertVisualExam(clinicalRecordID uint, branchID uint, in VisualExamInput) error {
 	v := &domain.VisualExam{
 		AvScOd:             in.AvScOd,
 		AvScOi:             in.AvScOi,
@@ -274,7 +274,7 @@ func (s *Service) UpsertVisualExam(clinicalRecordID uint, clinicID uint, in Visu
 		MotilityHirschberg: in.MotilityHirschberg,
 		MotilityCoverTest:  in.MotilityCoverTest,
 	}
-	if err := s.repo.UpsertVisualExam(clinicalRecordID, clinicID, v); err != nil {
+	if err := s.repo.UpsertVisualExam(clinicalRecordID, branchID, v); err != nil {
 		s.logger.Error("clinical_record: upsert visual_exam failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -310,7 +310,7 @@ type PrescriptionInput struct {
 }
 
 // UpsertPrescription saves or updates the prescription section of a clinical record.
-func (s *Service) UpsertPrescription(clinicalRecordID uint, clinicID uint, in PrescriptionInput) error {
+func (s *Service) UpsertPrescription(clinicalRecordID uint, branchID uint, in PrescriptionInput) error {
 	validityMonths := in.ValidityMonths
 	if validityMonths <= 0 {
 		validityMonths = 12
@@ -336,7 +336,7 @@ func (s *Service) UpsertPrescription(clinicalRecordID uint, clinicID uint, in Pr
 		ValidityMonths: validityMonths,
 		ProfessionalTp: in.ProfessionalTp,
 	}
-	if err := s.repo.UpsertPrescription(clinicalRecordID, clinicID, p); err != nil {
+	if err := s.repo.UpsertPrescription(clinicalRecordID, branchID, p); err != nil {
 		s.logger.Error("clinical_record: upsert prescription failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -359,7 +359,7 @@ func (s *Service) SignRecord(clinicalRecordID uint, professionalTp string) error
 }
 
 // UpsertAnamnesis saves or updates the anamnesis section of a clinical record.
-func (s *Service) UpsertAnamnesis(clinicalRecordID uint, clinicID uint, in AnamnesisInput) error {
+func (s *Service) UpsertAnamnesis(clinicalRecordID uint, branchID uint, in AnamnesisInput) error {
 	a := &domain.Anamnesis{
 		ReasonForVisit:             in.ReasonForVisit,
 		Onset:                      in.Onset,
@@ -390,7 +390,7 @@ func (s *Service) UpsertAnamnesis(clinicalRecordID uint, clinicID uint, in Anamn
 		TakesAntihypertensives:     in.TakesAntihypertensives,
 		TakesAmiodarone:            in.TakesAmiodarone,
 	}
-	if err := s.repo.UpsertAnamnesis(clinicalRecordID, clinicID, a); err != nil {
+	if err := s.repo.UpsertAnamnesis(clinicalRecordID, branchID, a); err != nil {
 		s.logger.Error("clinical_record: upsert anamnesis failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),

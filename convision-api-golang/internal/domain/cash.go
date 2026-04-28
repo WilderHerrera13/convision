@@ -17,6 +17,7 @@ const (
 // CashRegisterClose represents a daily cash close performed by a receptionist/advisor.
 type CashRegisterClose struct {
 	ID                     uint                    `json:"id"                          gorm:"primaryKey;autoIncrement"`
+	BranchID               uint                    `json:"branch_id"                   gorm:"column:branch_id;not null;index"`
 	UserID                 uint                    `json:"user_id"                     gorm:"not null;index"`
 	CloseDate              *time.Time              `json:"close_date"`
 	Status                 CashRegisterCloseStatus `json:"status"                      gorm:"type:varchar(20);not null;default:'draft'"`
@@ -165,6 +166,7 @@ const (
 // DailyActivityReport represents a daily commercial activity report submitted by an advisor.
 type DailyActivityReport struct {
 	ID                         uint              `json:"id"                           gorm:"primaryKey;autoIncrement"`
+	BranchID                   uint              `json:"branch_id"                    gorm:"column:branch_id;not null;index"`
 	UserID                     uint              `json:"user_id"                      gorm:"not null;index"`
 	ReportDate                 *time.Time        `json:"report_date"`
 	Shift                      DailyShift        `json:"shift"                        gorm:"type:varchar(20)"`

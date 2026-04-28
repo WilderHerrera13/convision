@@ -40,9 +40,9 @@ func (r *ClinicalRecordRepository) Create(rec *domain.ClinicalRecord) error {
 	return r.db.Create(rec).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertVisualExam(clinicalRecordID uint, clinicID uint, v *domain.VisualExam) error {
+func (r *ClinicalRecordRepository) UpsertVisualExam(clinicalRecordID uint, branchID uint, v *domain.VisualExam) error {
 	v.ClinicalRecordID = clinicalRecordID
-	v.ClinicID = clinicID
+	v.BranchID = branchID
 
 	var existing domain.VisualExam
 	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
@@ -111,9 +111,9 @@ func (r *ClinicalRecordRepository) UpsertVisualExam(clinicalRecordID uint, clini
 	}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertDiagnosis(clinicalRecordID uint, clinicID uint, d *domain.Diagnosis) error {
+func (r *ClinicalRecordRepository) UpsertDiagnosis(clinicalRecordID uint, branchID uint, d *domain.Diagnosis) error {
 	d.ClinicalRecordID = clinicalRecordID
-	d.ClinicID = clinicID
+	d.BranchID = branchID
 
 	var existing domain.Diagnosis
 	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
@@ -145,9 +145,9 @@ func (r *ClinicalRecordRepository) UpsertDiagnosis(clinicalRecordID uint, clinic
 	}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertPrescription(clinicalRecordID uint, clinicID uint, p *domain.ClinicalPrescription) error {
+func (r *ClinicalRecordRepository) UpsertPrescription(clinicalRecordID uint, branchID uint, p *domain.ClinicalPrescription) error {
 	p.ClinicalRecordID = clinicalRecordID
-	p.ClinicID = clinicID
+	p.BranchID = branchID
 
 	var existing domain.ClinicalPrescription
 	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
@@ -197,9 +197,9 @@ func (r *ClinicalRecordRepository) SignClinicalRecord(clinicalRecordID uint, pro
 		}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertAnamnesis(clinicalRecordID uint, clinicID uint, a *domain.Anamnesis) error {
+func (r *ClinicalRecordRepository) UpsertAnamnesis(clinicalRecordID uint, branchID uint, a *domain.Anamnesis) error {
 	a.ClinicalRecordID = clinicalRecordID
-	a.ClinicID = clinicID
+	a.BranchID = branchID
 
 	var existing domain.Anamnesis
 	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
