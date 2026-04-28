@@ -399,12 +399,12 @@ type AdvisorsPendingOutput struct {
 
 // AdvisorsPending fetches all draft/submitted closes and groups them per advisor.
 // Only one DB round-trip is performed (+ one preload query for users).
-func (s *Service) AdvisorsPending() (*AdvisorsPendingOutput, error) {
+func (s *Service) AdvisorsPending(branchID uint) (*AdvisorsPendingOutput, error) {
 	statuses := []domain.CashRegisterCloseStatus{
 		domain.CashRegisterCloseStatusDraft,
 		domain.CashRegisterCloseStatusSubmitted,
 	}
-	closes, err := s.repo.ListByStatuses(statuses)
+	closes, err := s.repo.ListByStatuses(statuses, branchID)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +642,7 @@ func computeInitials(name string) string {
 }
 
 // Consolidated returns the admin aggregated view for cash register closes within a date range.
-func (s *Service) Consolidated(dateFrom, dateTo string) (*ConsolidatedOutput, error) {
+func (s *Service) Consolidated(branchID uint, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
 	now := time.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -675,6 +675,9 @@ func (s *Service) Consolidated(dateFrom, dateTo string) (*ConsolidatedOutput, er
 	filters := map[string]any{
 		"date_from": fromStr,
 		"date_to":   toStr,
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
 	}
 
 	closes, _, err := s.repo.List(filters, 1, 10000)

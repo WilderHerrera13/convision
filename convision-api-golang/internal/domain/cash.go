@@ -85,7 +85,7 @@ type CashRegisterCloseRepository interface {
 	List(filters map[string]any, page, perPage int) ([]*CashRegisterClose, int64, error)
 	// ListByStatuses returns all closes whose status is in the given list, ordered by close_date DESC.
 	// Intended for the advisors-pending aggregation (no pagination needed — result is grouped per user).
-	ListByStatuses(statuses []CashRegisterCloseStatus) ([]*CashRegisterClose, error)
+	ListByStatuses(statuses []CashRegisterCloseStatus, branchID uint) ([]*CashRegisterClose, error)
 	// ListByUserAndDateRange returns all closes for a user within a date range ordered by close_date ASC.
 	// Used by the calendar endpoint.
 	ListByUserAndDateRange(userID uint, from, to string) ([]*CashRegisterClose, error)

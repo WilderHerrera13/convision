@@ -45,6 +45,7 @@ const adminNav: NavSection[] = [
   {
     label: 'ADMINISTRACIÓN',
     items: [
+      { title: 'Sedes', path: '/admin/branches', icon: Building2 },
       { title: 'Compras', path: '/admin/purchases-dashboard', icon: ShoppingBag },
       { title: 'Inventario', path: '/admin/inventory', icon: Archive },
       { title: 'Nómina', path: '/admin/payrolls', icon: CreditCard },

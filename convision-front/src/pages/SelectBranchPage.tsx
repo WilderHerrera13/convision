@@ -1,112 +1,272 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Building2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
-import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
-import { BranchInfo } from '@/services/auth';
+import logoBrand from '@/assets/logo-brand.svg';
 
-const BRANCH_CARDS_THRESHOLD = 6;
+const ROLE_LABELS: Record<string, string> = {
+  specialist: 'Especialista',
+  receptionist: 'Recepcionista',
+};
+
+const ROLE_ACCENT: Record<string, { primary: string; light: string; borderLight: string }> = {
+  specialist: { primary: '#0f8f64', light: '#e5f6ef', borderLight: '#c4ecda' },
+  receptionist: { primary: '#8753ef', light: '#f1edff', borderLight: '#ddd5ff' },
+};
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getLastUsedBranchId(): number | null {
+  try {
+    const raw = localStorage.getItem('convision_branch_id');
+    if (raw) return parseInt(raw, 10);
+  } catch { /* ignore */ }
+  return null;
+}
 
 const SelectBranchPage: React.FC = () => {
-  const { branches, user } = useAuth();
+  const { branches, user, logout } = useAuth();
   const { setBranch } = useBranch();
   const navigate = useNavigate();
 
-  const getRoleDashboard = () => {
-    if (user?.role === 'admin') return '/admin/dashboard';
-    if (user?.role === 'specialist') return '/specialist/dashboard';
-    return '/receptionist/dashboard';
+  const roleAccent = ROLE_ACCENT[user?.role ?? ''] ?? ROLE_ACCENT.receptionist;
+  const lastUsedId = getLastUsedBranchId();
+
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    if (branches.length === 1) return branches[0].id;
+    const remembered = branches.find((b) => b.id === lastUsedId);
+    return remembered ? remembered.id : null;
+  });
+
+  const selectedBranch = useMemo(
+    () => branches.find((b) => b.id === selectedId) ?? null,
+    [branches, selectedId],
+  );
+
+  const sortedBranches = useMemo(() => {
+    const other = branches.filter((b) => b.id !== lastUsedId);
+    const remembered = branches.find((b) => b.id === lastUsedId);
+    return remembered ? [remembered, ...other] : branches;
+  }, [branches, lastUsedId]);
+
+  const handleSelect = (id: number) => {
+    setSelectedId(id);
   };
 
-  const handleSelect = (branch: BranchInfo) => {
-    setBranch(branch.id, branch.name);
-    navigate(getRoleDashboard());
+  const handleContinue = () => {
+    if (!selectedBranch) return;
+    setBranch(selectedBranch.id, selectedBranch.name);
+    if (user?.role === 'specialist') {
+      navigate('/specialist/dashboard');
+    } else if (user?.role === 'receptionist') {
+      navigate('/receptionist/dashboard');
+    } else {
+      navigate('/profile');
+    }
   };
 
-  const handleComboboxSelect = (value: string) => {
-    const selected = branches.find((b) => String(b.id) === value);
-    if (selected) handleSelect(selected);
+  const handleLogout = () => {
+    logout();
   };
-
-  const branchOptions: ComboboxOption[] = branches.map((b) => ({
-    value: String(b.id),
-    label: b.city ? `${b.name} — ${b.city}` : b.name,
-  }));
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-center mb-3">
-            <Building2 className="h-8 w-8 text-[#8753ef]" />
+    <div className="min-h-screen w-full bg-[#F5F5F6]">
+      <div className="flex min-h-screen w-full">
+        {/* Left brand panel — matches Login.tsx */}
+        <div className="relative hidden h-screen w-[680px] flex-shrink-0 overflow-hidden bg-gradient-to-b from-[#363F80] to-[#566EDD] md:block">
+          <div className="absolute -left-20 -top-20 h-[300px] w-[300px] rounded-full bg-white/5" />
+          <div className="absolute bottom-5 right-[-20px] h-[200px] w-[200px] rounded-full bg-white/5" />
+          <div className="flex h-full w-full flex-col items-center pt-[200px] text-center text-white">
+            <img src={logoBrand} alt="Logo Óptica Convisión" className="h-[220px] w-[220px]" />
+            <p className="mt-[14px] text-[38px] font-bold leading-[1.21]">ÓPTICA</p>
+            <p className="text-[38px] font-bold leading-[1.21]">CONVISIÓN</p>
+            <p className="mt-1 text-[18px] leading-[1.21] text-white/70">Villavicencio</p>
+            <p className="mt-[50px] text-[15px] leading-[1.21] text-white/55">El sistema de gestión para tu óptica</p>
           </div>
-          <h1 className="text-2xl font-semibold text-[#121215]">Selecciona tu sede</h1>
-          <p className="text-sm text-[#b4b5bc] mt-1">
-            Elige la sede en la que trabajarás durante esta sesión.
-          </p>
         </div>
 
-        {branches.length === 0 && (
-          <EmptyState
-            leadingIcon={Building2}
-            accentColor="#8753ef"
-            title="Sin sedes asignadas"
-            description="No tienes sedes asignadas. Contacta al administrador."
-          />
-        )}
-
-        {branches.length > BRANCH_CARDS_THRESHOLD && (
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <p className="text-sm text-[#b4b5bc] mb-3">Busca y selecciona una sede</p>
-            <SearchableCombobox
-              options={branchOptions}
-              value=""
-              onChange={handleComboboxSelect}
-              placeholder="Seleccione una sede..."
-              searchPlaceholder="Buscar sede..."
-            />
-          </div>
-        )}
-
-        {branches.length > 0 && branches.length <= BRANCH_CARDS_THRESHOLD && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {branches.map((branch) => (
-              <Card
-                key={branch.id}
-                className="cursor-pointer hover:shadow-md transition-shadow border border-[#e0e0e5]"
-                onClick={() => handleSelect(branch)}
+        {/* Right panel */}
+        <div className="flex flex-1 flex-col items-center overflow-y-auto bg-white px-4 pt-6 md:pt-0 md:justify-center">
+          <div className="w-full max-w-[440px] py-8 md:py-0">
+            {/* User greeting */}
+            <div className="flex items-center gap-3 mb-6">
+              <div
+                className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold text-white flex-shrink-0"
+                style={{ backgroundColor: roleAccent.primary }}
               >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base font-semibold text-[#121215]">
-                      {branch.name}
-                    </CardTitle>
-                    {branch.is_primary && (
-                      <Badge className="bg-[#8753ef] text-white text-xs">Principal</Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {branch.city && (
-                    <p className="text-sm text-[#b4b5bc] mb-3">{branch.city}</p>
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full bg-[#8753ef] hover:bg-[#6a3cc4] text-white"
-                    onClick={(e) => { e.stopPropagation(); handleSelect(branch); }}
+                {user?.name ? getInitials(user.name) : '??'}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <p className="text-[14px] font-semibold text-[#121215] truncate">
+                  {user?.name ?? 'Usuario'}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className="inline-flex h-5 items-center rounded-full px-2 text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: roleAccent.light,
+                      color: roleAccent.primary,
+                    }}
                   >
-                    Seleccionar
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Title + description */}
+            <h1 className="text-[18px] font-bold text-[#121215] mb-2">
+              Selecciona tu sede de trabajo
+            </h1>
+            <p className="text-[12px] text-[#7d7d87] leading-[18px] mb-6">
+              Elige la sede desde donde atenderás hoy. Puedes cambiarla
+              <br />
+              en cualquier momento desde el menú lateral.
+            </p>
+
+            {sortedBranches.length === 0 && (
+              <div className="rounded-lg border border-[#e5e5e9] bg-[#f9f9fa] px-4 py-8 text-center mb-6">
+                <Building2 className="mx-auto h-8 w-8 text-[#b4b5bc] mb-3" />
+                <p className="text-[13px] font-semibold text-[#121215] mb-1">Sin sedes asignadas</p>
+                <p className="text-[12px] text-[#7d7d87]">No tienes sedes asignadas. Contacta al administrador.</p>
+              </div>
+            )}
+
+            {sortedBranches.length > 0 && (
+              <>
+                {/* Última sede usada label */}
+                <p className="text-[10px] font-semibold text-[#7d7d87] tracking-[0.8px] mb-2">
+                  ÚLTIMA SEDE USADA
+                </p>
+
+                {/* Branch cards */}
+                <div className="flex flex-col gap-3 mb-6">
+                  {sortedBranches.map((branch) => {
+                const isSelected = selectedId === branch.id;
+                const isLastUsed = branch.id === lastUsedId;
+                const isActiveCard = isSelected || (isLastUsed && selectedId === null);
+
+                return (
+                  <button
+                    key={branch.id}
+                    type="button"
+                    onClick={() => handleSelect(branch.id)}
+                    className={`relative flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                      isActiveCard
+                        ? 'border-2'
+                        : 'border hover:border-[#c8c8d0]'
+                    }`}
+                    style={
+                      isActiveCard
+                        ? {
+                            borderColor: roleAccent.primary,
+                            backgroundColor: roleAccent.light,
+                          }
+                        : {
+                            borderColor: '#e5e5e9',
+                            backgroundColor: '#ffffff',
+                          }
+                    }
+                  >
+                    <div
+                      className="flex h-[18px] w-[18px] items-center justify-center rounded-full flex-shrink-0"
+                      style={{ backgroundColor: isActiveCard ? roleAccent.primary : '#e5e5e9' }}
+                    >
+                      {isActiveCard && (
+                        <div className="h-[7px] w-[7px] rounded-full bg-white" />
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span
+                        className="text-[13px] font-semibold truncate"
+                        style={{ color: isActiveCard ? '#121215' : '#121215' }}
+                      >
+                        {branch.name}
+                      </span>
+                      {branch.city && (
+                        <span className="text-[11px] text-[#7d7d87] truncate mt-0.5 flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {branch.city}
+                        </span>
+                      )}
+                    </div>
+                    {isSelected && isLastUsed && (
+                      <span
+                        className="inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold flex-shrink-0"
+                        style={{
+                          backgroundColor: roleAccent.light,
+                          color: roleAccent.primary,
+                          border: `1px solid ${roleAccent.primary}`,
+                        }}
+                      >
+                        Recordada
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+              </>
+            )}
+
+            {/* Continue button */}
+            <Button
+              onClick={handleContinue}
+              disabled={!selectedBranch}
+              className="h-10 w-full rounded-[6px] text-[13px] font-semibold text-white"
+              style={{
+                backgroundColor: roleAccent.primary,
+              }}
+              onMouseEnter={(e) => {
+                const dark = roleAccent.primary === '#0f8f64' ? '#0a6e4d' : '#6a3cc4';
+                (e.currentTarget as HTMLElement).style.backgroundColor = dark;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = roleAccent.primary;
+              }}
+            >
+              {selectedBranch
+                ? `Continuar a ${selectedBranch.name}`
+                : 'Selecciona una sede'}
+            </Button>
+
+            {/* Logout link */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mt-4 w-full text-center text-[12px] font-medium text-[#7d7d87] hover:text-[#121215] transition-colors"
+            >
+              No soy {user?.name?.split(' ')[0] ?? 'usuario'} · Cerrar sesión
+            </button>
+
+            {/* Mobile brand footnote */}
+            <div className="mt-8 text-center md:hidden">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Building2 className="h-4 w-4 text-[#566EDD]" />
+                <span className="text-[13px] font-bold text-[#363F80]">ÓPTICA CONVISIÓN</span>
+              </div>
+              <p className="text-[12px] text-[#b4b5bc]">El sistema de gestión para tu óptica</p>
+            </div>
+
+            {/* Footer */}
+            <p className="mt-6 text-center text-[11px] text-[#b4b5bc] hidden md:block">
+              © 2026 Óptica Convisión — Villavicencio
+            </p>
           </div>
-        )}
+
+          {/* Footer for mobile */}
+          <div className="mt-auto pb-7 text-center text-[11px] text-[#b4b5bc] md:hidden">
+            © 2026 Óptica Convisión — Villavicencio
+          </div>
+        </div>
       </div>
     </div>
   );

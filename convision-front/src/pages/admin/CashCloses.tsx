@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, Download } from 'lucide-react';
+import { Eye, Download, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import EntityTable from '@/components/ui/data-table/EntityTable';
@@ -17,6 +17,8 @@ import CashClosesConsolidated from '@/components/admin/CashClosesConsolidated';
 import { formatCurrency } from '@/lib/utils';
 import cashRegisterCloseService, { type AdvisorPendingGroup } from '@/services/cashRegisterCloseService';
 import { userService, User } from '@/services/userService';
+import { branchService, type Branch } from '@/services/branchService';
+import { useBranch } from '@/contexts/BranchContext';
 import { type CashCloseRow, STATUS_CONFIG, formatCOP } from './cashClosesConfig';
 
 const copMoneyCol = {
@@ -117,12 +119,18 @@ const VarianceBadge: React.FC<{ value: number | null | undefined; recorded: bool
 
 const AdminCashCloses: React.FC = () => {
   const navigate = useNavigate();
+  const { branchId, setBranch } = useBranch();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('consolidated');
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
+
+  const { data: branches = [], isPending: isLoadingBranches } = useQuery<Branch[]>({
+    queryKey: ['branches-list'],
+    queryFn: () => branchService.listAll(),
+  });
 
   const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['users-list'],
@@ -387,7 +395,7 @@ const AdminCashCloses: React.FC = () => {
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 overflow-hidden rounded-[8px] border border-[#dcdce0] bg-[#f7f7f8]">
             <button
               type="button"
@@ -423,6 +431,26 @@ const AdminCashCloses: React.FC = () => {
               Por asesor
             </button>
           </div>
+
+          {!isLoadingBranches && branches.length > 1 && (
+            <select
+              value={branchId ?? ''}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                const branch = branches.find((b) => b.id === id);
+                if (branch) {
+                  setBranch(branch.id, branch.name);
+                }
+              }}
+              className="h-9 rounded-[8px] border border-[#dcdce0] bg-[#f7f7f8] px-3 text-[12px] text-[#7d7d87] focus:border-[#3a71f7] focus:outline-none focus:ring-0"
+            >
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} {branch.city ? `· ${branch.city}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {viewMode === 'consolidated' && <CashClosesConsolidated />}

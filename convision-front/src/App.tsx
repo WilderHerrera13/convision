@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { BranchProvider, useBranch } from '@/contexts/BranchContext';
@@ -131,6 +131,7 @@ import SupplierPayments from '@/pages/admin/SupplierPayments';
 import SupplierPaymentDetail from '@/pages/admin/SupplierPaymentDetail';
 import NewCashTransfer from '@/pages/admin/NewCashTransfer';
 import LaboratoryStatus from '@/pages/admin/LaboratoryStatus';
+import BranchesPage from '@/pages/admin/BranchesPage';
 import SpecialistManagementReport from '@/pages/admin/SpecialistManagementReport';
 import SpecialistManagementReportDetalle from '@/pages/admin/SpecialistManagementReportDetail';
 import ManagementReportBulkUpload from '@/pages/admin/ManagementReportBulkUpload';
@@ -166,6 +167,13 @@ const BranchProtectedRoute: React.FC<{
   const { user, isAuthenticated, isLoading, branches } = useAuth();
   const { branchId, setBranch } = useBranch();
 
+  useEffect(() => {
+    if (!branchId && user?.role === 'admin' && branches.length > 0) {
+      const primary = branches.find((b) => b.is_primary) ?? branches[0];
+      setBranch(primary.id, primary.name);
+    }
+  }, [branchId, user?.role, branches, setBranch]);
+
   if (isLoading) {
     return <LoadingScreen variant="auth" />;
   }
@@ -180,8 +188,6 @@ const BranchProtectedRoute: React.FC<{
 
   if (!branchId) {
     if (user?.role === 'admin' && branches.length > 0) {
-      const primary = branches.find((b) => b.is_primary) ?? branches[0];
-      setBranch(primary.id, primary.name);
       return <>{children}</>;
     }
     if (user?.role !== 'admin') {
@@ -547,6 +553,10 @@ const router = createBrowserRouter([
           {
             path: "laboratory-status",
             element: <LaboratoryStatus />,
+          },
+          {
+            path: "branches",
+            element: <BranchesPage />,
           },
           {
             path: "cash-closes",

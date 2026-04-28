@@ -120,11 +120,15 @@ func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage
 
 // ListByStatuses returns all closes whose status is in the provided list,
 // with the User association preloaded, ordered by close_date DESC.
-func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus) ([]*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus, branchID uint) ([]*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
-	err := r.db.
+	q := r.db.
 		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
-		Where("status IN ?", statuses).
+		Where("status IN ?", statuses)
+	if branchID > 0 {
+		q = q.Where("branch_id = ?", branchID)
+	}
+	err := q.
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role")
 		}).

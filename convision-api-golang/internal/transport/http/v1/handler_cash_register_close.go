@@ -341,7 +341,8 @@ func (h *Handler) PutCashRegisterCloseAdminActuals(c *gin.Context) {
 // ListCashRegisterClosesAdvisorsPending godoc
 // GET /api/v1/cash-register-closes-advisors-pending
 func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
-	out, err := h.cashClose.AdvisorsPending()
+	branchID := branchmw.BranchIDFromCtx(c)
+	out, err := h.cashClose.AdvisorsPending(branchID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -353,7 +354,8 @@ func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
 // GetCashRegisterClosesConsolidated godoc
 // GET /api/v1/cash-register-closes-consolidated?date_from=&date_to=
 func (h *Handler) GetCashRegisterClosesConsolidated(c *gin.Context) {
-	out, err := h.cashClose.Consolidated(c.Query("date_from"), c.Query("date_to"))
+	branchID := branchmw.BranchIDFromCtx(c)
+	out, err := h.cashClose.Consolidated(branchID, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return

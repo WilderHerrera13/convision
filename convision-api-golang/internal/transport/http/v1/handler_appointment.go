@@ -17,6 +17,7 @@ import (
 // AppointmentResource is the JSON shape returned for every appointment response.
 type AppointmentResource struct {
 	ID                       uint            `json:"id"`
+	BranchID                 uint            `json:"branch_id"`
 	PatientID                uint            `json:"patient_id"`
 	SpecialistID             *uint           `json:"specialist_id"`
 	ReceptionistID           *uint           `json:"receptionist_id"`
@@ -65,6 +66,7 @@ func nullableString(s string) *string {
 func toAppointmentResource(a *domain.Appointment) AppointmentResource {
 	r := AppointmentResource{
 		ID:                      a.ID,
+		BranchID:                a.BranchID,
 		PatientID:               a.PatientID,
 		SpecialistID:            a.SpecialistID,
 		ReceptionistID:          a.ReceptionistID,

@@ -36,8 +36,8 @@ func (m *MockCashRegisterCloseRepository) List(filters map[string]any, page, per
 	return args.Get(0).([]*domain.CashRegisterClose), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockCashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus) ([]*domain.CashRegisterClose, error) {
-	args := m.Called(statuses)
+func (m *MockCashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus, branchID uint) ([]*domain.CashRegisterClose, error) {
+	args := m.Called(statuses, branchID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
