@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { format, subDays, startOfMonth } from 'date-fns';
 import { Eye } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import cashRegisterCloseService, {
@@ -9,37 +8,13 @@ import cashRegisterCloseService, {
   type ConsolidatedAdvisorRow,
 } from '@/services/cashRegisterCloseService';
 import { formatCOP } from '@/pages/admin/cashClosesConfig';
-import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
+import {
+  AdminDateRangeBranchBar,
+  computeRange,
+  formatRangeYMD,
+} from '@/components/admin/AdminDateRangeBranchBar';
 
-type RangePreset = 'today' | '7d' | '14d' | 'month' | 'custom';
-
-const PRESETS: { id: RangePreset; label: string; width: string }[] = [
-  { id: 'today', label: 'Hoy', width: 'w-[45px]' },
-  { id: '7d', label: '7d', width: 'w-[38px]' },
-  { id: '14d', label: '14d', width: 'w-[45px]' },
-  { id: 'month', label: 'Mes', width: 'w-[45px]' },
-  { id: 'custom', label: 'Personalizado', width: 'w-[115px]' },
-];
-
-const formatYMD = (d: Date) => format(d, 'yyyy-MM-dd');
-const formatDisplay = (d: Date) => format(d, 'dd/MMM/yyyy').toLowerCase();
 const pl = (n: number, singular: string, plural: string) => `${n} ${n === 1 ? singular : plural}`;
-
-const computeRange = (preset: RangePreset): { from: Date; to: Date } => {
-  const today = new Date();
-  switch (preset) {
-    case 'today':
-      return { from: today, to: today };
-    case '7d':
-      return { from: subDays(today, 6), to: today };
-    case 'month':
-      return { from: startOfMonth(today), to: today };
-    case '14d':
-    case 'custom':
-    default:
-      return { from: subDays(today, 13), to: today };
-  }
-};
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   approved: { label: 'Aprobado', cls: 'bg-[#ebf5ef] text-[#228b52]' },
@@ -143,32 +118,12 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
   onBranchChange,
 }) => {
   const navigate = useNavigate();
-  const [preset, setPreset] = useState<RangePreset>('14d');
-  const [range, setRange] = useState<{ from: Date; to: Date }>(computeRange('14d'));
-
-  const handlePreset = (id: RangePreset) => {
-    setPreset(id);
-    if (id !== 'custom') {
-      setRange(computeRange(id));
-    }
-  };
-
-  const handleCustomDate = (field: 'from' | 'to', value: string) => {
-    if (!value) return;
-    const newDate = new Date(value + 'T00:00:00');
-    setRange((prev) => {
-      const next = { ...prev, [field]: newDate };
-      // ensure from <= to
-      if (field === 'from' && newDate > prev.to) return { from: newDate, to: newDate };
-      if (field === 'to' && newDate < prev.from) return { from: newDate, to: newDate };
-      return next;
-    });
-  };
+  const [range, setRange] = useState<{ from: Date; to: Date }>(() => computeRange('14d'));
 
   const params = useMemo(
     () => ({
-      date_from: formatYMD(range.from),
-      date_to: formatYMD(range.to),
+      date_from: formatRangeYMD(range.from),
+      date_to: formatRangeYMD(range.to),
       branch_id: branchFilter !== 'all' ? branchFilter : '0',
     }),
     [range, branchFilter],
@@ -185,68 +140,18 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
 
   return (
     <div className="flex flex-col gap-[16px]">
-      <div className="flex h-[44px] items-center gap-[10px] rounded-[8px] border border-[#e0e0e4] bg-white px-[15px]">
-        <span className="text-[11px] font-semibold text-[#7d7d87]">Rango</span>
-        {preset === 'custom' ? (
-          <>
-            <input
-              type="date"
-              value={formatYMD(range.from)}
-              onChange={(e) => handleCustomDate('from', e.target.value)}
-              className="flex h-[32px] w-[145px] items-center rounded-[6px] border border-[#3a71f7] bg-white px-[9px] text-[12px] text-[#0f0f12] focus:outline-none focus:ring-1 focus:ring-[#3a71f7]"
-            />
-            <span className="text-[12px] text-[#7d7d87]">—</span>
-            <input
-              type="date"
-              value={formatYMD(range.to)}
-              onChange={(e) => handleCustomDate('to', e.target.value)}
-              className="flex h-[32px] w-[145px] items-center rounded-[6px] border border-[#3a71f7] bg-white px-[9px] text-[12px] text-[#0f0f12] focus:outline-none focus:ring-1 focus:ring-[#3a71f7]"
-            />
-          </>
-        ) : (
-          <>
-            <div className="flex h-[32px] w-[140px] items-center rounded-[6px] border border-[#e0e0e4] bg-white px-[9px] text-[12px] text-[#0f0f12]">
-              {formatDisplay(range.from)}
-            </div>
-            <span className="text-[12px] text-[#7d7d87]">—</span>
-            <div className="flex h-[32px] w-[140px] items-center rounded-[6px] border border-[#e0e0e4] bg-white px-[9px] text-[12px] text-[#0f0f12]">
-              {formatDisplay(range.to)}
-            </div>
-          </>
-        )}
-        <div className="flex items-center gap-[6px]">
-          {PRESETS.map((p) => {
-            const active = preset === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handlePreset(p.id)}
-                className={`h-[28px] ${p.width} rounded-full border text-[11px] transition-colors ${
-                  active
-                    ? 'border-[#3a71f7] bg-[#eff1ff] font-semibold text-[#3a71f7]'
-                    : 'border-[#e0e0e4] bg-[#f5f5f6] font-normal text-[#7d7d87] hover:bg-[#ececef]'
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-        {onBranchChange && (
-          <div className="mx-2 h-[20px] w-px bg-[#e0e0e4]" />
-        )}
-        {onBranchChange && (
-          <AdminBranchFilter value={branchFilter} onChange={onBranchChange} />
-        )}
-        <div className="ml-auto text-[11px] text-[#7d7d87]">
-          {isLoading
+      <AdminDateRangeBranchBar
+        branchFilter={branchFilter}
+        onBranchChange={onBranchChange}
+        onRangeChange={(from, to) => setRange({ from, to })}
+        statusRight={
+          isLoading
             ? 'Calculando…'
             : data
               ? `${pl(data.kpis.days_in_period, 'día', 'días')} · ${pl(data.kpis.advisors_count, 'asesor', 'asesores')} · ${data.kpis.total_closes} cierres en el período`
-              : '—'}
-        </div>
-      </div>
+              : '—'
+        }
+      />
 
       {!isLoading && data && data.kpis.total_closes === 0 && (
         <div className="flex items-center gap-[10px] rounded-[8px] border border-[#b8d4f8] bg-[#eff6ff] px-[16px] py-[12px] text-[13px] text-[#1d4ed8]">
