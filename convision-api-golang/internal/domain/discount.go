@@ -43,6 +43,7 @@ type DiscountRequest struct {
 type DiscountRepository interface {
 	GetByID(id uint) (*DiscountRequest, error)
 	GetActiveForProduct(productID uint) ([]*DiscountRequest, error)
+	GetActiveForProductWithPatient(productID uint, patientID *uint) ([]*DiscountRequest, error)
 	GetBestForProduct(productID uint, patientID *uint) (*DiscountRequest, error)
 	Create(d *DiscountRequest) error
 	Update(d *DiscountRequest) error

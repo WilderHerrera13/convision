@@ -32,6 +32,7 @@ type cashCloseUserResource struct {
 
 type cashCloseResource struct {
 	ID                     uint                            `json:"id"`
+	BranchID               uint                            `json:"branch_id"`
 	CloseDate              string                          `json:"close_date"`
 	Status                 domain.CashRegisterCloseStatus  `json:"status"`
 	User                   *cashCloseUserResource          `json:"user,omitempty"`
@@ -85,6 +86,7 @@ func toCashCloseResource(item *domain.CashRegisterClose) cashCloseResource {
 
 	return cashCloseResource{
 		ID:                     item.ID,
+		BranchID:               item.BranchID,
 		CloseDate:              closeDate,
 		Status:                 item.Status,
 		User:                   user,
@@ -116,7 +118,16 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 	filters := map[string]any{}
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if v := c.Query("status"); v != "" {
 		filters["status"] = v
@@ -352,10 +363,23 @@ func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
 }
 
 // GetCashRegisterClosesConsolidated godoc
-// GET /api/v1/cash-register-closes-consolidated?date_from=&date_to=
+// GET /api/v1/cash-register-closes-consolidated?date_from=&date_to=&branch_id=
 func (h *Handler) GetCashRegisterClosesConsolidated(c *gin.Context) {
 	branchID := branchmw.BranchIDFromCtx(c)
-	out, err := h.cashClose.Consolidated(branchID, c.Query("date_from"), c.Query("date_to"))
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	branchName := ""
+	if branchID > 0 {
+		if b, err := h.branchRepo.GetByID(branchID); err == nil {
+			branchName = b.Name
+		}
+	}
+	out, err := h.cashClose.Consolidated(branchID, branchName, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -386,7 +410,9 @@ func (h *Handler) GetCashRegisterClosesCalendar(c *gin.Context) {
 		return
 	}
 
-	out, err := h.cashClose.CalendarForAdvisor(userID, c.Query("date_from"), c.Query("date_to"))
+	branchID := branchmw.BranchIDFromCtx(c)
+
+	out, err := h.cashClose.CalendarForAdvisor(userID, branchID, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return

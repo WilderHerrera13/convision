@@ -18,7 +18,16 @@ func (h *Handler) ListWarehouses(c *gin.Context) {
 	filters := map[string]any{}
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
@@ -187,7 +196,16 @@ func (h *Handler) ListInventoryItems(c *gin.Context) {
 	filters := map[string]any{}
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if v := c.Query("product_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
@@ -277,7 +295,16 @@ func (h *Handler) GetTotalStock(c *gin.Context) {
 	filters := map[string]any{}
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	for _, key := range []string{"warehouse_id", "warehouse_location_id", "brand_id", "supplier_id", "category_id"} {
 		if v := c.Query(key); v != "" {

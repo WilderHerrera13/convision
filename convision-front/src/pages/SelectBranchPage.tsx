@@ -7,11 +7,13 @@ import { useBranch } from '@/contexts/BranchContext';
 import logoBrand from '@/assets/logo-brand.svg';
 
 const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
   specialist: 'Especialista',
   receptionist: 'Recepcionista',
 };
 
 const ROLE_ACCENT: Record<string, { primary: string; light: string; borderLight: string }> = {
+  admin: { primary: '#195fa5', light: '#e6effa', borderLight: '#c5d8f0' },
   specialist: { primary: '#0f8f64', light: '#e5f6ef', borderLight: '#c4ecda' },
   receptionist: { primary: '#8753ef', light: '#f1edff', borderLight: '#ddd5ff' },
 };
@@ -47,7 +49,10 @@ const SelectBranchPage: React.FC = () => {
   });
 
   const selectedBranch = useMemo(
-    () => branches.find((b) => b.id === selectedId) ?? null,
+    () => {
+      if (selectedId === 0) return { id: 0, name: 'Todas las sedes', city: '' };
+      return branches.find((b) => b.id === selectedId) ?? null;
+    },
     [branches, selectedId],
   );
 
@@ -64,7 +69,9 @@ const SelectBranchPage: React.FC = () => {
   const handleContinue = () => {
     if (!selectedBranch) return;
     setBranch(selectedBranch.id, selectedBranch.name);
-    if (user?.role === 'specialist') {
+    if (user?.role === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (user?.role === 'specialist') {
       navigate('/specialist/dashboard');
     } else if (user?.role === 'receptionist') {
       navigate('/receptionist/dashboard');
@@ -144,11 +151,54 @@ const SelectBranchPage: React.FC = () => {
               <>
                 {/* Última sede usada label */}
                 <p className="text-[10px] font-semibold text-[#7d7d87] tracking-[0.8px] mb-2">
-                  ÚLTIMA SEDE USADA
+                  {user?.role === 'admin' ? 'SELECCIONA UNA SEDE' : 'ÚLTIMA SEDE USADA'}
                 </p>
 
                 {/* Branch cards */}
                 <div className="flex flex-col gap-3 mb-6">
+                  {user?.role === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(0)}
+                      className={`relative flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                        selectedId === 0
+                          ? 'border-2'
+                          : 'border hover:border-[#c8c8d0]'
+                      }`}
+                      style={
+                        selectedId === 0
+                          ? {
+                              borderColor: roleAccent.primary,
+                              backgroundColor: roleAccent.light,
+                            }
+                          : {
+                              borderColor: '#e5e5e9',
+                              backgroundColor: '#ffffff',
+                            }
+                      }
+                    >
+                      <div
+                        className="flex h-[18px] w-[18px] items-center justify-center rounded-full flex-shrink-0"
+                        style={{ backgroundColor: selectedId === 0 ? roleAccent.primary : '#e5e5e9' }}
+                      >
+                        {selectedId === 0 && (
+                          <div className="h-[7px] w-[7px] rounded-full bg-white" />
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span
+                          className="text-[13px] font-semibold truncate"
+                          style={{ color: '#121215' }}
+                        >
+                          Todas las sedes
+                        </span>
+                        <span className="text-[11px] text-[#7d7d87] truncate mt-0.5 flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          Tienes control sobre todas las sedes
+                        </span>
+                      </div>
+                    </button>
+                  )}
                   {sortedBranches.map((branch) => {
                 const isSelected = selectedId === branch.id;
                 const isLastUsed = branch.id === lastUsedId;

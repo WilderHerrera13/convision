@@ -266,6 +266,7 @@ const cashRegisterCloseService = {
   getConsolidated: async (params?: {
     date_from?: string;
     date_to?: string;
+    branch_id?: string;
   }): Promise<ConsolidatedPayload> => {
     const response = await api.get('/api/v1/cash-register-closes-consolidated', { params });
     return response.data?.data;

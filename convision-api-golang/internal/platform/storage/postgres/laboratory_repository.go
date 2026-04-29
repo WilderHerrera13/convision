@@ -22,6 +22,7 @@ var laboratoryOrderFilterAllowlist = map[string]bool{
 	"created_by":    true,
 	"order_id":      true,
 	"sale_id":       true,
+	"branch":        true,
 }
 
 // LaboratoryRepository is the PostgreSQL-backed implementation of domain.LaboratoryRepository.

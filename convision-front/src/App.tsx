@@ -199,6 +199,14 @@ const BranchProtectedRoute: React.FC<{
   return <>{children}</>;
 };
 
+const SelectBranchGuard: React.FC = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return <SelectBranchPage />;
+};
+
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
@@ -275,7 +283,7 @@ const router = createBrowserRouter([
         path: "/select-branch",
         element: (
           <ProtectedRoute>
-            <SelectBranchPage />
+            <SelectBranchGuard />
           </ProtectedRoute>
         ),
       },

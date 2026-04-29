@@ -106,13 +106,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userBranches = response.branches ?? [];
       setBranches(userBranches);
 
-      if (userBranches.length === 1) {
+      if (response.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (userBranches.length === 1) {
         localStorage.setItem('convision_branch_id', String(userBranches[0].id));
         localStorage.setItem('convision_branch_name', userBranches[0].name);
 
-        if (response.user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (response.user.role === 'specialist') {
+        if (response.user.role === 'specialist') {
           navigate('/specialist/dashboard');
         } else {
           navigate('/receptionist/dashboard');

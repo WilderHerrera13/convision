@@ -163,11 +163,16 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 	filters := parseAppointmentApiFilters(c)
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	if branchID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Sede requerida"})
-		return
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
 	}
-	filters["branch_id"] = branchID
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if v := c.Query("start_date"); v != "" {
 		filters["_start_date"] = v

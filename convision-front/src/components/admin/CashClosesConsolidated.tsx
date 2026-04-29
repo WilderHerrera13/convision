@@ -9,6 +9,7 @@ import cashRegisterCloseService, {
   type ConsolidatedAdvisorRow,
 } from '@/services/cashRegisterCloseService';
 import { formatCOP } from '@/pages/admin/cashClosesConfig';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 type RangePreset = 'today' | '7d' | '14d' | 'month' | 'custom';
 
@@ -132,7 +133,15 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-const CashClosesConsolidated: React.FC = () => {
+interface CashClosesConsolidatedProps {
+  branchFilter?: string;
+  onBranchChange?: (v: string) => void;
+}
+
+const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
+  branchFilter = 'all',
+  onBranchChange,
+}) => {
   const navigate = useNavigate();
   const [preset, setPreset] = useState<RangePreset>('14d');
   const [range, setRange] = useState<{ from: Date; to: Date }>(computeRange('14d'));
@@ -160,12 +169,13 @@ const CashClosesConsolidated: React.FC = () => {
     () => ({
       date_from: formatYMD(range.from),
       date_to: formatYMD(range.to),
+      branch_id: branchFilter !== 'all' ? branchFilter : '0',
     }),
-    [range],
+    [range, branchFilter],
   );
 
   const { data, isLoading } = useQuery<ConsolidatedPayload>({
-    queryKey: ['cash-closes-consolidated', params.date_from, params.date_to],
+    queryKey: ['cash-closes-consolidated', params.date_from, params.date_to, branchFilter],
     queryFn: () => cashRegisterCloseService.getConsolidated(params),
   });
 
@@ -223,6 +233,12 @@ const CashClosesConsolidated: React.FC = () => {
             );
           })}
         </div>
+        {onBranchChange && (
+          <div className="mx-2 h-[20px] w-px bg-[#e0e0e4]" />
+        )}
+        {onBranchChange && (
+          <AdminBranchFilter value={branchFilter} onChange={onBranchChange} />
+        )}
         <div className="ml-auto text-[11px] text-[#7d7d87]">
           {isLoading
             ? 'Calculando…'

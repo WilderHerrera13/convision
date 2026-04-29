@@ -28,6 +28,14 @@ func (m *MockDiscountRepository) GetActiveForProduct(productID uint) ([]*domain.
 	return args.Get(0).([]*domain.DiscountRequest), args.Error(1)
 }
 
+func (m *MockDiscountRepository) GetActiveForProductWithPatient(productID uint, patientID *uint) ([]*domain.DiscountRequest, error) {
+	args := m.Called(productID, patientID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DiscountRequest), args.Error(1)
+}
+
 func (m *MockDiscountRepository) GetBestForProduct(productID uint, patientID *uint) (*domain.DiscountRequest, error) {
 	args := m.Called(productID, patientID)
 	if args.Get(0) == nil {

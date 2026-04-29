@@ -88,7 +88,7 @@ type CashRegisterCloseRepository interface {
 	ListByStatuses(statuses []CashRegisterCloseStatus, branchID uint) ([]*CashRegisterClose, error)
 	// ListByUserAndDateRange returns all closes for a user within a date range ordered by close_date ASC.
 	// Used by the calendar endpoint.
-	ListByUserAndDateRange(userID uint, from, to string) ([]*CashRegisterClose, error)
+	ListByUserAndDateRange(userID uint, branchID uint, from, to string) ([]*CashRegisterClose, error)
 	Create(c *CashRegisterClose, payments []CashRegisterClosePayment, denoms []CashCountDenomination) error
 	Update(c *CashRegisterClose, payments *[]CashRegisterClosePayment, denoms *[]CashCountDenomination) error
 	Delete(id uint) error

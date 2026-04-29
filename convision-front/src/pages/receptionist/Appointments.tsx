@@ -16,6 +16,7 @@ import { appointmentsService } from '@/services/appointmentsService';
 import { parseLocalDatetime, formatTime12h } from '@/lib/utils';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import AppointmentStatusBadge, { Status } from '@/components/appointments/AppointmentStatusBadge';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'month';
 
@@ -76,22 +77,30 @@ const Appointments: React.FC = () => {
   const [page, setPage] = useState(1);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
+  const [branchId, setBranchId] = useState<string>('all');
 
   const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter]);
 
   const isSpecialist = user?.role === 'specialist';
+  const isAdmin = user?.role === 'admin';
 
   const { data, isLoading } = useQuery({
-    queryKey: ['appointments', dateFilter, search, page, user?.role],
-    queryFn: () => appointmentsService.getAppointments({
-      page,
-      perPage: ITEMS_PER_PAGE,
-      sort: 'scheduled_at,asc',
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-      search: search || undefined,
-      filters: isSpecialist ? { status: 'completed' } : {},
-    }),
+    queryKey: ['appointments', dateFilter, search, page, user?.role, branchId],
+    queryFn: () => {
+      const filters: Record<string, unknown> = isSpecialist ? { status: 'completed' } : {};
+      if (isAdmin && branchId !== 'all') {
+        filters.branch_id = Number(branchId);
+      }
+      return appointmentsService.getAppointments({
+        page,
+        perPage: ITEMS_PER_PAGE,
+        sort: 'scheduled_at,asc',
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        search: search || undefined,
+        filters,
+      });
+    },
     placeholderData: (prev) => prev,
   });
 
@@ -171,13 +180,18 @@ const Appointments: React.FC = () => {
         <Card className="border border-[#e5e5e9] rounded-lg overflow-hidden shadow-none">
           {/* Table Toolbar */}
           <div className="bg-white border-b border-[#e5e5e9] px-5 h-[52px] flex items-center justify-between">
-            <div>
-              <p className="text-[14px] font-semibold text-[#121215]">
-                {isSpecialist ? `Citas atendidas — ${getTableSubtitle(dateFilter)}` : getTableTitle(dateFilter)}
-              </p>
-              <p className="text-[11px] text-[#7d7d87] capitalize">
-                {isSpecialist ? 'Solo se muestran citas con estado Atendido' : getTableSubtitle(dateFilter)}
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-[14px] font-semibold text-[#121215]">
+                  {isSpecialist ? `Citas atendidas — ${getTableSubtitle(dateFilter)}` : getTableTitle(dateFilter)}
+                </p>
+                <p className="text-[11px] text-[#7d7d87] capitalize">
+                  {isSpecialist ? 'Solo se muestran citas con estado Atendido' : getTableSubtitle(dateFilter)}
+                </p>
+              </div>
+              {isAdmin && (
+                <AdminBranchFilter value={branchId} onChange={setBranchId} />
+              )}
             </div>
             <div className="relative w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />

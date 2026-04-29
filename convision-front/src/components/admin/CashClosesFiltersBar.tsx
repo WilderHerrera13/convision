@@ -2,6 +2,7 @@ import React from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Button } from '@/components/ui/button';
 import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 const dateTriggerClass =
   '[&>div]:!space-y-0 [&_input]:h-7 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:text-[12px] [&_input]:text-[#7d7d87] [&_input]:shadow-none [&_input]:focus-visible:ring-0';
@@ -19,6 +20,8 @@ type Props = {
   onAdvisorChange?: (id: string) => void;
   selectedStatus?: string;
   onStatusChange?: (status: string) => void;
+  branchFilter?: string;
+  onBranchChange?: (v: string) => void;
 };
 
 const STATUS_OPTIONS = [
@@ -42,6 +45,8 @@ const CashClosesFiltersBar: React.FC<Props> = ({
   onAdvisorChange,
   selectedStatus = 'all',
   onStatusChange,
+  branchFilter = 'all',
+  onBranchChange,
 }) => {
   const advisorOptions: ComboboxOption[] = [
     { value: 'all', label: 'Asesor: Todos' },
@@ -69,6 +74,13 @@ const CashClosesFiltersBar: React.FC<Props> = ({
           <DatePicker value={dateTo} onChange={onDateToChange} placeholder="—" useInputTrigger />
         </div>
       </div>
+      {onBranchChange && (
+        <AdminBranchFilter
+          value={branchFilter}
+          onChange={onBranchChange}
+          className="[&>span]:text-[12px] [&>span]:text-[#7d7d87] [&>span]:tracking-normal [&>span]:font-normal [&>span]:normal-case [&>span]:mb-0"
+        />
+      )}
       {onAdvisorChange && (
         <SearchableCombobox
           options={advisorOptions}
@@ -89,7 +101,7 @@ const CashClosesFiltersBar: React.FC<Props> = ({
           className={selectTriggerClass}
         />
       )}
-      {(dateFrom || dateTo || selectedAdvisorId !== 'all' || selectedStatus !== 'all') && (
+      {(dateFrom || dateTo || selectedAdvisorId !== 'all' || selectedStatus !== 'all' || branchFilter !== 'all') && (
         <Button
           variant="ghost"
           size="sm"

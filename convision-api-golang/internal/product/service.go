@@ -371,6 +371,14 @@ func (s *Service) ListLensCatalog(filters map[string]any, page, perPage int) (*L
 	}, nil
 }
 
+func (s *Service) HasActiveDiscounts(productID uint) bool {
+	_, err := s.discountRepo.GetBestForProduct(productID, nil)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (s *Service) CalculatePrice(productID uint, patientID *uint) (*PriceOutput, error) {
 	p, err := s.repo.GetByID(productID)
 	if err != nil {

@@ -106,6 +106,7 @@ export interface LaboratoryOrderFilterParams {
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
   assigned_uid?: number;
+  branch_id?: number;
 }
 
 export interface LaboratoryOrderStats {
@@ -226,6 +227,9 @@ const laboratoryOrderService = {
     }
     if (params.assigned_uid) {
       query.assigned_uid = params.assigned_uid;
+    }
+    if (params.branch_id) {
+      query.branch_id = params.branch_id;
     }
 
     const response = await api.get('/api/v1/laboratory-orders', { params: query });

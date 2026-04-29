@@ -78,7 +78,9 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
   };
 
   const handleSelect = (val: string) => {
-    onChange(val === value ? '' : val);
+    const match = options.find((o) => o.value.toLowerCase() === val.toLowerCase());
+    const next = match ? match.value : val;
+    if (next !== value) onChange(next);
     setOpen(false);
     setQuery('');
   };
@@ -134,6 +136,7 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
                     key={option.value}
                     value={option.value}
                     onSelect={handleSelect}
+                    onMouseDown={(e) => e.preventDefault()}
                     className="text-[12px] cursor-pointer"
                   >
                     <Check

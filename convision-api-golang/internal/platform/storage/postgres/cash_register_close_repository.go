@@ -31,7 +31,7 @@ func NewCashRegisterCloseRepository(db *gorm.DB) *CashRegisterCloseRepository {
 func (r *CashRegisterCloseRepository) GetByID(id uint) (*domain.CashRegisterClose, error) {
 	var item domain.CashRegisterClose
 	err := r.db.
-		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role")
 		}).
@@ -54,7 +54,7 @@ func (r *CashRegisterCloseRepository) GetByID(id uint) (*domain.CashRegisterClos
 func (r *CashRegisterCloseRepository) GetByUserAndDate(userID uint, date string) (*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
 	err := r.db.
-		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("user_id = ? AND DATE(close_date) = ?", userID, date).
 		Order(`
 			CASE status
@@ -106,7 +106,7 @@ func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage
 
 	offset := (page - 1) * perPage
 	err := q.
-		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role")
 		}).
@@ -123,7 +123,7 @@ func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage
 func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus, branchID uint) ([]*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
 	q := r.db.
-		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("status IN ?", statuses)
 	if branchID > 0 {
 		q = q.Where("branch_id = ?", branchID)
@@ -138,13 +138,17 @@ func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegis
 }
 
 // ListByUserAndDateRange returns all closes for a user within [from, to], ordered by close_date ASC.
-func (r *CashRegisterCloseRepository) ListByUserAndDateRange(userID uint, from, to string) ([]*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) ListByUserAndDateRange(userID uint, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
-	err := r.db.
+	q := r.db.
 		Model(&domain.CashRegisterClose{}).
-		Select("id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("user_id = ?", userID).
-		Where("DATE(close_date) BETWEEN ? AND ?", from, to).
+		Where("DATE(close_date) BETWEEN ? AND ?", from, to)
+	if branchID > 0 {
+		q = q.Where("branch_id = ?", branchID)
+	}
+	q = q.
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role")
 		}).
@@ -160,8 +164,8 @@ func (r *CashRegisterCloseRepository) ListByUserAndDateRange(userID uint, from, 
 		Preload("Denominations", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, cash_register_close_id, denomination, quantity, subtotal, created_at, updated_at")
 		}).
-		Order("close_date ASC NULLS LAST, created_at ASC").
-		Find(&records).Error
+		Order("close_date ASC NULLS LAST, created_at ASC")
+	err := q.Find(&records).Error
 	return records, err
 }
 

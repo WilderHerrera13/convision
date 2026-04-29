@@ -458,7 +458,7 @@ func (s *Service) AdvisorsPending(branchID uint) (*AdvisorsPendingOutput, error)
 		closeDates := make([]string, 0, len(userCloses))
 		for _, c := range userCloses {
 			if c.CloseDate != nil {
-				closeDates = append(closeDates, c.CloseDate.Format("2006-01-02"))
+				closeDates = append(closeDates, c.CloseDate.UTC().Format("2006-01-02"))
 			}
 		}
 
@@ -467,7 +467,7 @@ func (s *Service) AdvisorsPending(branchID uint) (*AdvisorsPendingOutput, error)
 		for _, c := range userCloses {
 			cd := ""
 			if c.CloseDate != nil {
-				cd = c.CloseDate.Format("2006-01-02")
+				cd = c.CloseDate.UTC().Format("2006-01-02")
 			}
 			items = append(items, AdvisorCloseItem{
 				ID:        c.ID,
@@ -642,7 +642,7 @@ func computeInitials(name string) string {
 }
 
 // Consolidated returns the admin aggregated view for cash register closes within a date range.
-func (s *Service) Consolidated(branchID uint, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
+func (s *Service) Consolidated(branchID uint, branchName string, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
 	now := time.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -801,7 +801,7 @@ func (s *Service) Consolidated(branchID uint, dateFrom, dateTo string) (*Consoli
 			UserID:        a.userID,
 			UserName:      a.userName,
 			Initials:      computeInitials(a.userName),
-			Sede:          "",
+			Sede:          branchName,
 			ClosesCount:   a.closesCount,
 			TotalDeclared: round2(a.totalDecl),
 			TotalCounted:  round2(a.totalCount),
@@ -856,7 +856,7 @@ func (s *Service) Consolidated(branchID uint, dateFrom, dateTo string) (*Consoli
 	}, nil
 }
 
-func (s *Service) CalendarForAdvisor(userID uint, dateFrom, dateTo string) (*CalendarOutput, error) {
+func (s *Service) CalendarForAdvisor(userID uint, branchID uint, dateFrom, dateTo string) (*CalendarOutput, error) {
 	if userID == 0 {
 		return nil, &domain.ErrValidation{Field: "user_id", Message: "es requerido"}
 	}
@@ -888,7 +888,7 @@ func (s *Service) CalendarForAdvisor(userID uint, dateFrom, dateTo string) (*Cal
 
 	fromStr := from.Format("2006-01-02")
 	toStr := to.Format("2006-01-02")
-	closes, err := s.repo.ListByUserAndDateRange(userID, fromStr, toStr)
+	closes, err := s.repo.ListByUserAndDateRange(userID, branchID, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}

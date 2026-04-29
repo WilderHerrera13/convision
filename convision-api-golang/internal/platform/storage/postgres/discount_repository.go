@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -37,7 +38,7 @@ func (r *DiscountRepository) withRelations(q *gorm.DB) *gorm.DB {
 
 func (r *DiscountRepository) GetByID(id uint) (*domain.DiscountRequest, error) {
 	var d domain.DiscountRequest
-	err := r.withRelations(r.db).First(&d, id).Error
+	err := r.withRelations(r.db).Where("discount_requests.deleted_at IS NULL").First(&d, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "discount_request"}
@@ -51,6 +52,7 @@ func (r *DiscountRepository) GetActiveForProduct(productID uint) ([]*domain.Disc
 	var discounts []*domain.DiscountRequest
 	now := time.Now()
 	err := r.withRelations(r.db).
+		Where("discount_requests.deleted_at IS NULL").
 		Where("product_id = ? AND status = ? AND (expiry_date IS NULL OR expiry_date >= ?)",
 			productID, domain.DiscountRequestStatusApproved, now).
 		Order("discount_percentage desc").
@@ -58,21 +60,70 @@ func (r *DiscountRepository) GetActiveForProduct(productID uint) ([]*domain.Disc
 	return discounts, err
 }
 
+func (r *DiscountRepository) GetActiveForProductWithPatient(productID uint, patientID *uint) ([]*domain.DiscountRequest, error) {
+	now := time.Now()
+
+	q := r.withRelations(r.db).
+		Where("discount_requests.deleted_at IS NULL").
+		Where("status = ? AND (expiry_date IS NULL OR expiry_date >= ?)", domain.DiscountRequestStatusApproved, now).
+		Where("product_id = ?", productID)
+
+	if patientID != nil {
+		pid := strconv.FormatUint(uint64(*patientID), 10)
+		q = q.Where("patient_id = ? OR is_global = true", *patientID).
+			Order("CASE WHEN patient_id = " + pid + " THEN 0 ELSE 1 END, discount_percentage desc")
+	} else {
+		q = q.Where("is_global = true").
+			Order("discount_percentage desc")
+	}
+
+	var discounts []*domain.DiscountRequest
+	err := q.Find(&discounts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if patientID != nil && hasPatientSpecific(discounts, *patientID) {
+		var patientOnly []*domain.DiscountRequest
+		for _, d := range discounts {
+			if d.PatientID != nil && *d.PatientID == *patientID {
+				patientOnly = append(patientOnly, d)
+			}
+		}
+		return patientOnly, nil
+	}
+
+	return discounts, nil
+}
+
+func hasPatientSpecific(discounts []*domain.DiscountRequest, patientID uint) bool {
+	for _, d := range discounts {
+		if d.PatientID != nil && *d.PatientID == patientID {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *DiscountRepository) GetBestForProduct(productID uint, patientID *uint) (*domain.DiscountRequest, error) {
 	var d domain.DiscountRequest
 	now := time.Now()
 
 	q := r.db.
+		Where("discount_requests.deleted_at IS NULL").
 		Where("status = ? AND (expiry_date IS NULL OR expiry_date >= ?)", domain.DiscountRequestStatusApproved, now).
 		Where("product_id = ?", productID)
 
 	if patientID != nil {
-		q = q.Where("patient_id = ? OR patient_id IS NULL OR is_global = true", *patientID)
+		pid := strconv.FormatUint(uint64(*patientID), 10)
+		q = q.Where("patient_id = ? OR patient_id IS NULL OR is_global = true", *patientID).
+			Order("CASE WHEN patient_id = " + pid + " THEN 0 ELSE 1 END, discount_percentage desc")
 	} else {
-		q = q.Where("patient_id IS NULL OR is_global = true")
+		q = q.Where("patient_id IS NULL").
+			Order("discount_percentage desc")
 	}
 
-	err := q.Order("discount_percentage desc").First(&d).Error
+	err := q.First(&d).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "discount_request"}
@@ -105,14 +156,15 @@ func (r *DiscountRepository) Update(d *domain.DiscountRequest) error {
 }
 
 func (r *DiscountRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.DiscountRequest{}, id).Error
+	now := time.Now()
+	return r.db.Model(&domain.DiscountRequest{}).Where("id = ?", id).Update("deleted_at", now).Error
 }
 
 func (r *DiscountRepository) List(filters map[string]any, page, perPage int) ([]*domain.DiscountRequest, int64, error) {
 	var discounts []*domain.DiscountRequest
 	var total int64
 
-	q := r.db.Model(&domain.DiscountRequest{})
+	q := r.db.Model(&domain.DiscountRequest{}).Where("discount_requests.deleted_at IS NULL")
 	for field, value := range filters {
 		if !discountFilterAllowlist[field] {
 			continue

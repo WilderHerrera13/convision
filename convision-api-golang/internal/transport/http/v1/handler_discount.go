@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/convision/api/internal/discount"
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 )
 
@@ -48,12 +49,29 @@ func (h *Handler) CreateDiscountRequest(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	// Set UserID from JWT if not provided
-	if input.UserID == 0 {
-		if claims, ok := jwtauth.GetClaims(c); ok {
-			input.UserID = claims.UserID
-		}
+
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
 	}
+	input.UserID = claims.UserID
+
+	if input.ProductID != nil {
+		product, err := h.product.GetByID(*input.ProductID)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+		input.OriginalPrice = product.Price
+		input.DiscountedPrice = product.Price * (1 - input.DiscountPercentage/100)
+	}
+
+	if claims.Role == domain.RoleAdmin {
+		input.AutoApprove = true
+		input.ApproverID = claims.UserID
+	}
+
 	d, err := h.discount.Create(input)
 	if err != nil {
 		respondError(c, err)
@@ -72,7 +90,12 @@ func (h *Handler) UpdateDiscountRequest(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	d, err := h.discount.Update(id, input)
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+	d, err := h.discount.Update(id, input, claims.UserID, domain.Role(claims.Role))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -98,9 +121,11 @@ func (h *Handler) ApproveDiscountRequest(c *gin.Context) {
 		return
 	}
 	var input discount.ApproveInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+			return
+		}
 	}
 	claims, ok := jwtauth.GetClaims(c)
 	if !ok {
@@ -135,29 +160,33 @@ func (h *Handler) RejectDiscountRequest(c *gin.Context) {
 
 func (h *Handler) ListActiveDiscounts(c *gin.Context) {
 	page, perPage := parsePagination(c)
-	filters := map[string]any{}
-	if v := c.Query("patient_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["patient_id"] = uint(id)
-		}
-	}
 
 	var productID *uint
 	if v := c.Query("product_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			uid := uint(id)
 			productID = &uid
-			filters["product_id"] = uid
 		}
 	} else if v := c.Query("lens_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			uid := uint(id)
 			productID = &uid
-			filters["product_id"] = uid
+		}
+	}
+
+	var patientID *uint
+	if v := c.Query("patient_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			uid := uint(id)
+			patientID = &uid
 		}
 	}
 
 	if productID == nil {
+		filters := map[string]any{}
+		if patientID != nil {
+			filters["patient_id"] = *patientID
+		}
 		out, err := h.discount.List(filters, page, perPage)
 		if err != nil {
 			respondError(c, err)
@@ -171,15 +200,11 @@ func (h *Handler) ListActiveDiscounts(c *gin.Context) {
 				"per_page":     out.PerPage,
 				"total":        out.Total,
 			},
-			"current_page": out.CurrentPage,
-			"last_page":    out.LastPage,
-			"per_page":     out.PerPage,
-			"total":        out.Total,
 		})
 		return
 	}
 
-	discounts, err := h.discount.ListActive(productID, nil)
+	discounts, err := h.discount.ListActive(productID, patientID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -187,7 +212,6 @@ func (h *Handler) ListActiveDiscounts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": discounts})
 }
 
-// GetBestDiscount returns the best (highest) applicable discount for a lens/product (GOQA-011)
 func (h *Handler) GetBestDiscount(c *gin.Context) {
 	var lensID *uint
 	var patientID *uint
@@ -206,7 +230,6 @@ func (h *Handler) GetBestDiscount(c *gin.Context) {
 		}
 	}
 
-	// Get the best discount (highest percentage)
 	bestDiscount, err := h.discount.GetBestDiscount(lensID, patientID)
 	if err != nil {
 		respondError(c, err)

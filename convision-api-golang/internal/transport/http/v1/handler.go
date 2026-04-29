@@ -639,6 +639,23 @@ func parseID(c *gin.Context, param string) (uint, error) {
 	return uint(n), nil
 }
 
+func resolveBranchOverride(c *gin.Context) *uint {
+	raw := c.Query("branch_id")
+	if raw == "" {
+		return nil
+	}
+	if raw == "0" || raw == "all" {
+		zero := uint(0)
+		return &zero
+	}
+	n, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return nil
+	}
+	v := uint(n)
+	return &v
+}
+
 // respondError maps domain errors to HTTP status codes using errors.As.
 func respondError(c *gin.Context, err error) {
 	var notFound *domain.ErrNotFound

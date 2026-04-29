@@ -11,6 +11,7 @@ import { userService } from '@/services/userService';
 import { branchService } from '@/services/branchService';
 import { DatePicker } from '@/components/ui/date-picker';
 import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
 const fmtDisplay = (d: Date) => format(d, 'dd/MM/yyyy');
@@ -81,6 +82,23 @@ const SpecialistManagementReport: React.FC = () => {
     queryFn: () => branchService.listAll(),
   });
 
+  const listaBranchFilterActive = activeTab === 'lista' && selectedSedeId !== 'all';
+
+  const {
+    data: reportListaBranch,
+    isFetching: listaBranchFetching,
+    isError: listaBranchError,
+  } = useQuery({
+    queryKey: ['specialist-report-consolidated-lista', fromStr, toStr, selectedSedeId],
+    queryFn: () =>
+      specialistReportService.getConsolidated({
+        from: fromStr,
+        to: toStr,
+        branchId: Number(selectedSedeId),
+      }),
+    enabled: listaBranchFilterActive,
+  });
+
   const { data: report, isLoading } = useQuery({
     queryKey: ['specialist-report-consolidated', fromStr, toStr, selectedSpecialistId, selectedSedeId],
     queryFn: () =>
@@ -122,6 +140,15 @@ const SpecialistManagementReport: React.FC = () => {
     [specialists, specialistSearch],
   );
 
+  const specialistsForLista = useMemo(() => {
+    if (!listaBranchFilterActive) return filteredSpecialists;
+    if (!reportListaBranch) return [];
+    const rows = reportListaBranch.rows;
+    if (!rows?.length) return [];
+    const ids = new Set(rows.map((r) => r.specialist_id));
+    return filteredSpecialists.filter((s) => ids.has(s.id));
+  }, [listaBranchFilterActive, reportListaBranch, filteredSpecialists]);
+
   const specialistOptions = useMemo<ComboboxOption[]>(
     () => [
       { value: 'all', label: `Todos (${specialists.length})` },
@@ -131,17 +158,6 @@ const SpecialistManagementReport: React.FC = () => {
       })),
     ],
     [specialists],
-  );
-
-  const sedeOptions = useMemo<ComboboxOption[]>(
-    () => [
-      { value: 'all', label: `Todas (${branches.length})` },
-      ...branches.map((branch) => ({
-        value: String(branch.id),
-        label: branch.name,
-      })),
-    ],
-    [branches],
   );
 
   const applyPreset = (p: DatePreset) => {
@@ -232,19 +248,7 @@ const SpecialistManagementReport: React.FC = () => {
                   />
                 </div>
                 <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <div className="flex flex-col leading-none shrink-0 w-[130px]">
-                  <span className="text-[10px] font-medium text-[#7d7d87] tracking-[0.4px] mb-0.5">
-                    SEDES
-                  </span>
-                  <SearchableCombobox
-                    options={sedeOptions}
-                    value={selectedSedeId}
-                    onChange={setSelectedSedeId}
-                    placeholder="Todas"
-                    searchPlaceholder="Buscar sede..."
-                    className="h-[22px] border-0 bg-transparent rounded-none px-0 text-[11px] shadow-none hover:border-transparent focus:border-transparent focus:ring-0 [&>span]:text-left"
-                  />
-                </div>
+                <AdminBranchFilter value={selectedSedeId} onChange={setSelectedSedeId} />
               </div>
               <div className="text-[10px] text-[#7d7d87] ml-3 shrink-0 whitespace-nowrap">
                 {daysDiff} {daysDiff === 1 ? 'día' : 'dias'} · {report?.specialists_count ?? specialists.length} especialistas
@@ -406,32 +410,58 @@ const SpecialistManagementReport: React.FC = () => {
         {/* ---- LISTA tab ---- */}
         {activeTab === 'lista' && (
           <div>
-            <div className="flex items-center justify-between px-5 h-[56px] border-b border-[#e5e5e9]">
-              <div className="flex flex-col gap-0.5">
+            <div className="flex items-center justify-between px-5 h-[56px] border-b border-[#e5e5e9] gap-3">
+              <div className="flex flex-col gap-0.5 min-w-0">
                 <p className="text-[14px] font-semibold text-[#121215]">Médicos con reportes de gestión</p>
-                <p className="text-[11px] text-[#7d7d87]">{filteredSpecialists.length} especialistas registrados</p>
+                <p className="text-[11px] text-[#7d7d87]">
+                  {specialistsForLista.length} especialistas
+                  {listaBranchFilterActive && ` · ${fmtDisplay(from)} – ${fmtDisplay(to)}`}
+                </p>
               </div>
-              <input
-                type="text"
-                placeholder="Buscar especialista..."
-                value={specialistSearch}
-                onChange={(e) => setSpecialistSearch(e.target.value)}
-                className="bg-white border border-[#e5e5e9] h-[34px] w-[220px] rounded-[6px] px-3 text-[12px] placeholder:text-[#b4b5bc] outline-none"
-              />
+              <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+                <div className="flex items-center bg-white border border-[#e5e5e9] rounded-[8px] h-[40px] px-2">
+                  <AdminBranchFilter value={selectedSedeId} onChange={setSelectedSedeId} />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar especialista..."
+                  value={specialistSearch}
+                  onChange={(e) => setSpecialistSearch(e.target.value)}
+                  className="bg-white border border-[#e5e5e9] h-[34px] w-[220px] rounded-[6px] px-3 text-[12px] placeholder:text-[#b4b5bc] outline-none"
+                />
+              </div>
             </div>
 
             <div className="min-h-[200px]">
-              {filteredSpecialists.length === 0 && (
+              {listaBranchFilterActive && listaBranchFetching && !reportListaBranch && (
+                <p className="text-center text-[#7d7d87] py-10 text-[13px]">Cargando...</p>
+              )}
+              {listaBranchFilterActive && listaBranchError && (
                 <p className="text-center text-[#7d7d87] py-10 text-[13px]">
-                  No hay especialistas registrados
+                  No se pudo cargar el listado filtrado
                 </p>
               )}
-              {filteredSpecialists.map((specialist, idx) => {
+              {!(
+                listaBranchFilterActive &&
+                (listaBranchFetching || !reportListaBranch || listaBranchError)
+              ) &&
+                specialistsForLista.length === 0 && (
+                <p className="text-center text-[#7d7d87] py-10 text-[13px]">
+                  {listaBranchFilterActive
+                    ? 'Sin especialistas con actividad en esta sede para el período'
+                    : 'No hay especialistas registrados'}
+                </p>
+              )}
+              {specialistsForLista.map((specialist, idx) => {
                 const initials = `${specialist.name?.[0] ?? ''}${specialist.last_name?.[0] ?? ''}`.toUpperCase();
                 return (
                   <div
                     key={specialist.id}
-                    onClick={() => navigate(`/admin/specialist-reports/${specialist.id}`)}
+                    onClick={() =>
+                      navigate(
+                        `/admin/specialist-reports/${specialist.id}?from=${fromStr}&to=${toStr}`,
+                      )
+                    }
                     className={`flex items-center h-[64px] border-b border-[#f1f1f3] cursor-pointer hover:bg-[#f9f9fb] px-5 transition-colors ${idx % 2 === 1 ? 'bg-[#fafafa]' : 'bg-white'}`}
                   >
                     <div className="size-9 rounded-full bg-[#e5f6ef] flex items-center justify-center shrink-0 mr-3">
@@ -468,7 +498,7 @@ const SpecialistManagementReport: React.FC = () => {
               <span className="text-[12px] text-[#7d7d87]">
                 Mostrando{' '}
                 <span className="bg-[#f5f5f6] text-[#121215] font-semibold px-1.5 py-0.5 rounded-[4px] text-[12px]">
-                  1–{filteredSpecialists.length}
+                  1–{specialistsForLista.length}
                 </span>{' '}
                 de {specialists.length} especialistas
               </span>

@@ -72,6 +72,7 @@ export interface SaleFilterParams {
   date_from?: string;
   date_to?: string;
   patient_id?: number | string | undefined;
+  branch_id?: number | string | undefined;
 }
 
 export interface SaleStats {

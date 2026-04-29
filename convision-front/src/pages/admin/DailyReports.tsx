@@ -11,11 +11,13 @@ import dailyActivityReportService, { normalizeDailyActivityReport } from '@/serv
 import { userService, User } from '@/services/userService';
 import { ROLE_LABELS } from '@/pages/admin/dailyReportsUtils';
 import { useAdminDailyReportColumns, type DailyReportWithUser } from '@/pages/admin/useAdminDailyReportColumns';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 const AdminDailyReports: React.FC = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()));
   const [userId, setUserId] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['users-list'],
@@ -51,8 +53,9 @@ const AdminDailyReports: React.FC = () => {
       date_from: dayStr,
       date_to: dayStr,
       user_id: userId !== 'all' ? userId : undefined,
+      branch_id: branchFilter !== 'all' ? branchFilter : undefined,
     }),
-    [dayStr, userId],
+    [dayStr, userId, branchFilter],
   );
 
   const fetcher = async ({
@@ -72,6 +75,7 @@ const AdminDailyReports: React.FC = () => {
       date_to: f.date_to,
     };
     if (f.user_id) params.user_id = f.user_id;
+    if (f.branch_id) params.branch_id = f.branch_id;
     const resp = await dailyActivityReportService.list(params);
     const raw = (resp as { data?: unknown[] })?.data ?? [];
     const rows = Array.isArray(raw) ? raw : [];
@@ -101,6 +105,9 @@ const AdminDailyReports: React.FC = () => {
             />
           </div>
           <ReceptionistAdvisorCombobox value={userId} onChange={setUserId} users={users} />
+          <div className="[&_button]:h-9 [&_button]:min-h-9 [&_button]:rounded-[7px] [&_button]:border-[#dcdce0] [&_button]:text-[12px]">
+            <AdminBranchFilter value={branchFilter} onChange={setBranchFilter} />
+          </div>
         </div>
       }
     >

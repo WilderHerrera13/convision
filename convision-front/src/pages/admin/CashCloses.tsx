@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, Download, Building2 } from 'lucide-react';
+import { Eye, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import EntityTable from '@/components/ui/data-table/EntityTable';
@@ -17,8 +17,6 @@ import CashClosesConsolidated from '@/components/admin/CashClosesConsolidated';
 import { formatCurrency } from '@/lib/utils';
 import cashRegisterCloseService, { type AdvisorPendingGroup } from '@/services/cashRegisterCloseService';
 import { userService, User } from '@/services/userService';
-import { branchService, type Branch } from '@/services/branchService';
-import { useBranch } from '@/contexts/BranchContext';
 import { type CashCloseRow, STATUS_CONFIG, formatCOP } from './cashClosesConfig';
 
 const copMoneyCol = {
@@ -119,18 +117,13 @@ const VarianceBadge: React.FC<{ value: number | null | undefined; recorded: bool
 
 const AdminCashCloses: React.FC = () => {
   const navigate = useNavigate();
-  const { branchId, setBranch } = useBranch();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [selectedAdvisorId, setSelectedAdvisorId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('consolidated');
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
-
-  const { data: branches = [], isPending: isLoadingBranches } = useQuery<Branch[]>({
-    queryKey: ['branches-list'],
-    queryFn: () => branchService.listAll(),
-  });
 
   const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['users-list'],
@@ -345,6 +338,7 @@ const AdminCashCloses: React.FC = () => {
     date_to: dateTo ? format(dateTo, 'yyyy-MM-dd') : undefined,
     user_id: selectedAdvisorId !== 'all' ? selectedAdvisorId : undefined,
     status: selectedStatus !== 'all' ? selectedStatus : undefined,
+    branch_id: branchFilter !== 'all' ? branchFilter : '0',
   };
 
   const fetcher = async ({ page, per_page }: { page: number; per_page: number }) => {
@@ -353,6 +347,7 @@ const AdminCashCloses: React.FC = () => {
     if (extraFilters.date_to) params.date_to = extraFilters.date_to;
     if (extraFilters.user_id) params.user_id = extraFilters.user_id;
     if (extraFilters.status) params.status = extraFilters.status;
+    if (extraFilters.branch_id) params.branch_id = extraFilters.branch_id;
     const resp = await cashRegisterCloseService.list(params);
     const rows: CashCloseRow[] = resp?.data ?? (Array.isArray(resp) ? resp : []);
     setTableData(rows);
@@ -368,6 +363,7 @@ const AdminCashCloses: React.FC = () => {
     setDateTo(undefined);
     setSelectedAdvisorId('all');
     setSelectedStatus('all');
+    setBranchFilter('all');
   };
 
   const handleAdvisorReview = (advisor: AdvisorPendingGroup) => {
@@ -432,28 +428,11 @@ const AdminCashCloses: React.FC = () => {
             </button>
           </div>
 
-          {!isLoadingBranches && branches.length > 1 && (
-            <select
-              value={branchId ?? ''}
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                const branch = branches.find((b) => b.id === id);
-                if (branch) {
-                  setBranch(branch.id, branch.name);
-                }
-              }}
-              className="h-9 rounded-[8px] border border-[#dcdce0] bg-[#f7f7f8] px-3 text-[12px] text-[#7d7d87] focus:border-[#3a71f7] focus:outline-none focus:ring-0"
-            >
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name} {branch.city ? `· ${branch.city}` : ''}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
 
-        {viewMode === 'consolidated' && <CashClosesConsolidated />}
+        {viewMode === 'consolidated' && (
+          <CashClosesConsolidated branchFilter={branchFilter} onBranchChange={setBranchFilter} />
+        )}
 
         {viewMode !== 'consolidated' && (
         <>
@@ -503,6 +482,8 @@ const AdminCashCloses: React.FC = () => {
           onAdvisorChange={setSelectedAdvisorId}
           selectedStatus={selectedStatus}
           onStatusChange={setSelectedStatus}
+          branchFilter={branchFilter}
+          onBranchChange={setBranchFilter}
         />
 
         <div className="flex-1">

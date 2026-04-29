@@ -524,7 +524,16 @@ func (h *Handler) ListDailyActivityReports(c *gin.Context) {
 	claims, ok := jwtauth.GetClaims(c)
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if ok && claims.Role != "admin" {
 		filters["user_id"] = claims.UserID

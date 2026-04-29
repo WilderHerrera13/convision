@@ -44,8 +44,8 @@ func (m *MockCashRegisterCloseRepository) ListByStatuses(statuses []domain.CashR
 	return args.Get(0).([]*domain.CashRegisterClose), args.Error(1)
 }
 
-func (m *MockCashRegisterCloseRepository) ListByUserAndDateRange(userID uint, from, to string) ([]*domain.CashRegisterClose, error) {
-	args := m.Called(userID, from, to)
+func (m *MockCashRegisterCloseRepository) ListByUserAndDateRange(userID uint, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
+	args := m.Called(userID, branchID, from, to)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

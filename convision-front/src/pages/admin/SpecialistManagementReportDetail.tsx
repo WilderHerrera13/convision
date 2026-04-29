@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, parseISO, subDays, isValid } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import PageLayout from '@/components/layouts/PageLayout';
 import { specialistReportService } from '@/services/specialistReportService';
@@ -32,19 +32,46 @@ function KpiCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function defaultReportRange(): { from: string; to: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return {
+    from: format(subDays(today, 13), 'yyyy-MM-dd'),
+    to: format(today, 'yyyy-MM-dd'),
+  };
+}
+
 const SpecialistManagementReportDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  const from = searchParams.get('from') ?? '';
-  const to   = searchParams.get('to')   ?? '';
+  const fromParam = (searchParams.get('from') ?? '').trim();
+  const toParam = (searchParams.get('to') ?? '').trim();
+
+  const { fromStr, toStr } = useMemo(() => {
+    if (fromParam && toParam) return { fromStr: fromParam, toStr: toParam };
+    return defaultReportRange();
+  }, [fromParam, toParam]);
+
+  const periodLabel = useMemo(() => {
+    const a = parseISO(fromStr);
+    const b = parseISO(toStr);
+    if (!isValid(a) || !isValid(b)) return '—';
+    return `${format(a, 'dd/MM/yyyy')} – ${format(b, 'dd/MM/yyyy')}`;
+  }, [fromStr, toStr]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['specialist-report-detail', id, from, to, search, page],
+    queryKey: ['specialist-report-detail', id, fromStr, toStr, search, page],
     queryFn: () =>
-      specialistReportService.getSpecialistDetail(Number(id), { from, to, search, page, perPage: 15 }),
+      specialistReportService.getSpecialistDetail(Number(id), {
+        from: fromStr,
+        to: toStr,
+        search,
+        page,
+        perPage: 15,
+      }),
     enabled: !!id,
   });
 
@@ -89,9 +116,7 @@ const SpecialistManagementReportDetalle: React.FC = () => {
             </div>
             <div>
               <p className="text-[11px] text-[#7d7d87]">Período analizado</p>
-              <p className="text-[15px] font-semibold text-[#0f0f12]">
-                {from && to ? `${from} – ${to}` : '—'}
-              </p>
+              <p className="text-[15px] font-semibold text-[#0f0f12]">{periodLabel}</p>
             </div>
           </div>
         </div>

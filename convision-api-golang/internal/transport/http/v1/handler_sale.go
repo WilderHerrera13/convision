@@ -20,7 +20,16 @@ func (h *Handler) ListSales(c *gin.Context) {
 	filters := map[string]any{}
 
 	branchID := branchmw.BranchIDFromCtx(c)
-	filters["branch_id"] = branchID
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
+	if branchID > 0 {
+		filters["branch_id"] = branchID
+	}
 
 	if v := c.Query("patient_id"); v != "" {
 		filters["patient_id"] = v

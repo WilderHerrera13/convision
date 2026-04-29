@@ -19,6 +19,7 @@ import {
 } from '@/services/laboratoryOrderService';
 import { laboratoryService } from '@/services/laboratoryService';
 import { formatDate } from '@/lib/utils';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 import { cn } from '@/lib/utils';
 import PageLayout from '@/components/layouts/PageLayout';
 import { DataTableColumnDef } from '@/components/ui/data-table';
@@ -59,6 +60,7 @@ const LaboratoryOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [laboratoryFilter, setLaboratoryFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
   const [deleteTarget, setDeleteTarget] = useState<LaboratoryOrder | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -81,6 +83,7 @@ const LaboratoryOrders: React.FC = () => {
     setStatusFilter('');
     setPriorityFilter('');
     setLaboratoryFilter('');
+    setBranchFilter('all');
   };
 
   const handleDelete = async () => {
@@ -282,6 +285,14 @@ const LaboratoryOrders: React.FC = () => {
             </SelectContent>
           </Select>
 
+          <div className="[&_button]:h-8 [&_button]:min-h-8 [&_button]:text-[12px]">
+            <AdminBranchFilter
+              value={branchFilter}
+              onChange={setBranchFilter}
+              className="w-auto [&_span]:text-left"
+            />
+          </div>
+
           {hasActiveFilters && (
             <button
               className="text-[12px] text-[#7d7d87] hover:text-[#3a71f7] transition-colors"
@@ -303,11 +314,12 @@ const LaboratoryOrders: React.FC = () => {
               status: statusFilter || undefined,
               priority: priorityFilter || undefined,
               laboratory_id: laboratoryFilter ? Number(laboratoryFilter) : undefined,
+              branch_id: branchFilter !== 'all' ? Number(branchFilter) : undefined,
               sort_field: 'created_at',
               sort_direction: 'desc',
             })
           }
-          extraFilters={{ status: statusFilter, priority: priorityFilter, laboratory_id: laboratoryFilter }}
+          extraFilters={{ status: statusFilter, priority: priorityFilter, laboratory_id: laboratoryFilter, branch_id: branchFilter !== 'all' ? branchFilter : '' }}
           searchPlaceholder="Buscar por # o paciente..."
           showPageSizeSelect={false}
           onRowClick={(order) => navigate(`/admin/laboratory-orders/${order.id}`)}

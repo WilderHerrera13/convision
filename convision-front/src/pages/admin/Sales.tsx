@@ -64,6 +64,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import PageLayout from '@/components/layouts/PageLayout';
 import { PDFViewer } from '@/components/ui/pdf-viewer';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 
 // Override Badge variants to include the ones we need
 interface BadgeVariantProps {
@@ -95,11 +96,12 @@ const Sales: React.FC = () => {
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
   const [filters, setFilters] = useState<SaleFilterParams>({
-    status: '',
-    payment_status: '',
+    status: 'all',
+    payment_status: 'all',
     date_from: '',
     date_to: '',
     patient_id: undefined,
+    branch_id: undefined,
   });
 
   // Payment form state
@@ -254,11 +256,12 @@ const Sales: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({
-      status: '',
-      payment_status: '',
+      status: 'all',
+      payment_status: 'all',
       date_from: '',
       date_to: '',
       patient_id: undefined,
+      branch_id: undefined,
     });
   };
 
@@ -525,11 +528,12 @@ const Sales: React.FC = () => {
           saleService.getSales({
             page,
             per_page,
-            status: filters.status || undefined,
-            payment_status: filters.payment_status || undefined,
+            status: filters.status !== 'all' ? filters.status : undefined,
+            payment_status: filters.payment_status !== 'all' ? filters.payment_status : undefined,
             date_from: filters.date_from || undefined,
             date_to: filters.date_to || undefined,
             patient_id: filters.patient_id,
+            branch_id: filters.branch_id,
           })
         }
         extraFilters={filters}
@@ -655,7 +659,7 @@ const Sales: React.FC = () => {
                   <SelectValue placeholder="Todos los estados" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="pending">Pendiente</SelectItem>
                   <SelectItem value="completed">Completada</SelectItem>
                   <SelectItem value="cancelled">Cancelada</SelectItem>
@@ -673,7 +677,7 @@ const Sales: React.FC = () => {
                   <SelectValue placeholder="Todos los estados de pago" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="pending">Pendiente</SelectItem>
                   <SelectItem value="partial">Parcial</SelectItem>
                   <SelectItem value="paid">Pagada</SelectItem>
@@ -709,6 +713,15 @@ const Sales: React.FC = () => {
                 placeholder="ID del paciente"
                 value={filters.patient_id || ''}
                 onChange={(e) => updatePatientIdFilter(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Sede</Label>
+              <AdminBranchFilter
+                value={filters.branch_id ? String(filters.branch_id) : 'all'}
+                onChange={(v) => setFilters({ ...filters, branch_id: v !== 'all' ? Number(v) : undefined })}
+                className="w-full"
               />
             </div>
           </div>

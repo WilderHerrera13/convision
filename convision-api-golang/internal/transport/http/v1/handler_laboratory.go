@@ -151,6 +151,15 @@ func (h *Handler) ListLaboratoryOrders(c *gin.Context) {
 	if v := c.Query("assigned_uid"); v != "" {
 		filters["_assigned_uid"] = v
 	}
+	if v := c.Query("branch_id"); v != "" && v != "0" && v != "all" {
+		branchID, err := strconv.ParseUint(v, 10, 64)
+		if err == nil {
+			branch, berr := h.branchRepo.GetByID(uint(branchID))
+			if berr == nil && branch != nil {
+				filters["branch"] = branch.Name
+			}
+		}
+	}
 
 	out, err := h.laboratory.ListOrders(filters, page, perPage)
 	if err != nil {

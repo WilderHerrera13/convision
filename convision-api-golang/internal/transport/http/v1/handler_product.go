@@ -47,6 +47,16 @@ func productResponseSlice(data []*domain.Product) []gin.H {
 	return out
 }
 
+func (h *Handler) productResponsesWithDiscounts(data []*domain.Product) []gin.H {
+	out := make([]gin.H, len(data))
+	for i, p := range data {
+		resp := productResponse(p)
+		resp["has_discounts"] = h.product.HasActiveDiscounts(p.ID)
+		out[i] = resp
+	}
+	return out
+}
+
 // ======== Products ========
 
 func (h *Handler) ListProducts(c *gin.Context) {
@@ -80,7 +90,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"current_page": out.CurrentPage,
-			"data":         productResponseSlice(out.Data),
+			"data":         h.productResponsesWithDiscounts(out.Data),
 			"last_page":    out.LastPage,
 			"per_page":     out.PerPage,
 			"total":        out.Total,
@@ -101,7 +111,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"current_page": out.CurrentPage,
-		"data":         productResponseSlice(out.Data),
+		"data":         h.productResponsesWithDiscounts(out.Data),
 		"last_page":    out.LastPage,
 		"per_page":     out.PerPage,
 		"total":        out.Total,
@@ -124,7 +134,9 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, productResponse(p))
+	resp := productResponse(p)
+	resp["has_discounts"] = h.product.HasActiveDiscounts(id)
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {
@@ -241,7 +253,7 @@ func (h *Handler) ListProductsByCategory(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"current_page": out.CurrentPage,
-		"data":         productResponseSlice(out.Data),
+		"data":         h.productResponsesWithDiscounts(out.Data),
 		"last_page":    out.LastPage,
 		"per_page":     out.PerPage,
 		"total":        out.Total,
@@ -287,12 +299,12 @@ func (h *Handler) GetProductDiscounts(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	out, err := h.product.GetDiscountInfo(id, nil)
+	discounts, err := h.discount.ListAllActiveForProduct(id)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, gin.H{"data": discounts})
 }
 
 func (h *Handler) GetProductDiscountInfo(c *gin.Context) {
@@ -321,7 +333,7 @@ func (h *Handler) GetProductActiveDiscounts(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	discounts, err := h.discount.ListActive(&id, nil)
+	discounts, err := h.discount.ListAllActiveForProduct(id)
 	if err != nil {
 		respondError(c, err)
 		return
