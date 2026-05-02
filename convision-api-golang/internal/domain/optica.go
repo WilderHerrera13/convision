@@ -30,6 +30,11 @@ var ReservedSlugs = map[string]bool{
 	"static":     true,
 }
 
+// IsReservedSlug reports whether a slug is reserved.
+func IsReservedSlug(slug string) bool {
+	return ReservedSlugs[slug]
+}
+
 type OpticaRepository interface {
 	GetByID(id uint) (*Optica, error)
 	GetBySlug(slug string) (*Optica, error)
