@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 16-multi-tenancy-super-admin
 source: 16-01-SUMMARY.md, 16-02-SUMMARY.md, 16-03-SUMMARY.md, 16-04-SUMMARY.md, 16-05-SUMMARY.md, 16-06-SUMMARY.md, 16-07-SUMMARY.md
 started: 2026-05-02T12:40:00Z
-updated: 2026-05-02T12:55:00Z
+updated: 2026-05-02T18:00:00Z
 mode: autonomous
 ---
 
@@ -83,7 +83,7 @@ blocked: 5
 ## Gaps
 
 - truth: "Super admin can log in via admin subdomain and receive JWT with role:super_admin"
-  status: failed
+  status: resolved
   reason: "TenantFromSubdomainMiddleware local dev path (APP_ENV=local) always returns optica_main regardless of X-Forwarded-Host or admin subdomain. The admin slug check (slug == 'admin' → platform) is dead code in local mode."
   severity: blocker
   test: 2
@@ -97,7 +97,7 @@ blocked: 5
   debug_session: ""
 
 - truth: "Tenant login response includes populated feature_flags array"
-  status: failed
+  status: resolved
   reason: "Tenant login succeeds but feature_flags is always [] and optica_id is always 0. Same root cause as gap 1: local dev middleware hardcodes optica_id=uint(0), so auth service can't look up feature flags in the FeatureCache."
   severity: major
   test: 7
@@ -110,7 +110,7 @@ blocked: 5
   debug_session: ""
 
 - truth: "Admin nav items are filtered/shown based on tenant feature flags"
-  status: failed
+  status: resolved
   reason: "Cannot verify feature gating because feature_flags is always [] in JWT due to optica_id=0. Will be fixed when gap 2 (feature_flags) is fixed."
   severity: major
   test: 8
@@ -123,7 +123,7 @@ blocked: 5
   debug_session: ""
 
 - truth: "All existing protected API endpoints work correctly after repository refactor"
-  status: failed
+  status: resolved
   reason: "ALL protected API calls return 401 token validation error post-migration 000022. Migration moved revoked_tokens from public to optica_main, but Authenticate middleware uses globalDB (search_path=public) to call revokedRepo.IsRevoked(). RevokedToken struct has no TableName() override, so GORM queries public.revoked_tokens which no longer exists."
   severity: blocker
   test: 10
