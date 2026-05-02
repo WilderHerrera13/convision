@@ -75,14 +75,16 @@ func extractSlug(host, baseDomain string) string {
 	return prefix
 }
 
-// SchemaNameFromCtx returns the tenant schema name set by TenantFromSubdomain.
+func SchemaNameKey() string { return schemaNameKey }
+
+func OpticaIDKey() string { return opticaIDKey }
+
 func SchemaNameFromCtx(c *gin.Context) string {
 	v, _ := c.Get(schemaNameKey)
 	s, _ := v.(string)
 	return s
 }
 
-// OpticaIDFromCtx returns the tenant optica ID set by TenantFromSubdomain.
 func OpticaIDFromCtx(c *gin.Context) uint {
 	v, _ := c.Get(opticaIDKey)
 	id, _ := v.(uint)

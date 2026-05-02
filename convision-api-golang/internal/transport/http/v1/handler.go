@@ -104,6 +104,7 @@ func toMap(v interface{}) gin.H {
 
 // Handler aggregates all v1 HTTP handlers.
 type Handler struct {
+	db             *gorm.DB
 	auth           *authsvc.Service
 	branch         *branchsvc.Service
 	patient        *patient.Service
@@ -141,6 +142,7 @@ type Handler struct {
 
 // NewHandler creates a Handler with all required services injected.
 func NewHandler(
+	db *gorm.DB,
 	auth *authsvc.Service,
 	branchSvc *branchsvc.Service,
 	patient *patient.Service,
@@ -176,6 +178,7 @@ func NewHandler(
 	branchRepo       domain.BranchRepository,
 ) *Handler {
 	return &Handler{
+		db:             db,
 		auth:           auth,
 		branch:         branchSvc,
 		patient:        patient,
@@ -223,7 +226,15 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	out, err := h.auth.Login(input)
+	schemaName, _ := c.Get(tenantmw.SchemaNameKey())
+	opticaID, _ := c.Get(tenantmw.OpticaIDKey())
+	ctx := authsvc.LoginContext{
+		SchemaName: schemaName.(string),
+		OpticaID:   opticaID.(uint),
+		DB:         h.db,
+	}
+
+	out, err := h.auth.Login(input, ctx)
 	if err != nil {
 		var noBranch *domain.ErrLoginNoBranches
 		if errors.As(err, &noBranch) {
@@ -234,13 +245,24 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"access_token": out.AccessToken,
 		"token_type":   out.TokenType,
 		"expires_in":   out.ExpiresIn,
-		"user":         toUserResource(out.User),
-		"branches":     out.Branches,
-	})
+	}
+	if out.User.Role == domain.RoleSuperAdmin {
+		response["user"] = gin.H{
+			"id":    out.User.ID,
+			"name":  out.User.Name,
+			"email": out.User.Email,
+			"role":  string(out.User.Role),
+		}
+	} else {
+		response["user"] = toUserResource(out.User)
+		response["branches"] = out.Branches
+		response["feature_flags"] = out.FeatureFlags
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // Logout godoc
@@ -287,7 +309,9 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 
-	out, err := h.auth.Refresh(claims.ID, claims.UserID)
+	opticaID := claims.OpticaID
+	schemaName := claims.SchemaName
+	out, err := h.auth.Refresh(claims.ID, claims.UserID, opticaID, schemaName)
 	if err != nil {
 		var noBranch *domain.ErrLoginNoBranches
 		if errors.As(err, &noBranch) {
@@ -298,13 +322,24 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"access_token": out.AccessToken,
 		"token_type":   out.TokenType,
 		"expires_in":   out.ExpiresIn,
-		"user":         toUserResource(out.User),
-		"branches":     out.Branches,
-	})
+	}
+	if out.User.Role == domain.RoleSuperAdmin {
+		response["user"] = gin.H{
+			"id":    out.User.ID,
+			"name":  out.User.Name,
+			"email": out.User.Email,
+			"role":  string(out.User.Role),
+		}
+	} else {
+		response["user"] = toUserResource(out.User)
+		response["branches"] = out.Branches
+		response["feature_flags"] = out.FeatureFlags
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // ---------- Users ----------
