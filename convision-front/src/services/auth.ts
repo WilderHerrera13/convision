@@ -27,15 +27,16 @@ export const authService = {
     try {
       // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/login', credentials);
-      const { access_token, token_type, expires_in, user, branches } = response.data;
-      
+      const { access_token, token_type, expires_in, user, branches, feature_flags } = response.data;
+      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [] };
+
       // Store auth data
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_user', JSON.stringify(userWithFlags));
       localStorage.setItem('auth_branches', JSON.stringify(branches ?? []));
-      
-      return response.data;
+
+      return { ...response.data, user: userWithFlags };
     } catch (error) {
       // Let ApiService handle the error translation for consistency
       throw ApiService.processApiErrorDirectly(error);
@@ -64,15 +65,16 @@ export const authService = {
     try {
       // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/refresh');
-      const { access_token, token_type, expires_in, user, branches } = response.data;
-      
+      const { access_token, token_type, expires_in, user, branches, feature_flags } = response.data;
+      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [] };
+
       // Update stored auth data
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_user', JSON.stringify(userWithFlags));
       localStorage.setItem('auth_branches', JSON.stringify(branches ?? []));
-      
-      return response.data;
+
+      return { ...response.data, user: userWithFlags };
     } catch (error) {
       // Let ApiService handle the error translation for consistency
       throw ApiService.processApiErrorDirectly(error);

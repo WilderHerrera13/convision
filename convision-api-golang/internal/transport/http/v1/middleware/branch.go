@@ -14,7 +14,7 @@ import (
 
 const branchIDKey = "branch_id"
 
-func BranchContext(branchRepo domain.BranchRepository, db *gorm.DB) gin.HandlerFunc {
+func BranchContext(branchRepo domain.BranchRepository, fallbackDB *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		headerVal := c.GetHeader("X-Branch-ID")
 		if headerVal == "" {
@@ -28,6 +28,13 @@ func BranchContext(branchRepo domain.BranchRepository, db *gorm.DB) gin.HandlerF
 			return
 		}
 		branchID := uint(parsed)
+
+		db := fallbackDB
+		if v, ok := c.Get(tenantDBKey); ok {
+			if tdb, ok := v.(*gorm.DB); ok {
+				db = tdb
+			}
+		}
 
 		branch, err := branchRepo.GetActiveByID(db, branchID)
 		if err != nil {
