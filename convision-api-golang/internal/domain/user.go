@@ -10,6 +10,7 @@ import (
 type Role string
 
 const (
+	RoleSuperAdmin   Role = "super_admin"
 	RoleAdmin        Role = "admin"
 	RoleSpecialist   Role = "specialist"
 	RoleReceptionist Role = "receptionist"
