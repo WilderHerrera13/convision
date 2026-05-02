@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -55,13 +56,14 @@ type LoginContext struct {
 }
 
 type LoginOutput struct {
-	AccessToken  string       `json:"access_token"`
-	TokenType    string       `json:"token_type"`
-	ExpiresIn    int64        `json:"expires_in"`
-	JTI          string       `json:"-"`
-	User         *domain.User `json:"-"`
-	Branches     []BranchInfo `json:"branches"`
-	FeatureFlags []string     `json:"feature_flags"`
+	AccessToken            string       `json:"access_token"`
+	TokenType              string       `json:"token_type"`
+	ExpiresIn              int64        `json:"expires_in"`
+	JTI                    string       `json:"-"`
+	User                   *domain.User `json:"-"`
+	Branches               []BranchInfo `json:"branches"`
+	FeatureFlags           []string     `json:"feature_flags"`
+	RequirePasswordChange  bool         `json:"require_password_change"`
 }
 
 type BranchInfo struct {
@@ -142,14 +144,26 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 	}
 	s.logger.Info("user logged in", zap.Uint("user_id", user.ID), zap.String("role", string(user.Role)))
 	return &LoginOutput{
-		AccessToken:  tokenStr,
-		TokenType:    "bearer",
-		ExpiresIn:    expiresIn,
-		JTI:          jti,
-		User:         user,
-		Branches:     s.loadBranches(tx, user),
-		FeatureFlags: flags,
+		AccessToken:           tokenStr,
+		TokenType:             "bearer",
+		ExpiresIn:             expiresIn,
+		JTI:                   jti,
+		User:                  user,
+		Branches:              s.loadBranches(tx, user),
+		FeatureFlags:          flags,
+		RequirePasswordChange: user.MustChangePassword,
 	}, nil
+}
+
+func (s *Service) ChangePassword(db *gorm.DB, userID uint, newPassword string) error {
+	if len(strings.TrimSpace(newPassword)) < 8 {
+		return errors.New("la contraseña debe tener al menos 8 caracteres")
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	return s.users.UpdatePassword(db, userID, string(hashed))
 }
 
 func (s *Service) Logout(jti string) error {

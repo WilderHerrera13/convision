@@ -128,7 +128,16 @@ func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType
 	for i, row := range dataRows {
 		rowNum := i + 2
 		rowData := mapRowToHeaders(headers, row)
+
+		sp := fmt.Sprintf("sp_row_%d", rowNum)
+		db.Exec("SAVEPOINT " + sp)
 		rec := importer.ProcessRow(db, rowNum, rowData)
+		if rec.Status == RecordStatusError {
+			db.Exec("ROLLBACK TO SAVEPOINT " + sp)
+		} else {
+			db.Exec("RELEASE SAVEPOINT " + sp)
+		}
+
 		result.Records = append(result.Records, rec)
 		switch rec.Status {
 		case RecordStatusCreated:

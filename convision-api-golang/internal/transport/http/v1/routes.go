@@ -78,6 +78,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		auth := protected.Group("/auth")
 		{
 			auth.POST("/logout", h.Logout)
+			auth.POST("/change-password", h.ChangePassword)
 			auth.GET("/me", h.Me)
 			auth.POST("/refresh", h.Refresh)
 		}

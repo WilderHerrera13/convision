@@ -20,25 +20,24 @@ interface AuthResponse {
   expires_in: number;
   user: User;
   branches: BranchInfo[];
+  require_password_change: boolean;
 }
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/login', credentials);
-      const { access_token, token_type, expires_in, user, branches, feature_flags } = response.data;
+      const { access_token, token_type, expires_in, user, branches, feature_flags, require_password_change } = response.data;
       const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [] };
 
-      // Store auth data
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
       localStorage.setItem('auth_user', JSON.stringify(userWithFlags));
       localStorage.setItem('auth_branches', JSON.stringify(branches ?? []));
+      localStorage.setItem('require_password_change', String(require_password_change ?? false));
 
-      return { ...response.data, user: userWithFlags };
+      return { ...response.data, user: userWithFlags, require_password_change: require_password_change ?? false };
     } catch (error) {
-      // Let ApiService handle the error translation for consistency
       throw ApiService.processApiErrorDirectly(error);
     }
   },
@@ -47,12 +46,24 @@ export const authService = {
     try {
       await ApiService.post('/api/v1/auth/logout');
     } finally {
-      // Clear auth data regardless of API call success
       localStorage.removeItem('access_token');
       localStorage.removeItem('token_type');
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_branches');
+      localStorage.removeItem('require_password_change');
     }
+  },
+
+  async changePassword(newPassword: string, confirmPassword: string): Promise<void> {
+    await ApiService.post('/api/v1/auth/change-password', {
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
+    localStorage.setItem('require_password_change', 'false');
+  },
+
+  getRequirePasswordChange(): boolean {
+    return localStorage.getItem('require_password_change') === 'true';
   },
 
   async getCurrentUser(): Promise<User> {

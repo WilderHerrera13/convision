@@ -55,31 +55,33 @@ type UserBranchAssignmentResource struct {
 
 // UserResource is the JSON shape returned for every user response.
 type UserResource struct {
-	ID                uint                           `json:"id"`
-	Name              string                         `json:"name"`
-	LastName          string                         `json:"last_name"`
-	Email             string                         `json:"email"`
-	Identification    string                         `json:"identification"`
-	Phone             string                         `json:"phone"`
-	Role              string                         `json:"role"`
-	Active            bool                           `json:"active"`
-	CreatedAt         string                         `json:"created_at"`
-	UpdatedAt         string                         `json:"updated_at"`
-	BranchAssignments []UserBranchAssignmentResource `json:"branch_assignments"`
+	ID                 uint                           `json:"id"`
+	Name               string                         `json:"name"`
+	LastName           string                         `json:"last_name"`
+	Email              string                         `json:"email"`
+	Identification     string                         `json:"identification"`
+	Phone              string                         `json:"phone"`
+	Role               string                         `json:"role"`
+	Active             bool                           `json:"active"`
+	MustChangePassword bool                           `json:"must_change_password"`
+	CreatedAt          string                         `json:"created_at"`
+	UpdatedAt          string                         `json:"updated_at"`
+	BranchAssignments  []UserBranchAssignmentResource `json:"branch_assignments"`
 }
 
 func toUserResource(u *domain.User) UserResource {
 	return UserResource{
-		ID:             u.ID,
-		Name:           u.Name,
-		LastName:       u.LastName,
-		Email:          u.Email,
-		Identification: u.Identification,
-		Phone:          u.Phone,
-		Role:           string(u.Role),
-		Active:         u.Active,
-		CreatedAt:      u.CreatedAt.UTC().Format(timeFormat) + "Z",
-		UpdatedAt:      u.UpdatedAt.UTC().Format(timeFormat) + "Z",
+		ID:                 u.ID,
+		Name:               u.Name,
+		LastName:           u.LastName,
+		Email:              u.Email,
+		Identification:     u.Identification,
+		Phone:              u.Phone,
+		Role:               string(u.Role),
+		Active:             u.Active,
+		MustChangePassword: u.MustChangePassword,
+		CreatedAt:          u.CreatedAt.UTC().Format(timeFormat) + "Z",
+		UpdatedAt:          u.UpdatedAt.UTC().Format(timeFormat) + "Z",
 	}
 }
 
@@ -253,9 +255,10 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"access_token": out.AccessToken,
-		"token_type":   out.TokenType,
-		"expires_in":   out.ExpiresIn,
+		"access_token":            out.AccessToken,
+		"token_type":              out.TokenType,
+		"expires_in":              out.ExpiresIn,
+		"require_password_change": out.RequirePasswordChange,
 	}
 	if out.User.Role == domain.RoleSuperAdmin {
 		response["user"] = gin.H{
@@ -270,6 +273,37 @@ func (h *Handler) Login(c *gin.Context) {
 		response["feature_flags"] = out.FeatureFlags
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+// ChangePassword godoc
+// POST /api/v1/auth/change-password
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var input struct {
+		NewPassword     string `json:"new_password"     binding:"required"`
+		ConfirmPassword string `json:"confirm_password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+	if input.NewPassword != input.ConfirmPassword {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "Las contraseñas no coinciden"})
+		return
+	}
+
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	db := tenantDBFromCtx(c)
+	if err := h.auth.ChangePassword(db, claims.UserID, input.NewPassword); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Contraseña actualizada correctamente"})
 }
 
 // Logout godoc
@@ -330,9 +364,10 @@ func (h *Handler) Refresh(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"access_token": out.AccessToken,
-		"token_type":   out.TokenType,
-		"expires_in":   out.ExpiresIn,
+		"access_token":            out.AccessToken,
+		"token_type":              out.TokenType,
+		"expires_in":              out.ExpiresIn,
+		"require_password_change": out.RequirePasswordChange,
 	}
 	if out.User.Role == domain.RoleSuperAdmin {
 		response["user"] = gin.H{

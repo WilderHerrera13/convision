@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
@@ -109,14 +110,22 @@ func (i *staffUserImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]
 		}
 	}
 
+	hashed, err := bcrypt.GenerateFromPassword([]byte(identification), bcrypt.DefaultCost)
+	if err != nil {
+		rec.Status = RecordStatusError
+		rec.Reason = "error al generar contraseña"
+		return rec
+	}
+
 	u := &domain.User{
-		Name:           firstName,
-		LastName:       lastName,
-		Email:          identification,
-		Identification: identification,
-		Role:           role,
-		Active:         true,
-		Password:       defaultTempPassword(),
+		Name:               firstName,
+		LastName:           lastName,
+		Email:              identification,
+		Identification:     identification,
+		Role:               role,
+		Active:             true,
+		Password:           string(hashed),
+		MustChangePassword: true,
 	}
 
 	if err := i.userRepo.Create(db, u); err != nil {

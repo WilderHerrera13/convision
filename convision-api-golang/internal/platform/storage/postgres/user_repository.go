@@ -11,7 +11,7 @@ import (
 )
 
 // userCols lists all columns fetched for user records (explicit, no SELECT *).
-const userCols = "id, name, last_name, email, identification, phone, password_hash, role, active, created_at, updated_at"
+const userCols = "id, name, last_name, email, identification, phone, password_hash, role, active, must_change_password, created_at, updated_at"
 
 // allowedUserFilters maps allowed column names to their match type:
 // "LIKE" for partial text match, "=" for exact match.
@@ -81,6 +81,13 @@ func (r *UserRepository) Create(db *gorm.DB, u *domain.User) error {
 		return err
 	}
 	return nil
+}
+
+func (r *UserRepository) UpdatePassword(db *gorm.DB, userID uint, hashedPassword string) error {
+	return db.Model(&domain.User{}).Where("id = ?", userID).Updates(map[string]any{
+		"password_hash":        hashedPassword,
+		"must_change_password": false,
+	}).Error
 }
 
 func (r *UserRepository) Update(db *gorm.DB, u *domain.User) error {

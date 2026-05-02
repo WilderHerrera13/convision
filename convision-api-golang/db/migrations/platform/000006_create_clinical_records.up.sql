@@ -1,5 +1,10 @@
--- 000006: Create clinical_records table — the top-level parent for all structured
--- clinical findings linked to an appointment.
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS clinical_records (
     id             BIGSERIAL PRIMARY KEY,

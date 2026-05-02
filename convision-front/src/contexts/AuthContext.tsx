@@ -27,8 +27,10 @@ interface AuthContextType {
   isLoading: boolean;
   isLoggingIn: boolean;
   isLoggingOut: boolean;
+  requirePasswordChange: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (newPassword: string, confirmPassword: string) => Promise<void>;
   isAdmin: () => boolean;
   isSpecialist: () => boolean;
   isReceptionist: () => boolean;
@@ -57,6 +59,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  const [requirePasswordChange, setRequirePasswordChange] = useState<boolean>(
+    () => authService.getRequirePasswordChange()
+  );
   const navigate = useNavigate();
   const { setBranch, clearBranch } = useBranch();
 
@@ -114,6 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userBranches = response.branches ?? [];
       setBranches(userBranches);
+      setRequirePasswordChange(response.require_password_change ?? false);
+
+      if (response.require_password_change) {
+        navigate('/change-password');
+        return;
+      }
 
       if (response.user.role === 'super_admin') {
         navigate('/super-admin/opticas');
@@ -141,6 +152,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changePassword = async (newPassword: string, confirmPassword: string) => {
+    await authService.changePassword(newPassword, confirmPassword);
+    setRequirePasswordChange(false);
+    const userBranches = branches;
+    if (user?.role === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (userBranches.length === 1) {
+      setBranch(userBranches[0].id, userBranches[0].name);
+      navigate(user?.role === 'specialist' ? '/specialist/dashboard' : '/receptionist/dashboard');
+    } else {
+      navigate('/select-branch');
+    }
+  };
+
   const logout = async () => {
     setIsLoggingOut(true);
     await Promise.all([
@@ -149,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]);
     setUser(null);
     setBranches([]);
+    setRequirePasswordChange(false);
     clearBranch();
     setTimeout(() => {
       navigate('/login');
@@ -172,8 +198,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     isLoggingIn,
     isLoggingOut,
+    requirePasswordChange,
     login,
     logout,
+    changePassword,
     isAdmin,
     isSpecialist,
     isReceptionist,

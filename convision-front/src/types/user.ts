@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role: 'admin' | 'specialist' | 'receptionist' | 'super_admin';
   feature_flags?: string[];
+  must_change_password?: boolean;
   created_at?: string;
   updated_at?: string;
 }

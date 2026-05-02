@@ -37,6 +37,10 @@ func (m *MockUserRepository) GetByIdentification(db *gorm.DB, identification str
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockUserRepository) UpdatePassword(db *gorm.DB, userID uint, hashedPassword string) error {
+	return m.Called(db, userID, hashedPassword).Error(0)
+}
+
 func (m *MockUserRepository) Create(db *gorm.DB, u *domain.User) error {
 	return m.Called(db, u).Error(0)
 }

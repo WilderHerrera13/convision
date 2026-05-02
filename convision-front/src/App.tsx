@@ -23,6 +23,7 @@ import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
 import QualityReview from '@/pages/specialist/QualityReview';
 import QualityReviewDetail from '@/pages/specialist/QualityReviewDetail';
 import Login from '@/pages/Login';
+import ChangePasswordPage from '@/pages/ChangePasswordPage';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -290,6 +291,14 @@ const router = createBrowserRouter([
           <PublicRoute>
             <Login />
           </PublicRoute>
+        ),
+      },
+      {
+        path: "/change-password",
+        element: (
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
         ),
       },
       {
