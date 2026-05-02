@@ -149,8 +149,15 @@ func main() {
 	// Branch repo
 	branchRepo := postgresplatform.NewBranchRepository()
 
+	// Platform repositories (multi-tenancy)
+	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
+	opticaRepo := postgresplatform.NewOpticaRepository(db)
+	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
+	_ = opticaRepo
+	_ = opticaFeatureRepo
+
 	// ---- Services (use-case layer) ----
-	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, logger)
+	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, logger)
 	patientService := patient.NewService(patientRepo, logger)
 	userService := usersvc.NewService(userRepo, logger)
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
@@ -183,14 +190,6 @@ func main() {
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
-	// Platform repositories (multi-tenancy) — wired in 16-04
-	opticaRepo := postgresplatform.NewOpticaRepository(db)
-	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
-	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
-	_ = opticaRepo
-	_ = superAdminRepo
-	_ = opticaFeatureRepo
-
 	// Branch service
 	branchService := branchsvc.NewService(branchRepo, logger)
 
@@ -221,7 +220,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----
