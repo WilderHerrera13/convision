@@ -164,4 +164,28 @@ Plans:
 | 5. Quality Hardening & Verification | 0/3 | Not started | - |
 | 6. Cash Register Close Module | 4/4 | Complete | 2026-04-14 |
 | 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
-| 14. Multi-Branch / Clinic Support | 5/5 | Complete    | 2026-04-28 |
+| 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
+| 15. Mobile & Responsive Design | 0/5 | Planned | - |
+
+### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
+
+**Goal:** Make the entire Convision app work correctly and look proper on PC, tablet, and phone by fixing hardcoded widths, adding responsive Tailwind breakpoints, and ensuring no horizontal overflow at any viewport size.
+**Requirements:** [RESP-01, RESP-02, RESP-03, RESP-04, RESP-05, RESP-06, RESP-07, RESP-08, RESP-09, RESP-10, RESP-11]
+**Depends on:** Phase 14
+**Success Criteria** (what must be TRUE):
+  1. ClinicalFormLayout uses `w-full` below `lg:` breakpoint and stacks vertically on mobile
+  2. All `grid-cols-2` without responsive variants are converted to `grid-cols-1 sm:grid-cols-2`
+  3. Fixed-width sidebars (`w-[332px]`, `w-[320px]`, `w-[372px]`) use `w-full lg:w-[Npx]` pattern
+  4. AppointmentFormPage step indicator and date layout are responsive
+  5. NewSale and NewLaboratoryOrder parent containers stack vertically on mobile
+  6. Dialog/Modal has `max-w-[calc(100vw-2rem)]` to prevent viewport overflow
+  7. EntityTable toolbar wraps on narrow screens
+  8. `npm run build` exits 0 after all changes
+**Plans:** 5 plans
+
+Plans:
+- [ ] 15-01: Layout Foundation — ClinicalFormLayout responsive widths, AdminLayout sidebar tap targets, PageLayout padding, breakpoint documentation
+- [ ] 15-02: Form Grid Responsive — Audit and fix all grid-cols-2/3 without responsive breakpoints, convert fixed-width sidebars to responsive
+- [ ] 15-03: High-Impact Pages — AppointmentFormPage step indicator + date layout, NewSale parent flex container stack on mobile
+- [ ] 15-04: High-Impact Pages — NewLaboratoryOrder multi-column responsive, finance forms container padding
+- [ ] 15-05: Polish & Testing — Dialog max-width on mobile, EntityTable toolbar wrap, padding audit, build verification, Playwright viewport tests
