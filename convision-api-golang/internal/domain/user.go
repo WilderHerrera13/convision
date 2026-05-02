@@ -36,6 +36,7 @@ type User struct {
 type UserRepository interface {
 	GetByID(db *gorm.DB, id uint) (*User, error)
 	GetByEmail(db *gorm.DB, email string) (*User, error)
+	GetByIdentification(db *gorm.DB, identification string) (*User, error)
 	Create(db *gorm.DB, u *User) error
 	Update(db *gorm.DB, u *User) error
 	Delete(db *gorm.DB, id uint) error

@@ -38,7 +38,6 @@ const DailyReportDetailView: React.FC<{
 
       <DailyReportRecepcionesSection
         recepciones={report.recepciones_dinero ?? defaultRecepcionesDinero()}
-        variant="compact"
       />
 
       <div className="overflow-hidden rounded-lg border border-[#e5e5e9] bg-white p-6 pt-0">

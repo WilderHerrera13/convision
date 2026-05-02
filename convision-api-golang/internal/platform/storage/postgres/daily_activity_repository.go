@@ -40,7 +40,52 @@ func (r *DailyActivityRepository) Create(db *gorm.DB, report *domain.DailyActivi
 }
 
 func (r *DailyActivityRepository) Update(db *gorm.DB, report *domain.DailyActivityReport) error {
-	return db.Save(report).Error
+	return db.Model(report).Updates(map[string]any{
+		"branch_id":                     report.BranchID,
+		"user_id":                       report.UserID,
+		"report_date":                   report.ReportDate,
+		"shift":                         report.Shift,
+		"status":                        report.Status,
+		"preguntas_hombre":              report.InquiriesMale,
+		"preguntas_mujeres":             report.InquiriesFemale,
+		"preguntas_ninos":               report.InquiriesChildren,
+		"cotizaciones_hombre":           report.QuotesMale,
+		"cotizaciones_mujeres":          report.QuotesFemale,
+		"cotizaciones_ninos":            report.QuotesChildren,
+		"consultas_efectivas_hombre":    report.EffectiveConsultationsMale,
+		"consultas_efectivas_mujeres":   report.EffectiveConsultationsFemale,
+		"consultas_efectivas_ninos":     report.EffectiveConsultationsChildren,
+		"consulta_venta_formula":        report.FormulaConsultations,
+		"consultas_no_efectivas":        report.NonEffectiveConsultations,
+		"bonos_entregados":              report.BonusesDelivered,
+		"bonos_redimidos":               report.BonusesRedeemed,
+		"sistecreditos_realizados":      report.SistecreditsDone,
+		"addi_realizados":               report.AddiDone,
+		"control_seguimiento":           report.FollowUpControl,
+		"seguimiento_garantias":         report.WarrantyFollowUp,
+		"ordenes":                       report.Orders,
+		"plan_separe":                   report.LayawayPlan,
+		"otras_ventas":                  report.OtherSales,
+		"entregas":                      report.Deliveries,
+		"sistecreditos_abonos":          report.SistecreditsPayments,
+		"valor_ordenes":                 report.OrdersValue,
+		"publicaciones_facebook":        report.FacebookPosts,
+		"publicaciones_instagram":       report.InstagramPosts,
+		"publicaciones_whatsapp":        report.WhatsappPosts,
+		"publicaciones_compartidas_fb":  report.FacebookSharedPosts,
+		"tiktok_realizados":             report.TiktokVideos,
+		"bonos_regalo_enviados":         report.GiftBonusesSent,
+		"bonos_fidelizacion_enviados":   report.LoyaltyBonusesSent,
+		"mensajes_facebook":             report.FacebookMessages,
+		"mensajes_instagram":            report.InstagramMessages,
+		"mensajes_whatsapp":             report.WhatsappMessages,
+		"entregas_realizadas":           report.DeliveriesCompleted,
+		"etiquetas_clientes":            report.CustomerTags,
+		"cotizaciones_trabajo":          report.WorkQuotes,
+		"ordenes_trabajo":               report.WorkOrders,
+		"observations":                  report.Observations,
+		"recepciones_dinero":            report.MoneyReceipts,
+	}).Error
 }
 
 func (r *DailyActivityRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.DailyActivityReport, int64, error) {

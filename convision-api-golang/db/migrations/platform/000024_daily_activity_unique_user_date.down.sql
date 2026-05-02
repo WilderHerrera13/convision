@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS optica_main.uq_daily_activity_reports_user_date;

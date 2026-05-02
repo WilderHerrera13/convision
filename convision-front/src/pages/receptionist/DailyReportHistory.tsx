@@ -22,7 +22,7 @@ const DailyReportHistory: React.FC = () => {
     {
       accessorKey: 'report_date',
       header: 'Fecha',
-      cell: (item) => format(new Date(item.report_date), 'dd/MM/yyyy'),
+      cell: (item) => format(new Date(item.report_date + 'T00:00:00'), 'dd/MM/yyyy'),
     },
     {
       id: 'status',

@@ -357,6 +357,29 @@ func (h *Handler) PutCashRegisterCloseAdminActuals(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": toCashCloseResource(item)})
 }
 
+// DeleteCashRegisterClose godoc
+// DELETE /api/v1/cash-register-closes/:id
+func (h *Handler) DeleteCashRegisterClose(c *gin.Context) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	db := tenantDBFromCtx(c)
+	if err := h.cashClose.Delete(db, id, claims.Role, claims.UserID); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // ListCashRegisterClosesAdvisorsPending godoc
 // GET /api/v1/cash-register-closes-advisors-pending
 func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
@@ -390,13 +413,20 @@ func (h *Handler) GetCashRegisterClosesConsolidated(c *gin.Context) {
 		}
 	}
 	db := tenantDBFromCtx(c)
-	branchName := ""
+	branchNameMap := make(map[uint]string)
 	if branchID > 0 {
 		if b, err := h.branchRepo.GetByID(db, branchID); err == nil {
-			branchName = b.Name
+			branchNameMap[branchID] = b.Name
+		}
+	} else {
+		branches, err := h.branchRepo.ListAll(db)
+		if err == nil {
+			for _, b := range branches {
+				branchNameMap[b.ID] = b.Name
+			}
 		}
 	}
-	out, err := h.cashClose.Consolidated(db, branchID, branchName, c.Query("date_from"), c.Query("date_to"))
+	out, err := h.cashClose.Consolidated(db, branchID, branchNameMap, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return

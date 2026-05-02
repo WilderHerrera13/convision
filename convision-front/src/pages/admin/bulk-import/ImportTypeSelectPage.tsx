@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layouts/PageLayout';
-import { UserRound, Stethoscope, CalendarCheck, Glasses } from 'lucide-react';
+import { UserRound, Stethoscope, CalendarCheck, Glasses, Users } from 'lucide-react';
 
 interface ImportOption {
   type: string;
@@ -44,6 +44,14 @@ const OPTIONS: ImportOption[] = [
     columns: ['CodigoInterno', 'Identificador', 'TipoLente', 'Marca', 'Material', 'ClaseLente', 'Tratamiento', 'Fotocromático', 'Descripción', 'Precio', 'Costo', 'Proveedor'],
     icon: Glasses,
     path: '/admin/bulk-import/lenses',
+  },
+  {
+    type: 'staff-users',
+    title: 'Usuarios del Sistema',
+    description: 'Carga masiva de asesores y optómetras. Si la sede no existe se crea automáticamente. El número de documento se usa para iniciar sesión.',
+    columns: ['Nombre', 'Documento', 'Rol', 'Sede'],
+    icon: Users,
+    path: '/admin/bulk-import/staff-users',
   },
 ];
 

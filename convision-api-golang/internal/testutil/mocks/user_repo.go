@@ -29,6 +29,14 @@ func (m *MockUserRepository) GetByEmail(db *gorm.DB, email string) (*domain.User
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockUserRepository) GetByIdentification(db *gorm.DB, identification string) (*domain.User, error) {
+	args := m.Called(db, identification)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
 func (m *MockUserRepository) Create(db *gorm.DB, u *domain.User) error {
 	return m.Called(db, u).Error(0)
 }

@@ -18,8 +18,9 @@ import (
 type ImportType string
 
 const (
-	ImportTypePatients ImportType = "patients"
-	ImportTypeDoctors  ImportType = "doctors"
+	ImportTypePatients   ImportType = "patients"
+	ImportTypeDoctors    ImportType = "doctors"
+	ImportTypeStaffUsers ImportType = "staff-users"
 	// ImportTypeScheduledAppointments is declared in importer_scheduled_appointments.go
 )
 
@@ -62,6 +63,7 @@ type Service struct {
 func NewService(
 	patientRepo domain.PatientRepository,
 	userRepo domain.UserRepository,
+	branchRepo domain.BranchRepository,
 	appointmentRepo domain.AppointmentRepository,
 	productRepo domain.ProductRepository,
 	lensTypeRepo domain.LensTypeRepository,
@@ -77,6 +79,7 @@ func NewService(
 		registry: Registry{
 			ImportTypePatients:              newPatientImporter(patientRepo, logger),
 			ImportTypeDoctors:               newDoctorImporter(userRepo, logger),
+			ImportTypeStaffUsers:            newStaffUserImporter(userRepo, branchRepo, logger),
 			ImportTypeScheduledAppointments: newScheduledAppointmentsImporter(patientRepo, userRepo, appointmentRepo, logger),
 			ImportTypeLenses:                newLensImporter(productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
 		},

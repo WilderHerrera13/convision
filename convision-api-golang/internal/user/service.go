@@ -94,6 +94,12 @@ func (s *Service) GetSpecialists(db *gorm.DB) ([]*domain.User, error) {
 	return users, err
 }
 
+// GetAdmins returns all users with the admin role (no pagination cap).
+func (s *Service) GetAdmins(db *gorm.DB) ([]*domain.User, error) {
+	users, _, err := s.repo.List(db, map[string]any{"role": string(domain.RoleAdmin)}, 1, 200)
+	return users, err
+}
+
 func (s *Service) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
 	return s.repo.GetSpecialistsByBranch(db, branchID)
 }

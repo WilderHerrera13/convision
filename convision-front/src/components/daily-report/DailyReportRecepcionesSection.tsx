@@ -13,7 +13,10 @@ type Props = {
 
 const DailyReportRecepcionesSection: React.FC<Props> = ({ recepciones, variant = 'default' }) => {
   const total = sumRecepcionesDinero(recepciones);
-  const rows = RECEPCIONES_DINERO_META.filter(({ key }) => (Number(recepciones[key]) || 0) > 0);
+  const hasAnyValue = RECEPCIONES_DINERO_META.some(({ key }) => (Number(recepciones[key]) || 0) > 0);
+  const rows = variant === 'default'
+    ? RECEPCIONES_DINERO_META
+    : RECEPCIONES_DINERO_META.filter(({ key }) => (Number(recepciones[key]) || 0) > 0);
 
   return (
     <div
@@ -45,7 +48,7 @@ const DailyReportRecepcionesSection: React.FC<Props> = ({ recepciones, variant =
           <span className="text-[12px] font-semibold text-[#0f0f12]">Total</span>
           <span className="text-[14px] font-semibold tabular-nums text-[#0f0f12]">{formatCOP(total)}</span>
         </div>
-        {rows.length === 0 ? (
+        {variant === 'compact' && !hasAnyValue ? (
           <p className="text-[12px] text-[#7d7d87]">
             Aún no hay montos por canal. Úsalos desde Registro rápido de atención.
           </p>

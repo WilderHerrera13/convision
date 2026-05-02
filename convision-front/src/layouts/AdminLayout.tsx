@@ -21,7 +21,7 @@ const adminNav: NavSection[] = [
     label: null,
     items: [
       { title: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-      { title: 'Reporte de gestión diario', path: '/admin/daily-reports', icon: UserRound },
+      { title: 'Reporte de gestión diario', path: '/admin/daily-reports', icon: UserRound, featureKey: 'sidebar.advisor_report' },
     ],
   },
   {
@@ -52,7 +52,7 @@ const adminNav: NavSection[] = [
       { title: 'Gastos', path: '/admin/expenses', icon: TrendingUp, featureKey: 'sidebar.expenses' },
       { title: 'Traslados', path: '/admin/cash-transfers', icon: ArrowLeftRight },
       { title: 'Pagos Proveedores', path: '/admin/supplier-payments', icon: Banknote },
-      { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList },
+      { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList, featureKey: 'sidebar.cash_close' },
     ],
   },
   {
@@ -89,10 +89,10 @@ const receptionistNav: NavSection[] = [
   {
     label: 'CAJA',
     items: [
-      { title: 'Cierre de Caja', path: '/receptionist/cash-closes', icon: ClipboardList },
-      { title: 'Historial Cierres', path: '/receptionist/cash-close-history', icon: BarChart3 },
-      { title: 'Reporte de gestión diario', path: '/receptionist/daily-report', icon: FileText },
-      { title: 'Historial Reportes', path: '/receptionist/daily-report-history', icon: Eye },
+      { title: 'Cierre de Caja', path: '/receptionist/cash-closes', icon: ClipboardList, featureKey: 'sidebar.cash_close' },
+      { title: 'Historial Cierres', path: '/receptionist/cash-close-history', icon: BarChart3, featureKey: 'sidebar.cash_close' },
+      { title: 'Reporte de gestión diario', path: '/receptionist/daily-report', icon: FileText, featureKey: 'sidebar.advisor_report' },
+      { title: 'Historial Reportes', path: '/receptionist/daily-report-history', icon: Eye, featureKey: 'sidebar.advisor_report' },
     ],
   },
 ];
@@ -109,8 +109,8 @@ const specialistNav: NavSection[] = [
   {
     label: 'GESTIÓN',
     items: [
-      { title: 'Informe de Gestión', path: '/specialist/management-report', icon: FileBarChart2 },
-      { title: 'Órdenes de Lab.', path: '/specialist/laboratory-orders', icon: LabIcon },
+      { title: 'Informe de Gestión', path: '/specialist/management-report', icon: FileBarChart2, featureKey: 'sidebar.specialist_management' },
+      { title: 'Órdenes de Lab.', path: '/specialist/laboratory-orders', icon: LabIcon, featureKey: 'sidebar.laboratory' },
     ],
   },
 ];
@@ -150,6 +150,9 @@ const AdminLayout: React.FC = () => {
   const showCatalog = useFeature('sidebar.catalog');
   const showQuotes = useFeature('sidebar.quotes');
   const showDiscounts = useFeature('sidebar.discounts');
+  const showCashClose = useFeature('sidebar.cash_close');
+  const showAdvisorReport = useFeature('sidebar.advisor_report');
+  const showSpecialistManagement = useFeature('sidebar.specialist_management');
 
   const featureVisibility: Record<string, boolean> = {
     'sidebar.appointments': showAppointments,
@@ -164,6 +167,9 @@ const AdminLayout: React.FC = () => {
     'sidebar.catalog': showCatalog,
     'sidebar.quotes': showQuotes,
     'sidebar.discounts': showDiscounts,
+    'sidebar.cash_close': showCashClose,
+    'sidebar.advisor_report': showAdvisorReport,
+    'sidebar.specialist_management': showSpecialistManagement,
   };
 
   useEffect(() => {

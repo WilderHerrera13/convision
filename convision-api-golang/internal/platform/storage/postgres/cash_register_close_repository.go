@@ -249,11 +249,28 @@ func (r *CashRegisterCloseRepository) Update(db *gorm.DB, c *domain.CashRegister
 }
 
 func (r *CashRegisterCloseRepository) Delete(db *gorm.DB, id uint) error {
-	res := db.Delete(&domain.CashRegisterClose{}, id)
-	if res.Error != nil {
-		return res.Error
+	var affected int64
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("cash_register_close_id = ?", id).Delete(&domain.CashRegisterClosePayment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("cash_register_close_id = ?", id).Delete(&domain.CashRegisterCloseActualPayment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("cash_register_close_id = ?", id).Delete(&domain.CashCountDenomination{}).Error; err != nil {
+			return err
+		}
+		res := tx.Delete(&domain.CashRegisterClose{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		affected = res.RowsAffected
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	if res.RowsAffected == 0 {
+	if affected == 0 {
 		return &domain.ErrNotFound{Resource: "cash_register_close"}
 	}
 	return nil

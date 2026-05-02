@@ -49,6 +49,7 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const [triggerWidth, setTriggerWidth] = React.useState<number>(0);
+  const isSelectingRef = React.useRef(false);
 
   const selectedLabel = React.useMemo(
     () => options.find((o) => o.value === value)?.label ?? '',
@@ -70,6 +71,7 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
   };
 
   const handleOpenChange = (next: boolean) => {
+    if (next && isSelectingRef.current) return;
     if (next && triggerRef.current) {
       setTriggerWidth(triggerRef.current.offsetWidth);
     }
@@ -78,11 +80,13 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
   };
 
   const handleSelect = (val: string) => {
+    isSelectingRef.current = true;
     const match = options.find((o) => o.value.toLowerCase() === val.toLowerCase());
     const next = match ? match.value : val;
     if (next !== value) onChange(next);
     setOpen(false);
     setQuery('');
+    requestAnimationFrame(() => { isSelectingRef.current = false; });
   };
 
   return (

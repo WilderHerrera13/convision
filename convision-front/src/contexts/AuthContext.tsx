@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@/components/ui/use-toast';
 import { authService, BranchInfo } from '@/services/auth';
 import { User } from '@/types/user';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -79,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         try {
           const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
+          setUser({ ...currentUser, feature_flags: storedUser.feature_flags ?? [] });
         } catch (verificationError) {
           const errorResponse = verificationError as { response?: { status?: number } };
           
@@ -144,26 +143,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setIsLoggingOut(true);
-    try {
-      await Promise.all([
-        authService.logout(),
-        new Promise(resolve => setTimeout(resolve, 1500))
-      ]);
-      setUser(null);
-      setBranches([]);
-      clearBranch();
-      setTimeout(() => {
-        navigate('/login');
-        setIsLoggingOut(false);
-      }, 500);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error al cerrar sesión",
-        description: (error instanceof Error) ? error.message : "Ha ocurrido un problema al cerrar sesión.",
-      });
+    await Promise.all([
+      authService.logout().catch(() => {}),
+      new Promise(resolve => setTimeout(resolve, 1500)),
+    ]);
+    setUser(null);
+    setBranches([]);
+    clearBranch();
+    setTimeout(() => {
+      navigate('/login');
       setIsLoggingOut(false);
-    }
+    }, 500);
   };
 
   useEffect(() => {

@@ -368,6 +368,28 @@ func (s *Service) PutAdminActuals(db *gorm.DB, id uint, input PutAdminActualsInp
 	return s.repo.GetByID(db, id)
 }
 
+// Delete removes a cash register close. Only admins or the owner can delete draft closes.
+func (s *Service) Delete(db *gorm.DB, id uint, role domain.Role, userID uint) error {
+	item, err := s.repo.GetByID(db, id)
+	if err != nil {
+		return err
+	}
+
+	if role != domain.RoleAdmin && item.UserID != userID {
+		return &domain.ErrUnauthorized{Action: "delete cash register close"}
+	}
+	if item.Status != domain.CashRegisterCloseStatusDraft {
+		return &domain.ErrValidation{Field: "status", Message: "solo se pueden eliminar cierres en estado borrador"}
+	}
+
+	if err := s.repo.Delete(db, id); err != nil {
+		return err
+	}
+
+	s.logger.Info("cash register close deleted", zap.Uint("id", id))
+	return nil
+}
+
 // -------------------------------------------------------------------
 // AdvisorsPending — mirrors Laravel's CashRegisterCloseController::advisorsPending
 // -------------------------------------------------------------------
@@ -643,7 +665,8 @@ func computeInitials(name string) string {
 }
 
 // Consolidated returns the admin aggregated view for cash register closes within a date range.
-func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchName string, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
+// branchNameMap maps branch IDs to their names, used to populate the Sede field per advisor.
+func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchNameMap map[uint]string, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
 	now := time.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -696,6 +719,7 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchName string, da
 		latestDate   time.Time
 		latestStatus string
 		hasRecon     bool
+		branchID     uint
 	}
 
 	byUser := map[uint]*advisorAgg{}
@@ -771,6 +795,7 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchName string, da
 		if c.CloseDate != nil && c.CloseDate.After(agg.latestDate) {
 			agg.latestDate = *c.CloseDate
 			agg.latestStatus = string(c.Status)
+			agg.branchID = c.BranchID
 		}
 
 		if hasRecon && variance != 0 {
@@ -798,11 +823,17 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchName string, da
 		if !a.hasRecon {
 			a.totalCount = a.totalDecl
 		}
+		advisorBranchName := ""
+		if branchNameMap != nil {
+			if name, ok := branchNameMap[a.branchID]; ok {
+				advisorBranchName = name
+			}
+		}
 		advisors = append(advisors, ConsolidatedAdvisorRow{
 			UserID:        a.userID,
 			UserName:      a.userName,
 			Initials:      computeInitials(a.userName),
-			Sede:          branchName,
+			Sede:          advisorBranchName,
 			ClosesCount:   a.closesCount,
 			TotalDeclared: round2(a.totalDecl),
 			TotalCounted:  round2(a.totalCount),

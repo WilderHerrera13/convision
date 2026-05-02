@@ -13,6 +13,33 @@ import {
 } from '@/pages/receptionist/dailyQuickAttentionHelpers';
 import { formatCOPGroupedInput } from '@/lib/formatMoney';
 
+type ItemValue = QuickAttentionItem;
+
+const ATTENTION_ITEMS: ItemValue[] = [
+  'preguntas', 'cotizaciones', 'consultas_efectivas',
+  'consulta_venta_formula', 'consultas_no_efectivas',
+];
+
+const OPERATIONS_ITEMS: ItemValue[] = [
+  'bonos_entregados', 'bonos_redimidos', 'sistecreditos_realizados', 'addi_realizados',
+  'control_seguimiento', 'seguimiento_garantias', 'ordenes', 'plan_separe',
+  'otras_ventas', 'entregas', 'sistecreditos_abonos',
+];
+
+const MONEY_ITEMS: ItemValue[] = [
+  'valor_ordenes', 'voucher', 'bancolombia', 'daviplata', 'nequi',
+  'addi_recibido', 'sistecredito_recibido', 'compras',
+  'anticipos_recibidos', 'anticipos_por_cru', 'bono_regalo_recibido', 'pago_sistecredito',
+];
+
+const ITEM_GROUPS = [
+  { title: 'Atención al cliente', keys: ATTENTION_ITEMS },
+  { title: 'Operaciones', keys: OPERATIONS_ITEMS },
+  { title: 'Dinero recibido', keys: MONEY_ITEMS },
+] as const;
+
+const ITEM_LABEL = Object.fromEntries(QUICK_ATTENTION_ITEMS.map((i) => [i.value, i.label])) as Record<ItemValue, string>;
+
 const AMOUNT_PLACEHOLDER = formatCOPGroupedInput(150000);
 
 type Props = {
@@ -57,24 +84,31 @@ const DailyQuickAttentionStepCard: React.FC<Props> = ({
     </CardHeader>
     <CardContent className="space-y-3 p-4">
       {step === 1 && (
-        <>
-          <div className="flex flex-wrap gap-3">
-            {QUICK_ATTENTION_ITEMS.map((it) => (
-              <button
-                key={it.value}
-                type="button"
-                onClick={() => onItemChange(it.value)}
-                className={cn(
-                  'rounded-lg border px-3 py-2 text-[13px] transition-colors',
-                  item === it.value ? chipSelected : chipIdle,
-                )}
-              >
-                {it.label}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-4">
+          {ITEM_GROUPS.map((group) => (
+            <div key={group.title}>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7d7d87]">
+                {group.title}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.keys.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onItemChange(key)}
+                    className={cn(
+                      'rounded-lg border px-3 py-2 text-[13px] transition-colors',
+                      item === key ? chipSelected : chipIdle,
+                    )}
+                  >
+                    {ITEM_LABEL[key]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
           <p className="text-[12px] text-[#7d7d87]">Selecciona un ítem y pulsa Continuar.</p>
-        </>
+        </div>
       )}
       {step === 2 && item && quickAttentionNeedsAmount(item) && (
         <>

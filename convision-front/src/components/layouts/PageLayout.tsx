@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface PageLayoutProps {
   title: string;
+  omitTopbar?: boolean;
   subtitle?: string;
   /** Clases extra para el subtítulo (p. ej. varias líneas como en Figma admin). */
   subtitleClassName?: string;
@@ -22,6 +23,7 @@ interface PageLayoutProps {
  */
 const PageLayout: React.FC<PageLayoutProps> = ({
   title,
+  omitTopbar,
   subtitle,
   subtitleClassName,
   actions,
@@ -31,30 +33,30 @@ const PageLayout: React.FC<PageLayoutProps> = ({
   titleStackClassName,
 }) => (
   <div className="flex flex-col h-full overflow-hidden">
-    {/* Topbar */}
-    <div
-      className={cn(
-        'bg-white border-b border-convision-border flex items-center justify-between px-6 shrink-0',
-        topbarClassName ?? 'h-[56px]',
-      )}
-    >
-      <div className={cn('flex flex-col min-w-0 flex-1 pr-4', titleStackClassName ?? 'gap-[3px]')}>
-        <span className="text-[16px] font-semibold text-[#0f0f12] leading-none">{title}</span>
-        {subtitle && (
-          <span
-            className={cn(
-              'text-[12px] text-convision-text-secondary',
-              subtitleClassName ?? 'leading-none',
-            )}
-          >
-            {subtitle}
-          </span>
+    {!omitTopbar && (
+      <div
+        className={cn(
+          'bg-white border-b border-convision-border flex items-center justify-between px-6 shrink-0',
+          topbarClassName ?? 'h-[56px]',
         )}
+      >
+        <div className={cn('flex flex-col min-w-0 flex-1 pr-4', titleStackClassName ?? 'gap-[3px]')}>
+          <span className="text-[16px] font-semibold text-[#0f0f12] leading-none">{title}</span>
+          {subtitle && (
+            <span
+              className={cn(
+                'text-[12px] text-convision-text-secondary',
+                subtitleClassName ?? 'leading-none',
+              )}
+            >
+              {subtitle}
+            </span>
+          )}
+        </div>
+        {actions && <div className="flex flex-shrink-0 items-end gap-4">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-shrink-0 items-end gap-4">{actions}</div>}
-    </div>
+    )}
 
-    {/* Scrollable content */}
     <div className={`flex-1 overflow-y-auto p-6 ${contentClassName ?? ''}`}>
       {children}
     </div>

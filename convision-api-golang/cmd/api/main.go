@@ -187,7 +187,7 @@ func main() {
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
-	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
+	bulkImportService := bulkimport.NewService(patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// Branch service

@@ -152,6 +152,8 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput, requestingUser
 	updated.ID = existing.ID
 	updated.Status = existing.Status
 	updated.MoneyReceipts = existing.MoneyReceipts
+	updated.BranchID = existing.BranchID
+	updated.CreatedAt = existing.CreatedAt
 	if err := s.repo.Update(db, updated); err != nil {
 		return nil, err
 	}
@@ -228,7 +230,12 @@ func (s *Service) QuickAttention(db *gorm.DB, input QuickAttentionInput, userID 
 		"bono_regalo_recibido": true, "pago_sistecredito": true,
 	}
 
-	if amountItems[input.Item] {
+	if input.Item == "valor_ordenes" {
+		if input.Amount <= 0 {
+			return nil, &domain.ErrValidation{Message: "amount es requerido para valor_ordenes"}
+		}
+		report.OrdersValue += input.Amount
+	} else if amountItems[input.Item] {
 		if input.Amount <= 0 {
 			return nil, &domain.ErrValidation{Message: "amount es requerido para items monetarios"}
 		}
@@ -352,6 +359,20 @@ func incrementReportField(r *domain.DailyActivityReport, item, profile string) e
 		r.SistecreditsDone++
 	case "addi_realizados":
 		r.AddiDone++
+	case "control_seguimiento":
+		r.FollowUpControl++
+	case "seguimiento_garantias":
+		r.WarrantyFollowUp++
+	case "ordenes":
+		r.Orders++
+	case "plan_separe":
+		r.LayawayPlan++
+	case "otras_ventas":
+		r.OtherSales++
+	case "entregas":
+		r.Deliveries++
+	case "sistecreditos_abonos":
+		r.SistecreditsPayments++
 	default:
 		return &domain.ErrValidation{Message: fmt.Sprintf("item '%s' no reconocido", item)}
 	}

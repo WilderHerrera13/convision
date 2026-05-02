@@ -1,5 +1,5 @@
 import ApiService from './ApiService';
-import type { Optica, CreateOpticaInput, UpdateOpticaInput, OpticaFeature, FeatureToggle } from '@/types/optica';
+import type { Optica, CreateOpticaInput, UpdateOpticaInput, OpticaFeature, FeatureToggle, OpticaAdmin, CreateOpticaAdminInput } from '@/types/optica';
 
 interface OpticaListResponse {
   data: Optica[];
@@ -50,5 +50,17 @@ export const superAdminService = {
 
   async listFeatureKeys(): Promise<{ feature_keys: string[] }> {
     return ApiService.get('/api/v1/super-admin/feature-keys');
+  },
+
+  async listAdmins(opticaId: number): Promise<{ data: OpticaAdmin[] }> {
+    return ApiService.get(`/api/v1/super-admin/opticas/${opticaId}/admins`);
+  },
+
+  async createAdmin(opticaId: number, input: CreateOpticaAdminInput): Promise<OpticaAdmin> {
+    return ApiService.post(`/api/v1/super-admin/opticas/${opticaId}/admins`, input);
+  },
+
+  async deleteAdmin(opticaId: number, userId: number): Promise<void> {
+    return ApiService.delete(`/api/v1/super-admin/opticas/${opticaId}/admins/${userId}`);
   },
 };

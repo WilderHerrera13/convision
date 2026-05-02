@@ -30,7 +30,7 @@ import DailyReportRecepcionesSection from '@/components/daily-report/DailyReport
 import { Link } from 'react-router-dom';
 import CustomerAttentionMatrix from '@/components/cashClose/CustomerAttentionMatrix';
 import DailyReportSection from '@/components/cashClose/DailyReportSection';
-import DailyReportQuickSummary from '@/pages/receptionist/DailyReportQuickSummary';
+
 
 const OPERATIONS_FIELDS = [
   { key: 'bonos_entregados', label: 'Bonos entregados' },
@@ -78,7 +78,7 @@ const DailyReport: React.FC = () => {
 
   const loadTodayReport = useCallback(async () => {
     try {
-      const resp = await dailyActivityReportService.list({ date_from: today, date_to: today });
+      const resp = await dailyActivityReportService.list({ date_from: today, date_to: today, branch_id: '0' });
       const rawList = (resp as { data?: unknown[] })?.data ?? (Array.isArray(resp) ? resp : []);
       const items = Array.isArray(rawList) ? rawList : [];
       if (items[0]) {
@@ -210,12 +210,6 @@ const DailyReport: React.FC = () => {
           Este reporte fue cerrado y no puede ser editado. Solo el administrador puede reabrirlo.
         </div>
       )}
-
-      <DailyReportQuickSummary
-        customerAttention={customerAttention}
-        operations={operations}
-        recepciones={recepcionesDinero}
-      />
 
       <CustomerAttentionMatrix
         values={customerAttention}

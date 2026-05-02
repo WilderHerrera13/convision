@@ -25,6 +25,19 @@ func (r *branchRepository) GetByID(db *gorm.DB, id uint) (*domain.Branch, error)
 	return &b, nil
 }
 
+func (r *branchRepository) FindByName(db *gorm.DB, name string) (*domain.Branch, error) {
+	var b domain.Branch
+	if err := db.Select("id, name, address, city, phone, email, is_active, created_at, updated_at").
+		Where("LOWER(name) = LOWER(?)", name).
+		First(&b).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrBranchNotFound{}
+		}
+		return nil, err
+	}
+	return &b, nil
+}
+
 func (r *branchRepository) GetActiveByID(db *gorm.DB, id uint) (*domain.Branch, error) {
 	b, err := r.GetByID(db, id)
 	if err != nil {

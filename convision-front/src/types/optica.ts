@@ -34,3 +34,23 @@ export interface FeatureToggle {
   feature_key: string;
   is_enabled: boolean;
 }
+
+export interface OpticaAdmin {
+  id: number;
+  name: string;
+  last_name: string;
+  email: string;
+  identification: string;
+  phone: string;
+  role: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateOpticaAdminInput {
+  name: string;
+  last_name?: string;
+  email: string;
+  password: string;
+}

@@ -15,7 +15,7 @@ export function quickAttentionNeedsProfile(item: QuickAttentionItem): boolean {
 }
 
 export function quickAttentionNeedsAmount(item: QuickAttentionItem): boolean {
-  return RECEPCIONES_DINERO_META.some((m) => m.key === item);
+  return item === 'valor_ordenes' || RECEPCIONES_DINERO_META.some((m) => m.key === item);
 }
 
 export function quickAttentionErrorMessage(err: unknown): string {

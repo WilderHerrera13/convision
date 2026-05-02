@@ -5,7 +5,7 @@ import { useBranch } from '@/contexts/BranchContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Eye, Search, Loader2 } from 'lucide-react';
+import { Eye, Search, Loader2, FileBarChart2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import {
@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/table';
 import Pagination from '@/components/ui/pagination';
 import PageLayout from '@/components/layouts/PageLayout';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useRoleTheme } from '@/hooks/useRoleTheme';
 import AppointmentStatusBadge from '@/components/appointments/AppointmentStatusBadge';
 import {
   CONSULTATION_TYPE_OPTIONS,
@@ -53,6 +55,7 @@ function consultationLabel(value: ConsultationType | null): string {
 const ManagementReport: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { primary: roleAccent } = useRoleTheme();
   const { branchId } = useBranch();
   const isAdmin = user?.role === 'admin';
   const [search, setSearch] = useState('');
@@ -92,11 +95,16 @@ const ManagementReport: React.FC = () => {
   const toItem = rows.length === 0 ? 0 : Math.min(fromItem + rows.length - 1, total);
 
   return (
-    <PageLayout
-      title="Informe de Gestión"
-      subtitle="Gestión Clínica / Informe de Gestión"
-    >
-      <div className="max-w-[1080px] mx-auto w-full">
+    <PageLayout title="Informe de Gestión" omitTopbar>
+      <div className="max-w-[1080px] mx-auto w-full space-y-5">
+        <header className="shrink-0">
+          <h1 className="text-[20px] font-semibold text-convision-text tracking-tight">
+            Informe de Gestión
+          </h1>
+          <p className="text-[13px] text-convision-text-secondary mt-1">
+            Gestión clínica · citas para registrar informe de gestión
+          </p>
+        </header>
         <Card className="overflow-hidden border-convision-border-subtle shadow-none">
           <div className="flex items-center justify-between px-6 pt-5 pb-4">
             <div className="flex flex-col gap-1">
@@ -171,8 +179,23 @@ const ManagementReport: React.FC = () => {
                   </TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-[13px] text-convision-text-secondary">
-                      No hay atenciones registradas aún.
+                    <TableCell colSpan={6} className="p-0 align-top">
+                      {search.trim() ? (
+                        <EmptyState
+                          variant="table-filter"
+                          onAction={() => {
+                            setSearch('');
+                            setPage(1);
+                          }}
+                        />
+                      ) : (
+                        <EmptyState
+                          leadingIcon={FileBarChart2}
+                          accentColor={roleAccent}
+                          title="Sin reportes de gestión en el período seleccionado"
+                          description="No hay citas completadas pendientes de informe. Los registros aparecerán aquí cuando correspondan."
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (

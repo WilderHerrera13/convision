@@ -8,6 +8,7 @@ import SuperAdminLayout from '@/layouts/SuperAdminLayout';
 import OpticasPage from '@/pages/super-admin/OpticasPage';
 import OpticaCreatePage from '@/pages/super-admin/OpticaCreatePage';
 import OpticaDetailPage from '@/pages/super-admin/OpticaDetailPage';
+import FeatureFlagsPage from '@/pages/super-admin/FeatureFlagsPage';
 import Dashboard from '@/pages/admin/Dashboard';
 import SpecialistDashboard from '@/pages/specialist/SpecialistDashboard';
 import SpecialistAppointmentDetail from '@/pages/specialist/SpecialistAppointmentDetail';
@@ -898,6 +899,7 @@ const router = createBrowserRouter([
           { path: "opticas", element: <OpticasPage /> },
           { path: "opticas/nueva", element: <OpticaCreatePage /> },
           { path: "opticas/:id", element: <OpticaDetailPage /> },
+          { path: "feature-flags", element: <FeatureFlagsPage /> },
         ],
       },
       {

@@ -77,7 +77,7 @@ const SpecialistManagementReport: React.FC = () => {
       specialistReportService.getConsolidated({
         from: fromStr,
         to: toStr,
-        branchId: Number(selectedSedeId),
+        branchId: selectedSedeId !== 'all' ? Number(selectedSedeId) : 0,
       }),
     enabled: listaBranchFilterActive,
   });
@@ -90,7 +90,7 @@ const SpecialistManagementReport: React.FC = () => {
         to: toStr,
         specialistIds:
           selectedSpecialistId !== 'all' ? [Number(selectedSpecialistId)] : undefined,
-        branchId: selectedSedeId !== 'all' ? Number(selectedSedeId) : undefined,
+        branchId: selectedSedeId !== 'all' ? Number(selectedSedeId) : 0,
       }),
     enabled: activeTab === 'consolidado',
   });

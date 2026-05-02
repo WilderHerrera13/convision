@@ -56,6 +56,18 @@ func (r *UserRepository) GetByEmail(db *gorm.DB, email string) (*domain.User, er
 	return &u, nil
 }
 
+func (r *UserRepository) GetByIdentification(db *gorm.DB, identification string) (*domain.User, error) {
+	var u domain.User
+	err := db.Select(userCols).Where("identification = ?", identification).First(&u).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "user"}
+		}
+		return nil, err
+	}
+	return &u, nil
+}
+
 func (r *UserRepository) Create(db *gorm.DB, u *domain.User) error {
 	err := db.Create(u).Error
 	if err != nil {

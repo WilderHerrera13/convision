@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/convision/api/internal/domain"
 )
 
 type cacheEntry struct {
@@ -64,6 +66,17 @@ func (c *Cache) refresh(opticaID uint) ([]string, error) {
 	for i, r := range rows {
 		flags[i] = r.FeatureKey
 	}
+
+	seen := make(map[string]struct{}, len(flags))
+	for _, f := range flags {
+		seen[f] = struct{}{}
+	}
+	for _, k := range domain.AllFeatureKeys {
+		if _, ok := seen[k]; !ok {
+			flags = append(flags, k)
+		}
+	}
+
 	c.store[opticaID] = cacheEntry{flags: flags, expiresAt: time.Now().Add(c.ttl)}
 	return flags, nil
 }

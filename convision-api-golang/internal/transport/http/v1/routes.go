@@ -63,6 +63,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		superAdmin.GET("/opticas/:id/features", h.ListOpticaFeatures)
 		superAdmin.PUT("/opticas/:id/features", h.BulkUpdateOpticaFeatures)
 		superAdmin.PATCH("/opticas/:id/features/:key", h.ToggleOpticaFeature)
+		superAdmin.GET("/opticas/:id/admins", h.ListOpticaAdmins)
+		superAdmin.POST("/opticas/:id/admins", h.CreateOpticaAdmin)
+		superAdmin.DELETE("/opticas/:id/admins/:userId", h.DeleteOpticaAdmin)
 		superAdmin.GET("/feature-keys", h.ListFeatureKeys)
 	}
 
@@ -724,6 +727,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			cashRegisterCloses.POST("/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveCashRegisterClose)
 			cashRegisterCloses.POST("/:id/return", jwtauth.RequireRole(domain.RoleAdmin), h.ReturnCashRegisterCloseToDraft)
 			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequireRole(domain.RoleAdmin), h.PutCashRegisterCloseAdminActuals)
+			cashRegisterCloses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.DeleteCashRegisterClose)
 		}
 
 		branchScoped.GET("/cash-register-closes-advisors-pending", jwtauth.RequireRole(domain.RoleAdmin), h.ListCashRegisterClosesAdvisorsPending)
@@ -767,6 +771,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			bulkImportGroup.POST("/doctors", h.BulkImportDoctors)
 			bulkImportGroup.POST("/scheduled-appointments", h.BulkImportScheduledAppointments)
 			bulkImportGroup.POST("/lenses", h.BulkImportLenses)
+			bulkImportGroup.POST("/staff-users", h.BulkImportStaffUsers)
 			bulkImportGroup.GET("/history", h.BulkImportHistory)
 		}
 

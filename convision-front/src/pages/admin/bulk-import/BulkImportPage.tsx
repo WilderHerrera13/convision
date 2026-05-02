@@ -108,12 +108,14 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
     importType === 'patients' ? ['documento', 'paciente', 'telefono', 'correo']
     : importType === 'scheduled-appointments' ? ['documento', 'cliente', 'fechaconsulta', 'usuario']
     : importType === 'lenses' ? ['codigointerno', 'descripción', 'precio', 'proveedor']
+    : importType === 'staff-users' ? ['nombre', 'documento', 'rol', 'sede']
     : ['documento', 'nombre', 'apellido', 'correo'];
 
   const searchPlaceholder =
     importType === 'patients' ? 'Buscar paciente...'
     : importType === 'scheduled-appointments' ? 'Buscar consulta...'
     : importType === 'lenses' ? 'Buscar lente...'
+    : importType === 'staff-users' ? 'Buscar usuario...'
     : 'Buscar especialista...';
 
   return (
@@ -271,6 +273,26 @@ const SCHEDULED_APPOINTMENTS_CONFIG: TypeConfig = {
   cancelPath: '/admin/bulk-import',
 };
 
+const STAFF_USERS_CONFIG: TypeConfig = {
+  title: 'Carga Masiva de Usuarios del Sistema',
+  mapChips: [
+    { col: 'Nombre',    label: 'Nombre Completo' },
+    { col: 'Documento', label: 'Nº Documento'    },
+    { col: 'Rol',       label: 'Rol'             },
+    { col: 'Sede',      label: 'Sede'            },
+  ],
+  asideItems: [
+    { title: 'Columnas requeridas', body: '4 columnas — Nombre, Documento, Rol, Sede' },
+    { title: 'Roles aceptados', body: '"Asesor" crea un usuario Recepcionista. "Optometra" crea un usuario Especialista.' },
+    { title: 'Inicio de sesión', body: 'El número de documento se usa como usuario para iniciar sesión. La contraseña temporal es "admin".' },
+    { title: 'Sede', body: 'Si la sede no existe en el sistema se crea automáticamente y se asigna al usuario.' },
+    { title: 'Duplicados', body: 'El sistema omite usuarios que ya existan por número de documento.' },
+  ],
+  tipBody: 'Los usuarios creados podrán iniciar sesión con su número de documento como usuario. Se recomienda cambiar la contraseña tras el primer acceso.',
+  tableHeaders: ['FILA', 'NOMBRE', 'DOCUMENTO', 'ROL', 'SEDE', 'ESTADO'],
+  cancelPath: '/admin/bulk-import',
+};
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const BulkImportPage: React.FC = () => {
@@ -282,12 +304,14 @@ const BulkImportPage: React.FC = () => {
     type === 'doctors' ? 'doctors'
     : type === 'scheduled-appointments' ? 'scheduled-appointments'
     : type === 'lenses' ? 'lenses'
+    : type === 'staff-users' ? 'staff-users'
     : 'patients';
 
   const config =
     importType === 'doctors' ? DOCTORS_CONFIG
     : importType === 'scheduled-appointments' ? SCHEDULED_APPOINTMENTS_CONFIG
     : importType === 'lenses' ? LENSES_CONFIG
+    : importType === 'staff-users' ? STAFF_USERS_CONFIG
     : PATIENTS_CONFIG;
 
   const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
@@ -362,6 +386,7 @@ const BulkImportPage: React.FC = () => {
         importType === 'doctors' ? await bulkImportService.uploadDoctors(file)
         : importType === 'scheduled-appointments' ? await bulkImportService.uploadScheduledAppointments(file)
         : importType === 'lenses' ? await bulkImportService.uploadLenses(file)
+        : importType === 'staff-users' ? await bulkImportService.uploadStaffUsers(file)
         : await bulkImportService.uploadPatients(file);
       setResult(res);
       await fetchHistory();

@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: 'Correo electrónico inválido' }),
+  email: z.string().min(1, { message: 'El usuario es requerido' }),
   password: z.string().min(1, { message: 'La contraseña es requerida' })
 });
 
@@ -114,7 +114,7 @@ const Login: React.FC = () => {
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-3 h-4 w-4 text-[#B4B5BC]" />
-                              <Input {...field} autoComplete="email" placeholder="correo@optica.com" className="h-10 rounded-[6px] border-[#E5E5E9] bg-[#F9F9FA] pl-9 text-[13px] placeholder:text-[#B4B5BC]" />
+                              <Input {...field} autoComplete="username" placeholder="correo@optica.com o número de documento" className="h-10 rounded-[6px] border-[#E5E5E9] bg-[#F9F9FA] pl-9 text-[13px] placeholder:text-[#B4B5BC]" />
                             </div>
                           </FormControl>
                           <FormMessage className="text-[12px]" />

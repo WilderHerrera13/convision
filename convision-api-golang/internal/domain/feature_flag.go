@@ -1,18 +1,21 @@
 package domain
 
 const (
-	FeatureSidebarAppointments = "sidebar.appointments"
-	FeatureSidebarSales        = "sidebar.sales"
-	FeatureSidebarPurchases    = "sidebar.purchases"
-	FeatureSidebarInventory    = "sidebar.inventory"
-	FeatureSidebarLaboratory   = "sidebar.laboratory"
-	FeatureSidebarReports      = "sidebar.reports"
-	FeatureSidebarPayroll      = "sidebar.payroll"
-	FeatureSidebarExpenses     = "sidebar.expenses"
-	FeatureSidebarClinical     = "sidebar.clinical"
-	FeatureSidebarCatalog      = "sidebar.catalog"
-	FeatureSidebarQuotes       = "sidebar.quotes"
-	FeatureSidebarDiscounts    = "sidebar.discounts"
+	FeatureSidebarAppointments       = "sidebar.appointments"
+	FeatureSidebarSales              = "sidebar.sales"
+	FeatureSidebarPurchases          = "sidebar.purchases"
+	FeatureSidebarInventory          = "sidebar.inventory"
+	FeatureSidebarLaboratory         = "sidebar.laboratory"
+	FeatureSidebarReports            = "sidebar.reports"
+	FeatureSidebarPayroll            = "sidebar.payroll"
+	FeatureSidebarExpenses           = "sidebar.expenses"
+	FeatureSidebarClinical           = "sidebar.clinical"
+	FeatureSidebarCatalog            = "sidebar.catalog"
+	FeatureSidebarQuotes             = "sidebar.quotes"
+	FeatureSidebarDiscounts          = "sidebar.discounts"
+	FeatureSidebarCashClose          = "sidebar.cash_close"
+	FeatureSidebarAdvisorReport      = "sidebar.advisor_report"
+	FeatureSidebarSpecialistManagement = "sidebar.specialist_management"
 )
 
 var AllFeatureKeys = []string{
@@ -20,4 +23,5 @@ var AllFeatureKeys = []string{
 	FeatureSidebarInventory, FeatureSidebarLaboratory, FeatureSidebarReports,
 	FeatureSidebarPayroll, FeatureSidebarExpenses, FeatureSidebarClinical,
 	FeatureSidebarCatalog, FeatureSidebarQuotes, FeatureSidebarDiscounts,
+	FeatureSidebarCashClose, FeatureSidebarAdvisorReport, FeatureSidebarSpecialistManagement,
 }

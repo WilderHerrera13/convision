@@ -34,6 +34,7 @@ type UserBranch struct {
 type BranchRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Branch, error)
 	GetActiveByID(db *gorm.DB, id uint) (*Branch, error)
+	FindByName(db *gorm.DB, name string) (*Branch, error)
 	ListAll(db *gorm.DB) ([]*Branch, error)
 	ListForUser(db *gorm.DB, userID uint) ([]*Branch, error)
 	UserHasAccess(db *gorm.DB, userID, branchID uint) (bool, error)
