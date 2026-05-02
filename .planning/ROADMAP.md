@@ -166,6 +166,7 @@ Plans:
 | 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
+| 16. Multi-Tenancy & Super Admin | 3/7 | In progress | - |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
 
@@ -189,3 +190,24 @@ Plans:
 - [ ] 15-03: High-Impact Pages — AppointmentFormPage step indicator + date layout, NewSale parent flex container stack on mobile
 - [ ] 15-04: High-Impact Pages — NewLaboratoryOrder multi-column responsive, finance forms container padding
 - [ ] 15-05: Polish & Testing — Dialog max-width on mobile, EntityTable toolbar wrap, padding audit, build verification, Playwright viewport tests
+
+### Phase 16: Multi-Tenancy & Super Admin
+**Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
+**Depends on:** Phase 14 (multi-branch)
+**Requirements:** [TENANT-01 … TENANT-10]
+**Success Criteria** (what must be TRUE):
+  1. `platform` schema holds optica registry, feature flags, super-admin users
+  2. Each optica runs inside its own PostgreSQL schema; requests resolve tenant from subdomain
+  3. All repository calls receive a tenant-scoped `*gorm.DB` (search_path already set by middleware)
+  4. Super-admin API can create/update/deactivate opticas and toggle feature flags
+  5. JWT tokens carry `optica_id`, `schema_name`, `feature_flags`
+**Plans:** 7 plans
+
+Plans:
+- [x] 16-01: DB — Platform schema, opticas table, feature_flags, super_admin_users, platform repos
+- [x] 16-02: Platform — OpticaCache, FeatureFlagCache, TenantFromSubdomainMiddleware, TenantSchemaMiddleware, JWT Claims extension, CORS
+- [ ] 16-03: Auth — Populate OpticaID/SchemaName/FeatureFlags in JWT; auth service tenant wiring
+- [ ] 16-04: Super Admin API — CRUD opticas, feature flag toggles, super-admin auth endpoints
+- [x] 16-05: Repository Refactor — All repo interfaces accept db *gorm.DB; services propagate tenant db
+- [ ] 16-06: Frontend — Super-admin portal (optica list, create/edit, feature flags panel)
+- [ ] 16-07: Verification — End-to-end tenant isolation tests, JWT round-trip, subdomain resolution
