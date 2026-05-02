@@ -72,12 +72,11 @@ type Appointment struct {
 	UpdatedAt               time.Time         `json:"updated_at"`
 
 	// Associations
-	Patient      *Patient      `json:"patient,omitempty"      gorm:"foreignKey:PatientID"`
-	Branch       *Branch       `json:"branch,omitempty"       gorm:"foreignKey:BranchID"`
-	Specialist   *User         `json:"specialist,omitempty"   gorm:"foreignKey:SpecialistID"`
-	Receptionist *User         `json:"receptionist,omitempty" gorm:"foreignKey:ReceptionistID"`
-	TakenBy      *User         `json:"taken_by,omitempty"     gorm:"foreignKey:TakenByID"`
-	Prescription *Prescription `json:"prescription,omitempty" gorm:"foreignKey:AppointmentID"`
+	Patient      *Patient `json:"patient,omitempty"      gorm:"foreignKey:PatientID"`
+	Branch       *Branch  `json:"branch,omitempty"       gorm:"foreignKey:BranchID"`
+	Specialist   *User    `json:"specialist,omitempty"   gorm:"foreignKey:SpecialistID"`
+	Receptionist *User    `json:"receptionist,omitempty" gorm:"foreignKey:ReceptionistID"`
+	TakenBy      *User    `json:"taken_by,omitempty"     gorm:"foreignKey:TakenByID"`
 }
 
 // SpecialistReportSummary holds aggregated consultation counts for one specialist

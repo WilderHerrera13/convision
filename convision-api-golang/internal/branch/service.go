@@ -34,7 +34,13 @@ type UpdateInput struct {
 }
 
 type AssignInput struct {
-	Assignments []domain.UserBranchInput `json:"assignments" binding:"required"`
+	Assignments []domain.UserBranchInput `json:"assignments"`
+}
+
+type UserBranchAssignmentOut struct {
+	BranchID  uint   `json:"branch_id"`
+	IsPrimary bool   `json:"is_primary"`
+	Name      string `json:"name"`
 }
 
 func (s *Service) GetByID(id uint) (*domain.Branch, error) {
@@ -51,6 +57,26 @@ func (s *Service) ListAll() ([]*domain.Branch, error) {
 
 func (s *Service) ListForUser(userID uint) ([]*domain.Branch, error) {
 	return s.repo.ListForUser(userID)
+}
+
+func (s *Service) ListAssignmentsForUser(userID uint) ([]UserBranchAssignmentOut, error) {
+	rows, err := s.repo.ListUserBranchesByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]UserBranchAssignmentOut, 0, len(rows))
+	for _, row := range rows {
+		name := ""
+		if row.Branch != nil {
+			name = row.Branch.Name
+		}
+		out = append(out, UserBranchAssignmentOut{
+			BranchID:  row.BranchID,
+			IsPrimary: row.IsPrimary,
+			Name:      name,
+		})
+	}
+	return out, nil
 }
 
 func (s *Service) Create(input CreateInput) (*domain.Branch, error) {

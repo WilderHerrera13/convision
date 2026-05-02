@@ -108,8 +108,8 @@ func (s *Service) GetByID(id uint) (*domain.DailyActivityReport, error) {
 
 // Create creates a new daily activity report for today.
 func (s *Service) Create(input CreateInput, userID uint) (*domain.DailyActivityReport, error) {
-	now := time.Now()
-	todayStr := now.Format("2006-01-02")
+	todayStr := ClinicTodayYMD()
+	reportDate := ClinicReportDateForToday()
 
 	_, err := s.repo.FindByUserAndDate(userID, todayStr)
 	if err == nil {
@@ -119,7 +119,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.DailyActivityR
 		return nil, err
 	}
 
-	r := buildReport(input, userID, now)
+	r := buildReport(input, userID, reportDate)
 	r.Status = domain.DailyReportStatusPending
 	if err := s.repo.Create(r); err != nil {
 		return nil, err
@@ -196,8 +196,8 @@ func (s *Service) Reopen(id uint) (*domain.DailyActivityReport, error) {
 
 // QuickAttention finds or creates today's report and increments a counter or accumulates an amount.
 func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
-	today := time.Now()
-	todayStr := today.Format("2006-01-02")
+	todayStr := ClinicTodayYMD()
+	reportDate := ClinicReportDateForToday()
 
 	report, err := s.repo.FindByUserAndDate(userID, todayStr)
 	if err != nil {
@@ -207,7 +207,7 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 		report = &domain.DailyActivityReport{
 			BranchID:   input.BranchID,
 			UserID:     userID,
-			ReportDate: &today,
+			ReportDate: &reportDate,
 			Shift:      domain.DailyShiftFull,
 			Status:     domain.DailyReportStatusPending,
 		}

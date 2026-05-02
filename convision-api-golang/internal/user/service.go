@@ -93,6 +93,10 @@ func (s *Service) GetSpecialists() ([]*domain.User, error) {
 	return users, err
 }
 
+func (s *Service) GetSpecialistsByBranch(branchID uint) ([]*domain.User, error) {
+	return s.repo.GetSpecialistsByBranch(branchID)
+}
+
 // Create creates a new user with a bcrypt-hashed password.
 func (s *Service) Create(input CreateInput) (*domain.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)

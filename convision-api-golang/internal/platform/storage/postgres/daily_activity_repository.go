@@ -29,7 +29,7 @@ func (r *DailyActivityRepository) GetByID(id uint) (*domain.DailyActivityReport,
 
 func (r *DailyActivityRepository) FindByUserAndDate(userID uint, date string) (*domain.DailyActivityReport, error) {
 	var report domain.DailyActivityReport
-	err := r.db.Where("user_id = ? AND DATE(report_date) = ?", userID, date).
+	err := r.db.Where("user_id = ? AND (report_date AT TIME ZONE 'America/Bogota')::date = ?::date", userID, date).
 		First(&report).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "daily_activity_report"}

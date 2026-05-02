@@ -55,9 +55,30 @@ func Open(log *zap.Logger) (*gorm.DB, error) {
 	return db, nil
 }
 
+func renameLegacyUserPasswordColumnIfNeeded(db *gorm.DB) error {
+	return db.Exec(`
+DO $ren$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'users' AND column_name = 'password'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'users' AND column_name = 'password_hash'
+  ) THEN
+    ALTER TABLE users RENAME COLUMN password TO password_hash;
+  END IF;
+END
+$ren$;
+`).Error
+}
+
 // Migrate runs auto-migration for all registered domain models.
 // This is safe for development; use a proper migration tool in production.
 func Migrate(db *gorm.DB) error {
+	if err := renameLegacyUserPasswordColumnIfNeeded(db); err != nil {
+		return err
+	}
 	return db.AutoMigrate(
 		// Lookup / reference tables
 		&domain.Country{},
@@ -146,5 +167,9 @@ func Migrate(db *gorm.DB) error {
 		&domain.RevokedToken{},
 		// Bulk import audit
 		&domain.BulkImportLog{},
+		// Platform (multi-tenancy)
+		&domain.Optica{},
+		&domain.SuperAdmin{},
+		&domain.OpticaFeature{},
 	)
 }

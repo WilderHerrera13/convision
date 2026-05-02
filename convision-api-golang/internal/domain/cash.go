@@ -209,7 +209,7 @@ type DailyActivityReport struct {
 	WorkQuotes        int             `json:"cotizaciones_trabajo"         gorm:"not null;default:0"`
 	WorkOrders             int             `json:"ordenes_trabajo"              gorm:"not null;default:0"`
 	Observations               string          `json:"observations"                 gorm:"type:text"`
-	MoneyReceipts          json.RawMessage `json:"recepciones_dinero"           gorm:"type:json"`
+	MoneyReceipts          json.RawMessage `json:"recepciones_dinero"           gorm:"column:recepciones_dinero;type:jsonb"`
 	CreatedAt                  time.Time       `json:"created_at"`
 	UpdatedAt                  time.Time       `json:"updated_at"`
 

@@ -77,20 +77,17 @@ const Appointments: React.FC = () => {
   const [page, setPage] = useState(1);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
-  const [branchId, setBranchId] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
 
   const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter]);
 
   const isSpecialist = user?.role === 'specialist';
   const isAdmin = user?.role === 'admin';
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['appointments', dateFilter, search, page, user?.role, branchId],
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['appointments', dateFilter, search, page, user?.role, branchFilter],
     queryFn: () => {
       const filters: Record<string, unknown> = isSpecialist ? { status: 'completed' } : {};
-      if (isAdmin && branchId !== 'all') {
-        filters.branch_id = Number(branchId);
-      }
       return appointmentsService.getAppointments({
         page,
         perPage: ITEMS_PER_PAGE,
@@ -99,16 +96,17 @@ const Appointments: React.FC = () => {
         endDate: dateRange.endDate,
         search: search || undefined,
         filters,
+        branchIdQuery: branchFilter !== 'all' ? branchFilter : '0',
       });
     },
     placeholderData: (prev) => prev,
   });
 
   const appointments = data?.data ?? [];
-  const totalPages = data?.meta?.last_page?.[0] ?? 1;
-  const totalItems = data?.meta?.total?.[0] ?? 0;
-  const fromItem = data?.meta?.from?.[0] ?? 0;
-  const toItem = data?.meta?.to?.[0] ?? 0;
+  const totalPages = data?.meta?.last_page ?? 1;
+  const totalItems = data?.meta?.total ?? 0;
+  const fromItem = totalItems > 0 ? (page - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const toItem = Math.min(page * ITEMS_PER_PAGE, totalItems);
 
   const handleFilterChange = useCallback((filter: DateFilter) => {
     setDateFilter(filter);
@@ -159,39 +157,47 @@ const Appointments: React.FC = () => {
       actions={pageActions}
     >
       <div className="space-y-4">
-        {/* Date Filter Tabs */}
-        <div className="flex items-center gap-2">
-          {DATE_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => handleFilterChange(key)}
-              className={`px-3.5 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
-                dateFilter === key
-                  ? 'bg-[#e6effa] text-[#195fa5]'
-                  : 'bg-white border border-[#e0e2e5] text-[#59687a] hover:bg-slate-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex min-h-[44px] shrink-0 flex-wrap items-center gap-y-2 overflow-hidden rounded-[8px] border border-[#e0e0e4] bg-white py-1">
+          <div className="flex min-h-[36px] flex-wrap items-center gap-[6px] border-r border-[#f0f0f2] px-[14px] py-1">
+            <span className="text-[11px] font-semibold text-[#7d7d87]">Período</span>
+            {DATE_FILTERS.map(({ key, label }) => {
+              const isActive = dateFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleFilterChange(key)}
+                  className={`h-[28px] rounded-[99px] border px-[10px] text-[11px] transition-colors ${
+                    isActive
+                      ? 'border-[#3a71f7] bg-[#eff1ff] font-semibold text-[#3a71f7]'
+                      : 'border-[#e0e0e4] bg-[#f5f5f6] font-normal text-[#7d7d87] hover:bg-[#eeeef1]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {!isSpecialist && (
+            <div className="flex min-h-[36px] min-w-[130px] items-center border-r border-[#f0f0f2] px-[12px] py-1">
+              <AdminBranchFilter
+                value={branchFilter}
+                onChange={setBranchFilter}
+                className="[&>span]:mb-0 [&>span]:text-[10px] [&>span]:font-medium [&>span]:normal-case [&>span]:tracking-[0.4px]"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Table Card */}
         <Card className="border border-[#e5e5e9] rounded-lg overflow-hidden shadow-none">
-          {/* Table Toolbar */}
           <div className="bg-white border-b border-[#e5e5e9] px-5 h-[52px] flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <p className="text-[14px] font-semibold text-[#121215]">
-                  {isSpecialist ? `Citas atendidas — ${getTableSubtitle(dateFilter)}` : getTableTitle(dateFilter)}
-                </p>
-                <p className="text-[11px] text-[#7d7d87] capitalize">
-                  {isSpecialist ? 'Solo se muestran citas con estado Atendido' : getTableSubtitle(dateFilter)}
-                </p>
-              </div>
-              {isAdmin && (
-                <AdminBranchFilter value={branchId} onChange={setBranchId} />
-              )}
+            <div>
+              <p className="text-[14px] font-semibold text-[#121215]">
+                {isSpecialist ? `Citas atendidas — ${getTableSubtitle(dateFilter)}` : getTableTitle(dateFilter)}
+              </p>
+              <p className="text-[11px] text-[#7d7d87] capitalize">
+                {isSpecialist ? 'Solo se muestran citas con estado Atendido' : getTableSubtitle(dateFilter)}
+              </p>
             </div>
             <div className="relative w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#b4b5bc]" />
@@ -211,16 +217,25 @@ const Appointments: React.FC = () => {
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2 w-[80px]">Hora</TableHead>
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2">Paciente</TableHead>
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2">Especialista</TableHead>
+                  <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2 w-[110px]">Sede</TableHead>
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2">Motivo</TableHead>
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2 w-[140px]">Estado</TableHead>
                   <TableHead className="text-[11px] font-semibold text-[#7d7d87] px-3 py-2 w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isError ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-[#7d7d87] text-sm">
+                      <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-red-400" />
+                      <p className="font-semibold text-[#121215] mb-1">Error al cargar las citas</p>
+                      <p className="text-[12px]">{(error as Error)?.message || 'No se pudo conectar con el servidor.'}</p>
+                    </TableCell>
+                  </TableRow>
+                ) : isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i} className="border-b border-[#e5e5e9]">
-                      {Array.from({ length: 6 }).map((_, j) => (
+                      {Array.from({ length: 7 }).map((_, j) => (
                         <TableCell key={j} className="px-3 py-3">
                           <div className="h-4 bg-gray-100 rounded animate-pulse" />
                         </TableCell>
@@ -229,7 +244,7 @@ const Appointments: React.FC = () => {
                   ))
                 ) : appointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-[#7d7d87] text-sm">
+                    <TableCell colSpan={7} className="text-center py-12 text-[#7d7d87] text-sm">
                       <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                       No hay citas para este período
                     </TableCell>
@@ -249,6 +264,9 @@ const Appointments: React.FC = () => {
                       </TableCell>
                       <TableCell className="px-3 py-3 text-[13px] text-[#7d7d87]">
                         {appointment.specialist.name}
+                      </TableCell>
+                      <TableCell className="px-3 py-3 text-[13px] text-[#7d7d87]">
+                        {appointment.branch?.name || '—'}
                       </TableCell>
                       <TableCell className="px-3 py-3 text-[13px] text-[#7d7d87] max-w-[220px] truncate">
                         {appointment.notes || '—'}

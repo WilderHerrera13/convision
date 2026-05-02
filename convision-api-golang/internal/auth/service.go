@@ -64,7 +64,12 @@ func (s *Service) Login(input LoginInput) (*LoginOutput, error) {
 		return nil, errors.New("invalid credentials")
 	}
 
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user)
+	if err := s.ensureOperatorBranchesForLogin(user); err != nil {
+		return nil, err
+	}
+
+	// OpticaID/SchemaName/FeatureFlags populated by auth service in 16-03
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -92,16 +97,21 @@ func (s *Service) Me(userID uint) (*domain.User, error) {
 
 // Refresh revokes the old token and issues a new one for the same user.
 func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
-	if err := s.revokedTokens.Revoke(oldJti); err != nil {
-		return nil, err
-	}
-
 	user, err := s.users.GetByID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user)
+	if err := s.ensureOperatorBranchesForLogin(user); err != nil {
+		return nil, err
+	}
+
+	if err := s.revokedTokens.Revoke(oldJti); err != nil {
+		return nil, err
+	}
+
+	// OpticaID/SchemaName/FeatureFlags populated by auth service in 16-03
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +125,22 @@ func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
 		User:        user,
 		Branches:    s.loadBranches(user),
 	}, nil
+}
+
+func (s *Service) ensureOperatorBranchesForLogin(user *domain.User) error {
+	if user.Role != domain.RoleSpecialist && user.Role != domain.RoleReceptionist {
+		return nil
+	}
+	branches, err := s.branches.ListForUser(user.ID)
+	if err != nil {
+		s.logger.Warn("branch list failed on login", zap.Uint("user_id", user.ID), zap.Error(err))
+		return errors.New("invalid credentials")
+	}
+	if len(branches) == 0 {
+		s.logger.Warn("login denied: no active branches for role", zap.Uint("user_id", user.ID), zap.String("role", string(user.Role)))
+		return &domain.ErrLoginNoBranches{}
+	}
+	return nil
 }
 
 func (s *Service) loadBranches(user *domain.User) []BranchInfo {

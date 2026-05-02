@@ -1,5 +1,6 @@
 import React from 'react';
-import { Building2, Edit, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Building2, Edit, Eye, Plus } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -7,32 +8,14 @@ import EntityTable from '@/components/ui/data-table/EntityTable';
 import { DataTableColumnDef } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import PageLayout from '@/components/layouts/PageLayout';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { branchService, Branch, BranchPayload, UserBranchAssignment as UserBranchAssignmentPayload } from '@/services/branchService';
+import { branchService, Branch, UserBranchAssignment as UserBranchAssignmentPayload } from '@/services/branchService';
 import { userService } from '@/services/userService';
-import BranchForm, { BranchFormValues } from '@/components/admin/BranchForm';
 import UserBranchAssignment from '@/components/admin/UserBranchAssignment';
-
-const toPayload = (values: BranchFormValues): BranchPayload => ({
-  name: values.name,
-  address: values.address ?? '',
-  city: values.city ?? '',
-  phone: values.phone ?? '',
-  email: values.email ?? '',
-  is_active: values.is_active,
-});
 
 const BranchesPage: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [editingBranch, setEditingBranch] = React.useState<Branch | null>(null);
 
   const { data: users = [] } = useQuery({
     queryKey: ['branch-users'],
@@ -44,38 +27,12 @@ const BranchesPage: React.FC = () => {
     queryFn: () => branchService.listAll(),
   });
 
-  const createMutation = useMutation({
-    mutationFn: (payload: BranchPayload) => branchService.create(payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['branches'] });
-      await queryClient.invalidateQueries({ queryKey: ['branches-all'] });
-      setIsCreateOpen(false);
-      toast({ title: 'Sede creada', description: 'La sede fue creada correctamente.' });
-    },
-    onError: (error: unknown) => {
-      const msg = error instanceof Error ? error.message : 'Ocurrió un error inesperado';
-      toast({ title: 'Error', description: msg || 'Ocurrió un error inesperado', variant: 'destructive' });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<BranchPayload> }) => branchService.update(id, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['branches'] });
-      await queryClient.invalidateQueries({ queryKey: ['branches-all'] });
-      setEditingBranch(null);
-      toast({ title: 'Sede actualizada', description: 'Los datos de la sede se guardaron correctamente.' });
-    },
-    onError: (error: unknown) => {
-      const msg = error instanceof Error ? error.message : 'Ocurrió un error inesperado';
-      toast({ title: 'Error', description: msg || 'Ocurrió un error inesperado', variant: 'destructive' });
-    },
-  });
-
   const assignMutation = useMutation({
     mutationFn: ({ userId, assignments }: { userId: number; assignments: UserBranchAssignmentPayload[] }) =>
       branchService.assignUserBranches(userId, assignments),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['branches-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['branches-all'] });
       toast({ title: 'Asignaciones guardadas', description: 'Las sedes del usuario fueron actualizadas.' });
     },
     onError: (error: unknown) => {
@@ -102,21 +59,36 @@ const BranchesPage: React.FC = () => {
       header: 'Acciones',
       type: 'actions',
       cell: (branch) => (
-        <Button type="button" variant="ghost" size="sm" onClick={() => setEditingBranch(branch)}>
-          <Edit className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center justify-end gap-1.5">
+          <Link
+            to={`/admin/sedes/${branch.id}`}
+            className="flex size-8 items-center justify-center rounded-[6px] border border-convision-primary/30 bg-convision-light text-convision-primary transition-colors hover:opacity-80"
+            title="Ver detalle"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-[6px] border border-[#e0e0e4] bg-[#f5f5f7] text-[#7d7d87] transition-colors hover:bg-[#ebebee]"
+            title="Editar sede"
+            onClick={() => navigate(`/admin/sedes/${branch.id}/edit`)}
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+        </div>
       ),
     },
   ];
 
   return (
-    <PageLayout title="Gestión de Sedes" subtitle="Admin / Gestión de Sedes">
+    <PageLayout title="Sedes" subtitle="Admin / Sedes">
       <div className="space-y-4">
         <EntityTable<Branch>
           columns={columns}
           queryKeyBase="branches"
           fetcher={({ page, per_page, search }) => branchService.getForTable({ page, per_page, search })}
           searchPlaceholder="Buscar sedes..."
+          onRowClick={(branch) => navigate(`/admin/sedes/${branch.id}`)}
           toolbarLeading={
             <div className="flex flex-col gap-0.5">
               <span className="text-[14px] font-semibold text-[#121215]">Sedes registradas</span>
@@ -124,7 +96,7 @@ const BranchesPage: React.FC = () => {
             </div>
           }
           toolbarTrailing={
-            <Button type="button" onClick={() => setIsCreateOpen(true)}>
+            <Button type="button" onClick={() => navigate('/admin/sedes/new')}>
               <Plus className="mr-2 h-4 w-4" />
               Nueva sede
             </Button>
@@ -147,53 +119,6 @@ const BranchesPage: React.FC = () => {
           onSubmit={(userId, assignments) => assignMutation.mutate({ userId, assignments })}
         />
       </div>
-
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[640px]">
-          <DialogHeader>
-            <DialogTitle>Nueva sede</DialogTitle>
-            <DialogDescription>Registra una nueva sede para asignarla al equipo.</DialogDescription>
-          </DialogHeader>
-          <BranchForm
-            isSubmitting={createMutation.isPending}
-            submitLabel="Crear sede"
-            onSubmit={(values) => createMutation.mutate(toPayload(values))}
-            onCancel={() => setIsCreateOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editingBranch} onOpenChange={(open) => !open && setEditingBranch(null)}>
-        <DialogContent className="sm:max-w-[640px]">
-          <DialogHeader>
-            <DialogTitle>Editar sede</DialogTitle>
-            <DialogDescription>Actualiza la información general de la sede.</DialogDescription>
-          </DialogHeader>
-          <BranchForm
-            initialValues={
-              editingBranch
-                ? {
-                    name: editingBranch.name,
-                    address: editingBranch.address,
-                    city: editingBranch.city,
-                    phone: editingBranch.phone,
-                    email: editingBranch.email,
-                    is_active: editingBranch.is_active,
-                  }
-                : undefined
-            }
-            isSubmitting={updateMutation.isPending}
-            submitLabel="Guardar cambios"
-            onSubmit={(values) => {
-              if (!editingBranch) {
-                return;
-              }
-              updateMutation.mutate({ id: editingBranch.id, payload: toPayload(values) });
-            }}
-            onCancel={() => setEditingBranch(null)}
-          />
-        </DialogContent>
-      </Dialog>
     </PageLayout>
   );
 };

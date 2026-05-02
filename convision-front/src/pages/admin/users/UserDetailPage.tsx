@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { userService, type User } from '@/services/userService';
 import UserFormShell from './UserFormShell';
-import type { AdminUserFormInput } from './userSchemas';
+import { branchFormDefaultsFromAssignments, type AdminUserFormInput } from './userSchemas';
 import { roleLabel } from './usersTableColumns';
 
 const UserDetailPage: React.FC = () => {
@@ -29,6 +29,8 @@ const UserDetailPage: React.FC = () => {
       password: '',
       confirm_password: '',
       role: 'receptionist',
+      branch_ids: [],
+      primary_branch_id: null,
     },
   });
 
@@ -36,6 +38,7 @@ const UserDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!loaded) return;
+    const br = branchFormDefaultsFromAssignments(loaded.branch_assignments);
     reset({
       name: loaded.name,
       last_name: loaded.last_name || '',
@@ -45,6 +48,8 @@ const UserDetailPage: React.FC = () => {
       password: '',
       confirm_password: '',
       role: loaded.role,
+      branch_ids: br.branch_ids,
+      primary_branch_id: br.primary_branch_id,
     });
   }, [loaded, reset]);
 
@@ -69,6 +74,11 @@ const UserDetailPage: React.FC = () => {
 
   const fullName = [loaded.name, loaded.last_name].filter(Boolean).join(' ');
   const roleText = roleLabel[loaded.role];
+  const viewBranchAssignments = (loaded.branch_assignments ?? []).map((a) => ({
+    branch_id: a.branch_id,
+    name: a.name,
+    is_primary: a.is_primary,
+  }));
 
   return (
     <UserFormShell
@@ -81,6 +91,7 @@ const UserDetailPage: React.FC = () => {
       isSubmitting={false}
       submitLabel=""
       asideUser={loaded as User}
+      viewBranchAssignments={viewBranchAssignments}
       footerNote={`Solo lectura · ${fullName} · ${roleText}`}
       onEdit={() => navigate(`/admin/users/${loaded.id}/edit`)}
     />

@@ -14,6 +14,11 @@ import {
   quickAttentionNeedsAmount,
   quickAttentionNeedsProfile,
 } from '@/pages/receptionist/dailyQuickAttentionHelpers';
+import {
+  digitsOnlyMoneyInput,
+  formatCOP,
+  formatCOPGroupedInput,
+} from '@/lib/formatMoney';
 
 const HELPERS: Record<1 | 2 | 3, string> = {
   1: 'Un paso a la vez: primero el ítem, luego el perfil y la observación. Puedes volver más tarde si no alcanzas.',
@@ -41,7 +46,7 @@ const DailyQuickAttention: React.FC = () => {
   const [item, setItem] = useState<QuickAttentionItem | ''>('');
   const [profile, setProfile] = useState<'hombre' | 'mujer' | 'nino' | ''>('');
   const [note, setNote] = useState('');
-  const [amountStr, setAmountStr] = useState('');
+  const [amountDigits, setAmountDigits] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -51,13 +56,22 @@ const DailyQuickAttention: React.FC = () => {
   const omitProfileStep = Boolean(item && !needsProfile && !needsAmount);
 
   const parsedAmount = useMemo(() => {
-    const t = amountStr.trim().replace(/\s/g, '').replace(',', '.');
-    if (t === '') return NaN;
-    const n = Number(t);
+    if (!amountDigits) return NaN;
+    const n = Number(amountDigits);
     return Number.isFinite(n) ? n : NaN;
-  }, [amountStr]);
+  }, [amountDigits]);
 
   const amountValid = parsedAmount > 0;
+
+  const amountDisplay = useMemo(
+    () => (amountDigits ? formatCOPGroupedInput(Number(amountDigits)) : ''),
+    [amountDigits],
+  );
+
+  const amountPreview = useMemo(
+    () => (amountValid ? formatCOP(parsedAmount) : null),
+    [amountValid, parsedAmount],
+  );
 
   const helperLine = useMemo(() => {
     if (step === 1 && omitProfileStep) return HELPER_STEP1_NO_PROFILE;
@@ -125,17 +139,18 @@ const DailyQuickAttention: React.FC = () => {
           item={item}
           profile={profile}
           note={note}
-          amountStr={amountStr}
+          amountDisplay={amountDisplay}
+          amountPreview={amountPreview}
           headerTint={HEADER_TINT}
           chipSelected={CHIP_SELECTED}
           chipIdle={CHIP_IDLE}
           onItemChange={(v) => {
             setItem(v);
-            setAmountStr('');
+            setAmountDigits('');
           }}
           onProfileChange={setProfile}
           onNoteChange={setNote}
-          onAmountStrChange={setAmountStr}
+          onAmountDigitsInput={(raw) => setAmountDigits(digitsOnlyMoneyInput(raw))}
         />
 
         <div className="min-h-4 flex-1" />

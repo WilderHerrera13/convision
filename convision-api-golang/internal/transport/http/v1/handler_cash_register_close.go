@@ -353,6 +353,13 @@ func (h *Handler) PutCashRegisterCloseAdminActuals(c *gin.Context) {
 // GET /api/v1/cash-register-closes-advisors-pending
 func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
 	branchID := branchmw.BranchIDFromCtx(c)
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
 	out, err := h.cashClose.AdvisorsPending(branchID)
 	if err != nil {
 		respondError(c, err)
@@ -411,6 +418,13 @@ func (h *Handler) GetCashRegisterClosesCalendar(c *gin.Context) {
 	}
 
 	branchID := branchmw.BranchIDFromCtx(c)
+	if override := resolveBranchOverride(c); override != nil {
+		if *override == 0 {
+			branchID = 0
+		} else {
+			branchID = *override
+		}
+	}
 
 	out, err := h.cashClose.CalendarForAdvisor(userID, branchID, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {

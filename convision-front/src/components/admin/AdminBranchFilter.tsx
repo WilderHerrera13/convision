@@ -26,7 +26,18 @@ export function AdminBranchFilter({ value, onChange, className }: AdminBranchFil
     [branches],
   );
 
-  if (branches.length <= 1) return null;
+  if (branches.length === 0) return null;
+
+  if (branches.length === 1) {
+    return (
+      <div className={`flex flex-col leading-none shrink-0 min-w-[100px] ${className ?? ''}`}>
+        <span className="text-[10px] font-medium text-[#7d7d87] tracking-[0.4px] mb-0.5">
+          SEDE
+        </span>
+        <span className="text-[11px] font-semibold text-[#0f0f12] truncate">{branches[0].name}</span>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col leading-none shrink-0 w-[130px] ${className ?? ''}`}>

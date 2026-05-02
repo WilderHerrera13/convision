@@ -2,7 +2,8 @@ package domain
 
 import "time"
 
-// Prescription represents an optometric prescription linked to an appointment.
+func (Prescription) TableName() string { return "appointment_prescriptions" }
+
 type Prescription struct {
 	ID                      uint       `json:"id"                        gorm:"primaryKey;autoIncrement"`
 	AppointmentID           *uint      `json:"appointment_id"            gorm:"column:appointment_id"`

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,8 @@ import (
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
+	"github.com/convision/api/internal/platform/featurecache"
+	"github.com/convision/api/internal/platform/opticacache"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	productsvc "github.com/convision/api/internal/product"
@@ -64,7 +67,21 @@ func main() {
 		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
 			logger.Fatal("failed to ensure local dev users", zap.Error(err))
 		}
+	} else if bootstrapDefaultUsersEnabled() {
+		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
+			logger.Fatal("failed to ensure bootstrap users", zap.Error(err))
+		}
 	}
+
+	// ---- Platform caches ----
+	opticaCache := opticacache.New()
+	if err := opticaCache.WarmUp(db); err != nil {
+		logger.Fatal("failed to warm up optica cache", zap.Error(err))
+	}
+	logger.Info("optica cache warmed up", zap.Int("entries", opticaCache.Len()))
+
+	featureCache := featurecache.New(db, 5*time.Minute)
+	_ = featureCache // wired to auth service in 16-03
 
 	// ---- Repositories (platform layer) ----
 	userRepo := postgresplatform.NewUserRepository(db)
@@ -166,6 +183,14 @@ func main() {
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
+	// Platform repositories (multi-tenancy) — wired in 16-04
+	opticaRepo := postgresplatform.NewOpticaRepository(db)
+	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
+	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
+	_ = opticaRepo
+	_ = superAdminRepo
+	_ = opticaFeatureRepo
+
 	// Branch service
 	branchService := branchsvc.NewService(branchRepo, logger)
 
@@ -177,6 +202,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.Recovery(logger))
 	router.Use(middleware.Logger(logger))
+	router.Use(corsMiddleware())
 
 	// Health-check — publicly accessible
 	router.GET("/health", func(c *gin.Context) {
@@ -196,7 +222,7 @@ func main() {
 	// Mount versioned API
 	api := router.Group("/api")
 	handler := v1.NewHandler(authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo)
-	handler.RegisterRoutes(api)
+	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----
 	port := os.Getenv("APP_PORT")
@@ -251,4 +277,46 @@ func buildLogger() *zap.Logger {
 		panic("failed to initialize logger: " + err.Error())
 	}
 	return logger
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	allowedOriginSuffix := ".app.opticaconvision.com"
+	localOrigins := map[string]bool{
+		"http://localhost:4300": true,
+		"http://localhost:5173": true,
+	}
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		allowed := localOrigins[origin] || strings.HasSuffix(origin, allowedOriginSuffix)
+		if extra := os.Getenv("CORS_ALLOWED_ORIGINS"); extra != "" && !allowed {
+			for _, o := range strings.Split(extra, ",") {
+				if strings.TrimSpace(o) == origin {
+					allowed = true
+					break
+				}
+			}
+		}
+		if allowed {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			requestHeaders := c.Request.Header.Get("Access-Control-Request-Headers")
+			if requestHeaders != "" {
+				c.Header("Access-Control-Allow-Headers", requestHeaders)
+			} else {
+				c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, X-Branch-ID, Cache-Control, Pragma, Expires, X-Requested-With")
+			}
+			c.Header("Access-Control-Max-Age", "86400")
+		}
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
+func bootstrapDefaultUsersEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("BOOTSTRAP_DEFAULT_USERS")))
+	return v == "1" || v == "true" || v == "yes"
 }

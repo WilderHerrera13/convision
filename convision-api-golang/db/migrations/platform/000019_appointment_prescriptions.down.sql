@@ -1,0 +1,3 @@
+DROP TRIGGER IF EXISTS set_updated_at_appointment_prescriptions ON appointment_prescriptions;
+DROP INDEX IF EXISTS idx_appointment_prescriptions_appointment_id;
+DROP TABLE IF EXISTS appointment_prescriptions;

@@ -40,7 +40,7 @@ func (r *branchRepository) GetActiveByID(id uint) (*domain.Branch, error) {
 
 func (r *branchRepository) ListAll() ([]*domain.Branch, error) {
 	var branches []*domain.Branch
-	if err := r.db.Select("id, name, city, is_active, created_at, updated_at").
+	if err := r.db.Select("id, name, address, city, phone, email, is_active, created_at, updated_at").
 		Order("name ASC").
 		Find(&branches).Error; err != nil {
 		return nil, err
@@ -67,6 +67,20 @@ func (r *branchRepository) UserHasAccess(userID, branchID uint) (bool, error) {
 		Where("user_id = ? AND branch_id = ?", userID, branchID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (r *branchRepository) ListUserBranchesByUserID(userID uint) ([]domain.UserBranch, error) {
+	var rows []domain.UserBranch
+	err := r.db.
+		Preload("Branch", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "is_active")
+		}).
+		Where("user_id = ?", userID).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 func (r *branchRepository) GetUserBranchPrimaryMap(userID uint) (map[uint]bool, error) {

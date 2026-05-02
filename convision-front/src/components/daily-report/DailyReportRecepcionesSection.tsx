@@ -4,9 +4,7 @@ import {
   RecepcionesDinero,
   sumRecepcionesDinero,
 } from '@/services/dailyActivityReportService';
-
-const formatCOP = (v: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+import { formatCOP } from '@/lib/formatMoney';
 
 type Props = {
   recepciones: RecepcionesDinero;

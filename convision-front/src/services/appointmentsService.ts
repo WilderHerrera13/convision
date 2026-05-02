@@ -36,23 +36,19 @@ export type Appointment = {
     name: string;
   };
   prescription?: { id: number } | null;
+  branch?: {
+    id: number;
+    name: string;
+  };
 };
 
 type AppointmentsResponse = {
   data: Appointment[];
   meta: {
-    current_page: number[];
-    last_page: number[];
-    per_page: number[];
-    total: number[];
-    from: number[]; 
-    to: number[];   
-  };
-  links: {
-    first: string[]; 
-    last: string[];  
-    prev: (string | null)[]; 
-    next: (string | null)[]; 
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
   };
 };
 
@@ -71,11 +67,16 @@ type GetAppointmentsParams = {
   startDate?: string;
   endDate?: string;
   search?: string;
+  branchIdQuery?: string;
 };
 
 export const appointmentsService = {
-  async getSpecialists(): Promise<Specialist[]> {
-    const response = await api.get('/api/v1/specialists');
+  async getSpecialists(branchId?: number): Promise<Specialist[]> {
+    const params: Record<string, string> = {};
+    if (branchId && branchId > 0) {
+      params.branch_id = String(branchId);
+    }
+    const response = await api.get('/api/v1/specialists', { params });
     return response.data.data;
   },
 
@@ -98,12 +99,11 @@ export const appointmentsService = {
     startDate,
     endDate,
     search,
+    branchIdQuery,
   }: GetAppointmentsParams = {}): Promise<AppointmentsResponse> {
-    // Prepare filter fields and values
     const s_f: string[] = [];
     const s_v: string[] = [];
     
-    // Extract status from filters to send as direct query param
     let status: string | undefined;
     const filtersCopy = { ...filters };
     
@@ -111,8 +111,11 @@ export const appointmentsService = {
       status = String(filtersCopy.status);
       delete filtersCopy.status;
     }
+
+    if (branchIdQuery !== undefined) {
+      delete filtersCopy.branch_id;
+    }
     
-    // Process remaining filters
     Object.entries(filtersCopy).forEach(([key, value]) => {
       s_f.push(key);
       s_v.push(String(value));
@@ -145,6 +148,10 @@ export const appointmentsService = {
 
     if (search) {
       params.search = search;
+    }
+
+    if (branchIdQuery !== undefined) {
+      params.branch_id = branchIdQuery;
     }
     
     // Use no-cache headers to ensure fresh data
@@ -318,31 +325,31 @@ export const appointmentsService = {
 
   async takeAppointment(id: number): Promise<Appointment> {
     const response = await api.post(`/api/v1/appointments/${id}/take`);
-    return response.data.data;
+    return response.data as Appointment;
   },
 
   async pauseAppointment(id: number): Promise<Appointment> {
     const response = await api.post(`/api/v1/appointments/${id}/pause`);
-    return response.data.data;
+    return response.data as Appointment;
   },
 
   async resumeAppointment(id: number): Promise<Appointment> {
     const response = await api.post(`/api/v1/appointments/${id}/resume`);
-    return response.data.data;
+    return response.data as Appointment;
   },
 
   async completeAppointment(id: number): Promise<Appointment> {
     const response = await api.put(`/api/v1/appointments/${id}`, {
       status: 'completed'
     });
-    return response.data.data;
+    return response.data as Appointment;
   },
 
   async cancelAppointment(id: number): Promise<Appointment> {
     const response = await api.put(`/api/v1/appointments/${id}`, {
       status: 'cancelled'
     });
-    return response.data.data;
+    return response.data as Appointment;
   },
 
   async getAppointmentById(id: number): Promise<Appointment> {

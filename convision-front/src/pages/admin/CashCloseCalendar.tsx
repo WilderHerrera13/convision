@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
 import { format, subDays, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -85,9 +86,23 @@ const AdminCashCloseCalendar: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const focusDate = searchParams.get('date');
+
+  const [branchFilter, setBranchFilter] = useState<string>(() => {
+    const b =
+      typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('branch_id') : null;
+    if (!b || b === '0' || b === 'all') return 'all';
+    return b;
+  });
+
+  const handleBranchFilterChange = (v: string) => {
+    setBranchFilter(v);
+    const next = new URLSearchParams(searchParams);
+    next.set('branch_id', v === 'all' ? '0' : v);
+    setSearchParams(next, { replace: true });
+  };
 
   const today = useMemo(() => new Date(), []);
   const [dateFrom, setDateFrom] = useState<Date>(() => {
@@ -110,8 +125,9 @@ const AdminCashCloseCalendar: React.FC = () => {
       user_id: Number(userId),
       date_from: format(dateFrom, 'yyyy-MM-dd'),
       date_to: format(dateTo, 'yyyy-MM-dd'),
+      branch_id: branchFilter !== 'all' ? branchFilter : '0',
     }),
-    [userId, dateFrom, dateTo],
+    [userId, dateFrom, dateTo, branchFilter],
   );
 
   const { data, isLoading, isFetching, refetch } = useQuery<CashCloseCalendarPayload>({
@@ -254,6 +270,8 @@ const AdminCashCloseCalendar: React.FC = () => {
               </>
             )}
           </div>
+          <div className="hidden h-6 w-px shrink-0 bg-[#e5e5e9] sm:block" aria-hidden />
+          <AdminBranchFilter value={branchFilter} onChange={handleBranchFilterChange} />
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-[#7d7d87]">Desde</span>
             <div className="w-[140px]">

@@ -38,6 +38,11 @@ class BranchService {
     return Array.isArray(response.data?.data) ? response.data.data : [];
   }
 
+  async getById(id: number): Promise<Branch> {
+    const response = await axios.get(`${this.baseUrl}/${id}`);
+    return response.data as Branch;
+  }
+
   async getForTable(params: BranchTableParams): Promise<{ data: Branch[]; last_page: number; total: number }> {
     const { page = 1, per_page = 15, search } = params;
     const all = await this.listAll();

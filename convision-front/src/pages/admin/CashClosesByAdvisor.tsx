@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft, Eye } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -27,11 +27,13 @@ const copFmtOpts = {
 const CashClosesByAdvisor: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const branchForApi = searchParams.get('branch_id') ?? '0';
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
 
   const { data: advisorGroups = [], isLoading } = useQuery<AdvisorPendingGroup[]>({
-    queryKey: ['advisors-pending-closes'],
-    queryFn: () => cashRegisterCloseService.listAdvisorsWithPending(),
+    queryKey: ['advisors-pending-closes', branchForApi],
+    queryFn: () => cashRegisterCloseService.listAdvisorsWithPending({ branch_id: branchForApi }),
   });
 
   const advisor = useMemo(
@@ -43,8 +45,9 @@ const CashClosesByAdvisor: React.FC = () => {
     () => ({
       user_id: userId,
       status: 'submitted,draft',
+      branch_id: branchForApi,
     }),
-    [userId],
+    [userId, branchForApi],
   );
 
   const fetcher = async ({ page, per_page }: { page: number; per_page: number }) => {
@@ -52,6 +55,7 @@ const CashClosesByAdvisor: React.FC = () => {
       page,
       per_page,
       user_id: userId,
+      branch_id: branchForApi,
     };
     const resp = await cashRegisterCloseService.list(params);
     const rows: CashCloseRow[] = resp?.data ?? (Array.isArray(resp) ? resp : []);

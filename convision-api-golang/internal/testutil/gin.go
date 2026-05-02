@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	"github.com/convision/api/internal/platform/opticacache"
 	v1 "github.com/convision/api/internal/transport/http/v1"
 )
 
@@ -38,6 +39,6 @@ func NewTestRouter(h *v1.Handler, claims *jwtauth.Claims) *gin.Engine {
 	r := gin.New()
 	r.Use(InjectClaims(claims))
 	api := r.Group("/api")
-	h.RegisterRoutes(api)
+	h.RegisterRoutes(api, opticacache.New(), nil)
 	return r
 }

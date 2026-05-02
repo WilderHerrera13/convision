@@ -11,20 +11,24 @@ import {
   QUICK_PROFILE_OPTIONS,
   quickAttentionNeedsAmount,
 } from '@/pages/receptionist/dailyQuickAttentionHelpers';
+import { formatCOPGroupedInput } from '@/lib/formatMoney';
+
+const AMOUNT_PLACEHOLDER = formatCOPGroupedInput(150000);
 
 type Props = {
   step: 1 | 2 | 3;
   item: QuickAttentionItem | '';
   profile: 'hombre' | 'mujer' | 'nino' | '';
   note: string;
-  amountStr: string;
+  amountDisplay: string;
+  amountPreview: string | null;
   headerTint: string;
   chipSelected: string;
   chipIdle: string;
   onItemChange: (v: QuickAttentionItem) => void;
   onProfileChange: (v: 'hombre' | 'mujer' | 'nino') => void;
   onNoteChange: (v: string) => void;
-  onAmountStrChange: (v: string) => void;
+  onAmountDigitsInput: (raw: string) => void;
 };
 
 const DailyQuickAttentionStepCard: React.FC<Props> = ({
@@ -32,14 +36,15 @@ const DailyQuickAttentionStepCard: React.FC<Props> = ({
   item,
   profile,
   note,
-  amountStr,
+  amountDisplay,
+  amountPreview,
   headerTint,
   chipSelected,
   chipIdle,
   onItemChange,
   onProfileChange,
   onNoteChange,
-  onAmountStrChange,
+  onAmountDigitsInput,
 }) => (
   <Card className="overflow-hidden rounded-xl border-[#e5e5e9] shadow-none">
     <CardHeader className={cn('space-y-0 px-4 py-3.5', headerTint)}>
@@ -80,14 +85,17 @@ const DailyQuickAttentionStepCard: React.FC<Props> = ({
             <Input
               id="qa-amount"
               type="text"
-              inputMode="decimal"
+              inputMode="numeric"
               autoComplete="off"
-              placeholder="Ej. 150000"
-              value={amountStr}
-              onChange={(e) => onAmountStrChange(e.target.value)}
+              placeholder={AMOUNT_PLACEHOLDER}
+              value={amountDisplay}
+              onChange={(e) => onAmountDigitsInput(e.target.value)}
               className="h-11 rounded-lg border-[#dcdce0] text-[15px] tabular-nums"
             />
           </div>
+          {amountPreview ? (
+            <p className="text-[13px] font-semibold tabular-nums text-[#0f0f12]">{amountPreview}</p>
+          ) : null}
           <p className="text-[12px] text-[#7d7d87]">Ingresa el valor recibido y pulsa Continuar.</p>
         </>
       )}

@@ -20,7 +20,7 @@ type User struct {
 	Email          string    `json:"email"          gorm:"uniqueIndex;not null"`
 	Identification string    `json:"identification" gorm:"column:identification"`
 	Phone          string    `json:"phone"          gorm:"column:phone"`
-	Password       string    `json:"-"              gorm:"not null"`
+	Password       string    `json:"-"              gorm:"column:password_hash;not null"`
 	Role           Role      `json:"role"           gorm:"type:varchar(20);not null;default:'receptionist'"`
 	Active         bool      `json:"active"         gorm:"not null;default:true"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -35,4 +35,5 @@ type UserRepository interface {
 	Update(u *User) error
 	Delete(id uint) error
 	List(filters map[string]any, page, perPage int) ([]*User, int64, error)
+	GetSpecialistsByBranch(branchID uint) ([]*User, error)
 }

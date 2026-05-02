@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Eye } from 'lucide-react';
+import { Eye, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import cashRegisterCloseService, {
   type ConsolidatedPayload,
@@ -10,7 +10,7 @@ import cashRegisterCloseService, {
 import { formatCOP } from '@/pages/admin/cashClosesConfig';
 import {
   AdminDateRangeBranchBar,
-  computeRange,
+  computeAggregatedPreset,
   formatRangeYMD,
 } from '@/components/admin/AdminDateRangeBranchBar';
 
@@ -118,7 +118,10 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
   onBranchChange,
 }) => {
   const navigate = useNavigate();
-  const [range, setRange] = useState<{ from: Date; to: Date }>(() => computeRange('14d'));
+  const [range, setRange] = useState<{ from: Date; to: Date }>(() => {
+    const r = computeAggregatedPreset('14d');
+    return { from: r.from, to: r.to };
+  });
 
   const params = useMemo(
     () => ({
@@ -135,15 +138,18 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
   });
 
   const handleAdvisorClick = (row: ConsolidatedAdvisorRow) => {
-    navigate(`/admin/cash-closes/advisor/${row.user_id}`);
+    const bid = branchFilter !== 'all' ? branchFilter : '0';
+    navigate(`/admin/cash-closes/advisor/${row.user_id}?branch_id=${bid}`);
   };
 
   return (
     <div className="flex flex-col gap-[16px]">
       <AdminDateRangeBranchBar
+        dateFrom={range.from}
+        dateTo={range.to}
+        onRangeChange={(from, to) => setRange({ from, to })}
         branchFilter={branchFilter}
         onBranchChange={onBranchChange}
-        onRangeChange={(from, to) => setRange({ from, to })}
         statusRight={
           isLoading
             ? 'Calculando…'
@@ -155,7 +161,7 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
 
       {!isLoading && data && data.kpis.total_closes === 0 && (
         <div className="flex items-center gap-[10px] rounded-[8px] border border-[#b8d4f8] bg-[#eff6ff] px-[16px] py-[12px] text-[13px] text-[#1d4ed8]">
-          <span className="text-[16px]">ℹ️</span>
+          <Info className="size-[18px] shrink-0 text-[#1d4ed8]" aria-hidden />
           <span>Sin cierres en el período seleccionado. Selecciona un rango diferente o crea un nuevo cierre.</span>
         </div>
       )}

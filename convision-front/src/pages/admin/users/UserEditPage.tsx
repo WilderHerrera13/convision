@@ -6,8 +6,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { userService, type User } from '@/services/userService';
+import { branchService } from '@/services/branchService';
 import UserFormShell from './UserFormShell';
-import { editUserFormSchema, type AdminUserFormInput } from './userSchemas';
+import {
+  branchFormDefaultsFromAssignments,
+  editUserFormSchema,
+  toBranchAssignPayload,
+  type AdminUserFormInput,
+} from './userSchemas';
 
 const UserEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +40,8 @@ const UserEditPage: React.FC = () => {
       password: '',
       confirm_password: '',
       role: 'receptionist',
+      branch_ids: [],
+      primary_branch_id: null,
     },
   });
 
@@ -41,6 +49,7 @@ const UserEditPage: React.FC = () => {
 
   useEffect(() => {
     if (!loaded) return;
+    const br = branchFormDefaultsFromAssignments(loaded.branch_assignments);
     reset({
       name: loaded.name,
       last_name: loaded.last_name || '',
@@ -50,6 +59,8 @@ const UserEditPage: React.FC = () => {
       password: '',
       confirm_password: '',
       role: loaded.role,
+      branch_ids: br.branch_ids,
+      primary_branch_id: br.primary_branch_id,
     });
   }, [loaded, reset]);
 
@@ -75,6 +86,8 @@ const UserEditPage: React.FC = () => {
         payload.password = data.password;
       }
       await userService.update(userId, payload);
+      const assignments = toBranchAssignPayload(data.role, data.branch_ids, data.primary_branch_id);
+      await branchService.assignUserBranches(userId, assignments);
       await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       await queryClient.invalidateQueries({ queryKey: ['user', userId] });
       toast({

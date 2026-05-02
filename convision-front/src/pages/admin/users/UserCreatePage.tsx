@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/components/ui/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
+import { branchService } from '@/services/branchService';
 import UserFormShell from './UserFormShell';
-import { createUserFormSchema, type AdminUserFormInput } from './userSchemas';
+import { createUserFormSchema, toBranchAssignPayload, type AdminUserFormInput } from './userSchemas';
 
 const UserCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,13 +26,15 @@ const UserCreatePage: React.FC = () => {
       password: '',
       confirm_password: '',
       role: 'receptionist',
+      branch_ids: [],
+      primary_branch_id: null,
     },
   });
 
   const onSubmit = async (data: AdminUserFormInput) => {
     setIsSubmitting(true);
     try {
-      await userService.create({
+      const created = await userService.create({
         name: data.name,
         last_name: data.last_name,
         email: data.email,
@@ -40,6 +43,10 @@ const UserCreatePage: React.FC = () => {
         password: data.password,
         role: data.role,
       });
+      if (data.role === 'specialist' || data.role === 'receptionist') {
+        const assignments = toBranchAssignPayload(data.role, data.branch_ids, data.primary_branch_id);
+        await branchService.assignUserBranches(created.id, assignments);
+      }
       await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: 'Usuario creado', description: `${data.name} ${data.last_name} se registró correctamente.` });
       navigate('/admin/users');

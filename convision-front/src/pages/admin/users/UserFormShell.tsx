@@ -7,6 +7,7 @@ import UserRoleHelpAside from './UserRoleHelpAside';
 import UserFormFields from './UserFormFields';
 import type { User } from '@/services/userService';
 import type { AdminUserFormInput } from './userSchemas';
+import type { ViewBranchAssignment } from './UserFormBranchesBlock';
 
 type Props = {
   mode: 'create' | 'edit' | 'view';
@@ -17,7 +18,8 @@ type Props = {
   onCancel: () => void;
   isSubmitting: boolean;
   submitLabel: string;
-  asideUser?: Pick<User, 'role' | 'name' | 'last_name' | 'email' | 'created_at'>;
+  asideUser?: Pick<User, 'role' | 'name' | 'last_name' | 'email' | 'created_at' | 'branch_assignments'>;
+  viewBranchAssignments?: ViewBranchAssignment[];
   footerNote: string;
   onEdit?: () => void;
 };
@@ -32,6 +34,7 @@ const UserFormShell: React.FC<Props> = ({
   isSubmitting,
   submitLabel,
   asideUser,
+  viewBranchAssignments,
   footerNote,
   onEdit,
 }) => {
@@ -39,6 +42,17 @@ const UserFormShell: React.FC<Props> = ({
   const displayName =
     asideUser && [asideUser.name, asideUser.last_name].filter(Boolean).join(' ').trim();
   const asideMode = mode === 'view' ? 'edit' : mode;
+
+  const branchAsideSummary =
+    asideUser &&
+    (asideUser.role === 'specialist' || asideUser.role === 'receptionist') &&
+    asideUser.branch_assignments?.length
+      ? asideUser.branch_assignments
+          .slice()
+          .sort((a, b) => (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1))
+          .map((a) => (a.is_primary ? `${a.name || 'Sede'} (Principal)` : a.name || `Sede ${a.branch_id}`))
+          .join(' · ')
+      : undefined;
 
   return (
     <PageLayout
@@ -80,7 +94,12 @@ const UserFormShell: React.FC<Props> = ({
             </div>
           </div>
           <CardContent className="p-0">
-            <UserFormFields mode={mode} form={form} onSubmit={onSubmit} />
+            <UserFormFields
+              mode={mode}
+              form={form}
+              onSubmit={onSubmit}
+              viewBranchAssignments={viewBranchAssignments}
+            />
           </CardContent>
         </Card>
 
@@ -90,6 +109,7 @@ const UserFormShell: React.FC<Props> = ({
           displayName={displayName}
           email={asideUser?.email}
           createdAt={asideUser?.created_at}
+          branchAsideSummary={branchAsideSummary}
         />
       </div>
       <div className="mt-8 w-full border-t border-[#e5e5e9] pt-4 text-[12px] text-[#7d7d87]">

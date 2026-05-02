@@ -293,7 +293,7 @@ export function toFlatDailyReportPayload(
     preguntas_mujeres: customer_attention.questions_women,
     preguntas_ninos: customer_attention.questions_children,
     cotizaciones_hombre: customer_attention.quotes_men,
-    cotizaciones_mujeres: customer_attention.questions_women,
+    cotizaciones_mujeres: customer_attention.quotes_women,
     cotizaciones_ninos: customer_attention.quotes_children,
     consultas_efectivas_hombre: customer_attention.effective_consultations_men,
     consultas_efectivas_mujeres: customer_attention.effective_consultations_women,

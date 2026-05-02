@@ -131,6 +131,10 @@ import SupplierPayments from '@/pages/admin/SupplierPayments';
 import SupplierPaymentDetail from '@/pages/admin/SupplierPaymentDetail';
 import NewCashTransfer from '@/pages/admin/NewCashTransfer';
 import LaboratoryStatus from '@/pages/admin/LaboratoryStatus';
+import AdminBranchesOutlet from '@/pages/admin/branches/AdminBranchesOutlet';
+import BranchCreatePage from '@/pages/admin/branches/BranchCreatePage';
+import BranchEditPage from '@/pages/admin/branches/BranchEditPage';
+import BranchDetailPage from '@/pages/admin/branches/BranchDetailPage';
 import BranchesPage from '@/pages/admin/BranchesPage';
 import SpecialistManagementReport from '@/pages/admin/SpecialistManagementReport';
 import SpecialistManagementReportDetalle from '@/pages/admin/SpecialistManagementReportDetail';
@@ -563,8 +567,18 @@ const router = createBrowserRouter([
             element: <LaboratoryStatus />,
           },
           {
+            path: "sedes",
+            element: <AdminBranchesOutlet />,
+            children: [
+              { index: true, element: <BranchesPage /> },
+              { path: "new", element: <BranchCreatePage /> },
+              { path: ":branchId/edit", element: <BranchEditPage /> },
+              { path: ":branchId", element: <BranchDetailPage /> },
+            ],
+          },
+          {
             path: "branches",
-            element: <BranchesPage />,
+            element: <Navigate to="/admin/sedes" replace />,
           },
           {
             path: "cash-closes",

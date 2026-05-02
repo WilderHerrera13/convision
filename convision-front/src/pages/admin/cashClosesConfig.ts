@@ -1,12 +1,10 @@
 import type { CashClose } from '@/services/cashRegisterCloseService';
-import { formatCurrency } from '@/lib/utils';
 
 export type CashCloseRow = CashClose & {
   user?: { id: number; name: string; last_name: string };
 };
 
-export const formatCOP = (v: number) =>
-  formatCurrency(v, 'COP', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+export { formatCOP } from '@/lib/formatMoney';
 
 export const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: {

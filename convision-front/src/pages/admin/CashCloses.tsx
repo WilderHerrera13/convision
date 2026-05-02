@@ -136,8 +136,11 @@ const AdminCashCloses: React.FC = () => {
   );
 
   const { data: advisorGroups = [], isLoading: isLoadingAdvisors } = useQuery<AdvisorPendingGroup[]>({
-    queryKey: ['advisors-pending-closes'],
-    queryFn: () => cashRegisterCloseService.listAdvisorsWithPending(),
+    queryKey: ['advisors-pending-closes', branchFilter],
+    queryFn: () =>
+      cashRegisterCloseService.listAdvisorsWithPending({
+        branch_id: branchFilter !== 'all' ? branchFilter : '0',
+      }),
     enabled: viewMode === 'by_advisor',
   });
 
@@ -320,7 +323,8 @@ const AdminCashCloses: React.FC = () => {
             e.stopPropagation();
             const userId = item.user?.id;
             if (userId) {
-              navigate(`/admin/cash-closes/advisor/${userId}?date=${item.close_date}`);
+              const bid = branchFilter !== 'all' ? branchFilter : '0';
+              navigate(`/admin/cash-closes/advisor/${userId}?date=${item.close_date}&branch_id=${bid}`);
             } else {
               navigate(`/admin/cash-closes/${item.id}`);
             }
@@ -367,7 +371,8 @@ const AdminCashCloses: React.FC = () => {
   };
 
   const handleAdvisorReview = (advisor: AdvisorPendingGroup) => {
-    navigate(`/admin/cash-closes/advisor/${advisor.user_id}`);
+    const bid = branchFilter !== 'all' ? branchFilter : '0';
+    navigate(`/admin/cash-closes/advisor/${advisor.user_id}?branch_id=${bid}`);
   };
 
   const totalVarianceForPeriod = stats.accumulatedVariance ?? 0;

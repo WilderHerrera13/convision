@@ -258,8 +258,8 @@ const cashRegisterCloseService = {
     return response.data;
   },
 
-  listAdvisorsWithPending: async (): Promise<AdvisorPendingGroup[]> => {
-    const response = await api.get('/api/v1/cash-register-closes-advisors-pending');
+  listAdvisorsWithPending: async (params?: { branch_id?: string }): Promise<AdvisorPendingGroup[]> => {
+    const response = await api.get('/api/v1/cash-register-closes-advisors-pending', { params });
     return response.data?.data ?? [];
   },
 
@@ -276,6 +276,7 @@ const cashRegisterCloseService = {
     user_id: number | string;
     date_from?: string;
     date_to?: string;
+    branch_id?: string;
   }): Promise<CashCloseCalendarPayload> => {
     const response = await api.get('/api/v1/cash-register-closes-calendar', { params });
     return response.data?.data;

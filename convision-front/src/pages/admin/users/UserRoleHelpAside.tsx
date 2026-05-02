@@ -14,6 +14,7 @@ type Props = {
   displayName?: string;
   email?: string;
   createdAt?: string | null;
+  branchAsideSummary?: string;
 };
 
 function roleBadgeVariant(role: User['role']) {
@@ -28,7 +29,14 @@ function roleBadgeLabel(role: User['role']) {
   return 'Recepcionista';
 }
 
-const UserRoleHelpAside: React.FC<Props> = ({ mode, role, displayName, email, createdAt }) => {
+const UserRoleHelpAside: React.FC<Props> = ({
+  mode,
+  role,
+  displayName,
+  email,
+  createdAt,
+  branchAsideSummary,
+}) => {
   if (mode === 'create') {
     return (
       <div className="flex w-full flex-col gap-4 lg:w-[332px] lg:shrink-0">
@@ -121,6 +129,12 @@ const UserRoleHelpAside: React.FC<Props> = ({ mode, role, displayName, email, cr
             {roleBadgeLabel(role)}
           </Badge>
           <p className="text-[11px] text-[#7d7d87]">{memberLine}</p>
+          {branchAsideSummary ? (
+            <>
+              <p className="text-[11px] font-medium text-[#121215]">Sedes asignadas</p>
+              <p className="text-[11px] leading-snug text-[#7d7d87]">{branchAsideSummary}</p>
+            </>
+          ) : null}
         </CardContent>
       </Card>
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-amber-950">

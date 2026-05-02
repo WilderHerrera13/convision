@@ -77,7 +77,12 @@ const LaboratoryOrders: React.FC = () => {
   });
 
   const inProcessCount = (statsData?.in_process ?? 0) + (statsData?.sent_to_lab ?? 0);
-  const hasActiveFilters = !!(statusFilter || priorityFilter || laboratoryFilter);
+  const hasActiveFilters = !!(
+    statusFilter ||
+    priorityFilter ||
+    laboratoryFilter ||
+    branchFilter !== 'all'
+  );
 
   const clearFilters = () => {
     setStatusFilter('');
@@ -241,65 +246,71 @@ const LaboratoryOrders: React.FC = () => {
           <StatCard label="Listos" count={statsData?.ready_for_delivery ?? 0} colorClass="text-[#228b52]" />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="h-8 text-[12px] w-[160px] border-[#e5e5e9]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="pending">Pendiente</SelectItem>
-              <SelectItem value="in_process">En proceso</SelectItem>
-              <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
-              <SelectItem value="in_transit">En tránsito</SelectItem>
-              <SelectItem value="in_quality">En calidad</SelectItem>
-              <SelectItem value="quality_approved">Calidad aprobada</SelectItem>
-              <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
-              <SelectItem value="delivered">Entregado</SelectItem>
-              <SelectItem value="cancelled">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex min-h-[44px] shrink-0 flex-wrap items-center gap-y-2 overflow-hidden rounded-[8px] border border-[#e0e0e4] bg-white py-1">
+          <div className="flex min-h-[36px] flex-wrap items-center gap-2 border-r border-[#f0f0f2] px-[14px] py-1">
+            <span className="text-[11px] font-semibold text-[#7d7d87]">Filtros</span>
+            <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="h-8 text-[12px] w-[160px] border-[#e5e5e9]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="pending">Pendiente</SelectItem>
+                <SelectItem value="in_process">En proceso</SelectItem>
+                <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
+                <SelectItem value="in_transit">En tránsito</SelectItem>
+                <SelectItem value="in_quality">En calidad</SelectItem>
+                <SelectItem value="quality_approved">Calidad aprobada</SelectItem>
+                <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
+                <SelectItem value="delivered">Entregado</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={priorityFilter || 'all'} onValueChange={(v) => setPriorityFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="h-8 text-[12px] w-[140px] border-[#e5e5e9]">
-              <SelectValue placeholder="Prioridad" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las prioridades</SelectItem>
-              <SelectItem value="low">Baja</SelectItem>
-              <SelectItem value="normal">Media</SelectItem>
-              <SelectItem value="high">Alta</SelectItem>
-              <SelectItem value="urgent">Urgente</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={priorityFilter || 'all'} onValueChange={(v) => setPriorityFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="h-8 text-[12px] w-[140px] border-[#e5e5e9]">
+                <SelectValue placeholder="Prioridad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las prioridades</SelectItem>
+                <SelectItem value="low">Baja</SelectItem>
+                <SelectItem value="normal">Media</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+                <SelectItem value="urgent">Urgente</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={laboratoryFilter || 'all'} onValueChange={(v) => setLaboratoryFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="h-8 text-[12px] w-[180px] border-[#e5e5e9]">
-              <SelectValue placeholder="Laboratorio" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los laboratorios</SelectItem>
-              {(labsData?.data ?? []).map((lab: { id: number; name: string }) => (
-                <SelectItem key={lab.id} value={String(lab.id)}>{lab.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={laboratoryFilter || 'all'} onValueChange={(v) => setLaboratoryFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="h-8 text-[12px] w-[180px] border-[#e5e5e9]">
+                <SelectValue placeholder="Laboratorio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los laboratorios</SelectItem>
+                {(labsData?.data ?? []).map((lab: { id: number; name: string }) => (
+                  <SelectItem key={lab.id} value={String(lab.id)}>{lab.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <div className="[&_button]:h-8 [&_button]:min-h-8 [&_button]:text-[12px]">
+          <div className="flex min-h-[36px] min-w-[130px] items-center border-r border-[#f0f0f2] px-[12px] py-1">
             <AdminBranchFilter
               value={branchFilter}
               onChange={setBranchFilter}
-              className="w-auto [&_span]:text-left"
+              className="[&>span]:mb-0 [&>span]:text-[10px] [&>span]:font-medium [&>span]:normal-case [&>span]:tracking-[0.4px]"
             />
           </div>
 
           {hasActiveFilters && (
-            <button
-              className="text-[12px] text-[#7d7d87] hover:text-[#3a71f7] transition-colors"
-              onClick={clearFilters}
-            >
-              × Limpiar filtros
-            </button>
+            <div className="flex items-center px-[12px] py-1">
+              <button
+                type="button"
+                className="text-[12px] font-medium text-[#7d7d87] underline-offset-2 hover:text-[#0f0f12] hover:underline"
+                onClick={clearFilters}
+              >
+                Limpiar todo
+              </button>
+            </div>
           )}
         </div>
 
@@ -314,12 +325,17 @@ const LaboratoryOrders: React.FC = () => {
               status: statusFilter || undefined,
               priority: priorityFilter || undefined,
               laboratory_id: laboratoryFilter ? Number(laboratoryFilter) : undefined,
-              branch_id: branchFilter !== 'all' ? Number(branchFilter) : undefined,
+              branchIdQuery: branchFilter === 'all' ? '0' : branchFilter,
               sort_field: 'created_at',
               sort_direction: 'desc',
             })
           }
-          extraFilters={{ status: statusFilter, priority: priorityFilter, laboratory_id: laboratoryFilter, branch_id: branchFilter !== 'all' ? branchFilter : '' }}
+          extraFilters={{
+            status: statusFilter,
+            priority: priorityFilter,
+            laboratory_id: laboratoryFilter,
+            branch: branchFilter,
+          }}
           searchPlaceholder="Buscar por # o paciente..."
           showPageSizeSelect={false}
           onRowClick={(order) => navigate(`/admin/laboratory-orders/${order.id}`)}

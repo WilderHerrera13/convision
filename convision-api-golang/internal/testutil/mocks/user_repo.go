@@ -47,3 +47,11 @@ func (m *MockUserRepository) List(filters map[string]any, page, perPage int) ([]
 	}
 	return args.Get(0).([]*domain.User), args.Get(1).(int64), args.Error(2)
 }
+
+func (m *MockUserRepository) GetSpecialistsByBranch(branchID uint) ([]*domain.User, error) {
+	args := m.Called(branchID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.User), args.Error(1)
+}

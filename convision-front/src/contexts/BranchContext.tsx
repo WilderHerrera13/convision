@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
+import React, { createContext, useState, useContext, useCallback } from 'react';
 
 const STORAGE_KEY_ID   = 'convision_branch_id';
 const STORAGE_KEY_NAME = 'convision_branch_name';

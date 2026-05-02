@@ -30,6 +30,7 @@ import DailyReportRecepcionesSection from '@/components/daily-report/DailyReport
 import { Link } from 'react-router-dom';
 import CustomerAttentionMatrix from '@/components/cashClose/CustomerAttentionMatrix';
 import DailyReportSection from '@/components/cashClose/DailyReportSection';
+import DailyReportQuickSummary from '@/pages/receptionist/DailyReportQuickSummary';
 
 const OPERATIONS_FIELDS = [
   { key: 'bonos_entregados', label: 'Bonos entregados' },
@@ -209,6 +210,12 @@ const DailyReport: React.FC = () => {
           Este reporte fue cerrado y no puede ser editado. Solo el administrador puede reabrirlo.
         </div>
       )}
+
+      <DailyReportQuickSummary
+        customerAttention={customerAttention}
+        operations={operations}
+        recepciones={recepcionesDinero}
+      />
 
       <CustomerAttentionMatrix
         values={customerAttention}

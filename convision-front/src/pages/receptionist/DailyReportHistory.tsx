@@ -99,7 +99,7 @@ const DailyReportHistory: React.FC = () => {
   ];
 
   const fetcher = async ({ page, per_page }: { page: number; per_page: number }) => {
-    const params: Record<string, unknown> = { page, per_page };
+    const params: Record<string, unknown> = { page, per_page, branch_id: '0' };
     if (dateFrom) params.date_from = format(dateFrom, 'yyyy-MM-dd');
     if (dateTo) params.date_to = format(dateTo, 'yyyy-MM-dd');
     const resp = await dailyActivityReportService.list(params);

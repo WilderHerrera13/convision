@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import {
   Form,
   FormControl,
@@ -12,18 +13,35 @@ import { Input } from '@/components/ui/input';
 import { Mail, Phone, IdCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserFormAccessBlock from './UserFormAccessBlock';
+import UserFormBranchesBlock, { type ViewBranchAssignment } from './UserFormBranchesBlock';
+import { branchService } from '@/services/branchService';
 import type { AdminUserFormInput } from './userSchemas';
 
 type Props = {
   mode: 'create' | 'edit' | 'view';
   form: UseFormReturn<AdminUserFormInput>;
   onSubmit: (v: AdminUserFormInput) => void | Promise<void>;
+  viewBranchAssignments?: ViewBranchAssignment[];
 };
 
 const roInput = 'cursor-default bg-[#f5f5f6] text-[#121215]';
 
-const UserFormFields: React.FC<Props> = ({ mode, form, onSubmit }) => {
+const UserFormFields: React.FC<Props> = ({ mode, form, onSubmit, viewBranchAssignments }) => {
   const view = mode === 'view';
+  const role = form.watch('role');
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches', 'admin-user-form'],
+    queryFn: () => branchService.listAll(),
+  });
+
+  useEffect(() => {
+    if (role === 'admin') {
+      form.setValue('branch_ids', [], { shouldValidate: true });
+      form.setValue('primary_branch_id', null, { shouldValidate: true });
+    }
+  }, [role, form]);
+
   return (
   <Form {...form}>
     <form
@@ -139,6 +157,13 @@ const UserFormFields: React.FC<Props> = ({ mode, form, onSubmit }) => {
       <div className="pt-14">
         <UserFormAccessBlock mode={mode} control={form.control} />
       </div>
+      <UserFormBranchesBlock
+        mode={mode}
+        control={form.control}
+        form={form}
+        branches={branches}
+        viewAssignments={viewBranchAssignments}
+      />
     </form>
   </Form>
   );

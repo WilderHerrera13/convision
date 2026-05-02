@@ -4,6 +4,7 @@ import { toast } from '@/components/ui/use-toast';
 import { authService, BranchInfo } from '@/services/auth';
 import { User } from '@/types/user';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { useBranch } from '@/contexts/BranchContext';
 
 const ROLE_COLORS: Record<string, { primary: string; dark: string; light: string }> = {
   admin:        { primary: '#3a71f8', dark: '#2558d4', light: '#eff1ff' },
@@ -50,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const navigate = useNavigate();
+  const { setBranch, clearBranch } = useBranch();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -109,8 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else if (userBranches.length === 1) {
-        localStorage.setItem('convision_branch_id', String(userBranches[0].id));
-        localStorage.setItem('convision_branch_name', userBranches[0].name);
+        setBranch(userBranches[0].id, userBranches[0].name);
 
         if (response.user.role === 'specialist') {
           navigate('/specialist/dashboard');
@@ -140,8 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]);
       setUser(null);
       setBranches([]);
-      localStorage.removeItem('convision_branch_id');
-      localStorage.removeItem('convision_branch_name');
+      clearBranch();
       setTimeout(() => {
         navigate('/login');
         setIsLoggingOut(false);

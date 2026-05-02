@@ -36,8 +36,7 @@ func (r *AppointmentRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Patient").
 		Preload("Specialist").
 		Preload("Receptionist").
-		Preload("TakenBy").
-		Preload("Prescription")
+		Preload("TakenBy")
 }
 
 func (r *AppointmentRepository) GetByID(id uint) (*domain.Appointment, error) {

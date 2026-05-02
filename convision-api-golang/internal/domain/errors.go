@@ -37,3 +37,32 @@ type ErrValidation struct {
 func (e *ErrValidation) Error() string {
 	return "validation failed on " + e.Field + ": " + e.Message
 }
+
+type ErrLoginNoBranches struct{}
+
+func (e *ErrLoginNoBranches) Error() string {
+	return "No tienes ninguna sede asignada. Solicita al administrador que te asigne al menos una sede activa."
+}
+
+type ErrOpticaNotFound struct{ Slug string }
+
+func (e *ErrOpticaNotFound) Error() string { return "optica not found: " + e.Slug }
+
+type ErrOpticaInactive struct{ Slug string }
+
+func (e *ErrOpticaInactive) Error() string { return "optica is inactive: " + e.Slug }
+
+type ErrReservedSlug struct{ Slug string }
+
+func (e *ErrReservedSlug) Error() string { return "reserved slug: " + e.Slug }
+
+type ErrSchemaCreationFailed struct {
+	Schema string
+	Err    error
+}
+
+func (e *ErrSchemaCreationFailed) Error() string {
+	return "schema creation failed for " + e.Schema + ": " + e.Err.Error()
+}
+
+func (e *ErrSchemaCreationFailed) Unwrap() error { return e.Err }

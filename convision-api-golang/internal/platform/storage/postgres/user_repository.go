@@ -11,7 +11,7 @@ import (
 )
 
 // userCols lists all columns fetched for user records (explicit, no SELECT *).
-const userCols = "id, name, last_name, email, identification, phone, password, role, active, created_at, updated_at"
+const userCols = "id, name, last_name, email, identification, phone, password_hash, role, active, created_at, updated_at"
 
 // allowedUserFilters maps allowed column names to their match type:
 // "LIKE" for partial text match, "=" for exact match.
@@ -80,7 +80,7 @@ func (r *UserRepository) Update(u *domain.User) error {
 		"email":          u.Email,
 		"identification": u.Identification,
 		"phone":          u.Phone,
-		"password":       u.Password,
+		"password_hash":  u.Password,
 		"role":           u.Role,
 		"active":         u.Active,
 	}).Error
@@ -131,3 +131,16 @@ func (r *UserRepository) List(filters map[string]any, page, perPage int) ([]*dom
 	return users, total, nil
 }
 
+func (r *UserRepository) GetSpecialistsByBranch(branchID uint) ([]*domain.User, error) {
+	var users []*domain.User
+	err := r.db.Model(&domain.User{}).Select(userCols).
+		Joins("JOIN user_branches ON user_branches.user_id = users.id").
+		Where("users.role = ? AND users.active = true AND user_branches.branch_id = ?",
+			string(domain.RoleSpecialist), branchID).
+		Distinct().
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}

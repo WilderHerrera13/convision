@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
@@ -38,24 +39,32 @@ import (
 	salesvc "github.com/convision/api/internal/sale"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
 	suppliersvc "github.com/convision/api/internal/supplier"
+	tenantmw "github.com/convision/api/internal/transport/http/v1/middleware"
 	usersvc "github.com/convision/api/internal/user"
 )
 
 // timeFormat matches Laravel's Carbon microsecond UTC format.
 const timeFormat = "2006-01-02T15:04:05.000000"
 
+type UserBranchAssignmentResource struct {
+	BranchID  uint   `json:"branch_id"`
+	IsPrimary bool   `json:"is_primary"`
+	Name      string `json:"name"`
+}
+
 // UserResource is the JSON shape returned for every user response.
 type UserResource struct {
-	ID             uint   `json:"id"`
-	Name           string `json:"name"`
-	LastName       string `json:"last_name"`
-	Email          string `json:"email"`
-	Identification string `json:"identification"`
-	Phone          string `json:"phone"`
-	Role           string `json:"role"`
-	Active         bool   `json:"active"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID                uint                           `json:"id"`
+	Name              string                         `json:"name"`
+	LastName          string                         `json:"last_name"`
+	Email             string                         `json:"email"`
+	Identification    string                         `json:"identification"`
+	Phone             string                         `json:"phone"`
+	Role              string                         `json:"role"`
+	Active            bool                           `json:"active"`
+	CreatedAt         string                         `json:"created_at"`
+	UpdatedAt         string                         `json:"updated_at"`
+	BranchAssignments []UserBranchAssignmentResource `json:"branch_assignments"`
 }
 
 func toUserResource(u *domain.User) UserResource {
@@ -216,6 +225,11 @@ func (h *Handler) Login(c *gin.Context) {
 
 	out, err := h.auth.Login(input)
 	if err != nil {
+		var noBranch *domain.ErrLoginNoBranches
+		if errors.As(err, &noBranch) {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": noBranch.Error()})
+			return
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Credenciales incorrectas"})
 		return
 	}
@@ -275,6 +289,11 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	out, err := h.auth.Refresh(claims.ID, claims.UserID)
 	if err != nil {
+		var noBranch *domain.ErrLoginNoBranches
+		if errors.As(err, &noBranch) {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": noBranch.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
@@ -331,7 +350,24 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResource(u))
+	res := toUserResource(u)
+	if u.Role == domain.RoleSpecialist || u.Role == domain.RoleReceptionist {
+		assigns, err := h.branch.ListAssignmentsForUser(id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
+			return
+		}
+		res.BranchAssignments = make([]UserBranchAssignmentResource, len(assigns))
+		for i, a := range assigns {
+			res.BranchAssignments[i] = UserBranchAssignmentResource{
+				BranchID:  a.BranchID,
+				IsPrimary: a.IsPrimary,
+				Name:      a.Name,
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, res)
 }
 
 // CreateUser godoc
@@ -393,9 +429,25 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 
 // ListSpecialists godoc
 // GET /api/v1/specialists
-// Returns all specialist-role users. Accessible to all authenticated roles.
+// Returns all specialist-role users. Optionally filtered by branch_id.
+// Accessible to all authenticated roles.
 func (h *Handler) ListSpecialists(c *gin.Context) {
-	users, err := h.user.GetSpecialists()
+	branchIDStr := c.Query("branch_id")
+	var branchID uint
+	if branchIDStr != "" {
+		if id, err := strconv.ParseUint(branchIDStr, 10, 32); err == nil && id > 0 {
+			branchID = uint(id)
+		}
+	}
+
+	var users []*domain.User
+	var err error
+	if branchID > 0 {
+		users, err = h.user.GetSpecialistsByBranch(branchID)
+	} else {
+		users, err = h.user.GetSpecialists()
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
@@ -654,6 +706,12 @@ func resolveBranchOverride(c *gin.Context) *uint {
 	}
 	v := uint(n)
 	return &v
+}
+
+// tenantDBFromCtx retrieves the tenant-scoped *gorm.DB set by TenantSchema middleware.
+func tenantDBFromCtx(c *gin.Context) *gorm.DB {
+	db, _ := c.Get(tenantmw.TenantDBKey())
+	return db.(*gorm.DB)
 }
 
 // respondError maps domain errors to HTTP status codes using errors.As.

@@ -4,9 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { defaultRecepcionesDinero, type DailyActivityReport } from '@/services/dailyActivityReportService';
 import DailyReportAttentionTable from '@/components/daily-report/DailyReportAttentionTable';
 import DailyReportRecepcionesSection from '@/components/daily-report/DailyReportRecepcionesSection';
-
-const formatCOP = (v: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+import { formatCOP } from '@/lib/formatMoney';
 
 type RoleVariant = 'admin' | 'receptionist';
 

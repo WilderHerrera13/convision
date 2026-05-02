@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isBefore, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import {
   Search, X, Loader2, User, Stethoscope, CheckCircle2, ChevronRight,
-  ChevronLeft, AlertTriangle, Plus,
+  ChevronLeft, AlertTriangle, Plus, Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import { cn, formatTimeFrom24hClock } from '@/lib/utils';
 import { appointmentsService } from '@/services/appointmentsService';
+import { branchService } from '@/services/branchService';
 import ApiService from '@/services/ApiService';
 
 const TIME_SLOTS = ['8:00', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
@@ -141,6 +142,22 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewPatientForm, setShowNewPatientForm] = useState(false);
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches-list'],
+    queryFn: () => branchService.listAll(),
+  });
+
+  const branchOptions = useMemo(
+    () => branches.filter(b => b.is_active).map(b => ({ value: String(b.id), label: b.name })),
+    [branches],
+  );
+
+  const selectedBranchName = useMemo(
+    () => branches.find(b => String(b.id) === selectedBranchId)?.name ?? '',
+    [branches, selectedBranchId],
+  );
 
   const newPatientForm = useForm<NewPatientValues>({
     resolver: zodResolver(newPatientSchema),
@@ -148,8 +165,8 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
   });
 
   const { data: specialists = [], isLoading: loadingSpecialists } = useQuery({
-    queryKey: ['specialists'],
-    queryFn: appointmentsService.getSpecialists,
+    queryKey: ['specialists', selectedBranchId],
+    queryFn: () => appointmentsService.getSpecialists(selectedBranchId ? Number(selectedBranchId) : undefined),
   });
 
   const { data: patientOptions = [], isLoading: loadingPatients, refetch: refetchPatients } = useQuery({
@@ -183,6 +200,7 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
       setSelectedTime('');
       setNotes('');
       setShowNewPatientForm(false);
+      setSelectedBranchId('');
       newPatientForm.reset();
     }, 200);
   };
@@ -212,6 +230,7 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
         specialist_id: selectedSpecialist.id,
         patient_id: selectedPatient.id,
         scheduled_at: `${dateStr} ${padTime(selectedTime)}`,
+        branch_id: selectedBranchId ? Number(selectedBranchId) : undefined,
         notes,
       });
       toast({ title: 'Cita creada', description: 'La cita ha sido programada exitosamente.' });
@@ -255,6 +274,34 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
         <div className="overflow-y-auto flex-1 min-h-0">
           {step === 0 && (
             <div className="px-6 py-5 space-y-4">
+              {branchOptions.length > 1 && (
+                <div className="space-y-2 pb-4 border-b border-[#f5f5f6]">
+                  <Label className="text-[13px] font-semibold text-[#121215] flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-[#7d7d87]" />
+                    Sede de la cita
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {branchOptions.map((b) => {
+                      const isSelected = selectedBranchId === b.value;
+                      return (
+                        <button
+                          key={b.value}
+                          type="button"
+                          className={cn(
+                            'px-3 py-1.5 rounded-full border text-[12px] font-medium transition-colors',
+                            isSelected
+                              ? 'border-convision-primary bg-convision-light text-convision-primary'
+                              : 'border-[#e5e5e9] bg-white text-[#59687a] hover:border-convision-primary/40',
+                          )}
+                          onClick={() => setSelectedBranchId(isSelected ? '' : b.value)}
+                        >
+                          {b.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {selectedPatient ? (
                 <div className="space-y-3">
                   <Label className="text-[13px] font-semibold text-[#121215]">Paciente seleccionado</Label>
@@ -600,6 +647,12 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
                     <p className="text-[14px] font-semibold text-[#121215]">{selectedSpecialist?.name}</p>
                     <p className="text-[12px] text-[#7d7d87]">Especialista</p>
                   </div>
+                  {selectedBranchName && (
+                    <div className="px-5 py-4">
+                      <p className="text-[11px] text-[#7d7d87] font-medium uppercase tracking-wide mb-1">Sede</p>
+                      <p className="text-[14px] font-semibold text-[#121215]">{selectedBranchName}</p>
+                    </div>
+                  )}
                   <div className="px-5 py-4">
                     <p className="text-[11px] text-[#7d7d87] font-medium uppercase tracking-wide mb-1">Fecha y hora</p>
                     <p className="text-[14px] font-semibold text-[#121215]">

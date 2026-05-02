@@ -1,5 +1,11 @@
 import axios from '@/lib/axios';
 
+export interface UserBranchAssignment {
+  branch_id: number;
+  is_primary: boolean;
+  name?: string;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -10,6 +16,7 @@ export interface User {
   role: 'admin' | 'specialist' | 'receptionist';
   created_at?: string;
   updated_at?: string;
+  branch_assignments?: UserBranchAssignment[];
 }
 
 export interface CreateUserData {
@@ -74,8 +81,10 @@ class UserService {
     return (body?.data ?? body) as User;
   }
 
-  async create(data: CreateUserData): Promise<void> {
-    await axios.post(this.baseUrl, data);
+  async create(data: CreateUserData): Promise<User> {
+    const response = await axios.post(this.baseUrl, data);
+    const body = response.data;
+    return (body?.data ?? body) as User;
   }
 
   async update(id: number, data: UpdateUserData): Promise<void> {

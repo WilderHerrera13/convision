@@ -2,15 +2,18 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	"github.com/convision/api/internal/platform/opticacache"
 	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
 // RegisterRoutes mounts all v1 API routes on the given router group.
-func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.Cache, globalDB *gorm.DB) {
 	v1 := rg.Group("/v1")
+	v1.Use(branchmw.TenantFromSubdomain(opticaCache, "app.opticaconvision.com"))
 
 	// Public routes — no authentication required
 	auth := v1.Group("/auth")
@@ -48,9 +51,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		evolutions.DELETE("/:id", h.DeleteClinicalEvolution)
 	}
 
-	// Protected routes — require a valid JWT (revocation-checked)
+	// Protected routes — require a valid JWT (revocation-checked) + tenant schema scoping
 	protected := v1.Group("/")
 	protected.Use(jwtauth.Authenticate(h.revokedTokens))
+	protected.Use(branchmw.TenantSchema(globalDB))
 	{
 		// Auth endpoints that require a valid token
 		auth := protected.Group("/auth")
@@ -65,10 +69,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		branchesAdmin.Use(jwtauth.RequireRole(domain.RoleAdmin))
 		{
 			branchesAdmin.GET("", h.ListBranches)
-			branchesAdmin.GET("/:id", h.GetBranch)
-			branchesAdmin.POST("", h.CreateBranch)
-			branchesAdmin.PUT("/:id", h.UpdateBranch)
 			branchesAdmin.POST("/users/:id/assign", h.AssignUserBranches)
+			branchesAdmin.POST("", h.CreateBranch)
+			branchesAdmin.GET("/:id", h.GetBranch)
+			branchesAdmin.PUT("/:id", h.UpdateBranch)
 		}
 
 		// Branch-scoped routes: require X-Branch-ID header

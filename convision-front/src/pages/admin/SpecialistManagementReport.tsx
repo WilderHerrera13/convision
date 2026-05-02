@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, subDays, startOfMonth } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import PageLayout from '@/components/layouts/PageLayout';
 import {
@@ -8,24 +8,11 @@ import {
   SpecialistSummaryRow,
 } from '@/services/specialistReportService';
 import { userService } from '@/services/userService';
-import { branchService } from '@/services/branchService';
-import { DatePicker } from '@/components/ui/date-picker';
-import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
-import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
+import SpecialistReportsFiltersBar from '@/components/admin/SpecialistReportsFiltersBar';
+import { computeAggregatedPreset } from '@/components/admin/AdminDateRangeBranchBar';
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
 const fmtDisplay = (d: Date) => format(d, 'dd/MM/yyyy');
-
-type DatePreset = 'hoy' | '7d' | '14d' | 'mes';
-
-function resolvePreset(preset: DatePreset): { from: Date; to: Date } {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (preset === 'hoy') return { from: today, to: today };
-  if (preset === '7d') return { from: subDays(today, 6), to: today };
-  if (preset === '14d') return { from: subDays(today, 13), to: today };
-  return { from: startOfMonth(today), to: today };
-}
 
 type KpiCardProps = {
   label: string;
@@ -57,29 +44,25 @@ function KpiCard({ label, value, delta, variant = 'neutral' }: KpiCardProps) {
 const SpecialistManagementReport: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'consolidado' | 'lista'>('consolidado');
-  const [preset, setPreset] = useState<DatePreset>('14d');
-  const [customFrom, setCustomFrom] = useState<Date | undefined>();
-  const [customTo, setCustomTo] = useState<Date | undefined>();
+  const defaultRange = computeAggregatedPreset('14d');
+  const [dateFrom, setDateFrom] = useState<Date>(() => startOfDay(defaultRange.from));
+  const [dateTo, setDateTo] = useState<Date>(() => startOfDay(defaultRange.to));
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<string>('all');
   const [selectedSedeId, setSelectedSedeId] = useState<string>('all');
   const [specialistSearch, setSpecialistSearch] = useState('');
 
-  const { from, to } = useMemo(() => {
-    if (customFrom && customTo) return { from: customFrom, to: customTo };
-    return resolvePreset(preset);
-  }, [preset, customFrom, customTo]);
+  const handleRangeChange = useCallback((from: Date, to: Date) => {
+    setDateFrom(startOfDay(from));
+    setDateTo(startOfDay(to));
+  }, []);
 
-  const fromStr = fmt(from);
-  const toStr = fmt(to);
+  const fromStr = fmt(dateFrom);
+  const toStr = fmt(dateTo);
 
   const { data: specialists = [] } = useQuery({
     queryKey: ['specialists-list'],
     queryFn: () => userService.getAll(),
     select: (users) => users.filter((u) => u.role === 'specialist'),
-  });
-  const { data: branches = [] } = useQuery({
-    queryKey: ['branches-list'],
-    queryFn: () => branchService.listAll(),
   });
 
   const listaBranchFilterActive = activeTab === 'lista' && selectedSedeId !== 'all';
@@ -128,8 +111,8 @@ const SpecialistManagementReport: React.FC = () => {
   );
 
   const daysDiff = useMemo(
-    () => Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1,
-    [from, to],
+    () => Math.round((dateTo.getTime() - dateFrom.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+    [dateFrom, dateTo],
   );
 
   const filteredSpecialists = useMemo(
@@ -141,38 +124,34 @@ const SpecialistManagementReport: React.FC = () => {
   );
 
   const specialistsForLista = useMemo(() => {
-    if (!listaBranchFilterActive) return filteredSpecialists;
-    if (!reportListaBranch) return [];
-    const rows = reportListaBranch.rows;
-    if (!rows?.length) return [];
-    const ids = new Set(rows.map((r) => r.specialist_id));
-    return filteredSpecialists.filter((s) => ids.has(s.id));
-  }, [listaBranchFilterActive, reportListaBranch, filteredSpecialists]);
+    let list: typeof specialists;
+    if (listaBranchFilterActive) {
+      if (!reportListaBranch) return [];
+      const branchRows = reportListaBranch.rows;
+      if (!branchRows?.length) return [];
+      const ids = new Set(branchRows.map((r) => r.specialist_id));
+      list = filteredSpecialists.filter((s) => ids.has(s.id));
+    } else {
+      list = filteredSpecialists;
+    }
+    if (selectedSpecialistId !== 'all') {
+      list = list.filter((s) => String(s.id) === selectedSpecialistId);
+    }
+    return list;
+  }, [
+    listaBranchFilterActive,
+    reportListaBranch,
+    filteredSpecialists,
+    selectedSpecialistId,
+  ]);
 
-  const specialistOptions = useMemo<ComboboxOption[]>(
-    () => [
-      { value: 'all', label: `Todos (${specialists.length})` },
-      ...specialists.map((s) => ({
-        value: String(s.id),
-        label: `${s.name} ${s.last_name}`,
-      })),
-    ],
-    [specialists],
-  );
-
-  const applyPreset = (p: DatePreset) => {
-    setPreset(p);
-    setCustomFrom(undefined);
-    setCustomTo(undefined);
-  };
-
-  const chipCls = (active: boolean) =>
-    active
-      ? 'bg-[#eff1ff] border border-[#3a71f7] text-[#3a71f7] font-semibold text-[11px] px-2 py-0.5 rounded-full cursor-pointer'
-      : 'bg-[#f5f5f6] border border-[#e0e0e4] text-[#7d7d87] text-[11px] px-2 py-0.5 rounded-full cursor-pointer';
-
-  const selectedSpecialist = specialists.find((s) => String(s.id) === selectedSpecialistId);
-  const selectedBranch = branches.find((branch) => String(branch.id) === selectedSedeId);
+  const statusRightText = useMemo(() => {
+    const count =
+      activeTab === 'consolidado'
+        ? report?.specialists_count ?? rows.length
+        : specialistsForLista.length;
+    return `${daysDiff} ${daysDiff === 1 ? 'día' : 'días'} · ${count} especialistas`;
+  }, [activeTab, report?.specialists_count, rows.length, specialistsForLista.length, daysDiff]);
 
   return (
     <PageLayout
@@ -180,7 +159,6 @@ const SpecialistManagementReport: React.FC = () => {
       breadcrumbs={[{ label: 'Administración' }, { label: 'Informe de Gestión Especialista' }]}
     >
       <div className="bg-white border border-[#ebebee] rounded-[8px] mx-6 mt-5">
-        {/* Tab bar */}
         <div className="bg-[#fafafb] border-b border-[#e5e5e9] flex h-[48px]">
           {(['consolidado', 'lista'] as const).map((tab) => (
             <button
@@ -200,87 +178,20 @@ const SpecialistManagementReport: React.FC = () => {
           ))}
         </div>
 
-        {/* Filter bar — only for consolidado */}
-        {activeTab === 'consolidado' && (
-          <div className="border-b border-[#f0f0f2] px-5 py-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-0">
-              <div className="flex items-center bg-white border border-[#e0e0e4] rounded-[8px] h-[42px] px-3 gap-0 flex-1 min-w-0">
-                <span className="text-[11px] font-semibold text-[#7d7d87] mr-2 shrink-0">Rango</span>
-                <div className="w-[120px] shrink-0 [&_button]:h-[30px] [&_button]:text-[11px] [&_button]:border-0 [&_button]:shadow-none [&_button]:px-1">
-                  <DatePicker
-                    value={customFrom ?? from}
-                    onChange={(d) => { if (d) { setCustomFrom(d); setPreset('14d'); } }}
-                    placeholder="Desde"
-                  />
-                </div>
-                <span className="text-[#7d7d87] text-[12px] mx-1 shrink-0">—</span>
-                <div className="w-[120px] shrink-0 [&_button]:h-[30px] [&_button]:text-[11px] [&_button]:border-0 [&_button]:shadow-none [&_button]:px-1">
-                  <DatePicker
-                    value={customTo ?? to}
-                    onChange={(d) => { if (d) { setCustomTo(d); setPreset('14d'); } }}
-                    placeholder="Hasta"
-                  />
-                </div>
-                <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <div className="flex items-center gap-1 shrink-0">
-                  {(['hoy', '7d', '14d', 'mes'] as DatePreset[]).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => applyPreset(p)}
-                      className={chipCls(!customFrom && preset === p)}
-                    >
-                      {p === 'hoy' ? 'Hoy' : p === '7d' ? '7d' : p === '14d' ? '14d' : 'Mes'}
-                    </button>
-                  ))}
-                </div>
-                <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <div className="flex flex-col leading-none shrink-0 w-[180px]">
-                  <span className="text-[10px] font-medium text-[#7d7d87] tracking-[0.4px] mb-0.5">
-                    ESPECIALISTA
-                  </span>
-                  <SearchableCombobox
-                    options={specialistOptions}
-                    value={selectedSpecialistId}
-                    onChange={setSelectedSpecialistId}
-                    placeholder="Todos"
-                    searchPlaceholder="Buscar especialista..."
-                    className="h-[22px] border-0 bg-transparent rounded-none px-0 text-[11px] shadow-none hover:border-transparent focus:border-transparent focus:ring-0 [&>span]:text-left"
-                  />
-                </div>
-                <div className="w-px h-5 bg-[#e0e0e4] mx-2 shrink-0" />
-                <AdminBranchFilter value={selectedSedeId} onChange={setSelectedSedeId} />
-              </div>
-              <div className="text-[10px] text-[#7d7d87] ml-3 shrink-0 whitespace-nowrap">
-                {daysDiff} {daysDiff === 1 ? 'día' : 'dias'} · {report?.specialists_count ?? specialists.length} especialistas
-              </div>
-            </div>
-            {(selectedSpecialistId !== 'all' || selectedSedeId !== 'all') && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-medium text-[#7d7d87]">Filtros activos</span>
-                {selectedSpecialist && (
-                  <button
-                    onClick={() => setSelectedSpecialistId('all')}
-                    className="flex items-center gap-1 bg-[#eff1ff] text-[#3a71f7] text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-[#dde6ff] transition-colors"
-                  >
-                    {selectedSpecialist.name} {selectedSpecialist.last_name}
-                    <span className="text-[10px] leading-none">×</span>
-                  </button>
-                )}
-                {selectedBranch && (
-                  <button
-                    onClick={() => setSelectedSedeId('all')}
-                    className="flex items-center gap-1 bg-[#eff1ff] text-[#3a71f7] text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-[#dde6ff] transition-colors"
-                  >
-                    {selectedBranch.name}
-                    <span className="text-[10px] leading-none">×</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="border-b border-[#f0f0f2] px-5 py-3">
+          <SpecialistReportsFiltersBar
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onRangeChange={handleRangeChange}
+            specialists={specialists}
+            selectedSpecialistId={selectedSpecialistId}
+            onSpecialistChange={setSelectedSpecialistId}
+            branchFilter={selectedSedeId}
+            onBranchChange={setSelectedSedeId}
+            statusRight={statusRightText}
+          />
+        </div>
 
-        {/* ---- CONSOLIDADO tab ---- */}
         {activeTab === 'consolidado' && (
           <>
             <div className="flex gap-4 px-5 py-5 flex-wrap">
@@ -399,7 +310,7 @@ const SpecialistManagementReport: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-[11px] text-[#7d7d87] px-5 pb-4">
-                  Datos del período {fmtDisplay(from)} – {fmtDisplay(to)} · Registros guardados por
+                  Datos del período {fmtDisplay(dateFrom)} – {fmtDisplay(dateTo)} · Registros guardados por
                   cada especialista.
                 </p>
               </div>
@@ -407,7 +318,6 @@ const SpecialistManagementReport: React.FC = () => {
           </>
         )}
 
-        {/* ---- LISTA tab ---- */}
         {activeTab === 'lista' && (
           <div>
             <div className="flex items-center justify-between px-5 h-[56px] border-b border-[#e5e5e9] gap-3">
@@ -415,13 +325,10 @@ const SpecialistManagementReport: React.FC = () => {
                 <p className="text-[14px] font-semibold text-[#121215]">Médicos con reportes de gestión</p>
                 <p className="text-[11px] text-[#7d7d87]">
                   {specialistsForLista.length} especialistas
-                  {listaBranchFilterActive && ` · ${fmtDisplay(from)} – ${fmtDisplay(to)}`}
+                  {listaBranchFilterActive && ` · ${fmtDisplay(dateFrom)} – ${fmtDisplay(dateTo)}`}
                 </p>
               </div>
-              <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
-                <div className="flex items-center bg-white border border-[#e5e5e9] rounded-[8px] h-[40px] px-2">
-                  <AdminBranchFilter value={selectedSedeId} onChange={setSelectedSedeId} />
-                </div>
+              <div className="flex items-center shrink-0">
                 <input
                   type="text"
                   placeholder="Buscar especialista..."
