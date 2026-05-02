@@ -22,8 +22,19 @@ func TenantFromSubdomain(cache *opticacache.Cache, baseDomain string) gin.Handle
 			if slug == "" {
 				slug = "main"
 			}
-			c.Set(schemaNameKey, "optica_"+slug)
-			c.Set(opticaIDKey, uint(0))
+			if slug == "admin" {
+				c.Set(schemaNameKey, "platform")
+				c.Set(opticaIDKey, uint(0))
+				c.Next()
+				return
+			}
+			schemaName := "optica_" + slug
+			opticaID := uint(0)
+			if entry, ok := cache.GetBySlug(slug); ok {
+				opticaID = entry.ID
+			}
+			c.Set(schemaNameKey, schemaName)
+			c.Set(opticaIDKey, opticaID)
 			c.Next()
 			return
 		}
