@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -110,7 +111,17 @@ func (s *Service) loginSuperAdmin(input LoginInput) (*LoginOutput, error) {
 }
 
 func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOutput, error) {
-	user, err := s.users.GetByEmail(ctx.DB, input.Email)
+	tx := ctx.DB.Begin()
+	if tx.Error != nil {
+		return nil, errors.New("internal error")
+	}
+	defer tx.Rollback()
+
+	if err := tx.Exec(fmt.Sprintf("SET LOCAL search_path = %s", ctx.SchemaName)).Error; err != nil {
+		return nil, errors.New("internal error")
+	}
+
+	user, err := s.users.GetByEmail(tx, input.Email)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
@@ -121,7 +132,7 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 		s.logger.Warn("failed login attempt", zap.String("email", input.Email))
 		return nil, errors.New("invalid credentials")
 	}
-	if err := s.ensureOperatorBranchesForLogin(ctx.DB, user); err != nil {
+	if err := s.ensureOperatorBranchesForLogin(tx, user); err != nil {
 		return nil, err
 	}
 	flags, _ := s.featureCache.GetEnabled(ctx.OpticaID)
@@ -136,7 +147,7 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 		ExpiresIn:    expiresIn,
 		JTI:          jti,
 		User:         user,
-		Branches:     s.loadBranches(ctx.DB, user),
+		Branches:     s.loadBranches(tx, user),
 		FeatureFlags: flags,
 	}, nil
 }
