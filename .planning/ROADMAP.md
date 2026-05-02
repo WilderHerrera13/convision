@@ -166,7 +166,7 @@ Plans:
 | 13. Unified Product-Inventory WMS Foundation | 0/5 | Not started | - |
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
-| 16. Multi-Tenancy & Super Admin | 9/9 | Complete   | 2026-05-02 |
+| 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
 
