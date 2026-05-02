@@ -2,6 +2,7 @@ package branch
 
 import (
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -43,24 +44,24 @@ type UserBranchAssignmentOut struct {
 	Name      string `json:"name"`
 }
 
-func (s *Service) GetByID(id uint) (*domain.Branch, error) {
-	b, err := s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Branch, error) {
+	b, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-func (s *Service) ListAll() ([]*domain.Branch, error) {
-	return s.repo.ListAll()
+func (s *Service) ListAll(db *gorm.DB) ([]*domain.Branch, error) {
+	return s.repo.ListAll(db)
 }
 
-func (s *Service) ListForUser(userID uint) ([]*domain.Branch, error) {
-	return s.repo.ListForUser(userID)
+func (s *Service) ListForUser(db *gorm.DB, userID uint) ([]*domain.Branch, error) {
+	return s.repo.ListForUser(db, userID)
 }
 
-func (s *Service) ListAssignmentsForUser(userID uint) ([]UserBranchAssignmentOut, error) {
-	rows, err := s.repo.ListUserBranchesByUserID(userID)
+func (s *Service) ListAssignmentsForUser(db *gorm.DB, userID uint) ([]UserBranchAssignmentOut, error) {
+	rows, err := s.repo.ListUserBranchesByUserID(db, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (s *Service) ListAssignmentsForUser(userID uint) ([]UserBranchAssignmentOut
 	return out, nil
 }
 
-func (s *Service) Create(input CreateInput) (*domain.Branch, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Branch, error) {
 	b := &domain.Branch{
 		Name:     input.Name,
 		Address:  input.Address,
@@ -88,15 +89,15 @@ func (s *Service) Create(input CreateInput) (*domain.Branch, error) {
 		Email:    input.Email,
 		IsActive: input.IsActive,
 	}
-	if err := s.repo.Create(b); err != nil {
+	if err := s.repo.Create(db, b); err != nil {
 		return nil, err
 	}
 	s.logger.Info("branch created", zap.Uint("branch_id", b.ID))
 	return b, nil
 }
 
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Branch, error) {
-	b, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Branch, error) {
+	b, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -118,13 +119,13 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Branch, error) {
 	if input.IsActive != nil {
 		b.IsActive = *input.IsActive
 	}
-	if err := s.repo.Update(b); err != nil {
+	if err := s.repo.Update(db, b); err != nil {
 		return nil, err
 	}
 	s.logger.Info("branch updated", zap.Uint("branch_id", b.ID))
 	return b, nil
 }
 
-func (s *Service) AssignUserBranches(userID uint, input AssignInput) error {
-	return s.repo.AssignUserBranches(userID, input.Assignments)
+func (s *Service) AssignUserBranches(db *gorm.DB, userID uint, input AssignInput) error {
+	return s.repo.AssignUserBranches(db, userID, input.Assignments)
 }

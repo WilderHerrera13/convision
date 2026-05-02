@@ -52,8 +52,9 @@ func parseUintParam(c *gin.Context) (uint, bool) {
 // ---------- Brands ----------
 
 func (h *Handler) ListBrands(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListBrands(page, perPage)
+	out, err := h.catalog.ListBrands(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -78,11 +79,12 @@ func (h *Handler) ListBrands(c *gin.Context) {
 }
 
 func (h *Handler) GetBrand(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetBrand(id)
+	e, err := h.catalog.GetBrand(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -91,12 +93,13 @@ func (h *Handler) GetBrand(c *gin.Context) {
 }
 
 func (h *Handler) CreateBrand(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.BrandInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreateBrand(input)
+	e, err := h.catalog.CreateBrand(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -105,6 +108,7 @@ func (h *Handler) CreateBrand(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBrand(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -114,7 +118,7 @@ func (h *Handler) UpdateBrand(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdateBrand(id, input)
+	e, err := h.catalog.UpdateBrand(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -123,11 +127,12 @@ func (h *Handler) UpdateBrand(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBrand(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeleteBrand(id); err != nil {
+	if err := h.catalog.DeleteBrand(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -147,8 +152,9 @@ func toCatalogItemFromBrand(e *domain.Brand) CatalogItemResource {
 // ---------- LensTypes ----------
 
 func (h *Handler) ListLensTypes(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListLensTypes(page, perPage)
+	out, err := h.catalog.ListLensTypes(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -174,11 +180,12 @@ func (h *Handler) ListLensTypes(c *gin.Context) {
 }
 
 func (h *Handler) GetLensType(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetLensType(id)
+	e, err := h.catalog.GetLensType(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -191,12 +198,13 @@ func (h *Handler) GetLensType(c *gin.Context) {
 }
 
 func (h *Handler) CreateLensType(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.LensTypeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreateLensType(input)
+	e, err := h.catalog.CreateLensType(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -209,6 +217,7 @@ func (h *Handler) CreateLensType(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLensType(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -218,7 +227,7 @@ func (h *Handler) UpdateLensType(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdateLensType(id, input)
+	e, err := h.catalog.UpdateLensType(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -231,11 +240,12 @@ func (h *Handler) UpdateLensType(c *gin.Context) {
 }
 
 func (h *Handler) DeleteLensType(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeleteLensType(id); err != nil {
+	if err := h.catalog.DeleteLensType(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -245,8 +255,9 @@ func (h *Handler) DeleteLensType(c *gin.Context) {
 // ---------- Materials ----------
 
 func (h *Handler) ListMaterials(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListMaterials(page, perPage)
+	out, err := h.catalog.ListMaterials(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -272,11 +283,12 @@ func (h *Handler) ListMaterials(c *gin.Context) {
 }
 
 func (h *Handler) GetMaterial(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetMaterial(id)
+	e, err := h.catalog.GetMaterial(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -289,12 +301,13 @@ func (h *Handler) GetMaterial(c *gin.Context) {
 }
 
 func (h *Handler) CreateMaterial(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.MaterialInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreateMaterial(input)
+	e, err := h.catalog.CreateMaterial(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -307,6 +320,7 @@ func (h *Handler) CreateMaterial(c *gin.Context) {
 }
 
 func (h *Handler) UpdateMaterial(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -316,7 +330,7 @@ func (h *Handler) UpdateMaterial(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdateMaterial(id, input)
+	e, err := h.catalog.UpdateMaterial(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -329,11 +343,12 @@ func (h *Handler) UpdateMaterial(c *gin.Context) {
 }
 
 func (h *Handler) DeleteMaterial(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeleteMaterial(id); err != nil {
+	if err := h.catalog.DeleteMaterial(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -343,8 +358,9 @@ func (h *Handler) DeleteMaterial(c *gin.Context) {
 // ---------- LensClasses ----------
 
 func (h *Handler) ListLensClasses(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListLensClasses(page, perPage)
+	out, err := h.catalog.ListLensClasses(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -370,11 +386,12 @@ func (h *Handler) ListLensClasses(c *gin.Context) {
 }
 
 func (h *Handler) GetLensClass(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetLensClass(id)
+	e, err := h.catalog.GetLensClass(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -387,12 +404,13 @@ func (h *Handler) GetLensClass(c *gin.Context) {
 }
 
 func (h *Handler) CreateLensClass(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.LensClassInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreateLensClass(input)
+	e, err := h.catalog.CreateLensClass(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -405,6 +423,7 @@ func (h *Handler) CreateLensClass(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLensClass(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -414,7 +433,7 @@ func (h *Handler) UpdateLensClass(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdateLensClass(id, input)
+	e, err := h.catalog.UpdateLensClass(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -427,11 +446,12 @@ func (h *Handler) UpdateLensClass(c *gin.Context) {
 }
 
 func (h *Handler) DeleteLensClass(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeleteLensClass(id); err != nil {
+	if err := h.catalog.DeleteLensClass(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -441,8 +461,9 @@ func (h *Handler) DeleteLensClass(c *gin.Context) {
 // ---------- Treatments ----------
 
 func (h *Handler) ListTreatments(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListTreatments(page, perPage)
+	out, err := h.catalog.ListTreatments(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -468,11 +489,12 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 }
 
 func (h *Handler) GetTreatment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetTreatment(id)
+	e, err := h.catalog.GetTreatment(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -485,12 +507,13 @@ func (h *Handler) GetTreatment(c *gin.Context) {
 }
 
 func (h *Handler) CreateTreatment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.TreatmentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreateTreatment(input)
+	e, err := h.catalog.CreateTreatment(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -503,6 +526,7 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTreatment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -512,7 +536,7 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdateTreatment(id, input)
+	e, err := h.catalog.UpdateTreatment(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -525,11 +549,12 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTreatment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeleteTreatment(id); err != nil {
+	if err := h.catalog.DeleteTreatment(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -539,8 +564,9 @@ func (h *Handler) DeleteTreatment(c *gin.Context) {
 // ---------- Photochromics ----------
 
 func (h *Handler) ListPhotochromics(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.catalog.ListPhotochromics(page, perPage)
+	out, err := h.catalog.ListPhotochromics(db, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -566,11 +592,12 @@ func (h *Handler) ListPhotochromics(c *gin.Context) {
 }
 
 func (h *Handler) GetPhotochromic(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetPhotochromic(id)
+	e, err := h.catalog.GetPhotochromic(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -583,12 +610,13 @@ func (h *Handler) GetPhotochromic(c *gin.Context) {
 }
 
 func (h *Handler) CreatePhotochromic(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.PhotochromicInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreatePhotochromic(input)
+	e, err := h.catalog.CreatePhotochromic(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -601,6 +629,7 @@ func (h *Handler) CreatePhotochromic(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePhotochromic(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -610,7 +639,7 @@ func (h *Handler) UpdatePhotochromic(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdatePhotochromic(id, input)
+	e, err := h.catalog.UpdatePhotochromic(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -623,11 +652,12 @@ func (h *Handler) UpdatePhotochromic(c *gin.Context) {
 }
 
 func (h *Handler) DeletePhotochromic(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeletePhotochromic(id); err != nil {
+	if err := h.catalog.DeletePhotochromic(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -647,8 +677,9 @@ func toPaymentMethodResource(e *domain.PaymentMethod) PaymentMethodResource {
 }
 
 func (h *Handler) ListPaymentMethods(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	// Per spec: returns ALL active payment methods (no pagination)
-	data, err := h.catalog.ListActivePaymentMethods()
+	data, err := h.catalog.ListActivePaymentMethods(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -661,11 +692,12 @@ func (h *Handler) ListPaymentMethods(c *gin.Context) {
 }
 
 func (h *Handler) GetPaymentMethod(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	e, err := h.catalog.GetPaymentMethod(id)
+	e, err := h.catalog.GetPaymentMethod(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -674,12 +706,13 @@ func (h *Handler) GetPaymentMethod(c *gin.Context) {
 }
 
 func (h *Handler) CreatePaymentMethod(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input catalog.PaymentMethodInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.CreatePaymentMethod(input)
+	e, err := h.catalog.CreatePaymentMethod(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -688,6 +721,7 @@ func (h *Handler) CreatePaymentMethod(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
@@ -697,7 +731,7 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.catalog.UpdatePaymentMethod(id, input)
+	e, err := h.catalog.UpdatePaymentMethod(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -706,11 +740,12 @@ func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 }
 
 func (h *Handler) DeletePaymentMethod(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, ok := parseUintParam(c)
 	if !ok {
 		return
 	}
-	if err := h.catalog.DeletePaymentMethod(id); err != nil {
+	if err := h.catalog.DeletePaymentMethod(db, id); err != nil {
 		respondError(c, err)
 		return
 	}

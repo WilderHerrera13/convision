@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type BulkImportLog struct {
 	ID          uint      `json:"id"           gorm:"primaryKey;autoIncrement"`
@@ -15,6 +19,6 @@ type BulkImportLog struct {
 }
 
 type BulkImportLogRepository interface {
-	Create(log *BulkImportLog) error
-	List(importType string, page, perPage int) ([]*BulkImportLog, int64, error)
+	Create(db *gorm.DB, log *BulkImportLog) error
+	List(db *gorm.DB, importType string, page, perPage int) ([]*BulkImportLog, int64, error)
 }

@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // DiscountRequestStatus enumerates valid discount request statuses.
 type DiscountRequestStatus string
@@ -41,12 +45,12 @@ type DiscountRequest struct {
 
 // DiscountRepository defines persistence operations for DiscountRequest.
 type DiscountRepository interface {
-	GetByID(id uint) (*DiscountRequest, error)
-	GetActiveForProduct(productID uint) ([]*DiscountRequest, error)
-	GetActiveForProductWithPatient(productID uint, patientID *uint) ([]*DiscountRequest, error)
-	GetBestForProduct(productID uint, patientID *uint) (*DiscountRequest, error)
-	Create(d *DiscountRequest) error
-	Update(d *DiscountRequest) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*DiscountRequest, int64, error)
+	GetByID(db *gorm.DB, id uint) (*DiscountRequest, error)
+	GetActiveForProduct(db *gorm.DB, productID uint) ([]*DiscountRequest, error)
+	GetActiveForProductWithPatient(db *gorm.DB, productID uint, patientID *uint) ([]*DiscountRequest, error)
+	GetBestForProduct(db *gorm.DB, productID uint, patientID *uint) (*DiscountRequest, error)
+	Create(db *gorm.DB, d *DiscountRequest) error
+	Update(db *gorm.DB, d *DiscountRequest) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*DiscountRequest, int64, error)
 }

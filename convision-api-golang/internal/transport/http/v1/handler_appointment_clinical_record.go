@@ -14,12 +14,13 @@ import (
 // GetAppointmentClinicalRecord godoc
 // GET /api/v1/appointments/:id/clinical-record
 func (h *Handler) GetAppointmentClinicalRecord(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -30,6 +31,7 @@ func (h *Handler) GetAppointmentClinicalRecord(c *gin.Context) {
 // CreateAppointmentClinicalRecord godoc
 // POST /api/v1/appointments/:id/clinical-record
 func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -41,7 +43,7 @@ func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
 		return
 	}
 
-	appt, err := h.appointment.GetByID(apptID)
+	appt, err := h.appointment.GetByID(db, apptID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -65,7 +67,7 @@ func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
 		RecordType:    body.RecordType,
 	}
 
-	rec, err := h.clinicalRecord.Create(in)
+	rec, err := h.clinicalRecord.Create(db, in)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -76,6 +78,7 @@ func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
 // UpsertAppointmentVisualExam godoc
 // PUT /api/v1/appointments/:id/clinical-record/visual-exam
 func (h *Handler) UpsertAppointmentVisualExam(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -87,7 +90,7 @@ func (h *Handler) UpsertAppointmentVisualExam(c *gin.Context) {
 		return
 	}
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		if notFound, ok := err.(*domain.ErrNotFound); ok {
 			_ = notFound
@@ -98,18 +101,19 @@ func (h *Handler) UpsertAppointmentVisualExam(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertVisualExam(rec.ID, rec.BranchID, input); err != nil {
+	if err := h.clinicalRecord.UpsertVisualExam(db, rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
 
-	updated, _ := h.clinicalRecord.GetByAppointmentID(apptID)
+	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }
 
 // UpsertAppointmentDiagnosis godoc
 // PUT /api/v1/appointments/:id/clinical-record/diagnosis
 func (h *Handler) UpsertAppointmentDiagnosis(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -121,7 +125,7 @@ func (h *Handler) UpsertAppointmentDiagnosis(c *gin.Context) {
 		return
 	}
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		if _, ok := err.(*domain.ErrNotFound); ok {
 			c.JSON(http.StatusNotFound, gin.H{"message": "Historia clínica no encontrada. Cree el registro primero."})
@@ -131,18 +135,19 @@ func (h *Handler) UpsertAppointmentDiagnosis(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertDiagnosis(rec.ID, rec.BranchID, input); err != nil {
+	if err := h.clinicalRecord.UpsertDiagnosis(db, rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
 
-	updated, _ := h.clinicalRecord.GetByAppointmentID(apptID)
+	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }
 
 // UpsertAppointmentPrescription godoc
 // PUT /api/v1/appointments/:id/clinical-record/prescription
 func (h *Handler) UpsertAppointmentPrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -154,7 +159,7 @@ func (h *Handler) UpsertAppointmentPrescription(c *gin.Context) {
 		return
 	}
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		if _, ok := err.(*domain.ErrNotFound); ok {
 			c.JSON(http.StatusNotFound, gin.H{"message": "Historia clínica no encontrada. Cree el registro primero."})
@@ -164,18 +169,19 @@ func (h *Handler) UpsertAppointmentPrescription(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertPrescription(rec.ID, rec.BranchID, input); err != nil {
+	if err := h.clinicalRecord.UpsertPrescription(db, rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
 
-	updated, _ := h.clinicalRecord.GetByAppointmentID(apptID)
+	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }
 
 // SignAppointmentClinicalRecord godoc
 // POST /api/v1/appointments/:id/clinical-record/sign
 func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -186,7 +192,7 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&body)
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		if _, ok := err.(*domain.ErrNotFound); ok {
 			c.JSON(http.StatusNotFound, gin.H{"message": "Historia clínica no encontrada."})
@@ -196,18 +202,19 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.SignRecord(rec.ID, body.ProfessionalTp); err != nil {
+	if err := h.clinicalRecord.SignRecord(db, rec.ID, body.ProfessionalTp); err != nil {
 		respondError(c, err)
 		return
 	}
 
-	updated, _ := h.clinicalRecord.GetByAppointmentID(apptID)
+	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }
 
 // UpsertAppointmentAnamnesis godoc
 // PUT /api/v1/appointments/:id/clinical-record/anamnesis
 func (h *Handler) UpsertAppointmentAnamnesis(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	apptID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -219,7 +226,7 @@ func (h *Handler) UpsertAppointmentAnamnesis(c *gin.Context) {
 		return
 	}
 
-	rec, err := h.clinicalRecord.GetByAppointmentID(apptID)
+	rec, err := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	if err != nil {
 		if notFound, ok := err.(*domain.ErrNotFound); ok {
 			_ = notFound
@@ -230,11 +237,11 @@ func (h *Handler) UpsertAppointmentAnamnesis(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.UpsertAnamnesis(rec.ID, rec.BranchID, input); err != nil {
+	if err := h.clinicalRecord.UpsertAnamnesis(db, rec.ID, rec.BranchID, input); err != nil {
 		respondError(c, err)
 		return
 	}
 
-	updated, _ := h.clinicalRecord.GetByAppointmentID(apptID)
+	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }

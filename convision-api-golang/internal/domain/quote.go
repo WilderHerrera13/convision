@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // QuoteStatus enumerates valid quote statuses.
 type QuoteStatus string
@@ -59,10 +63,10 @@ type QuoteItem struct {
 
 // QuoteRepository defines persistence operations for Quote.
 type QuoteRepository interface {
-	GetByID(id uint) (*Quote, error)
-	GetByQuoteNumber(number string) (*Quote, error)
-	Create(q *Quote) error
-	Update(q *Quote) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Quote, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Quote, error)
+	GetByQuoteNumber(db *gorm.DB, number string) (*Quote, error)
+	Create(db *gorm.DB, q *Quote) error
+	Update(db *gorm.DB, q *Quote) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Quote, int64, error)
 }

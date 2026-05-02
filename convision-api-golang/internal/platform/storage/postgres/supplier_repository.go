@@ -17,18 +17,16 @@ var supplierFilterAllowlist = map[string]string{
 }
 
 // SupplierRepository is the PostgreSQL-backed implementation of domain.SupplierRepository.
-type SupplierRepository struct {
-	db *gorm.DB
-}
+type SupplierRepository struct{}
 
 // NewSupplierRepository creates a new SupplierRepository.
-func NewSupplierRepository(db *gorm.DB) *SupplierRepository {
-	return &SupplierRepository{db: db}
+func NewSupplierRepository() *SupplierRepository {
+	return &SupplierRepository{}
 }
 
-func (r *SupplierRepository) GetByID(id uint) (*domain.Supplier, error) {
+func (r *SupplierRepository) GetByID(db *gorm.DB, id uint) (*domain.Supplier, error) {
 	var s domain.Supplier
-	err := r.db.Preload("City").First(&s, id).Error
+	err := db.Preload("City").First(&s, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "supplier"}
@@ -38,12 +36,12 @@ func (r *SupplierRepository) GetByID(id uint) (*domain.Supplier, error) {
 	return &s, nil
 }
 
-func (r *SupplierRepository) Create(s *domain.Supplier) error {
-	return r.db.Create(s).Error
+func (r *SupplierRepository) Create(db *gorm.DB, s *domain.Supplier) error {
+	return db.Create(s).Error
 }
 
-func (r *SupplierRepository) Update(s *domain.Supplier) error {
-	return r.db.Model(s).Updates(map[string]any{
+func (r *SupplierRepository) Update(db *gorm.DB, s *domain.Supplier) error {
+	return db.Model(s).Updates(map[string]any{
 		"name":                 s.Name,
 		"legal_name":           s.LegalName,
 		"nit":                  s.NIT,
@@ -60,15 +58,15 @@ func (r *SupplierRepository) Update(s *domain.Supplier) error {
 	}).Error
 }
 
-func (r *SupplierRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Supplier{}, id).Error
+func (r *SupplierRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Supplier{}, id).Error
 }
 
-func (r *SupplierRepository) List(filters map[string]any, page, perPage int) ([]*domain.Supplier, int64, error) {
+func (r *SupplierRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Supplier, int64, error) {
 	var suppliers []*domain.Supplier
 	var total int64
 
-	q := r.db.Model(&domain.Supplier{})
+	q := db.Model(&domain.Supplier{})
 	for field, value := range filters {
 		op, allowed := supplierFilterAllowlist[field]
 		if !allowed {

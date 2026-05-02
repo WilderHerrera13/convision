@@ -2,6 +2,7 @@ package notification
 
 import (
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -26,14 +27,14 @@ type ListOutput struct {
 }
 
 // List returns paginated notifications.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
 		perPage = 15
 	}
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -41,53 +42,53 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Summary returns unread/total/archived counts.
-func (s *Service) Summary() (*domain.NotificationSummary, error) {
-	return s.repo.Summary()
+func (s *Service) Summary(db *gorm.DB) (*domain.NotificationSummary, error) {
+	return s.repo.Summary(db)
 }
 
 // GetByID returns a single notification.
-func (s *Service) GetByID(id uint) (*domain.AdminUserNotification, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // MarkAsRead marks a notification as read.
-func (s *Service) MarkAsRead(id uint) (*domain.AdminUserNotification, error) {
-	if err := s.repo.MarkAsRead(id); err != nil {
+func (s *Service) MarkAsRead(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
+	if err := s.repo.MarkAsRead(db, id); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // MarkAsUnread marks a notification as unread.
-func (s *Service) MarkAsUnread(id uint) (*domain.AdminUserNotification, error) {
-	if err := s.repo.MarkAsUnread(id); err != nil {
+func (s *Service) MarkAsUnread(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
+	if err := s.repo.MarkAsUnread(db, id); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Archive archives a notification.
-func (s *Service) Archive(id uint) (*domain.AdminUserNotification, error) {
-	if err := s.repo.Archive(id); err != nil {
+func (s *Service) Archive(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
+	if err := s.repo.Archive(db, id); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Unarchive unarchives a notification.
-func (s *Service) Unarchive(id uint) (*domain.AdminUserNotification, error) {
-	if err := s.repo.Unarchive(id); err != nil {
+func (s *Service) Unarchive(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
+	if err := s.repo.Unarchive(db, id); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // ReadAll marks all notifications as read.
-func (s *Service) ReadAll() error {
-	return s.repo.ReadAll()
+func (s *Service) ReadAll(db *gorm.DB) error {
+	return s.repo.ReadAll(db)
 }
 
 // Delete deletes a notification.
-func (s *Service) Delete(id uint) error {
-	return s.repo.Delete(id)
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	return s.repo.Delete(db, id)
 }

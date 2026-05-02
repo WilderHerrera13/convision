@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -26,11 +27,11 @@ func NewCategoryService(repo domain.ProductCategoryRepository, logger *zap.Logge
 
 // CategoryCreateInput holds validated fields for creating a product category.
 type CategoryCreateInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	Slug        string   `json:"slug"`
-	Description string   `json:"description"`
-	Icon        string   `json:"icon"`
-	IsActive    bool     `json:"is_active"`
+	Name        string `json:"name"        binding:"required"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	IsActive    bool   `json:"is_active"`
 }
 
 // CategoryUpdateInput holds validated fields for updating a product category.
@@ -53,9 +54,9 @@ type CategoryListOutput struct {
 
 // --- Methods ---
 
-func (s *CategoryService) List(filters map[string]any, page, perPage int) (*CategoryListOutput, error) {
+func (s *CategoryService) List(db *gorm.DB, filters map[string]any, page, perPage int) (*CategoryListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +69,11 @@ func (s *CategoryService) List(filters map[string]any, page, perPage int) (*Cate
 	}, nil
 }
 
-func (s *CategoryService) GetByID(id uint) (*domain.ProductCategory, error) {
-	return s.repo.GetByID(id)
+func (s *CategoryService) GetByID(db *gorm.DB, id uint) (*domain.ProductCategory, error) {
+	return s.repo.GetByID(db, id)
 }
 
-func (s *CategoryService) Create(input CategoryCreateInput) (*domain.ProductCategory, error) {
+func (s *CategoryService) Create(db *gorm.DB, input CategoryCreateInput) (*domain.ProductCategory, error) {
 	slug := normalizeCategorySlug(input.Slug)
 	if slug == "" {
 		slug = normalizeCategorySlug(input.Name)
@@ -88,14 +89,14 @@ func (s *CategoryService) Create(input CategoryCreateInput) (*domain.ProductCate
 		Icon:        input.Icon,
 		IsActive:    input.IsActive,
 	}
-	if err := s.repo.Create(c); err != nil {
+	if err := s.repo.Create(db, c); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(c.ID)
+	return s.repo.GetByID(db, c.ID)
 }
 
-func (s *CategoryService) Update(id uint, input CategoryUpdateInput) (*domain.ProductCategory, error) {
-	c, err := s.repo.GetByID(id)
+func (s *CategoryService) Update(db *gorm.DB, id uint, input CategoryUpdateInput) (*domain.ProductCategory, error) {
+	c, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +110,10 @@ func (s *CategoryService) Update(id uint, input CategoryUpdateInput) (*domain.Pr
 	c.Icon = input.Icon
 	c.IsActive = input.IsActive
 
-	if err := s.repo.Update(c); err != nil {
+	if err := s.repo.Update(db, c); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 func normalizeCategorySlug(raw string) string {
@@ -122,21 +123,21 @@ func normalizeCategorySlug(raw string) string {
 	return s
 }
 
-func (s *CategoryService) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *CategoryService) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }
 
-func (s *CategoryService) All() ([]*domain.ProductCategory, error) {
-	return s.repo.All()
+func (s *CategoryService) All(db *gorm.DB) ([]*domain.ProductCategory, error) {
+	return s.repo.All(db)
 }
 
-func (s *CategoryService) ListWithCount() ([]*domain.CategoryWithCount, error) {
-	return s.repo.ListWithProductCount()
+func (s *CategoryService) ListWithCount(db *gorm.DB) ([]*domain.CategoryWithCount, error) {
+	return s.repo.ListWithProductCount(db)
 }
 
-func (s *CategoryService) GetBySlug(slug string) (*domain.ProductCategory, error) {
-	return s.repo.GetBySlug(slug)
+func (s *CategoryService) GetBySlug(db *gorm.DB, slug string) (*domain.ProductCategory, error) {
+	return s.repo.GetBySlug(db, slug)
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -155,9 +156,9 @@ func buildItems(items []ItemInput) []domain.QuoteItem {
 // --- Service methods ---
 
 // List returns a paginated list of quotes.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.quoteRepo.List(filters, page, perPage)
+	data, total, err := s.quoteRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -171,12 +172,12 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // GetByID returns a single quote by ID.
-func (s *Service) GetByID(id uint) (*domain.Quote, error) {
-	return s.quoteRepo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Quote, error) {
+	return s.quoteRepo.GetByID(db, id)
 }
 
 // Create creates a new quote and generates its number after insertion.
-func (s *Service) Create(input CreateInput, userID uint) (*domain.Quote, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.Quote, error) {
 	subtotal, taxAmount, total := calcTotals(input.Items, input.TaxPercentage, input.DiscountAmount)
 
 	var expDate *time.Time
@@ -201,17 +202,17 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Quote, error) 
 		Items:          buildItems(input.Items),
 	}
 
-	if err := s.quoteRepo.Create(q); err != nil {
+	if err := s.quoteRepo.Create(db, q); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("quote created", zap.Uint("id", q.ID), zap.String("quote_number", q.QuoteNumber))
-	return s.quoteRepo.GetByID(q.ID)
+	return s.quoteRepo.GetByID(db, q.ID)
 }
 
 // Update updates an existing quote.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Quote, error) {
-	q, err := s.quoteRepo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Quote, error) {
+	q, err := s.quoteRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -239,36 +240,36 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Quote, error) {
 		}
 	}
 
-	if err := s.quoteRepo.Update(q); err != nil {
+	if err := s.quoteRepo.Update(db, q); err != nil {
 		return nil, err
 	}
-	return s.quoteRepo.GetByID(q.ID)
+	return s.quoteRepo.GetByID(db, q.ID)
 }
 
 // Delete soft-deletes a quote.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.quoteRepo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.quoteRepo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.quoteRepo.Delete(id)
+	return s.quoteRepo.Delete(db, id)
 }
 
 // UpdateStatus changes the status of a quote.
-func (s *Service) UpdateStatus(id uint, status string) (*domain.Quote, error) {
-	q, err := s.quoteRepo.GetByID(id)
+func (s *Service) UpdateStatus(db *gorm.DB, id uint, status string) (*domain.Quote, error) {
+	q, err := s.quoteRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 	q.Status = domain.QuoteStatus(status)
-	if err := s.quoteRepo.Update(q); err != nil {
+	if err := s.quoteRepo.Update(db, q); err != nil {
 		return nil, err
 	}
-	return s.quoteRepo.GetByID(q.ID)
+	return s.quoteRepo.GetByID(db, q.ID)
 }
 
 // ConvertToSale converts an approved quote into a sale.
-func (s *Service) ConvertToSale(id uint, userID uint, input ConvertInput) (*domain.Sale, error) {
-	q, err := s.quoteRepo.GetByID(id)
+func (s *Service) ConvertToSale(db *gorm.DB, id uint, userID uint, input ConvertInput) (*domain.Sale, error) {
+	q, err := s.quoteRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -325,24 +326,24 @@ func (s *Service) ConvertToSale(id uint, userID uint, input ConvertInput) (*doma
 		Payments:      payments,
 	}
 
-	if err := s.saleRepo.Create(sale); err != nil {
+	if err := s.saleRepo.Create(db, sale); err != nil {
 		return nil, err
 	}
 
 	// Mark quote as converted
 	q.Status = domain.QuoteStatusConverted
-	_ = s.quoteRepo.Update(q)
+	_ = s.quoteRepo.Update(db, q)
 
 	s.logger.Info("quote converted to sale",
 		zap.Uint("quote_id", q.ID),
 		zap.Uint("sale_id", sale.ID),
 	)
-	return s.saleRepo.GetByID(sale.ID)
+	return s.saleRepo.GetByID(db, sale.ID)
 }
 
 // GeneratePdfToken generates a PDF access token for a quote.
-func (s *Service) GeneratePdfToken(id uint) (map[string]any, error) {
-	q, err := s.quoteRepo.GetByID(id)
+func (s *Service) GeneratePdfToken(db *gorm.DB, id uint) (map[string]any, error) {
+	q, err := s.quoteRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}

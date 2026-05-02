@@ -13,6 +13,7 @@ import (
 // ListQuotes godoc
 // GET /api/v1/quotes
 func (h *Handler) ListQuotes(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
@@ -24,7 +25,7 @@ func (h *Handler) ListQuotes(c *gin.Context) {
 		filters["status"] = v
 	}
 
-	out, err := h.quote.List(filters, page, perPage)
+	out, err := h.quote.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -35,11 +36,12 @@ func (h *Handler) ListQuotes(c *gin.Context) {
 // GetQuote godoc
 // GET /api/v1/quotes/:id
 func (h *Handler) GetQuote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	q, err := h.quote.GetByID(id)
+	q, err := h.quote.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -50,6 +52,7 @@ func (h *Handler) GetQuote(c *gin.Context) {
 // CreateQuote godoc
 // POST /api/v1/quotes
 func (h *Handler) CreateQuote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input quotesvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -62,12 +65,12 @@ func (h *Handler) CreateQuote(c *gin.Context) {
 		return
 	}
 
-	q, err := h.quote.Create(input, claims.UserID)
+	q, err := h.quote.Create(db, input, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	pdfData, _ := h.quote.GeneratePdfToken(q.ID)
+	pdfData, _ := h.quote.GeneratePdfToken(db, q.ID)
 	pdfToken := ""
 	pdfURL := ""
 	if pdfData != nil {
@@ -89,6 +92,7 @@ func (h *Handler) CreateQuote(c *gin.Context) {
 // UpdateQuote godoc
 // PUT /api/v1/quotes/:id
 func (h *Handler) UpdateQuote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -100,7 +104,7 @@ func (h *Handler) UpdateQuote(c *gin.Context) {
 		return
 	}
 
-	q, err := h.quote.Update(id, input)
+	q, err := h.quote.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -111,11 +115,12 @@ func (h *Handler) UpdateQuote(c *gin.Context) {
 // DeleteQuote godoc
 // DELETE /api/v1/quotes/:id
 func (h *Handler) DeleteQuote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	if err := h.quote.Delete(id); err != nil {
+	if err := h.quote.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -125,6 +130,7 @@ func (h *Handler) DeleteQuote(c *gin.Context) {
 // UpdateQuoteStatus godoc
 // POST /api/v1/quotes/:id/status
 func (h *Handler) UpdateQuoteStatus(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -136,7 +142,7 @@ func (h *Handler) UpdateQuoteStatus(c *gin.Context) {
 		return
 	}
 
-	q, err := h.quote.UpdateStatus(id, input.Status)
+	q, err := h.quote.UpdateStatus(db, id, input.Status)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -147,6 +153,7 @@ func (h *Handler) UpdateQuoteStatus(c *gin.Context) {
 // ConvertQuote godoc
 // POST /api/v1/quotes/:id/convert
 func (h *Handler) ConvertQuote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -162,7 +169,7 @@ func (h *Handler) ConvertQuote(c *gin.Context) {
 	// Input is optional (payments may be empty)
 	_ = c.ShouldBindJSON(&input)
 
-	sale, err := h.quote.ConvertToSale(id, claims.UserID, input)
+	sale, err := h.quote.ConvertToSale(db, id, claims.UserID, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -173,11 +180,12 @@ func (h *Handler) ConvertQuote(c *gin.Context) {
 // GetQuotePdf godoc
 // GET /api/v1/quotes/:id/pdf
 func (h *Handler) GetQuotePdf(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	result, err := h.quote.GeneratePdfToken(id)
+	result, err := h.quote.GeneratePdfToken(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -188,11 +196,12 @@ func (h *Handler) GetQuotePdf(c *gin.Context) {
 // GetQuotePdfToken godoc
 // GET /api/v1/quotes/:id/pdf-token
 func (h *Handler) GetQuotePdfToken(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	result, err := h.quote.GeneratePdfToken(id)
+	result, err := h.quote.GeneratePdfToken(db, id)
 	if err != nil {
 		respondError(c, err)
 		return

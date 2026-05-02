@@ -13,7 +13,8 @@ import (
 // GetPortfolioStats godoc
 // GET /api/v1/portfolio/stats
 func (h *Handler) GetPortfolioStats(c *gin.Context) {
-	stats, err := h.laboratory.PortfolioStats()
+	db := tenantDBFromCtx(c)
+	stats, err := h.laboratory.PortfolioStats(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -24,11 +25,12 @@ func (h *Handler) GetPortfolioStats(c *gin.Context) {
 // ListPortfolioOrders godoc
 // GET /api/v1/portfolio/orders
 func (h *Handler) ListPortfolioOrders(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	search := c.Query("search")
 
-	out, err := h.laboratory.ListPortfolioOrders(page, perPage, search)
+	out, err := h.laboratory.ListPortfolioOrders(db, page, perPage, search)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -39,6 +41,7 @@ func (h *Handler) ListPortfolioOrders(c *gin.Context) {
 // RegisterPortfolioCall godoc
 // POST /api/v1/portfolio/orders/:id/calls
 func (h *Handler) RegisterPortfolioCall(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -56,7 +59,7 @@ func (h *Handler) RegisterPortfolioCall(c *gin.Context) {
 		return
 	}
 
-	call, err := h.laboratory.RegisterPortfolioCall(id, input, claims.UserID)
+	call, err := h.laboratory.RegisterPortfolioCall(db, id, input, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -68,12 +71,13 @@ func (h *Handler) RegisterPortfolioCall(c *gin.Context) {
 // GetPortfolioOrderCalls godoc
 // GET /api/v1/portfolio/orders/:id/calls
 func (h *Handler) GetPortfolioOrderCalls(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	calls, err := h.laboratory.GetPortfolioOrderCalls(id)
+	calls, err := h.laboratory.GetPortfolioOrderCalls(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -85,12 +89,13 @@ func (h *Handler) GetPortfolioOrderCalls(c *gin.Context) {
 // GetPortfolioOrder godoc
 // GET /api/v1/portfolio/orders/:id
 func (h *Handler) GetPortfolioOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	item, err := h.laboratory.GetPortfolioOrder(id)
+	item, err := h.laboratory.GetPortfolioOrder(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -102,6 +107,7 @@ func (h *Handler) GetPortfolioOrder(c *gin.Context) {
 // ClosePortfolioOrder godoc
 // POST /api/v1/portfolio/orders/:id/close
 func (h *Handler) ClosePortfolioOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -113,7 +119,7 @@ func (h *Handler) ClosePortfolioOrder(c *gin.Context) {
 		return
 	}
 
-	if err := h.laboratory.ClosePortfolioOrder(id, claims.UserID); err != nil {
+	if err := h.laboratory.ClosePortfolioOrder(db, id, claims.UserID); err != nil {
 		respondError(c, err)
 		return
 	}

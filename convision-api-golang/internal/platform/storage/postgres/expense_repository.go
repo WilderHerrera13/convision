@@ -15,13 +15,11 @@ var expenseFilterAllowlist = map[string]string{
 }
 
 // ExpenseRepository is the PostgreSQL-backed implementation of domain.ExpenseRepository.
-type ExpenseRepository struct {
-	db *gorm.DB
-}
+type ExpenseRepository struct{}
 
 // NewExpenseRepository creates a new ExpenseRepository.
-func NewExpenseRepository(db *gorm.DB) *ExpenseRepository {
-	return &ExpenseRepository{db: db}
+func NewExpenseRepository() *ExpenseRepository {
+	return &ExpenseRepository{}
 }
 
 func (r *ExpenseRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -31,9 +29,9 @@ func (r *ExpenseRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("CreatedByUser")
 }
 
-func (r *ExpenseRepository) GetByID(id uint) (*domain.Expense, error) {
+func (r *ExpenseRepository) GetByID(db *gorm.DB, id uint) (*domain.Expense, error) {
 	var e domain.Expense
-	err := r.withRelations(r.db).First(&e, id).Error
+	err := r.withRelations(db).First(&e, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "expense"}
@@ -43,12 +41,12 @@ func (r *ExpenseRepository) GetByID(id uint) (*domain.Expense, error) {
 	return &e, nil
 }
 
-func (r *ExpenseRepository) Create(e *domain.Expense) error {
-	return r.db.Create(e).Error
+func (r *ExpenseRepository) Create(db *gorm.DB, e *domain.Expense) error {
+	return db.Create(e).Error
 }
 
-func (r *ExpenseRepository) Update(e *domain.Expense) error {
-	return r.db.Model(e).Updates(map[string]any{
+func (r *ExpenseRepository) Update(db *gorm.DB, e *domain.Expense) error {
+	return db.Model(e).Updates(map[string]any{
 		"supplier_id":       e.SupplierID,
 		"invoice_number":    e.InvoiceNumber,
 		"concept":           e.Concept,
@@ -65,15 +63,15 @@ func (r *ExpenseRepository) Update(e *domain.Expense) error {
 	}).Error
 }
 
-func (r *ExpenseRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Expense{}, id).Error
+func (r *ExpenseRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Expense{}, id).Error
 }
 
-func (r *ExpenseRepository) List(filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
+func (r *ExpenseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
 	var expenses []*domain.Expense
 	var total int64
 
-	q := r.db.Model(&domain.Expense{})
+	q := db.Model(&domain.Expense{})
 	for field, value := range filters {
 		op, allowed := expenseFilterAllowlist[field]
 		if !allowed {

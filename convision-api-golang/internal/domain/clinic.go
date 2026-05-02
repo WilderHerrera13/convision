@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // ClinicalHistory represents a patient's full clinical history record.
 type ClinicalHistory struct {
@@ -104,20 +108,20 @@ type ClinicalEvolution struct {
 
 // ClinicalHistoryRepository defines persistence operations for ClinicalHistory.
 type ClinicalHistoryRepository interface {
-	GetByID(id uint) (*ClinicalHistory, error)
-	GetByPatientID(patientID uint, page, perPage int) ([]*ClinicalHistory, int64, error)
-	GetSingleByPatientID(patientID uint) (*ClinicalHistory, error)
-	List(filters map[string]any, page, perPage int) ([]*ClinicalHistory, int64, error)
-	Create(h *ClinicalHistory) error
-	Update(h *ClinicalHistory) error
-	Delete(id uint) error
+	GetByID(db *gorm.DB, id uint) (*ClinicalHistory, error)
+	GetByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*ClinicalHistory, int64, error)
+	GetSingleByPatientID(db *gorm.DB, patientID uint) (*ClinicalHistory, error)
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ClinicalHistory, int64, error)
+	Create(db *gorm.DB, h *ClinicalHistory) error
+	Update(db *gorm.DB, h *ClinicalHistory) error
+	Delete(db *gorm.DB, id uint) error
 }
 
 // ClinicalEvolutionRepository defines persistence operations for ClinicalEvolution.
 type ClinicalEvolutionRepository interface {
-	GetByID(id uint) (*ClinicalEvolution, error)
-	GetByClinicalHistoryID(historyID uint, page, perPage int) ([]*ClinicalEvolution, int64, error)
-	Create(e *ClinicalEvolution) error
-	Update(e *ClinicalEvolution) error
-	Delete(id uint) error
+	GetByID(db *gorm.DB, id uint) (*ClinicalEvolution, error)
+	GetByClinicalHistoryID(db *gorm.DB, historyID uint, page, perPage int) ([]*ClinicalEvolution, int64, error)
+	Create(db *gorm.DB, e *ClinicalEvolution) error
+	Update(db *gorm.DB, e *ClinicalEvolution) error
+	Delete(db *gorm.DB, id uint) error
 }

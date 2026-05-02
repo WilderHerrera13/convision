@@ -18,13 +18,13 @@ var lensFilterAllowlist = map[string]bool{
 	"supplier_id":   true,
 }
 
-type LensRepository struct{ db *gorm.DB }
+type LensRepository struct{}
 
-func NewLensRepository(db *gorm.DB) *LensRepository { return &LensRepository{db: db} }
+func NewLensRepository() *LensRepository { return &LensRepository{} }
 
-func (r *LensRepository) GetByID(id uint) (*domain.Lens, error) {
+func (r *LensRepository) GetByID(db *gorm.DB, id uint) (*domain.Lens, error) {
 	var l domain.Lens
-	err := r.db.
+	err := db.
 		Preload("LensType").Preload("Brand").Preload("Material").
 		Preload("LensClass").Preload("Treatment").Preload("Photochromic").
 		First(&l, id).Error
@@ -34,9 +34,9 @@ func (r *LensRepository) GetByID(id uint) (*domain.Lens, error) {
 	return &l, err
 }
 
-func (r *LensRepository) GetByInternalCode(code string) (*domain.Lens, error) {
+func (r *LensRepository) GetByInternalCode(db *gorm.DB, code string) (*domain.Lens, error) {
 	var l domain.Lens
-	err := r.db.Select("id, internal_code").
+	err := db.Select("id, internal_code").
 		Where("internal_code = ?", code).First(&l).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "lens"}
@@ -44,12 +44,12 @@ func (r *LensRepository) GetByInternalCode(code string) (*domain.Lens, error) {
 	return &l, err
 }
 
-func (r *LensRepository) Create(l *domain.Lens) error {
-	return r.db.Create(l).Error
+func (r *LensRepository) Create(db *gorm.DB, l *domain.Lens) error {
+	return db.Create(l).Error
 }
 
-func (r *LensRepository) Update(l *domain.Lens) error {
-	return r.db.Model(l).Updates(map[string]any{
+func (r *LensRepository) Update(db *gorm.DB, l *domain.Lens) error {
+	return db.Model(l).Updates(map[string]any{
 		"internal_code":   l.InternalCode,
 		"identifier":      l.Identifier,
 		"type_id":         l.TypeID,
@@ -72,15 +72,15 @@ func (r *LensRepository) Update(l *domain.Lens) error {
 	}).Error
 }
 
-func (r *LensRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Lens{}, id).Error
+func (r *LensRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Lens{}, id).Error
 }
 
-func (r *LensRepository) List(filters map[string]any, page, perPage int) ([]*domain.Lens, int64, error) {
+func (r *LensRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Lens, int64, error) {
 	var data []*domain.Lens
 	var total int64
 
-	q := r.db.Model(&domain.Lens{})
+	q := db.Model(&domain.Lens{})
 	for k, v := range filters {
 		if lensFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)

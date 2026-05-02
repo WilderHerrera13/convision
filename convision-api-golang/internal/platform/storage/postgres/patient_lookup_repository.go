@@ -7,51 +7,51 @@ import (
 )
 
 // PatientLookupRepository implements domain.PatientLookupRepository backed by PostgreSQL.
-type PatientLookupRepository struct{ db *gorm.DB }
+type PatientLookupRepository struct{}
 
-func NewPatientLookupRepository(db *gorm.DB) *PatientLookupRepository {
-	return &PatientLookupRepository{db: db}
+func NewPatientLookupRepository() *PatientLookupRepository {
+	return &PatientLookupRepository{}
 }
 
-func (r *PatientLookupRepository) ListIdentificationTypes() ([]*domain.IdentificationType, error) {
+func (r *PatientLookupRepository) ListIdentificationTypes(db *gorm.DB) ([]*domain.IdentificationType, error) {
 	var data []*domain.IdentificationType
-	err := r.db.Select("id, name, code").
+	err := db.Select("id, name, code").
 		Where("is_active = ?", true).
 		Order("name asc").
 		Find(&data).Error
 	return data, err
 }
 
-func (r *PatientLookupRepository) ListHealthInsuranceProviders() ([]*domain.HealthInsuranceProvider, error) {
+func (r *PatientLookupRepository) ListHealthInsuranceProviders(db *gorm.DB) ([]*domain.HealthInsuranceProvider, error) {
 	var data []*domain.HealthInsuranceProvider
-	err := r.db.Select("id, name").
+	err := db.Select("id, name").
 		Where("is_active = ?", true).
 		Order("name asc").
 		Find(&data).Error
 	return data, err
 }
 
-func (r *PatientLookupRepository) ListAffiliationTypes() ([]*domain.AffiliationType, error) {
+func (r *PatientLookupRepository) ListAffiliationTypes(db *gorm.DB) ([]*domain.AffiliationType, error) {
 	var data []*domain.AffiliationType
-	err := r.db.Select("id, name").
+	err := db.Select("id, name").
 		Where("is_active = ?", true).
 		Order("name asc").
 		Find(&data).Error
 	return data, err
 }
 
-func (r *PatientLookupRepository) ListCoverageTypes() ([]*domain.CoverageType, error) {
+func (r *PatientLookupRepository) ListCoverageTypes(db *gorm.DB) ([]*domain.CoverageType, error) {
 	var data []*domain.CoverageType
-	err := r.db.Select("id, name").
+	err := db.Select("id, name").
 		Where("is_active = ?", true).
 		Order("name asc").
 		Find(&data).Error
 	return data, err
 }
 
-func (r *PatientLookupRepository) ListEducationLevels() ([]*domain.EducationLevel, error) {
+func (r *PatientLookupRepository) ListEducationLevels(db *gorm.DB) ([]*domain.EducationLevel, error) {
 	var data []*domain.EducationLevel
-	err := r.db.Select("id, name").
+	err := db.Select("id, name").
 		Where("is_active = ?", true).
 		Order("name asc").
 		Find(&data).Error

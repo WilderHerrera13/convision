@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -15,11 +16,11 @@ const claimsKey = "claims"
 var ErrMissingToken = errors.New("missing authorization token")
 
 // Authenticate is a Gin middleware that validates the JWT and injects Claims.
-// An optional RevokedTokenRepository can be passed to check for revoked tokens.
-func Authenticate(revoked ...domain.RevokedTokenRepository) gin.HandlerFunc {
-	var revokedRepo domain.RevokedTokenRepository
-	if len(revoked) > 0 {
-		revokedRepo = revoked[0]
+// An optional RevokedTokenRepository + globalDB can be passed to check for revoked tokens.
+func Authenticate(revokedRepo domain.RevokedTokenRepository, db ...*gorm.DB) gin.HandlerFunc {
+	var globalDB *gorm.DB
+	if len(db) > 0 {
+		globalDB = db[0]
 	}
 
 	return func(c *gin.Context) {
@@ -36,8 +37,8 @@ func Authenticate(revoked ...domain.RevokedTokenRepository) gin.HandlerFunc {
 			return
 		}
 
-		if revokedRepo != nil {
-			revoked, err := revokedRepo.IsRevoked(claims.ID)
+		if revokedRepo != nil && globalDB != nil {
+			revoked, err := revokedRepo.IsRevoked(globalDB, claims.ID)
 			if err != nil {
 				c.AbortWithStatusJSON(401, gin.H{"message": "token validation error"})
 				return

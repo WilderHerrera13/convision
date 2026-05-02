@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
@@ -12,6 +13,7 @@ import (
 
 // Service handles authentication use-cases.
 type Service struct {
+	db            *gorm.DB
 	users         domain.UserRepository
 	revokedTokens domain.RevokedTokenRepository
 	branches      domain.BranchRepository
@@ -19,8 +21,8 @@ type Service struct {
 }
 
 // NewService creates a new auth Service.
-func NewService(users domain.UserRepository, revokedTokens domain.RevokedTokenRepository, branches domain.BranchRepository, logger *zap.Logger) *Service {
-	return &Service{users: users, revokedTokens: revokedTokens, branches: branches, logger: logger}
+func NewService(db *gorm.DB, users domain.UserRepository, revokedTokens domain.RevokedTokenRepository, branches domain.BranchRepository, logger *zap.Logger) *Service {
+	return &Service{db: db, users: users, revokedTokens: revokedTokens, branches: branches, logger: logger}
 }
 
 // LoginInput holds credentials for the login use-case.
@@ -49,7 +51,7 @@ type BranchInfo struct {
 
 // Login validates credentials and returns a signed JWT.
 func (s *Service) Login(input LoginInput) (*LoginOutput, error) {
-	user, err := s.users.GetByEmail(input.Email)
+	user, err := s.users.GetByEmail(s.db, input.Email)
 	if err != nil {
 		// Do not leak whether the email exists.
 		return nil, errors.New("invalid credentials")
@@ -87,17 +89,17 @@ func (s *Service) Login(input LoginInput) (*LoginOutput, error) {
 
 // Logout revokes the token identified by jti.
 func (s *Service) Logout(jti string) error {
-	return s.revokedTokens.Revoke(jti)
+	return s.revokedTokens.Revoke(s.db, jti)
 }
 
 // Me fetches the currently authenticated user by their ID.
 func (s *Service) Me(userID uint) (*domain.User, error) {
-	return s.users.GetByID(userID)
+	return s.users.GetByID(s.db, userID)
 }
 
 // Refresh revokes the old token and issues a new one for the same user.
 func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
-	user, err := s.users.GetByID(userID)
+	user, err := s.users.GetByID(s.db, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +108,7 @@ func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
 		return nil, err
 	}
 
-	if err := s.revokedTokens.Revoke(oldJti); err != nil {
+	if err := s.revokedTokens.Revoke(s.db, oldJti); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +133,7 @@ func (s *Service) ensureOperatorBranchesForLogin(user *domain.User) error {
 	if user.Role != domain.RoleSpecialist && user.Role != domain.RoleReceptionist {
 		return nil
 	}
-	branches, err := s.branches.ListForUser(user.ID)
+	branches, err := s.branches.ListForUser(s.db, user.ID)
 	if err != nil {
 		s.logger.Warn("branch list failed on login", zap.Uint("user_id", user.ID), zap.Error(err))
 		return errors.New("invalid credentials")
@@ -145,12 +147,12 @@ func (s *Service) ensureOperatorBranchesForLogin(user *domain.User) error {
 
 func (s *Service) loadBranches(user *domain.User) []BranchInfo {
 	if user.Role == domain.RoleAdmin {
-		rawBranches, err := s.branches.ListAll()
+		rawBranches, err := s.branches.ListAll(s.db)
 		if err != nil {
 			s.logger.Warn("could not load branches for admin", zap.Uint("user_id", user.ID), zap.Error(err))
 			return []BranchInfo{}
 		}
-		primaryMap, err := s.branches.GetUserBranchPrimaryMap(user.ID)
+		primaryMap, err := s.branches.GetUserBranchPrimaryMap(s.db, user.ID)
 		if err != nil {
 			s.logger.Warn("could not load primary map for admin", zap.Uint("user_id", user.ID), zap.Error(err))
 			primaryMap = map[uint]bool{}
@@ -162,13 +164,13 @@ func (s *Service) loadBranches(user *domain.User) []BranchInfo {
 		return out
 	}
 
-	rawBranches, err := s.branches.ListForUser(user.ID)
+	rawBranches, err := s.branches.ListForUser(s.db, user.ID)
 	if err != nil {
 		s.logger.Warn("could not load branches for user", zap.Uint("user_id", user.ID), zap.Error(err))
 		return []BranchInfo{}
 	}
 
-	primaryMap, err := s.branches.GetUserBranchPrimaryMap(user.ID)
+	primaryMap, err := s.branches.GetUserBranchPrimaryMap(s.db, user.ID)
 	if err != nil {
 		s.logger.Warn("could not load primary map for user", zap.Uint("user_id", user.ID), zap.Error(err))
 		primaryMap = map[uint]bool{}

@@ -14,13 +14,11 @@ var purchaseFilterAllowlist = map[string]string{
 }
 
 // PurchaseRepository is the PostgreSQL-backed implementation of domain.PurchaseRepository.
-type PurchaseRepository struct {
-	db *gorm.DB
-}
+type PurchaseRepository struct{}
 
 // NewPurchaseRepository creates a new PurchaseRepository.
-func NewPurchaseRepository(db *gorm.DB) *PurchaseRepository {
-	return &PurchaseRepository{db: db}
+func NewPurchaseRepository() *PurchaseRepository {
+	return &PurchaseRepository{}
 }
 
 func (r *PurchaseRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -31,9 +29,9 @@ func (r *PurchaseRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("CreatedByUser")
 }
 
-func (r *PurchaseRepository) GetByID(id uint) (*domain.Purchase, error) {
+func (r *PurchaseRepository) GetByID(db *gorm.DB, id uint) (*domain.Purchase, error) {
 	var p domain.Purchase
-	err := r.withRelations(r.db).First(&p, id).Error
+	err := r.withRelations(db).First(&p, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "purchase"}
@@ -43,12 +41,12 @@ func (r *PurchaseRepository) GetByID(id uint) (*domain.Purchase, error) {
 	return &p, nil
 }
 
-func (r *PurchaseRepository) Create(p *domain.Purchase) error {
-	return r.db.Create(p).Error
+func (r *PurchaseRepository) Create(db *gorm.DB, p *domain.Purchase) error {
+	return db.Create(p).Error
 }
 
-func (r *PurchaseRepository) Update(p *domain.Purchase) error {
-	return r.db.Model(p).Updates(map[string]any{
+func (r *PurchaseRepository) Update(db *gorm.DB, p *domain.Purchase) error {
+	return db.Model(p).Updates(map[string]any{
 		"supplier_id":      p.SupplierID,
 		"purchase_date":    p.PurchaseDate,
 		"invoice_number":   p.InvoiceNumber,
@@ -65,18 +63,18 @@ func (r *PurchaseRepository) Update(p *domain.Purchase) error {
 	}).Error
 }
 
-func (r *PurchaseRepository) Delete(id uint) error {
+func (r *PurchaseRepository) Delete(db *gorm.DB, id uint) error {
 	// Delete items and payments first
-	r.db.Where("purchase_id = ?", id).Delete(&domain.PurchaseItem{})
-	r.db.Where("purchase_id = ?", id).Delete(&domain.PurchasePayment{})
-	return r.db.Delete(&domain.Purchase{}, id).Error
+	db.Where("purchase_id = ?", id).Delete(&domain.PurchaseItem{})
+	db.Where("purchase_id = ?", id).Delete(&domain.PurchasePayment{})
+	return db.Delete(&domain.Purchase{}, id).Error
 }
 
-func (r *PurchaseRepository) List(filters map[string]any, page, perPage int) ([]*domain.Purchase, int64, error) {
+func (r *PurchaseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Purchase, int64, error) {
 	var purchases []*domain.Purchase
 	var total int64
 
-	q := r.db.Model(&domain.Purchase{})
+	q := db.Model(&domain.Purchase{})
 	for field, value := range filters {
 		op, allowed := purchaseFilterAllowlist[field]
 		if !allowed {

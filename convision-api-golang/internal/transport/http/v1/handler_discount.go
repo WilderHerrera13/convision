@@ -58,7 +58,8 @@ func (h *Handler) CreateDiscountRequest(c *gin.Context) {
 	input.UserID = claims.UserID
 
 	if input.ProductID != nil {
-		product, err := h.product.GetByID(*input.ProductID)
+		db := tenantDBFromCtx(c)
+		product, err := h.product.GetByID(db, *input.ProductID)
 		if err != nil {
 			respondError(c, err)
 			return

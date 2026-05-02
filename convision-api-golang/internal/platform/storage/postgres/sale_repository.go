@@ -20,13 +20,11 @@ var saleFilterAllowlist = map[string]bool{
 }
 
 // SaleRepository is the PostgreSQL-backed implementation of domain.SaleRepository.
-type SaleRepository struct {
-	db *gorm.DB
-}
+type SaleRepository struct{}
 
 // NewSaleRepository creates a new SaleRepository.
-func NewSaleRepository(db *gorm.DB) *SaleRepository {
-	return &SaleRepository{db: db}
+func NewSaleRepository() *SaleRepository {
+	return &SaleRepository{}
 }
 
 func (r *SaleRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -40,9 +38,9 @@ func (r *SaleRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("LensPriceAdjustments")
 }
 
-func (r *SaleRepository) GetByID(id uint) (*domain.Sale, error) {
+func (r *SaleRepository) GetByID(db *gorm.DB, id uint) (*domain.Sale, error) {
 	var s domain.Sale
-	err := r.withRelations(r.db).First(&s, id).Error
+	err := r.withRelations(db).First(&s, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "sale"}
@@ -52,9 +50,9 @@ func (r *SaleRepository) GetByID(id uint) (*domain.Sale, error) {
 	return &s, nil
 }
 
-func (r *SaleRepository) GetBySaleNumber(number string) (*domain.Sale, error) {
+func (r *SaleRepository) GetBySaleNumber(db *gorm.DB, number string) (*domain.Sale, error) {
 	var s domain.Sale
-	err := r.withRelations(r.db).Where("sale_number = ?", number).First(&s).Error
+	err := r.withRelations(db).Where("sale_number = ?", number).First(&s).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "sale"}
@@ -64,19 +62,19 @@ func (r *SaleRepository) GetBySaleNumber(number string) (*domain.Sale, error) {
 	return &s, nil
 }
 
-func (r *SaleRepository) Create(s *domain.Sale) error {
+func (r *SaleRepository) Create(db *gorm.DB, s *domain.Sale) error {
 	// Use a temporary unique placeholder to satisfy NOT NULL + uniqueIndex
 	s.SaleNumber = fmt.Sprintf("TEMP-%d", time.Now().UnixNano())
-	if err := r.db.Create(s).Error; err != nil {
+	if err := db.Create(s).Error; err != nil {
 		return err
 	}
 	// Now set the real number using the generated ID
 	s.SaleNumber = fmt.Sprintf("VTA-%04d", s.ID)
-	return r.db.Model(s).Update("sale_number", s.SaleNumber).Error
+	return db.Model(s).Update("sale_number", s.SaleNumber).Error
 }
 
-func (r *SaleRepository) Update(s *domain.Sale) error {
-	return r.db.Model(s).Updates(map[string]any{
+func (r *SaleRepository) Update(db *gorm.DB, s *domain.Sale) error {
+	return db.Model(s).Updates(map[string]any{
 		"patient_id":     s.PatientID,
 		"order_id":       s.OrderID,
 		"appointment_id": s.AppointmentID,
@@ -92,15 +90,15 @@ func (r *SaleRepository) Update(s *domain.Sale) error {
 	}).Error
 }
 
-func (r *SaleRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Sale{}, id).Error
+func (r *SaleRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Sale{}, id).Error
 }
 
-func (r *SaleRepository) List(filters map[string]any, page, perPage int) ([]*domain.Sale, int64, error) {
+func (r *SaleRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Sale, int64, error) {
 	var sales []*domain.Sale
 	var total int64
 
-	q := r.db.Model(&domain.Sale{})
+	q := db.Model(&domain.Sale{})
 	for field, value := range filters {
 		if field == "branch_id" {
 			q = q.Where("sales.branch_id = ?", value)
@@ -129,12 +127,12 @@ func (r *SaleRepository) List(filters map[string]any, page, perPage int) ([]*dom
 	return sales, total, nil
 }
 
-func (r *SaleRepository) AddPayment(payment *domain.SalePayment) error {
-	return r.db.Create(payment).Error
+func (r *SaleRepository) AddPayment(db *gorm.DB, payment *domain.SalePayment) error {
+	return db.Create(payment).Error
 }
 
-func (r *SaleRepository) RemovePayment(saleID, paymentID uint) error {
-	result := r.db.Where("id = ? AND sale_id = ?", paymentID, saleID).Delete(&domain.SalePayment{})
+func (r *SaleRepository) RemovePayment(db *gorm.DB, saleID, paymentID uint) error {
+	result := db.Where("id = ? AND sale_id = ?", paymentID, saleID).Delete(&domain.SalePayment{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -150,9 +148,9 @@ type saleStatsResult struct {
 	TotalDiscount float64 `json:"total_discount"`
 }
 
-func (r *SaleRepository) GetStats() (map[string]any, error) {
+func (r *SaleRepository) GetStats(db *gorm.DB) (map[string]any, error) {
 	var result saleStatsResult
-	err := r.db.Model(&domain.Sale{}).
+	err := db.Model(&domain.Sale{}).
 		Where("status != ?", string(domain.SaleStatusCancelled)).
 		Select("COUNT(*) as total_sales, COALESCE(SUM(total), 0) as total_revenue, COALESCE(SUM(discount), 0) as total_discount").
 		Scan(&result).Error
@@ -166,9 +164,9 @@ func (r *SaleRepository) GetStats() (map[string]any, error) {
 	}, nil
 }
 
-func (r *SaleRepository) GetTodayStats() (map[string]any, error) {
+func (r *SaleRepository) GetTodayStats(db *gorm.DB) (map[string]any, error) {
 	var result saleStatsResult
-	err := r.db.Model(&domain.Sale{}).
+	err := db.Model(&domain.Sale{}).
 		Where("status != ? AND DATE(created_at) = CURRENT_DATE", string(domain.SaleStatusCancelled)).
 		Select("COUNT(*) as total_sales, COALESCE(SUM(total), 0) as total_revenue, COALESCE(SUM(discount), 0) as total_discount").
 		Scan(&result).Error

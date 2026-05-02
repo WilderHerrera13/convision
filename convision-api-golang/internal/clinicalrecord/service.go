@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -65,12 +66,12 @@ func NewService(repo domain.ClinicalRecordRepository, logger *zap.Logger) *Servi
 }
 
 // GetByAppointmentID retrieves the clinical record for an appointment.
-func (s *Service) GetByAppointmentID(appointmentID uint) (*domain.ClinicalRecord, error) {
-	return s.repo.GetByAppointmentID(appointmentID)
+func (s *Service) GetByAppointmentID(db *gorm.DB, appointmentID uint) (*domain.ClinicalRecord, error) {
+	return s.repo.GetByAppointmentID(db, appointmentID)
 }
 
 // Create creates a new clinical record linked to an appointment.
-func (s *Service) Create(in CreateRecordInput) (*domain.ClinicalRecord, error) {
+func (s *Service) Create(db *gorm.DB, in CreateRecordInput) (*domain.ClinicalRecord, error) {
 	if in.RecordType == "" {
 		in.RecordType = "new_consultation"
 	}
@@ -82,7 +83,7 @@ func (s *Service) Create(in CreateRecordInput) (*domain.ClinicalRecord, error) {
 		RecordType:    in.RecordType,
 		Status:        "in_progress",
 	}
-	if err := s.repo.Create(rec); err != nil {
+	if err := s.repo.Create(db, rec); err != nil {
 		s.logger.Error("clinical_record: create failed",
 			zap.Error(err),
 			zap.Uint("appointment_id", in.AppointmentID),
@@ -179,7 +180,7 @@ type DiagnosisInput struct {
 }
 
 // UpsertDiagnosis saves or updates the diagnosis section of a clinical record.
-func (s *Service) UpsertDiagnosis(clinicalRecordID uint, branchID uint, in DiagnosisInput) error {
+func (s *Service) UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID uint, in DiagnosisInput) error {
 	diagType := in.DiagnosisType
 	if diagType < 1 || diagType > 3 {
 		diagType = 1
@@ -207,7 +208,7 @@ func (s *Service) UpsertDiagnosis(clinicalRecordID uint, branchID uint, in Diagn
 			d.NextControlDate = &t
 		}
 	}
-	if err := s.repo.UpsertDiagnosis(clinicalRecordID, branchID, d); err != nil {
+	if err := s.repo.UpsertDiagnosis(db, clinicalRecordID, branchID, d); err != nil {
 		s.logger.Error("clinical_record: upsert diagnosis failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -218,7 +219,7 @@ func (s *Service) UpsertDiagnosis(clinicalRecordID uint, branchID uint, in Diagn
 }
 
 // UpsertVisualExam saves or updates the visual exam section of a clinical record.
-func (s *Service) UpsertVisualExam(clinicalRecordID uint, branchID uint, in VisualExamInput) error {
+func (s *Service) UpsertVisualExam(db *gorm.DB, clinicalRecordID uint, branchID uint, in VisualExamInput) error {
 	v := &domain.VisualExam{
 		AvScOd:             in.AvScOd,
 		AvScOi:             in.AvScOi,
@@ -274,7 +275,7 @@ func (s *Service) UpsertVisualExam(clinicalRecordID uint, branchID uint, in Visu
 		MotilityHirschberg: in.MotilityHirschberg,
 		MotilityCoverTest:  in.MotilityCoverTest,
 	}
-	if err := s.repo.UpsertVisualExam(clinicalRecordID, branchID, v); err != nil {
+	if err := s.repo.UpsertVisualExam(db, clinicalRecordID, branchID, v); err != nil {
 		s.logger.Error("clinical_record: upsert visual_exam failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -310,7 +311,7 @@ type PrescriptionInput struct {
 }
 
 // UpsertPrescription saves or updates the prescription section of a clinical record.
-func (s *Service) UpsertPrescription(clinicalRecordID uint, branchID uint, in PrescriptionInput) error {
+func (s *Service) UpsertPrescription(db *gorm.DB, clinicalRecordID uint, branchID uint, in PrescriptionInput) error {
 	validityMonths := in.ValidityMonths
 	if validityMonths <= 0 {
 		validityMonths = 12
@@ -336,7 +337,7 @@ func (s *Service) UpsertPrescription(clinicalRecordID uint, branchID uint, in Pr
 		ValidityMonths: validityMonths,
 		ProfessionalTp: in.ProfessionalTp,
 	}
-	if err := s.repo.UpsertPrescription(clinicalRecordID, branchID, p); err != nil {
+	if err := s.repo.UpsertPrescription(db, clinicalRecordID, branchID, p); err != nil {
 		s.logger.Error("clinical_record: upsert prescription failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -347,8 +348,8 @@ func (s *Service) UpsertPrescription(clinicalRecordID uint, branchID uint, in Pr
 }
 
 // SignRecord marks a clinical record as signed and stamps the prescriber's TP.
-func (s *Service) SignRecord(clinicalRecordID uint, professionalTp string) error {
-	if err := s.repo.SignClinicalRecord(clinicalRecordID, professionalTp); err != nil {
+func (s *Service) SignRecord(db *gorm.DB, clinicalRecordID uint, professionalTp string) error {
+	if err := s.repo.SignClinicalRecord(db, clinicalRecordID, professionalTp); err != nil {
 		s.logger.Error("clinical_record: sign failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
@@ -359,7 +360,7 @@ func (s *Service) SignRecord(clinicalRecordID uint, professionalTp string) error
 }
 
 // UpsertAnamnesis saves or updates the anamnesis section of a clinical record.
-func (s *Service) UpsertAnamnesis(clinicalRecordID uint, branchID uint, in AnamnesisInput) error {
+func (s *Service) UpsertAnamnesis(db *gorm.DB, clinicalRecordID uint, branchID uint, in AnamnesisInput) error {
 	a := &domain.Anamnesis{
 		ReasonForVisit:             in.ReasonForVisit,
 		Onset:                      in.Onset,
@@ -390,7 +391,7 @@ func (s *Service) UpsertAnamnesis(clinicalRecordID uint, branchID uint, in Anamn
 		TakesAntihypertensives:     in.TakesAntihypertensives,
 		TakesAmiodarone:            in.TakesAmiodarone,
 	}
-	if err := s.repo.UpsertAnamnesis(clinicalRecordID, branchID, a); err != nil {
+	if err := s.repo.UpsertAnamnesis(db, clinicalRecordID, branchID, a); err != nil {
 		s.logger.Error("clinical_record: upsert anamnesis failed",
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),

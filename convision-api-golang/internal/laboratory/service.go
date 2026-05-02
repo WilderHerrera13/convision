@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -173,11 +174,11 @@ type PortfolioListOutput struct {
 
 // --- Laboratory Methods ---
 
-func (s *Service) GetLab(id uint) (*domain.Laboratory, error) {
-	return s.labRepo.GetByID(id)
+func (s *Service) GetLab(db *gorm.DB, id uint) (*domain.Laboratory, error) {
+	return s.labRepo.GetByID(db, id)
 }
 
-func (s *Service) ListLabs(filters map[string]any, page, perPage int) (*LabListOutput, error) {
+func (s *Service) ListLabs(db *gorm.DB, filters map[string]any, page, perPage int) (*LabListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -185,7 +186,7 @@ func (s *Service) ListLabs(filters map[string]any, page, perPage int) (*LabListO
 		perPage = 15
 	}
 
-	data, total, err := s.labRepo.List(filters, page, perPage)
+	data, total, err := s.labRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +199,7 @@ func (s *Service) ListLabs(filters map[string]any, page, perPage int) (*LabListO
 	return &LabListOutput{Data: data, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
 }
 
-func (s *Service) CreateLab(input CreateLabInput) (*domain.Laboratory, error) {
+func (s *Service) CreateLab(db *gorm.DB, input CreateLabInput) (*domain.Laboratory, error) {
 	status := input.Status
 	if status == "" {
 		status = "active"
@@ -214,16 +215,16 @@ func (s *Service) CreateLab(input CreateLabInput) (*domain.Laboratory, error) {
 		Notes:         input.Notes,
 	}
 
-	if err := s.labRepo.Create(l); err != nil {
+	if err := s.labRepo.Create(db, l); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("laboratory created", zap.Uint("id", l.ID))
-	return s.labRepo.GetByID(l.ID)
+	return s.labRepo.GetByID(db, l.ID)
 }
 
-func (s *Service) UpdateLab(id uint, input UpdateLabInput) (*domain.Laboratory, error) {
-	l, err := s.labRepo.GetByID(id)
+func (s *Service) UpdateLab(db *gorm.DB, id uint, input UpdateLabInput) (*domain.Laboratory, error) {
+	l, err := s.labRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -250,27 +251,27 @@ func (s *Service) UpdateLab(id uint, input UpdateLabInput) (*domain.Laboratory, 
 		l.Notes = input.Notes
 	}
 
-	if err := s.labRepo.Update(l); err != nil {
+	if err := s.labRepo.Update(db, l); err != nil {
 		return nil, err
 	}
-	return s.labRepo.GetByID(id)
+	return s.labRepo.GetByID(db, id)
 }
 
-func (s *Service) DeleteLab(id uint) error {
-	_, err := s.labRepo.GetByID(id)
+func (s *Service) DeleteLab(db *gorm.DB, id uint) error {
+	_, err := s.labRepo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
-	return s.labRepo.Delete(id)
+	return s.labRepo.Delete(db, id)
 }
 
 // --- Laboratory Order Methods ---
 
-func (s *Service) GetOrder(id uint) (*domain.LaboratoryOrder, error) {
-	return s.orderRepo.GetByID(id)
+func (s *Service) GetOrder(db *gorm.DB, id uint) (*domain.LaboratoryOrder, error) {
+	return s.orderRepo.GetByID(db, id)
 }
 
-func (s *Service) ListOrders(filters map[string]any, page, perPage int) (*OrderListOutput, error) {
+func (s *Service) ListOrders(db *gorm.DB, filters map[string]any, page, perPage int) (*OrderListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -278,7 +279,7 @@ func (s *Service) ListOrders(filters map[string]any, page, perPage int) (*OrderL
 		perPage = 15
 	}
 
-	data, total, err := s.orderRepo.List(filters, page, perPage)
+	data, total, err := s.orderRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +330,7 @@ func frameSpecsInputToDomain(inp *FrameSpecsInput) *domain.FrameSpecs {
 	}
 }
 
-func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.LaboratoryOrder, error) {
+func (s *Service) CreateOrder(db *gorm.DB, input CreateOrderInput, userID uint) (*domain.LaboratoryOrder, error) {
 	status := input.Status
 	if status == "" {
 		status = "pending"
@@ -380,12 +381,12 @@ func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.Labo
 		SpecialInstructions:     input.SpecialInstructions,
 	}
 
-	if err := s.orderRepo.Create(o); err != nil {
+	if err := s.orderRepo.Create(db, o); err != nil {
 		return nil, err
 	}
 
 	// Add initial status history entry
-	_ = s.orderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+	_ = s.orderRepo.AddStatusEntry(db, &domain.LaboratoryOrderStatusEntry{
 		LaboratoryOrderID: o.ID,
 		Status:            status,
 		Notes:             "Orden creada",
@@ -393,11 +394,11 @@ func (s *Service) CreateOrder(input CreateOrderInput, userID uint) (*domain.Labo
 	})
 
 	s.logger.Info("laboratory order created", zap.Uint("id", o.ID))
-	return s.orderRepo.GetByID(o.ID)
+	return s.orderRepo.GetByID(db, o.ID)
 }
 
-func (s *Service) UpdateOrder(id uint, input UpdateOrderInput) (*domain.LaboratoryOrder, error) {
-	o, err := s.orderRepo.GetByID(id)
+func (s *Service) UpdateOrder(db *gorm.DB, id uint, input UpdateOrderInput) (*domain.LaboratoryOrder, error) {
+	o, err := s.orderRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -463,44 +464,44 @@ func (s *Service) UpdateOrder(id uint, input UpdateOrderInput) (*domain.Laborato
 		o.SpecialInstructions = *input.SpecialInstructions
 	}
 
-	if err := s.orderRepo.Update(o); err != nil {
+	if err := s.orderRepo.Update(db, o); err != nil {
 		return nil, err
 	}
-	return s.orderRepo.GetByID(id)
+	return s.orderRepo.GetByID(db, id)
 }
 
-func (s *Service) UpdateOrderStatus(id uint, input UpdateOrderStatusInput, userID uint) (*domain.LaboratoryOrder, error) {
-	o, err := s.orderRepo.GetByID(id)
+func (s *Service) UpdateOrderStatus(db *gorm.DB, id uint, input UpdateOrderStatusInput, userID uint) (*domain.LaboratoryOrder, error) {
+	o, err := s.orderRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 
 	o.Status = domain.LaboratoryOrderStatusValue(input.Status)
-	if err := s.orderRepo.Update(o); err != nil {
+	if err := s.orderRepo.Update(db, o); err != nil {
 		return nil, err
 	}
 
 	// Record history entry
-	_ = s.orderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+	_ = s.orderRepo.AddStatusEntry(db, &domain.LaboratoryOrderStatusEntry{
 		LaboratoryOrderID: id,
 		Status:            input.Status,
 		Notes:             input.Notes,
 		UserID:            &userID,
 	})
 
-	return s.orderRepo.GetByID(id)
+	return s.orderRepo.GetByID(db, id)
 }
 
-func (s *Service) DeleteOrder(id uint) error {
-	_, err := s.orderRepo.GetByID(id)
+func (s *Service) DeleteOrder(db *gorm.DB, id uint) error {
+	_, err := s.orderRepo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
-	return s.orderRepo.Delete(id)
+	return s.orderRepo.Delete(db, id)
 }
 
-func (s *Service) GetOrderPdfToken(id uint) (map[string]any, error) {
-	o, err := s.orderRepo.GetByID(id)
+func (s *Service) GetOrderPdfToken(db *gorm.DB, id uint) (map[string]any, error) {
+	o, err := s.orderRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +509,7 @@ func (s *Service) GetOrderPdfToken(id uint) (map[string]any, error) {
 	if o.PdfToken == "" {
 		token := fmt.Sprintf("%x-%d", o.ID, time.Now().UnixNano())
 		o.PdfToken = token
-		if updateErr := s.orderRepo.Update(o); updateErr != nil {
+		if updateErr := s.orderRepo.Update(db, o); updateErr != nil {
 			return nil, updateErr
 		}
 	}
@@ -525,17 +526,17 @@ func (s *Service) GetOrderPdfToken(id uint) (map[string]any, error) {
 	}, nil
 }
 
-func (s *Service) Stats() (map[string]int64, error) {
-	return s.orderRepo.Stats()
+func (s *Service) Stats(db *gorm.DB) (map[string]int64, error) {
+	return s.orderRepo.Stats(db)
 }
 
 // --- Portfolio Methods ---
 
-func (s *Service) PortfolioStats() (map[string]int64, error) {
-	return s.callRepo.PortfolioStats()
+func (s *Service) PortfolioStats(db *gorm.DB) (map[string]int64, error) {
+	return s.callRepo.PortfolioStats(db)
 }
 
-func (s *Service) ListPortfolioOrders(page, perPage int, search string) (*PortfolioListOutput, error) {
+func (s *Service) ListPortfolioOrders(db *gorm.DB, page, perPage int, search string) (*PortfolioListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -547,7 +548,7 @@ func (s *Service) ListPortfolioOrders(page, perPage int, search string) (*Portfo
 	if search != "" {
 		filters["_search"] = search
 	}
-	orders, total, err := s.orderRepo.List(filters, page, perPage)
+	orders, total, err := s.orderRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +558,7 @@ func (s *Service) ListPortfolioOrders(page, perPage int, search string) (*Portfo
 		orderIDs[i] = o.ID
 	}
 
-	calls, err := s.callRepo.GetByOrderIDs(orderIDs)
+	calls, err := s.callRepo.GetByOrderIDs(db, orderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -603,8 +604,8 @@ func (s *Service) ListPortfolioOrders(page, perPage int, search string) (*Portfo
 	return &PortfolioListOutput{Data: items, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
 }
 
-func (s *Service) RegisterPortfolioCall(orderID uint, input RegisterCallInput, userID uint) (*domain.LaboratoryOrderCall, error) {
-	o, err := s.orderRepo.GetByID(orderID)
+func (s *Service) RegisterPortfolioCall(db *gorm.DB, orderID uint, input RegisterCallInput, userID uint) (*domain.LaboratoryOrderCall, error) {
+	o, err := s.orderRepo.GetByID(db, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +631,7 @@ func (s *Service) RegisterPortfolioCall(orderID uint, input RegisterCallInput, u
 		UserID:            &userID,
 	}
 
-	if err := s.callRepo.Create(call); err != nil {
+	if err := s.callRepo.Create(db, call); err != nil {
 		return nil, err
 	}
 
@@ -638,17 +639,17 @@ func (s *Service) RegisterPortfolioCall(orderID uint, input RegisterCallInput, u
 	return call, nil
 }
 
-func (s *Service) GetPortfolioOrderCalls(orderID uint) ([]*domain.LaboratoryOrderCall, error) {
-	return s.callRepo.GetByOrderID(orderID)
+func (s *Service) GetPortfolioOrderCalls(db *gorm.DB, orderID uint) ([]*domain.LaboratoryOrderCall, error) {
+	return s.callRepo.GetByOrderID(db, orderID)
 }
 
-func (s *Service) GetPortfolioOrder(orderID uint) (*PortfolioOrderItem, error) {
-	o, err := s.orderRepo.GetByID(orderID)
+func (s *Service) GetPortfolioOrder(db *gorm.DB, orderID uint) (*PortfolioOrderItem, error) {
+	o, err := s.orderRepo.GetByID(db, orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	calls, err := s.callRepo.GetByOrderID(orderID)
+	calls, err := s.callRepo.GetByOrderID(db, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -678,8 +679,8 @@ func (s *Service) GetPortfolioOrder(orderID uint) (*PortfolioOrderItem, error) {
 	return item, nil
 }
 
-func (s *Service) ClosePortfolioOrder(orderID uint, userID uint) error {
-	o, err := s.orderRepo.GetByID(orderID)
+func (s *Service) ClosePortfolioOrder(db *gorm.DB, orderID uint, userID uint) error {
+	o, err := s.orderRepo.GetByID(db, orderID)
 	if err != nil {
 		return err
 	}
@@ -689,11 +690,11 @@ func (s *Service) ClosePortfolioOrder(orderID uint, userID uint) error {
 	}
 
 	o.Status = domain.LaboratoryOrderStatusDelivered
-	if err := s.orderRepo.Update(o); err != nil {
+	if err := s.orderRepo.Update(db, o); err != nil {
 		return err
 	}
 
-	_ = s.orderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+	_ = s.orderRepo.AddStatusEntry(db, &domain.LaboratoryOrderStatusEntry{
 		LaboratoryOrderID: orderID,
 		Status:            string(domain.LaboratoryOrderStatusDelivered),
 		Notes:             "Pago completado — cartera cerrada",
@@ -701,12 +702,12 @@ func (s *Service) ClosePortfolioOrder(orderID uint, userID uint) error {
 	})
 
 	if o.SaleID != nil {
-		sale, err := s.saleRepo.GetByID(*o.SaleID)
+		sale, err := s.saleRepo.GetByID(db, *o.SaleID)
 		if err == nil {
 			sale.Balance = 0
 			sale.AmountPaid = sale.Total
 			sale.PaymentStatus = "paid"
-			_ = s.saleRepo.Update(sale)
+			_ = s.saleRepo.Update(db, sale)
 		}
 	}
 
@@ -716,18 +717,18 @@ func (s *Service) ClosePortfolioOrder(orderID uint, userID uint) error {
 
 // --- Evidence Methods ---
 
-func (s *Service) GetOrderEvidence(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
-	return s.evidenceRepo.ListByOrderID(orderID, transitionType)
+func (s *Service) GetOrderEvidence(db *gorm.DB, orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+	return s.evidenceRepo.ListByOrderID(db, orderID, transitionType)
 }
 
-func (s *Service) AddOrderEvidence(orderID uint, transitionType, imageURL string, userID uint) (*domain.LaboratoryOrderEvidence, error) {
+func (s *Service) AddOrderEvidence(db *gorm.DB, orderID uint, transitionType, imageURL string, userID uint) (*domain.LaboratoryOrderEvidence, error) {
 	e := &domain.LaboratoryOrderEvidence{
 		LaboratoryOrderID: orderID,
 		TransitionType:    transitionType,
 		ImageURL:          imageURL,
 		CreatedBy:         &userID,
 	}
-	if err := s.evidenceRepo.Create(e); err != nil {
+	if err := s.evidenceRepo.Create(db, e); err != nil {
 		return nil, err
 	}
 	return e, nil

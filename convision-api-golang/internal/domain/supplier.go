@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Supplier represents a vendor/provider for lenses and products.
 type Supplier struct {
@@ -41,9 +45,9 @@ type Supplier struct {
 
 // SupplierRepository defines persistence operations for Supplier.
 type SupplierRepository interface {
-	GetByID(id uint) (*Supplier, error)
-	Create(s *Supplier) error
-	Update(s *Supplier) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Supplier, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Supplier, error)
+	Create(db *gorm.DB, s *Supplier) error
+	Update(db *gorm.DB, s *Supplier) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Supplier, int64, error)
 }

@@ -19,13 +19,11 @@ var discountFilterAllowlist = map[string]bool{
 }
 
 // DiscountRepository is the PostgreSQL-backed implementation of domain.DiscountRepository.
-type DiscountRepository struct {
-	db *gorm.DB
-}
+type DiscountRepository struct{}
 
 // NewDiscountRepository creates a new DiscountRepository.
-func NewDiscountRepository(db *gorm.DB) *DiscountRepository {
-	return &DiscountRepository{db: db}
+func NewDiscountRepository() *DiscountRepository {
+	return &DiscountRepository{}
 }
 
 func (r *DiscountRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -36,9 +34,9 @@ func (r *DiscountRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Patient")
 }
 
-func (r *DiscountRepository) GetByID(id uint) (*domain.DiscountRequest, error) {
+func (r *DiscountRepository) GetByID(db *gorm.DB, id uint) (*domain.DiscountRequest, error) {
 	var d domain.DiscountRequest
-	err := r.withRelations(r.db).Where("discount_requests.deleted_at IS NULL").First(&d, id).Error
+	err := r.withRelations(db).Where("discount_requests.deleted_at IS NULL").First(&d, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "discount_request"}
@@ -48,10 +46,10 @@ func (r *DiscountRepository) GetByID(id uint) (*domain.DiscountRequest, error) {
 	return &d, nil
 }
 
-func (r *DiscountRepository) GetActiveForProduct(productID uint) ([]*domain.DiscountRequest, error) {
+func (r *DiscountRepository) GetActiveForProduct(db *gorm.DB, productID uint) ([]*domain.DiscountRequest, error) {
 	var discounts []*domain.DiscountRequest
 	now := time.Now()
-	err := r.withRelations(r.db).
+	err := r.withRelations(db).
 		Where("discount_requests.deleted_at IS NULL").
 		Where("product_id = ? AND status = ? AND (expiry_date IS NULL OR expiry_date >= ?)",
 			productID, domain.DiscountRequestStatusApproved, now).
@@ -60,10 +58,10 @@ func (r *DiscountRepository) GetActiveForProduct(productID uint) ([]*domain.Disc
 	return discounts, err
 }
 
-func (r *DiscountRepository) GetActiveForProductWithPatient(productID uint, patientID *uint) ([]*domain.DiscountRequest, error) {
+func (r *DiscountRepository) GetActiveForProductWithPatient(db *gorm.DB, productID uint, patientID *uint) ([]*domain.DiscountRequest, error) {
 	now := time.Now()
 
-	q := r.withRelations(r.db).
+	q := r.withRelations(db).
 		Where("discount_requests.deleted_at IS NULL").
 		Where("status = ? AND (expiry_date IS NULL OR expiry_date >= ?)", domain.DiscountRequestStatusApproved, now).
 		Where("product_id = ?", productID)
@@ -105,11 +103,11 @@ func hasPatientSpecific(discounts []*domain.DiscountRequest, patientID uint) boo
 	return false
 }
 
-func (r *DiscountRepository) GetBestForProduct(productID uint, patientID *uint) (*domain.DiscountRequest, error) {
+func (r *DiscountRepository) GetBestForProduct(db *gorm.DB, productID uint, patientID *uint) (*domain.DiscountRequest, error) {
 	var d domain.DiscountRequest
 	now := time.Now()
 
-	q := r.db.
+	q := db.
 		Where("discount_requests.deleted_at IS NULL").
 		Where("status = ? AND (expiry_date IS NULL OR expiry_date >= ?)", domain.DiscountRequestStatusApproved, now).
 		Where("product_id = ?", productID)
@@ -133,12 +131,12 @@ func (r *DiscountRepository) GetBestForProduct(productID uint, patientID *uint) 
 	return &d, nil
 }
 
-func (r *DiscountRepository) Create(d *domain.DiscountRequest) error {
-	return r.db.Create(d).Error
+func (r *DiscountRepository) Create(db *gorm.DB, d *domain.DiscountRequest) error {
+	return db.Create(d).Error
 }
 
-func (r *DiscountRepository) Update(d *domain.DiscountRequest) error {
-	return r.db.Model(d).Updates(map[string]any{
+func (r *DiscountRepository) Update(db *gorm.DB, d *domain.DiscountRequest) error {
+	return db.Model(d).Updates(map[string]any{
 		"product_id":          d.ProductID,
 		"patient_id":          d.PatientID,
 		"status":              d.Status,
@@ -155,16 +153,16 @@ func (r *DiscountRepository) Update(d *domain.DiscountRequest) error {
 	}).Error
 }
 
-func (r *DiscountRepository) Delete(id uint) error {
+func (r *DiscountRepository) Delete(db *gorm.DB, id uint) error {
 	now := time.Now()
-	return r.db.Model(&domain.DiscountRequest{}).Where("id = ?", id).Update("deleted_at", now).Error
+	return db.Model(&domain.DiscountRequest{}).Where("id = ?", id).Update("deleted_at", now).Error
 }
 
-func (r *DiscountRepository) List(filters map[string]any, page, perPage int) ([]*domain.DiscountRequest, int64, error) {
+func (r *DiscountRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.DiscountRequest, int64, error) {
 	var discounts []*domain.DiscountRequest
 	var total int64
 
-	q := r.db.Model(&domain.DiscountRequest{}).Where("discount_requests.deleted_at IS NULL")
+	q := db.Model(&domain.DiscountRequest{}).Where("discount_requests.deleted_at IS NULL")
 	for field, value := range filters {
 		if !discountFilterAllowlist[field] {
 			continue

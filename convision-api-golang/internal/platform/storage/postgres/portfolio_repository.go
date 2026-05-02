@@ -7,48 +7,46 @@ import (
 )
 
 // LaboratoryOrderCallRepository is the PostgreSQL-backed implementation of domain.LaboratoryOrderCallRepository.
-type LaboratoryOrderCallRepository struct {
-	db *gorm.DB
+type LaboratoryOrderCallRepository struct{}
+
+func NewLaboratoryOrderCallRepository() *LaboratoryOrderCallRepository {
+	return &LaboratoryOrderCallRepository{}
 }
 
-func NewLaboratoryOrderCallRepository(db *gorm.DB) *LaboratoryOrderCallRepository {
-	return &LaboratoryOrderCallRepository{db: db}
+func (r *LaboratoryOrderCallRepository) Create(db *gorm.DB, call *domain.LaboratoryOrderCall) error {
+	return db.Create(call).Error
 }
 
-func (r *LaboratoryOrderCallRepository) Create(call *domain.LaboratoryOrderCall) error {
-	return r.db.Create(call).Error
-}
-
-func (r *LaboratoryOrderCallRepository) GetByOrderID(orderID uint) ([]*domain.LaboratoryOrderCall, error) {
+func (r *LaboratoryOrderCallRepository) GetByOrderID(db *gorm.DB, orderID uint) ([]*domain.LaboratoryOrderCall, error) {
 	var calls []*domain.LaboratoryOrderCall
-	err := r.db.Where("laboratory_order_id = ?", orderID).
+	err := db.Where("laboratory_order_id = ?", orderID).
 		Preload("User").
 		Order("id DESC").
 		Find(&calls).Error
 	return calls, err
 }
 
-func (r *LaboratoryOrderCallRepository) GetByOrderIDs(orderIDs []uint) ([]*domain.LaboratoryOrderCall, error) {
+func (r *LaboratoryOrderCallRepository) GetByOrderIDs(db *gorm.DB, orderIDs []uint) ([]*domain.LaboratoryOrderCall, error) {
 	if len(orderIDs) == 0 {
 		return nil, nil
 	}
 	var calls []*domain.LaboratoryOrderCall
-	err := r.db.Where("laboratory_order_id IN ?", orderIDs).
+	err := db.Where("laboratory_order_id IN ?", orderIDs).
 		Preload("User").
 		Order("id DESC").
 		Find(&calls).Error
 	return calls, err
 }
 
-func (r *LaboratoryOrderCallRepository) PortfolioStats() (map[string]int64, error) {
+func (r *LaboratoryOrderCallRepository) PortfolioStats(db *gorm.DB) (map[string]int64, error) {
 	result := map[string]int64{}
 
 	var total int64
-	r.db.Model(&domain.LaboratoryOrder{}).Where("status = ?", "portfolio").Count(&total)
+	db.Model(&domain.LaboratoryOrder{}).Where("status = ?", "portfolio").Count(&total)
 	result["total"] = total
 
 	var over5Days int64
-	r.db.Raw(`
+	db.Raw(`
 		SELECT COUNT(DISTINCT lo.id)
 		FROM laboratory_orders lo
 		JOIN (
@@ -63,7 +61,7 @@ func (r *LaboratoryOrderCallRepository) PortfolioStats() (map[string]int64, erro
 	result["over_five_days"] = over5Days
 
 	var failedAttempts int64
-	r.db.Raw(`
+	db.Raw(`
 		SELECT COUNT(loc.id)
 		FROM laboratory_order_calls loc
 		JOIN laboratory_orders lo ON lo.id = loc.laboratory_order_id
@@ -73,7 +71,7 @@ func (r *LaboratoryOrderCallRepository) PortfolioStats() (map[string]int64, erro
 	result["failed_attempts"] = failedAttempts
 
 	var paymentPromises int64
-	r.db.Raw(`
+	db.Raw(`
 		SELECT COUNT(loc.id)
 		FROM laboratory_order_calls loc
 		JOIN laboratory_orders lo ON lo.id = loc.laboratory_order_id

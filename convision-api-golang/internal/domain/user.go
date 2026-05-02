@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Role defines the access level of a system user.
 type Role string
@@ -29,11 +33,11 @@ type User struct {
 
 // UserRepository defines persistence operations for User.
 type UserRepository interface {
-	GetByID(id uint) (*User, error)
-	GetByEmail(email string) (*User, error)
-	Create(u *User) error
-	Update(u *User) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*User, int64, error)
-	GetSpecialistsByBranch(branchID uint) ([]*User, error)
+	GetByID(db *gorm.DB, id uint) (*User, error)
+	GetByEmail(db *gorm.DB, email string) (*User, error)
+	Create(db *gorm.DB, u *User) error
+	Update(db *gorm.DB, u *User) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*User, int64, error)
+	GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 }

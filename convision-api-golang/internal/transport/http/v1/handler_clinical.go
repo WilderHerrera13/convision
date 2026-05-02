@@ -232,6 +232,7 @@ func buildClinicalEvolutionResource(e *domain.ClinicalEvolution) ClinicalEvoluti
 // ListClinicalHistories godoc
 // GET /api/v1/clinical-histories
 func (h *Handler) ListClinicalHistories(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
@@ -239,7 +240,7 @@ func (h *Handler) ListClinicalHistories(c *gin.Context) {
 		filters = make(map[string]any)
 	}
 
-	out, err := h.clinic.List(filters, page, perPage)
+	out, err := h.clinic.List(db, filters, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -268,12 +269,13 @@ func (h *Handler) ListClinicalHistories(c *gin.Context) {
 // GetClinicalHistory godoc
 // GET /api/v1/clinical-histories/:id
 func (h *Handler) GetClinicalHistory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	rec, err := h.clinic.GetByID(id)
+	rec, err := h.clinic.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -284,6 +286,7 @@ func (h *Handler) GetClinicalHistory(c *gin.Context) {
 // CreateClinicalHistory godoc
 // POST /api/v1/clinical-histories
 func (h *Handler) CreateClinicalHistory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input clinic.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -295,7 +298,7 @@ func (h *Handler) CreateClinicalHistory(c *gin.Context) {
 		input.CreatedBy = &claims.UserID
 	}
 
-	rec, err := h.clinic.Create(input)
+	rec, err := h.clinic.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -322,7 +325,8 @@ func (h *Handler) UpdateClinicalHistory(c *gin.Context) {
 		input.UpdatedBy = &claims.UserID
 	}
 
-	rec, err := h.clinic.Update(id, input)
+	db := tenantDBFromCtx(c)
+	rec, err := h.clinic.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -333,12 +337,13 @@ func (h *Handler) UpdateClinicalHistory(c *gin.Context) {
 // GetPatientClinicalHistory godoc
 // GET /api/v1/patients/:patientId/clinical-history
 func (h *Handler) GetPatientClinicalHistory(c *gin.Context) {
-    patientID, err := parseID(c, "id")
+	db := tenantDBFromCtx(c)
+	patientID, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	rec, err := h.clinic.GetByPatientIDSingle(patientID)
+	rec, err := h.clinic.GetByPatientIDSingle(db, patientID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -351,7 +356,8 @@ func (h *Handler) GetPatientClinicalHistory(c *gin.Context) {
 // ListClinicalEvolutions godoc
 // GET /api/v1/clinical-histories/:historyId/evolutions
 func (h *Handler) ListClinicalEvolutions(c *gin.Context) {
-    historyID, err := parseID(c, "id")
+	db := tenantDBFromCtx(c)
+	historyID, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
@@ -359,7 +365,7 @@ func (h *Handler) ListClinicalEvolutions(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
-	out, err := h.clinic.ListEvolutions(historyID, page, perPage)
+	out, err := h.clinic.ListEvolutions(db, historyID, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -388,12 +394,13 @@ func (h *Handler) ListClinicalEvolutions(c *gin.Context) {
 // GetClinicalEvolution godoc
 // GET /api/v1/clinical-evolutions/:id
 func (h *Handler) GetClinicalEvolution(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	e, err := h.clinic.GetEvolutionByID(id)
+	e, err := h.clinic.GetEvolutionByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -404,6 +411,7 @@ func (h *Handler) GetClinicalEvolution(c *gin.Context) {
 // CreateClinicalEvolution godoc
 // POST /api/v1/clinical-evolutions
 func (h *Handler) CreateClinicalEvolution(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input clinic.CreateEvolutionInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -414,7 +422,7 @@ func (h *Handler) CreateClinicalEvolution(c *gin.Context) {
 		input.CreatedBy = &claims.UserID
 	}
 
-	e, err := h.clinic.CreateEvolution(input)
+	e, err := h.clinic.CreateEvolution(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -440,7 +448,8 @@ func (h *Handler) UpdateClinicalEvolution(c *gin.Context) {
 		input.UpdatedBy = &claims.UserID
 	}
 
-	e, err := h.clinic.UpdateEvolution(id, input)
+	db := tenantDBFromCtx(c)
+	e, err := h.clinic.UpdateEvolution(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -451,12 +460,13 @@ func (h *Handler) UpdateClinicalEvolution(c *gin.Context) {
 // DeleteClinicalEvolution godoc
 // DELETE /api/v1/clinical-evolutions/:id
 func (h *Handler) DeleteClinicalEvolution(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	if err := h.clinic.DeleteEvolution(id); err != nil {
+	if err := h.clinic.DeleteEvolution(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -474,7 +484,8 @@ func (h *Handler) ListClinicalRecords(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
-	records, total, err := h.clinic.ListByPatient(patientID, page, perPage)
+	db := tenantDBFromCtx(c)
+	records, total, err := h.clinic.ListByPatient(db, patientID, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return

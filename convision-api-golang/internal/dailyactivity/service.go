@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -87,14 +88,14 @@ type ListOutput struct {
 }
 
 // List returns paginated daily activity reports.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
 		perPage = 15
 	}
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -102,16 +103,16 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // GetByID returns a single daily activity report.
-func (s *Service) GetByID(id uint) (*domain.DailyActivityReport, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.DailyActivityReport, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // Create creates a new daily activity report for today.
-func (s *Service) Create(input CreateInput, userID uint) (*domain.DailyActivityReport, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.DailyActivityReport, error) {
 	todayStr := ClinicTodayYMD()
 	reportDate := ClinicReportDateForToday()
 
-	_, err := s.repo.FindByUserAndDate(userID, todayStr)
+	_, err := s.repo.FindByUserAndDate(db, userID, todayStr)
 	if err == nil {
 		return nil, &domain.ErrValidation{Message: "ya existe un reporte para el día de hoy"}
 	}
@@ -121,15 +122,15 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.DailyActivityR
 
 	r := buildReport(input, userID, reportDate)
 	r.Status = domain.DailyReportStatusPending
-	if err := s.repo.Create(r); err != nil {
+	if err := s.repo.Create(db, r); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(r.ID)
+	return s.repo.GetByID(db, r.ID)
 }
 
 // Update updates the metric fields of a daily activity report.
-func (s *Service) Update(id uint, input UpdateInput, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
-	existing, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
+	existing, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -151,16 +152,16 @@ func (s *Service) Update(id uint, input UpdateInput, requestingUserID uint, isAd
 	updated.ID = existing.ID
 	updated.Status = existing.Status
 	updated.MoneyReceipts = existing.MoneyReceipts
-	if err := s.repo.Update(updated); err != nil {
+	if err := s.repo.Update(db, updated); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Close marks a daily activity report as closed.
 // Non-admin users can only close their own report.
-func (s *Service) Close(id uint, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
-	report, err := s.repo.GetByID(id)
+func (s *Service) Close(db *gorm.DB, id uint, requestingUserID uint, isAdmin bool) (*domain.DailyActivityReport, error) {
+	report, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -171,16 +172,16 @@ func (s *Service) Close(id uint, requestingUserID uint, isAdmin bool) (*domain.D
 		return nil, &domain.ErrValidation{Message: "el reporte ya está cerrado"}
 	}
 	report.Status = domain.DailyReportStatusClosed
-	if err := s.repo.Update(report); err != nil {
+	if err := s.repo.Update(db, report); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Reopen sets a closed report back to pending status.
 // Admin-only action enforced at the handler level.
-func (s *Service) Reopen(id uint) (*domain.DailyActivityReport, error) {
-	report, err := s.repo.GetByID(id)
+func (s *Service) Reopen(db *gorm.DB, id uint) (*domain.DailyActivityReport, error) {
+	report, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -188,18 +189,18 @@ func (s *Service) Reopen(id uint) (*domain.DailyActivityReport, error) {
 		return nil, &domain.ErrValidation{Message: "el reporte no está cerrado"}
 	}
 	report.Status = domain.DailyReportStatusPending
-	if err := s.repo.Update(report); err != nil {
+	if err := s.repo.Update(db, report); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // QuickAttention finds or creates today's report and increments a counter or accumulates an amount.
-func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
+func (s *Service) QuickAttention(db *gorm.DB, input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
 	todayStr := ClinicTodayYMD()
 	reportDate := ClinicReportDateForToday()
 
-	report, err := s.repo.FindByUserAndDate(userID, todayStr)
+	report, err := s.repo.FindByUserAndDate(db, userID, todayStr)
 	if err != nil {
 		if _, ok := err.(*domain.ErrNotFound); !ok {
 			return nil, err
@@ -211,7 +212,7 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 			Shift:      domain.DailyShiftFull,
 			Status:     domain.DailyReportStatusPending,
 		}
-		if err := s.repo.Create(report); err != nil {
+		if err := s.repo.Create(db, report); err != nil {
 			return nil, err
 		}
 	}
@@ -251,10 +252,10 @@ func (s *Service) QuickAttention(input QuickAttentionInput, userID uint) (*domai
 		report.Observations += "[Registro rápido] " + input.Note
 	}
 
-	if err := s.repo.Update(report); err != nil {
+	if err := s.repo.Update(db, report); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(report.ID)
+	return s.repo.GetByID(db, report.ID)
 }
 
 func buildReport(input CreateInput, userID uint, reportDate time.Time) *domain.DailyActivityReport {

@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // AppointmentStatus enumerates valid appointment lifecycle states.
 type AppointmentStatus string
@@ -95,16 +99,16 @@ type SpecialistReportSummary struct {
 
 // AppointmentRepository defines persistence operations for Appointment.
 type AppointmentRepository interface {
-	GetByID(id uint) (*Appointment, error)
-	GetByPatientID(patientID uint, page, perPage int) ([]*Appointment, int64, error)
-	GetBySpecialistID(specialistID uint, page, perPage int) ([]*Appointment, int64, error)
-	Create(a *Appointment) error
-	Update(a *Appointment) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Appointment, int64, error)
-	SaveManagementReport(id uint, consultationType, reportNotes string) error
-	GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*SpecialistReportSummary, error)
-	ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error)
-	HasConflictForSpecialist(specialistID uint, scheduledAt time.Time, excludeID uint, durationMins int) (bool, error)
-	GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error)
+	GetByID(db *gorm.DB, id uint) (*Appointment, error)
+	GetByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*Appointment, int64, error)
+	GetBySpecialistID(db *gorm.DB, specialistID uint, page, perPage int) ([]*Appointment, int64, error)
+	Create(db *gorm.DB, a *Appointment) error
+	Update(db *gorm.DB, a *Appointment) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Appointment, int64, error)
+	SaveManagementReport(db *gorm.DB, id uint, consultationType, reportNotes string) error
+	GetConsolidatedReport(db *gorm.DB, from, to string, specialistIDs []uint, branchID *uint) ([]*SpecialistReportSummary, error)
+	ExistsByPatientAndDate(db *gorm.DB, patientID uint, specialistID *uint, date time.Time) (bool, error)
+	HasConflictForSpecialist(db *gorm.DB, specialistID uint, scheduledAt time.Time, excludeID uint, durationMins int) (bool, error)
+	GetBookedTimesForSpecialist(db *gorm.DB, specialistID uint, date time.Time) ([]string, error)
 }

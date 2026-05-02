@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -23,7 +24,7 @@ func newDoctorImporter(repo domain.UserRepository, logger *zap.Logger) Importer 
 
 func (i *doctorImporter) Columns() []string { return doctorImportColumns }
 
-func (i *doctorImporter) ProcessRow(rowNum int, data map[string]string) RecordResult {
+func (i *doctorImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]string) RecordResult {
 	rec := RecordResult{Row: rowNum, Data: data}
 
 	identification := strings.TrimSpace(data["documento"])
@@ -47,7 +48,7 @@ func (i *doctorImporter) ProcessRow(rowNum int, data map[string]string) RecordRe
 		return rec
 	}
 
-	if _, err := i.repo.GetByEmail(email); err == nil {
+	if _, err := i.repo.GetByEmail(db, email); err == nil {
 		rec.Status = RecordStatusSkipped
 		rec.Reason = "especialista ya existe (correo duplicado)"
 		return rec
@@ -70,7 +71,7 @@ func (i *doctorImporter) ProcessRow(rowNum int, data map[string]string) RecordRe
 		Password:       defaultTempPassword(),
 	}
 
-	if err := i.repo.Create(u); err != nil {
+	if err := i.repo.Create(db, u); err != nil {
 		i.logger.Warn("bulk import: failed to create specialist",
 			zap.Int("row", rowNum),
 			zap.String("email", email),

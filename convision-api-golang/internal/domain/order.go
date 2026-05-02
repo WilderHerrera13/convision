@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // OrderStatus enumerates valid order statuses.
 type OrderStatus string
@@ -61,10 +65,10 @@ type OrderItem struct {
 
 // OrderRepository defines persistence operations for Order.
 type OrderRepository interface {
-	GetByID(id uint) (*Order, error)
-	GetByOrderNumber(number string) (*Order, error)
-	Create(o *Order) error
-	Update(o *Order) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Order, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Order, error)
+	GetByOrderNumber(db *gorm.DB, number string) (*Order, error)
+	Create(db *gorm.DB, o *Order) error
+	Update(db *gorm.DB, o *Order) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Order, int64, error)
 }

@@ -19,18 +19,16 @@ var cashRegisterCloseFilterAllowlist = map[string]bool{
 }
 
 // CashRegisterCloseRepository implements domain.CashRegisterCloseRepository.
-type CashRegisterCloseRepository struct {
-	db *gorm.DB
-}
+type CashRegisterCloseRepository struct{}
 
 // NewCashRegisterCloseRepository creates a new CashRegisterCloseRepository.
-func NewCashRegisterCloseRepository(db *gorm.DB) *CashRegisterCloseRepository {
-	return &CashRegisterCloseRepository{db: db}
+func NewCashRegisterCloseRepository() *CashRegisterCloseRepository {
+	return &CashRegisterCloseRepository{}
 }
 
-func (r *CashRegisterCloseRepository) GetByID(id uint) (*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) GetByID(db *gorm.DB, id uint) (*domain.CashRegisterClose, error) {
 	var item domain.CashRegisterClose
-	err := r.db.
+	err := db.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role")
@@ -51,9 +49,9 @@ func (r *CashRegisterCloseRepository) GetByID(id uint) (*domain.CashRegisterClos
 // GetByUserAndDate returns the single authoritative close for (userID, date).
 // When duplicates exist it prioritises: approved > submitted > draft (most recently created).
 // Returns ErrNotFound if the user has no close for that date.
-func (r *CashRegisterCloseRepository) GetByUserAndDate(userID uint, date string) (*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) GetByUserAndDate(db *gorm.DB, userID uint, date string) (*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
-	err := r.db.
+	err := db.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("user_id = ? AND DATE(close_date) = ?", userID, date).
 		Order(`
@@ -72,14 +70,14 @@ func (r *CashRegisterCloseRepository) GetByUserAndDate(userID uint, date string)
 	if len(records) == 0 {
 		return nil, &domain.ErrNotFound{Resource: "cash_register_close"}
 	}
-	return r.GetByID(records[0].ID)
+	return r.GetByID(db, records[0].ID)
 }
 
-func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage int) ([]*domain.CashRegisterClose, int64, error) {
+func (r *CashRegisterCloseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.CashRegisterClose, int64, error) {
 	var records []*domain.CashRegisterClose
 	var total int64
 
-	q := r.db.Model(&domain.CashRegisterClose{})
+	q := db.Model(&domain.CashRegisterClose{})
 	for k, v := range filters {
 		if k == "branch_id" {
 			q = q.Where("branch_id = ?", v)
@@ -120,9 +118,9 @@ func (r *CashRegisterCloseRepository) List(filters map[string]any, page, perPage
 
 // ListByStatuses returns all closes whose status is in the provided list,
 // with the User association preloaded, ordered by close_date DESC.
-func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegisterCloseStatus, branchID uint) ([]*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) ListByStatuses(db *gorm.DB, statuses []domain.CashRegisterCloseStatus, branchID uint) ([]*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
-	q := r.db.
+	q := db.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("status IN ?", statuses)
 	if branchID > 0 {
@@ -138,9 +136,9 @@ func (r *CashRegisterCloseRepository) ListByStatuses(statuses []domain.CashRegis
 }
 
 // ListByUserAndDateRange returns all closes for a user within [from, to], ordered by close_date ASC.
-func (r *CashRegisterCloseRepository) ListByUserAndDateRange(userID uint, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
+func (r *CashRegisterCloseRepository) ListByUserAndDateRange(db *gorm.DB, userID uint, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
-	q := r.db.
+	q := db.
 		Model(&domain.CashRegisterClose{}).
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Where("user_id = ?", userID).
@@ -170,8 +168,8 @@ func (r *CashRegisterCloseRepository) ListByUserAndDateRange(userID uint, branch
 }
 
 // Create inserts a close and its nested payment/denomination rows atomically.
-func (r *CashRegisterCloseRepository) Create(c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *CashRegisterCloseRepository) Create(db *gorm.DB, c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(c).Error; err != nil {
 			return err
 		}
@@ -199,8 +197,8 @@ func (r *CashRegisterCloseRepository) Create(c *domain.CashRegisterClose, paymen
 }
 
 // Update updates the close and optionally replaces nested payments/denominations atomically.
-func (r *CashRegisterCloseRepository) Update(c *domain.CashRegisterClose, payments *[]domain.CashRegisterClosePayment, denoms *[]domain.CashCountDenomination) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *CashRegisterCloseRepository) Update(db *gorm.DB, c *domain.CashRegisterClose, payments *[]domain.CashRegisterClosePayment, denoms *[]domain.CashCountDenomination) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&domain.CashRegisterClose{}).
 			Where("id = ?", c.ID).
 			Updates(map[string]any{
@@ -250,8 +248,8 @@ func (r *CashRegisterCloseRepository) Update(c *domain.CashRegisterClose, paymen
 	})
 }
 
-func (r *CashRegisterCloseRepository) Delete(id uint) error {
-	res := r.db.Delete(&domain.CashRegisterClose{}, id)
+func (r *CashRegisterCloseRepository) Delete(db *gorm.DB, id uint) error {
+	res := db.Delete(&domain.CashRegisterClose{}, id)
 	if res.Error != nil {
 		return res.Error
 	}
@@ -262,8 +260,8 @@ func (r *CashRegisterCloseRepository) Delete(id uint) error {
 }
 
 // SyncActualPayments replaces actual payment rows and updates reconciliation totals atomically.
-func (r *CashRegisterCloseRepository) SyncActualPayments(closeID uint, payments []domain.CashRegisterCloseActualPayment) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *CashRegisterCloseRepository) SyncActualPayments(db *gorm.DB, closeID uint, payments []domain.CashRegisterCloseActualPayment) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("cash_register_close_id = ?", closeID).Delete(&domain.CashRegisterCloseActualPayment{}).Error; err != nil {
 			return err
 		}

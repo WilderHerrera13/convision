@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -86,12 +87,12 @@ type ListOutput struct {
 }
 
 // GetByID returns a single patient (with relations) or ErrNotFound.
-func (s *Service) GetByID(id uint) (*domain.Patient, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Patient, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // List returns a paginated list of patients, optionally filtered.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -99,7 +100,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 		perPage = 15
 	}
 
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +120,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Create adds a new patient.
-func (s *Service) Create(input CreateInput) (*domain.Patient, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Patient, error) {
 	status := input.Status
 	if status == "" {
 		status = "active"
@@ -160,19 +161,19 @@ func (s *Service) Create(input CreateInput) (*domain.Patient, error) {
 		Status:               status,
 	}
 
-	if err := s.repo.Create(p); err != nil {
+	if err := s.repo.Create(db, p); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("patient created", zap.Uint("patient_id", p.ID))
 
 	// Reload with relations.
-	return s.repo.GetByID(p.ID)
+	return s.repo.GetByID(db, p.ID)
 }
 
 // Update modifies an existing patient's mutable fields.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Patient, error) {
-	p, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Patient, error) {
+	p, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -252,17 +253,17 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Patient, error) {
 		p.Status = input.Status
 	}
 
-	if err := s.repo.Update(p); err != nil {
+	if err := s.repo.Update(db, p); err != nil {
 		return nil, err
 	}
 
-	return s.repo.GetByID(p.ID)
+	return s.repo.GetByID(db, p.ID)
 }
 
 // Delete soft-deletes a patient.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

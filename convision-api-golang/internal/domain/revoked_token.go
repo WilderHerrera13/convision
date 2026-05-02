@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // RevokedToken tracks invalidated JWT tokens by their JTI (JWT ID) claim.
 // Used to implement logout and token rotation on refresh.
@@ -11,6 +15,6 @@ type RevokedToken struct {
 
 // RevokedTokenRepository defines persistence operations for revoked tokens.
 type RevokedTokenRepository interface {
-	IsRevoked(jti string) (bool, error)
-	Revoke(jti string) error
+	IsRevoked(db *gorm.DB, jti string) (bool, error)
+	Revoke(db *gorm.DB, jti string) error
 }

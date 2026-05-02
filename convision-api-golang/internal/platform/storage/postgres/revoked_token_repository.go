@@ -9,19 +9,17 @@ import (
 )
 
 // RevokedTokenRepository is the PostgreSQL-backed implementation of domain.RevokedTokenRepository.
-type RevokedTokenRepository struct {
-	db *gorm.DB
-}
+type RevokedTokenRepository struct{}
 
 // NewRevokedTokenRepository creates a new RevokedTokenRepository.
-func NewRevokedTokenRepository(db *gorm.DB) *RevokedTokenRepository {
-	return &RevokedTokenRepository{db: db}
+func NewRevokedTokenRepository() *RevokedTokenRepository {
+	return &RevokedTokenRepository{}
 }
 
 // IsRevoked returns true if the given jti has been revoked.
-func (r *RevokedTokenRepository) IsRevoked(jti string) (bool, error) {
+func (r *RevokedTokenRepository) IsRevoked(db *gorm.DB, jti string) (bool, error) {
 	var count int64
-	err := r.db.Model(&domain.RevokedToken{}).
+	err := db.Model(&domain.RevokedToken{}).
 		Where("jti = ?", jti).
 		Count(&count).Error
 	if err != nil {
@@ -31,8 +29,8 @@ func (r *RevokedTokenRepository) IsRevoked(jti string) (bool, error) {
 }
 
 // Revoke marks the given jti as revoked.
-func (r *RevokedTokenRepository) Revoke(jti string) error {
-	return r.db.Create(&domain.RevokedToken{
+func (r *RevokedTokenRepository) Revoke(db *gorm.DB, jti string) error {
+	return db.Create(&domain.RevokedToken{
 		JTI:       jti,
 		RevokedAt: time.Now().UTC(),
 	}).Error

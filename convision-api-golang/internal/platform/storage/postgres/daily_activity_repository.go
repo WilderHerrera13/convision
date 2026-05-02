@@ -9,27 +9,25 @@ import (
 )
 
 // DailyActivityRepository implements domain.DailyActivityRepository using GORM/PostgreSQL.
-type DailyActivityRepository struct {
-	db *gorm.DB
-}
+type DailyActivityRepository struct{}
 
 // NewDailyActivityRepository creates a new DailyActivityRepository.
-func NewDailyActivityRepository(db *gorm.DB) *DailyActivityRepository {
-	return &DailyActivityRepository{db: db}
+func NewDailyActivityRepository() *DailyActivityRepository {
+	return &DailyActivityRepository{}
 }
 
-func (r *DailyActivityRepository) GetByID(id uint) (*domain.DailyActivityReport, error) {
+func (r *DailyActivityRepository) GetByID(db *gorm.DB, id uint) (*domain.DailyActivityReport, error) {
 	var report domain.DailyActivityReport
-	err := r.db.Preload("User").First(&report, id).Error
+	err := db.Preload("User").First(&report, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "daily_activity_report"}
 	}
 	return &report, err
 }
 
-func (r *DailyActivityRepository) FindByUserAndDate(userID uint, date string) (*domain.DailyActivityReport, error) {
+func (r *DailyActivityRepository) FindByUserAndDate(db *gorm.DB, userID uint, date string) (*domain.DailyActivityReport, error) {
 	var report domain.DailyActivityReport
-	err := r.db.Where("user_id = ? AND (report_date AT TIME ZONE 'America/Bogota')::date = ?::date", userID, date).
+	err := db.Where("user_id = ? AND (report_date AT TIME ZONE 'America/Bogota')::date = ?::date", userID, date).
 		First(&report).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "daily_activity_report"}
@@ -37,19 +35,19 @@ func (r *DailyActivityRepository) FindByUserAndDate(userID uint, date string) (*
 	return &report, err
 }
 
-func (r *DailyActivityRepository) Create(report *domain.DailyActivityReport) error {
-	return r.db.Create(report).Error
+func (r *DailyActivityRepository) Create(db *gorm.DB, report *domain.DailyActivityReport) error {
+	return db.Create(report).Error
 }
 
-func (r *DailyActivityRepository) Update(report *domain.DailyActivityReport) error {
-	return r.db.Save(report).Error
+func (r *DailyActivityRepository) Update(db *gorm.DB, report *domain.DailyActivityReport) error {
+	return db.Save(report).Error
 }
 
-func (r *DailyActivityRepository) List(filters map[string]any, page, perPage int) ([]*domain.DailyActivityReport, int64, error) {
+func (r *DailyActivityRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.DailyActivityReport, int64, error) {
 	var records []*domain.DailyActivityReport
 	var total int64
 
-	q := r.db.Model(&domain.DailyActivityReport{})
+	q := db.Model(&domain.DailyActivityReport{})
 
 	if branchID, ok := filters["branch_id"]; ok {
 		q = q.Where("branch_id = ?", branchID)

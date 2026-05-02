@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -218,19 +219,19 @@ func clampPage(page, perPage int) (int, int) {
 }
 
 // GetByID returns a single clinical history record (with evolutions).
-func (s *Service) GetByID(id uint) (*domain.ClinicalHistory, error) {
-	return s.histories.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.ClinicalHistory, error) {
+	return s.histories.GetByID(db, id)
 }
 
 // GetByPatientIDSingle returns the single clinical history for a patient.
-func (s *Service) GetByPatientIDSingle(patientID uint) (*domain.ClinicalHistory, error) {
-	return s.histories.GetSingleByPatientID(patientID)
+func (s *Service) GetByPatientIDSingle(db *gorm.DB, patientID uint) (*domain.ClinicalHistory, error) {
+	return s.histories.GetSingleByPatientID(db, patientID)
 }
 
 // List returns paginated clinical histories with optional filters.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.histories.List(filters, page, perPage)
+	data, total, err := s.histories.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -242,14 +243,14 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // ListByPatient returns paginated clinical histories for a given patient.
-func (s *Service) ListByPatient(patientID uint, page, perPage int) ([]*domain.ClinicalHistory, int64, error) {
+func (s *Service) ListByPatient(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.ClinicalHistory, int64, error) {
 	page, perPage = clampPage(page, perPage)
-	return s.histories.GetByPatientID(patientID, page, perPage)
+	return s.histories.GetByPatientID(db, patientID, page, perPage)
 }
 
 // Create opens a new clinical history for a patient.
-func (s *Service) Create(input CreateInput) (*domain.ClinicalHistory, error) {
-	if _, err := s.patients.GetByID(input.PatientID); err != nil {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.ClinicalHistory, error) {
+	if _, err := s.patients.GetByID(db, input.PatientID); err != nil {
 		return nil, err
 	}
 
@@ -309,7 +310,7 @@ func (s *Service) Create(input CreateInput) (*domain.ClinicalHistory, error) {
 		Observations:                   input.Observations,
 	}
 
-	if err := s.histories.Create(h); err != nil {
+	if err := s.histories.Create(db, h); err != nil {
 		return nil, err
 	}
 
@@ -317,12 +318,12 @@ func (s *Service) Create(input CreateInput) (*domain.ClinicalHistory, error) {
 		zap.Uint("history_id", h.ID),
 		zap.Uint("patient_id", h.PatientID),
 	)
-	return s.histories.GetByID(h.ID)
+	return s.histories.GetByID(db, h.ID)
 }
 
 // Update modifies an existing clinical history.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.ClinicalHistory, error) {
-	h, err := s.histories.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.ClinicalHistory, error) {
+	h, err := s.histories.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -413,23 +414,23 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.ClinicalHistory, e
 		h.Observations = input.Observations
 	}
 
-	if err := s.histories.Update(h); err != nil {
+	if err := s.histories.Update(db, h); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("clinical history updated", zap.Uint("history_id", h.ID))
-	return s.histories.GetByID(h.ID)
+	return s.histories.GetByID(db, h.ID)
 }
 
 // GetEvolutionByID returns a single clinical evolution.
-func (s *Service) GetEvolutionByID(id uint) (*domain.ClinicalEvolution, error) {
-	return s.evolutions.GetByID(id)
+func (s *Service) GetEvolutionByID(db *gorm.DB, id uint) (*domain.ClinicalEvolution, error) {
+	return s.evolutions.GetByID(db, id)
 }
 
 // ListEvolutions returns paginated evolutions for a given clinical history.
-func (s *Service) ListEvolutions(historyID uint, page, perPage int) (*EvolutionListOutput, error) {
+func (s *Service) ListEvolutions(db *gorm.DB, historyID uint, page, perPage int) (*EvolutionListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.evolutions.GetByClinicalHistoryID(historyID, page, perPage)
+	data, total, err := s.evolutions.GetByClinicalHistoryID(db, historyID, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -441,8 +442,8 @@ func (s *Service) ListEvolutions(historyID uint, page, perPage int) (*EvolutionL
 }
 
 // CreateEvolution adds a new evolution note to a clinical history.
-func (s *Service) CreateEvolution(input CreateEvolutionInput) (*domain.ClinicalEvolution, error) {
-	if _, err := s.histories.GetByID(input.ClinicalHistoryID); err != nil {
+func (s *Service) CreateEvolution(db *gorm.DB, input CreateEvolutionInput) (*domain.ClinicalEvolution, error) {
+	if _, err := s.histories.GetByID(db, input.ClinicalHistoryID); err != nil {
 		return nil, err
 	}
 
@@ -477,17 +478,17 @@ func (s *Service) CreateEvolution(input CreateEvolutionInput) (*domain.ClinicalE
 		}
 	}
 
-	if err := s.evolutions.Create(e); err != nil {
+	if err := s.evolutions.Create(db, e); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("clinical evolution created", zap.Uint("evolution_id", e.ID))
-	return s.evolutions.GetByID(e.ID)
+	return s.evolutions.GetByID(db, e.ID)
 }
 
 // UpdateEvolution modifies an existing clinical evolution.
-func (s *Service) UpdateEvolution(id uint, input UpdateEvolutionInput) (*domain.ClinicalEvolution, error) {
-	e, err := s.evolutions.GetByID(id)
+func (s *Service) UpdateEvolution(db *gorm.DB, id uint, input UpdateEvolutionInput) (*domain.ClinicalEvolution, error) {
+	e, err := s.evolutions.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -520,18 +521,18 @@ func (s *Service) UpdateEvolution(id uint, input UpdateEvolutionInput) (*domain.
 	e.LeftEyeAxis = input.LeftEyeAxis
 	e.LeftEyeVisualAcuity = input.LeftEyeVisualAcuity
 
-	if err := s.evolutions.Update(e); err != nil {
+	if err := s.evolutions.Update(db, e); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("clinical evolution updated", zap.Uint("evolution_id", e.ID))
-	return s.evolutions.GetByID(e.ID)
+	return s.evolutions.GetByID(db, e.ID)
 }
 
 // DeleteEvolution removes a clinical evolution.
-func (s *Service) DeleteEvolution(id uint) error {
-	if _, err := s.evolutions.GetByID(id); err != nil {
+func (s *Service) DeleteEvolution(db *gorm.DB, id uint) error {
+	if _, err := s.evolutions.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.evolutions.Delete(id)
+	return s.evolutions.Delete(db, id)
 }

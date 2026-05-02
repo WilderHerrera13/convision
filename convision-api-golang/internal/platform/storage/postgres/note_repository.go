@@ -7,20 +7,18 @@ import (
 )
 
 // NoteRepository implements domain.NoteRepository using GORM/PostgreSQL.
-type NoteRepository struct {
-	db *gorm.DB
-}
+type NoteRepository struct{}
 
 // NewNoteRepository creates a new NoteRepository.
-func NewNoteRepository(db *gorm.DB) *NoteRepository {
-	return &NoteRepository{db: db}
+func NewNoteRepository() *NoteRepository {
+	return &NoteRepository{}
 }
 
-func (r *NoteRepository) List(noteableType string, noteableID uint, page, perPage int) ([]*domain.Note, int64, error) {
+func (r *NoteRepository) List(db *gorm.DB, noteableType string, noteableID uint, page, perPage int) ([]*domain.Note, int64, error) {
 	var records []*domain.Note
 	var total int64
 
-	q := r.db.Model(&domain.Note{}).
+	q := db.Model(&domain.Note{}).
 		Where("notable_type = ? AND notable_id = ?", noteableType, noteableID)
 
 	if err := q.Count(&total).Error; err != nil {
@@ -31,6 +29,6 @@ func (r *NoteRepository) List(noteableType string, noteableID uint, page, perPag
 	return records, total, err
 }
 
-func (r *NoteRepository) Create(n *domain.Note) error {
-	return r.db.Create(n).Error
+func (r *NoteRepository) Create(db *gorm.DB, n *domain.Note) error {
+	return db.Create(n).Error
 }

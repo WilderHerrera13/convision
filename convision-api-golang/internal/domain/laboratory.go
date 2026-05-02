@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // RxEye holds optical prescription values for one eye.
@@ -219,37 +221,37 @@ func (LaboratoryOrderEvidence) TableName() string {
 
 // LaboratoryOrderEvidenceRepository defines persistence operations for LaboratoryOrderEvidence.
 type LaboratoryOrderEvidenceRepository interface {
-	Create(e *LaboratoryOrderEvidence) error
-	ListByOrderID(orderID uint, transitionType string) ([]*LaboratoryOrderEvidence, error)
+	Create(db *gorm.DB, e *LaboratoryOrderEvidence) error
+	ListByOrderID(db *gorm.DB, orderID uint, transitionType string) ([]*LaboratoryOrderEvidence, error)
 }
 
 // LaboratoryRepository defines persistence operations for Laboratory.
 type LaboratoryRepository interface {
-	GetByID(id uint) (*Laboratory, error)
-	GetFirstActive() (*Laboratory, error)
-	Create(l *Laboratory) error
-	Update(l *Laboratory) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Laboratory, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Laboratory, error)
+	GetFirstActive(db *gorm.DB) (*Laboratory, error)
+	Create(db *gorm.DB, l *Laboratory) error
+	Update(db *gorm.DB, l *Laboratory) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Laboratory, int64, error)
 }
 
 // LaboratoryOrderRepository defines persistence operations for LaboratoryOrder.
 type LaboratoryOrderRepository interface {
-	GetByID(id uint) (*LaboratoryOrder, error)
-	GetByOrderNumber(number string) (*LaboratoryOrder, error)
-	GetBySaleID(saleID uint) (*LaboratoryOrder, error)
-	Create(o *LaboratoryOrder) error
-	Update(o *LaboratoryOrder) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*LaboratoryOrder, int64, error)
-	AddStatusEntry(entry *LaboratoryOrderStatusEntry) error
-	Stats() (map[string]int64, error)
+	GetByID(db *gorm.DB, id uint) (*LaboratoryOrder, error)
+	GetByOrderNumber(db *gorm.DB, number string) (*LaboratoryOrder, error)
+	GetBySaleID(db *gorm.DB, saleID uint) (*LaboratoryOrder, error)
+	Create(db *gorm.DB, o *LaboratoryOrder) error
+	Update(db *gorm.DB, o *LaboratoryOrder) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*LaboratoryOrder, int64, error)
+	AddStatusEntry(db *gorm.DB, entry *LaboratoryOrderStatusEntry) error
+	Stats(db *gorm.DB) (map[string]int64, error)
 }
 
 // LaboratoryOrderCallRepository defines persistence operations for LaboratoryOrderCall.
 type LaboratoryOrderCallRepository interface {
-	Create(call *LaboratoryOrderCall) error
-	GetByOrderID(orderID uint) ([]*LaboratoryOrderCall, error)
-	GetByOrderIDs(orderIDs []uint) ([]*LaboratoryOrderCall, error)
-	PortfolioStats() (map[string]int64, error)
+	Create(db *gorm.DB, call *LaboratoryOrderCall) error
+	GetByOrderID(db *gorm.DB, orderID uint) ([]*LaboratoryOrderCall, error)
+	GetByOrderIDs(db *gorm.DB, orderIDs []uint) ([]*LaboratoryOrderCall, error)
+	PortfolioStats(db *gorm.DB) (map[string]int64, error)
 }

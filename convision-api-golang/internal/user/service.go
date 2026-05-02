@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -52,7 +53,7 @@ type ListOutput struct {
 }
 
 // List returns a paginated list of users.
-func (s *Service) List(page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -60,7 +61,7 @@ func (s *Service) List(page, perPage int) (*ListOutput, error) {
 		perPage = 15
 	}
 
-	users, total, err := s.repo.List(nil, page, perPage)
+	users, total, err := s.repo.List(db, nil, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -83,22 +84,22 @@ func (s *Service) List(page, perPage int) (*ListOutput, error) {
 }
 
 // GetByID returns a single user by ID.
-func (s *Service) GetByID(id uint) (*domain.User, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.User, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // GetSpecialists returns all active users with the specialist role (no pagination cap).
-func (s *Service) GetSpecialists() ([]*domain.User, error) {
-	users, _, err := s.repo.List(map[string]any{"role": string(domain.RoleSpecialist)}, 1, 200)
+func (s *Service) GetSpecialists(db *gorm.DB) ([]*domain.User, error) {
+	users, _, err := s.repo.List(db, map[string]any{"role": string(domain.RoleSpecialist)}, 1, 200)
 	return users, err
 }
 
-func (s *Service) GetSpecialistsByBranch(branchID uint) ([]*domain.User, error) {
-	return s.repo.GetSpecialistsByBranch(branchID)
+func (s *Service) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
+	return s.repo.GetSpecialistsByBranch(db, branchID)
 }
 
 // Create creates a new user with a bcrypt-hashed password.
-func (s *Service) Create(input CreateInput) (*domain.User, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -115,7 +116,7 @@ func (s *Service) Create(input CreateInput) (*domain.User, error) {
 		Active:         true,
 	}
 
-	if err := s.repo.Create(u); err != nil {
+	if err := s.repo.Create(db, u); err != nil {
 		return nil, err
 	}
 
@@ -124,8 +125,8 @@ func (s *Service) Create(input CreateInput) (*domain.User, error) {
 }
 
 // Update applies partial updates to an existing user.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.User, error) {
-	u, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.User, error) {
+	u, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -156,18 +157,18 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.User, error) {
 		u.Password = string(hash)
 	}
 
-	if err := s.repo.Update(u); err != nil {
+	if err := s.repo.Update(db, u); err != nil {
 		return nil, err
 	}
 
 	// Re-fetch to get updated timestamps.
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Delete removes a user by ID.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

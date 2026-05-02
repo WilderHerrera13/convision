@@ -8,17 +8,15 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-type branchRepository struct {
-	db *gorm.DB
+type branchRepository struct{}
+
+func NewBranchRepository() domain.BranchRepository {
+	return &branchRepository{}
 }
 
-func NewBranchRepository(db *gorm.DB) domain.BranchRepository {
-	return &branchRepository{db: db}
-}
-
-func (r *branchRepository) GetByID(id uint) (*domain.Branch, error) {
+func (r *branchRepository) GetByID(db *gorm.DB, id uint) (*domain.Branch, error) {
 	var b domain.Branch
-	if err := r.db.First(&b, id).Error; err != nil {
+	if err := db.First(&b, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrBranchNotFound{ID: id}
 		}
@@ -27,8 +25,8 @@ func (r *branchRepository) GetByID(id uint) (*domain.Branch, error) {
 	return &b, nil
 }
 
-func (r *branchRepository) GetActiveByID(id uint) (*domain.Branch, error) {
-	b, err := r.GetByID(id)
+func (r *branchRepository) GetActiveByID(db *gorm.DB, id uint) (*domain.Branch, error) {
+	b, err := r.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -38,9 +36,9 @@ func (r *branchRepository) GetActiveByID(id uint) (*domain.Branch, error) {
 	return b, nil
 }
 
-func (r *branchRepository) ListAll() ([]*domain.Branch, error) {
+func (r *branchRepository) ListAll(db *gorm.DB) ([]*domain.Branch, error) {
 	var branches []*domain.Branch
-	if err := r.db.Select("id, name, address, city, phone, email, is_active, created_at, updated_at").
+	if err := db.Select("id, name, address, city, phone, email, is_active, created_at, updated_at").
 		Order("name ASC").
 		Find(&branches).Error; err != nil {
 		return nil, err
@@ -48,9 +46,9 @@ func (r *branchRepository) ListAll() ([]*domain.Branch, error) {
 	return branches, nil
 }
 
-func (r *branchRepository) ListForUser(userID uint) ([]*domain.Branch, error) {
+func (r *branchRepository) ListForUser(db *gorm.DB, userID uint) ([]*domain.Branch, error) {
 	var branches []*domain.Branch
-	if err := r.db.
+	if err := db.
 		Select("branches.id, branches.name, branches.city, branches.is_active, branches.created_at, branches.updated_at").
 		Joins("INNER JOIN user_branches ub ON ub.branch_id = branches.id AND ub.user_id = ?", userID).
 		Where("branches.is_active = TRUE").
@@ -61,19 +59,19 @@ func (r *branchRepository) ListForUser(userID uint) ([]*domain.Branch, error) {
 	return branches, nil
 }
 
-func (r *branchRepository) UserHasAccess(userID, branchID uint) (bool, error) {
+func (r *branchRepository) UserHasAccess(db *gorm.DB, userID, branchID uint) (bool, error) {
 	var count int64
-	err := r.db.Model(&domain.UserBranch{}).
+	err := db.Model(&domain.UserBranch{}).
 		Where("user_id = ? AND branch_id = ?", userID, branchID).
 		Count(&count).Error
 	return count > 0, err
 }
 
-func (r *branchRepository) ListUserBranchesByUserID(userID uint) ([]domain.UserBranch, error) {
+func (r *branchRepository) ListUserBranchesByUserID(db *gorm.DB, userID uint) ([]domain.UserBranch, error) {
 	var rows []domain.UserBranch
-	err := r.db.
-		Preload("Branch", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "is_active")
+	err := db.
+		Preload("Branch", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id", "name", "is_active")
 		}).
 		Where("user_id = ?", userID).
 		Find(&rows).Error
@@ -83,9 +81,9 @@ func (r *branchRepository) ListUserBranchesByUserID(userID uint) ([]domain.UserB
 	return rows, nil
 }
 
-func (r *branchRepository) GetUserBranchPrimaryMap(userID uint) (map[uint]bool, error) {
+func (r *branchRepository) GetUserBranchPrimaryMap(db *gorm.DB, userID uint) (map[uint]bool, error) {
 	var ubs []domain.UserBranch
-	if err := r.db.Where("user_id = ?", userID).Find(&ubs).Error; err != nil {
+	if err := db.Where("user_id = ?", userID).Find(&ubs).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[uint]bool, len(ubs))
@@ -95,12 +93,12 @@ func (r *branchRepository) GetUserBranchPrimaryMap(userID uint) (map[uint]bool, 
 	return m, nil
 }
 
-func (r *branchRepository) Create(b *domain.Branch) error {
-	return r.db.Create(b).Error
+func (r *branchRepository) Create(db *gorm.DB, b *domain.Branch) error {
+	return db.Create(b).Error
 }
 
-func (r *branchRepository) Update(b *domain.Branch) error {
-	return r.db.Model(b).Updates(map[string]any{
+func (r *branchRepository) Update(db *gorm.DB, b *domain.Branch) error {
+	return db.Model(b).Updates(map[string]any{
 		"name":      b.Name,
 		"address":   b.Address,
 		"city":      b.City,
@@ -110,8 +108,8 @@ func (r *branchRepository) Update(b *domain.Branch) error {
 	}).Error
 }
 
-func (r *branchRepository) AssignUserBranches(userID uint, assignments []domain.UserBranchInput) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *branchRepository) AssignUserBranches(db *gorm.DB, userID uint, assignments []domain.UserBranchInput) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ?", userID).Delete(&domain.UserBranch{}).Error; err != nil {
 			return err
 		}

@@ -107,6 +107,7 @@ func buildPrescriptionResource(p *domain.Prescription) PrescriptionResource {
 // ListPrescriptions godoc
 // GET /api/v1/prescriptions
 func (h *Handler) ListPrescriptions(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
@@ -114,7 +115,7 @@ func (h *Handler) ListPrescriptions(c *gin.Context) {
 		filters = make(map[string]any)
 	}
 
-	out, err := h.prescription.List(filters, page, perPage)
+	out, err := h.prescription.List(db, filters, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -143,12 +144,13 @@ func (h *Handler) ListPrescriptions(c *gin.Context) {
 // GetPrescription godoc
 // GET /api/v1/prescriptions/:id
 func (h *Handler) GetPrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	p, err := h.prescription.GetByID(id)
+	p, err := h.prescription.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -159,13 +161,14 @@ func (h *Handler) GetPrescription(c *gin.Context) {
 // CreatePrescription godoc
 // POST /api/v1/prescriptions
 func (h *Handler) CreatePrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input prescriptionsvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
 
-	p, err := h.prescription.Create(input)
+	p, err := h.prescription.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -176,6 +179,7 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 // UpdatePrescription godoc
 // PUT /api/v1/prescriptions/:id
 func (h *Handler) UpdatePrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -187,7 +191,7 @@ func (h *Handler) UpdatePrescription(c *gin.Context) {
 		return
 	}
 
-	p, err := h.prescription.Update(id, input)
+	p, err := h.prescription.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -198,12 +202,13 @@ func (h *Handler) UpdatePrescription(c *gin.Context) {
 // DeletePrescription godoc
 // DELETE /api/v1/prescriptions/:id
 func (h *Handler) DeletePrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	if err := h.prescription.Delete(id); err != nil {
+	if err := h.prescription.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -213,6 +218,7 @@ func (h *Handler) DeletePrescription(c *gin.Context) {
 // ListPatientPrescriptions godoc
 // GET /api/v1/patients/:id/prescriptions
 func (h *Handler) ListPatientPrescriptions(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	patientID, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -221,7 +227,7 @@ func (h *Handler) ListPatientPrescriptions(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
-	out, err := h.prescription.ListByPatient(patientID, page, perPage)
+	out, err := h.prescription.ListByPatient(db, patientID, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -93,7 +94,7 @@ func parseScheduledAt(scheduledAt, date, timeStr string) *time.Time {
 }
 
 // List returns a paginated list of appointments, optionally filtered.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -101,7 +102,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 		perPage = 15
 	}
 
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -121,18 +122,18 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // GetByID returns a single appointment (with relations) or ErrNotFound.
-func (s *Service) GetByID(id uint) (*domain.Appointment, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Appointment, error) {
+	return s.repo.GetByID(db, id)
 }
 
 const defaultAppointmentDurationMins = 30
 
 // Create adds a new appointment after checking for specialist scheduling conflicts.
-func (s *Service) Create(input CreateInput, receptionistID uint) (*domain.Appointment, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, receptionistID uint) (*domain.Appointment, error) {
 	scheduledAt := parseScheduledAt(input.ScheduledAt, input.Date, input.Time)
 
 	if scheduledAt != nil && input.SpecialistID != nil {
-		conflict, err := s.repo.HasConflictForSpecialist(*input.SpecialistID, *scheduledAt, 0, defaultAppointmentDurationMins)
+		conflict, err := s.repo.HasConflictForSpecialist(db, *input.SpecialistID, *scheduledAt, 0, defaultAppointmentDurationMins)
 		if err != nil {
 			return nil, err
 		}
@@ -156,17 +157,17 @@ func (s *Service) Create(input CreateInput, receptionistID uint) (*domain.Appoin
 		AppointmentTypeID: input.AppointmentTypeID,
 	}
 
-	if err := s.repo.Create(a); err != nil {
+	if err := s.repo.Create(db, a); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("appointment created", zap.Uint("appointment_id", a.ID))
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }
 
 // Update modifies an existing appointment's mutable fields, checking for scheduling conflicts.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Appointment, error) {
-	a, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +193,7 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Appointment, error
 
 	if a.ScheduledAt != nil && a.SpecialistID != nil &&
 		input.Status == "" || (input.Status != "cancelled" && input.Status != "completed") {
-		conflict, cerr := s.repo.HasConflictForSpecialist(*a.SpecialistID, *a.ScheduledAt, id, defaultAppointmentDurationMins)
+		conflict, cerr := s.repo.HasConflictForSpecialist(db, *a.SpecialistID, *a.ScheduledAt, id, defaultAppointmentDurationMins)
 		if cerr != nil {
 			return nil, cerr
 		}
@@ -204,28 +205,28 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Appointment, error
 		}
 	}
 
-	if err := s.repo.Update(a); err != nil {
+	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }
 
 // GetBookedSlots returns the list of HH:MM times already booked for a specialist on a given date.
-func (s *Service) GetBookedSlots(specialistID uint, date time.Time) ([]string, error) {
-	return s.repo.GetBookedTimesForSpecialist(specialistID, date)
+func (s *Service) GetBookedSlots(db *gorm.DB, specialistID uint, date time.Time) ([]string, error) {
+	return s.repo.GetBookedTimesForSpecialist(db, specialistID, date)
 }
 
 // Delete removes an appointment.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }
 
 // Take sets appointment to in_progress and assigns taken_by.
-func (s *Service) Take(id uint, specialistID uint) (*domain.Appointment, error) {
-	a, err := s.repo.GetByID(id)
+func (s *Service) Take(db *gorm.DB, id uint, specialistID uint) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -233,15 +234,15 @@ func (s *Service) Take(id uint, specialistID uint) (*domain.Appointment, error) 
 	a.Status = domain.AppointmentStatusInProgress
 	a.TakenByID = &specialistID
 
-	if err := s.repo.Update(a); err != nil {
+	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }
 
 // Pause sets appointment to paused (must be in_progress).
-func (s *Service) Pause(id uint) (*domain.Appointment, error) {
-	a, err := s.repo.GetByID(id)
+func (s *Service) Pause(db *gorm.DB, id uint) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -250,15 +251,15 @@ func (s *Service) Pause(id uint) (*domain.Appointment, error) {
 	}
 
 	a.Status = domain.AppointmentStatusPaused
-	if err := s.repo.Update(a); err != nil {
+	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }
 
 // Resume sets appointment to in_progress (must be paused).
-func (s *Service) Resume(id uint) (*domain.Appointment, error) {
-	a, err := s.repo.GetByID(id)
+func (s *Service) Resume(db *gorm.DB, id uint) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -267,10 +268,10 @@ func (s *Service) Resume(id uint) (*domain.Appointment, error) {
 	}
 
 	a.Status = domain.AppointmentStatusInProgress
-	if err := s.repo.Update(a); err != nil {
+	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }
 
 // ListManagementReport returns a page of appointments filtered to those
@@ -278,6 +279,7 @@ func (s *Service) Resume(id uint) (*domain.Appointment, error) {
 // specialistID is 0 no attended-by constraint is applied (admin view).
 // When pendingReport is true only appointments without a saved report are returned.
 func (s *Service) ListManagementReport(
+	db *gorm.DB,
 	specialistID uint,
 	search, startDate, endDate, status, consultationType string,
 	branchID *uint,
@@ -309,40 +311,40 @@ func (s *Service) ListManagementReport(
 	if pendingReport {
 		filters["_pending_report"] = true
 	}
-	return s.List(filters, page, perPage)
+	return s.List(db, filters, page, perPage)
 }
 
 // GetConsolidatedReport returns per-specialist aggregated consultation counts
 // for the given date range. specialistIDs restricts to those IDs when non-empty.
-func (s *Service) GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
-	return s.repo.GetConsolidatedReport(from, to, specialistIDs, branchID)
+func (s *Service) GetConsolidatedReport(db *gorm.DB, from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
+	return s.repo.GetConsolidatedReport(db, from, to, specialistIDs, branchID)
 }
 
 // SaveManagementReport validates the report input and persists the
 // consultation_type + report_notes columns on the target appointment.
-func (s *Service) SaveManagementReport(id uint, input ManagementReportInput) (*domain.Appointment, error) {
+func (s *Service) SaveManagementReport(db *gorm.DB, id uint, input ManagementReportInput) (*domain.Appointment, error) {
 	if !domain.IsValidConsultationType(input.ConsultationType) {
 		return nil, &domain.ErrValidation{
 			Field:   "consultation_type",
 			Message: "valor no válido",
 		}
 	}
-	if _, err := s.repo.GetByID(id); err != nil {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return nil, err
 	}
-	if err := s.repo.SaveManagementReport(id, input.ConsultationType, input.ReportNotes); err != nil {
+	if err := s.repo.SaveManagementReport(db, id, input.ConsultationType, input.ReportNotes); err != nil {
 		return nil, err
 	}
 	s.logger.Info("management report saved",
 		zap.Uint("appointment_id", id),
 		zap.String("consultation_type", input.ConsultationType),
 	)
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // SaveAnnotations updates annotation paths/notes on an appointment.
-func (s *Service) SaveAnnotations(id uint, input AnnotationsInput) (*domain.Appointment, error) {
-	a, err := s.repo.GetByID(id)
+func (s *Service) SaveAnnotations(db *gorm.DB, id uint, input AnnotationsInput) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -357,8 +359,8 @@ func (s *Service) SaveAnnotations(id uint, input AnnotationsInput) (*domain.Appo
 		a.RightEyeAnnotationPaths = string(input.RightEyeAnnotationPaths)
 	}
 
-	if err := s.repo.Update(a); err != nil {
+	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(a.ID)
+	return s.repo.GetByID(db, a.ID)
 }

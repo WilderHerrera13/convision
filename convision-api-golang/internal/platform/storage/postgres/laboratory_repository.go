@@ -26,17 +26,15 @@ var laboratoryOrderFilterAllowlist = map[string]bool{
 }
 
 // LaboratoryRepository is the PostgreSQL-backed implementation of domain.LaboratoryRepository.
-type LaboratoryRepository struct {
-	db *gorm.DB
+type LaboratoryRepository struct{}
+
+func NewLaboratoryRepository() *LaboratoryRepository {
+	return &LaboratoryRepository{}
 }
 
-func NewLaboratoryRepository(db *gorm.DB) *LaboratoryRepository {
-	return &LaboratoryRepository{db: db}
-}
-
-func (r *LaboratoryRepository) GetByID(id uint) (*domain.Laboratory, error) {
+func (r *LaboratoryRepository) GetByID(db *gorm.DB, id uint) (*domain.Laboratory, error) {
 	var l domain.Laboratory
-	err := r.db.First(&l, id).Error
+	err := db.First(&l, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "laboratory"}
@@ -46,12 +44,12 @@ func (r *LaboratoryRepository) GetByID(id uint) (*domain.Laboratory, error) {
 	return &l, nil
 }
 
-func (r *LaboratoryRepository) Create(l *domain.Laboratory) error {
-	return r.db.Create(l).Error
+func (r *LaboratoryRepository) Create(db *gorm.DB, l *domain.Laboratory) error {
+	return db.Create(l).Error
 }
 
-func (r *LaboratoryRepository) Update(l *domain.Laboratory) error {
-	return r.db.Model(l).Updates(map[string]any{
+func (r *LaboratoryRepository) Update(db *gorm.DB, l *domain.Laboratory) error {
+	return db.Model(l).Updates(map[string]any{
 		"name":           l.Name,
 		"contact_person": l.ContactPerson,
 		"email":          l.Email,
@@ -62,20 +60,20 @@ func (r *LaboratoryRepository) Update(l *domain.Laboratory) error {
 	}).Error
 }
 
-func (r *LaboratoryRepository) Delete(id uint) error {
+func (r *LaboratoryRepository) Delete(db *gorm.DB, id uint) error {
 	// Delete associated lab orders and their status history first
 	var orderIDs []uint
-	r.db.Model(&domain.LaboratoryOrder{}).Where("laboratory_id = ?", id).Pluck("id", &orderIDs)
+	db.Model(&domain.LaboratoryOrder{}).Where("laboratory_id = ?", id).Pluck("id", &orderIDs)
 	if len(orderIDs) > 0 {
-		r.db.Where("laboratory_order_id IN ?", orderIDs).Delete(&domain.LaboratoryOrderStatusEntry{})
-		r.db.Where("laboratory_id = ?", id).Delete(&domain.LaboratoryOrder{})
+		db.Where("laboratory_order_id IN ?", orderIDs).Delete(&domain.LaboratoryOrderStatusEntry{})
+		db.Where("laboratory_id = ?", id).Delete(&domain.LaboratoryOrder{})
 	}
-	return r.db.Delete(&domain.Laboratory{}, id).Error
+	return db.Delete(&domain.Laboratory{}, id).Error
 }
 
-func (r *LaboratoryRepository) GetFirstActive() (*domain.Laboratory, error) {
+func (r *LaboratoryRepository) GetFirstActive(db *gorm.DB) (*domain.Laboratory, error) {
 	var l domain.Laboratory
-	err := r.db.Where("status = ?", "active").Order("id ASC").First(&l).Error
+	err := db.Where("status = ?", "active").Order("id ASC").First(&l).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "laboratory"}
@@ -85,11 +83,11 @@ func (r *LaboratoryRepository) GetFirstActive() (*domain.Laboratory, error) {
 	return &l, nil
 }
 
-func (r *LaboratoryRepository) List(filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
+func (r *LaboratoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
 	var labs []*domain.Laboratory
 	var total int64
 
-	q := r.db.Model(&domain.Laboratory{})
+	q := db.Model(&domain.Laboratory{})
 	for k, v := range filters {
 		if laboratoryFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)
@@ -108,12 +106,10 @@ func (r *LaboratoryRepository) List(filters map[string]any, page, perPage int) (
 }
 
 // LaboratoryOrderRepository is the PostgreSQL-backed implementation of domain.LaboratoryOrderRepository.
-type LaboratoryOrderRepository struct {
-	db *gorm.DB
-}
+type LaboratoryOrderRepository struct{}
 
-func NewLaboratoryOrderRepository(db *gorm.DB) *LaboratoryOrderRepository {
-	return &LaboratoryOrderRepository{db: db}
+func NewLaboratoryOrderRepository() *LaboratoryOrderRepository {
+	return &LaboratoryOrderRepository{}
 }
 
 func (r *LaboratoryOrderRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -128,9 +124,9 @@ func (r *LaboratoryOrderRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Sale")
 }
 
-func (r *LaboratoryOrderRepository) GetBySaleID(saleID uint) (*domain.LaboratoryOrder, error) {
+func (r *LaboratoryOrderRepository) GetBySaleID(db *gorm.DB, saleID uint) (*domain.LaboratoryOrder, error) {
 	var o domain.LaboratoryOrder
-	err := r.withRelations(r.db).Where("sale_id = ?", saleID).First(&o).Error
+	err := r.withRelations(db).Where("sale_id = ?", saleID).First(&o).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -140,9 +136,9 @@ func (r *LaboratoryOrderRepository) GetBySaleID(saleID uint) (*domain.Laboratory
 	return &o, nil
 }
 
-func (r *LaboratoryOrderRepository) GetByID(id uint) (*domain.LaboratoryOrder, error) {
+func (r *LaboratoryOrderRepository) GetByID(db *gorm.DB, id uint) (*domain.LaboratoryOrder, error) {
 	var o domain.LaboratoryOrder
-	err := r.withRelations(r.db).First(&o, id).Error
+	err := r.withRelations(db).First(&o, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "laboratory_order"}
@@ -152,9 +148,9 @@ func (r *LaboratoryOrderRepository) GetByID(id uint) (*domain.LaboratoryOrder, e
 	return &o, nil
 }
 
-func (r *LaboratoryOrderRepository) GetByOrderNumber(number string) (*domain.LaboratoryOrder, error) {
+func (r *LaboratoryOrderRepository) GetByOrderNumber(db *gorm.DB, number string) (*domain.LaboratoryOrder, error) {
 	var o domain.LaboratoryOrder
-	err := r.withRelations(r.db).Where("order_number = ?", number).First(&o).Error
+	err := r.withRelations(db).Where("order_number = ?", number).First(&o).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "laboratory_order"}
@@ -164,17 +160,17 @@ func (r *LaboratoryOrderRepository) GetByOrderNumber(number string) (*domain.Lab
 	return &o, nil
 }
 
-func (r *LaboratoryOrderRepository) Create(o *domain.LaboratoryOrder) error {
+func (r *LaboratoryOrderRepository) Create(db *gorm.DB, o *domain.LaboratoryOrder) error {
 	o.OrderNumber = fmt.Sprintf("TEMP-%d", time.Now().UnixNano())
-	if err := r.db.Create(o).Error; err != nil {
+	if err := db.Create(o).Error; err != nil {
 		return err
 	}
 	o.OrderNumber = fmt.Sprintf("LAB-%04d", o.ID)
-	return r.db.Model(o).Update("order_number", o.OrderNumber).Error
+	return db.Model(o).Update("order_number", o.OrderNumber).Error
 }
 
-func (r *LaboratoryOrderRepository) Update(o *domain.LaboratoryOrder) error {
-	return r.db.Model(o).Updates(map[string]any{
+func (r *LaboratoryOrderRepository) Update(db *gorm.DB, o *domain.LaboratoryOrder) error {
+	return db.Model(o).Updates(map[string]any{
 		"order_id":                  o.OrderID,
 		"sale_id":                   o.SaleID,
 		"laboratory_id":             o.LaboratoryID,
@@ -188,17 +184,17 @@ func (r *LaboratoryOrderRepository) Update(o *domain.LaboratoryOrder) error {
 	}).Error
 }
 
-func (r *LaboratoryOrderRepository) Delete(id uint) error {
+func (r *LaboratoryOrderRepository) Delete(db *gorm.DB, id uint) error {
 	// Delete status history first to avoid FK constraint
-	r.db.Where("laboratory_order_id = ?", id).Delete(&domain.LaboratoryOrderStatusEntry{})
-	return r.db.Delete(&domain.LaboratoryOrder{}, id).Error
+	db.Where("laboratory_order_id = ?", id).Delete(&domain.LaboratoryOrderStatusEntry{})
+	return db.Delete(&domain.LaboratoryOrder{}, id).Error
 }
 
-func (r *LaboratoryOrderRepository) List(filters map[string]any, page, perPage int) ([]*domain.LaboratoryOrder, int64, error) {
+func (r *LaboratoryOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.LaboratoryOrder, int64, error) {
 	var orders []*domain.LaboratoryOrder
 	var total int64
 
-	q := r.db.Model(&domain.LaboratoryOrder{})
+	q := db.Model(&domain.LaboratoryOrder{})
 	for k, v := range filters {
 		if laboratoryOrderFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)
@@ -235,11 +231,11 @@ func (r *LaboratoryOrderRepository) List(filters map[string]any, page, perPage i
 	return orders, total, err
 }
 
-func (r *LaboratoryOrderRepository) AddStatusEntry(entry *domain.LaboratoryOrderStatusEntry) error {
-	return r.db.Create(entry).Error
+func (r *LaboratoryOrderRepository) AddStatusEntry(db *gorm.DB, entry *domain.LaboratoryOrderStatusEntry) error {
+	return db.Create(entry).Error
 }
 
-func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
+func (r *LaboratoryOrderRepository) Stats(db *gorm.DB) (map[string]int64, error) {
 	statuses := []domain.LaboratoryOrderStatusValue{
 		domain.LaboratoryOrderStatusPending,
 		domain.LaboratoryOrderStatusInProcess,
@@ -256,28 +252,26 @@ func (r *LaboratoryOrderRepository) Stats() (map[string]int64, error) {
 	result := map[string]int64{}
 	for _, s := range statuses {
 		var count int64
-		r.db.Model(&domain.LaboratoryOrder{}).Where("status = ?", s).Count(&count)
+		db.Model(&domain.LaboratoryOrder{}).Where("status = ?", s).Count(&count)
 		result[string(s)] = count
 	}
 	return result, nil
 }
 
 // LaboratoryOrderEvidenceRepository is the PostgreSQL-backed implementation of domain.LaboratoryOrderEvidenceRepository.
-type LaboratoryOrderEvidenceRepository struct {
-	db *gorm.DB
+type LaboratoryOrderEvidenceRepository struct{}
+
+func NewLaboratoryOrderEvidenceRepository() *LaboratoryOrderEvidenceRepository {
+	return &LaboratoryOrderEvidenceRepository{}
 }
 
-func NewLaboratoryOrderEvidenceRepository(db *gorm.DB) *LaboratoryOrderEvidenceRepository {
-	return &LaboratoryOrderEvidenceRepository{db: db}
+func (r *LaboratoryOrderEvidenceRepository) Create(db *gorm.DB, e *domain.LaboratoryOrderEvidence) error {
+	return db.Create(e).Error
 }
 
-func (r *LaboratoryOrderEvidenceRepository) Create(e *domain.LaboratoryOrderEvidence) error {
-	return r.db.Create(e).Error
-}
-
-func (r *LaboratoryOrderEvidenceRepository) ListByOrderID(orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
+func (r *LaboratoryOrderEvidenceRepository) ListByOrderID(db *gorm.DB, orderID uint, transitionType string) ([]*domain.LaboratoryOrderEvidence, error) {
 	var items []*domain.LaboratoryOrderEvidence
-	q := r.db.Preload("User").Where("laboratory_order_id = ?", orderID)
+	q := db.Preload("User").Where("laboratory_order_id = ?", orderID)
 	if transitionType != "" {
 		q = q.Where("transition_type = ?", transitionType)
 	}

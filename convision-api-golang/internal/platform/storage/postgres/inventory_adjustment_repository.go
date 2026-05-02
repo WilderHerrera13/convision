@@ -9,18 +9,16 @@ import (
 )
 
 // InventoryAdjustmentRepository is the PostgreSQL-backed implementation of domain.InventoryAdjustmentRepository.
-type InventoryAdjustmentRepository struct {
-	db *gorm.DB
-}
+type InventoryAdjustmentRepository struct{}
 
 // NewInventoryAdjustmentRepository creates a new InventoryAdjustmentRepository.
-func NewInventoryAdjustmentRepository(db *gorm.DB) *InventoryAdjustmentRepository {
-	return &InventoryAdjustmentRepository{db: db}
+func NewInventoryAdjustmentRepository() *InventoryAdjustmentRepository {
+	return &InventoryAdjustmentRepository{}
 }
 
-func (r *InventoryAdjustmentRepository) GetByID(id uint) (*domain.InventoryAdjustment, error) {
+func (r *InventoryAdjustmentRepository) GetByID(db *gorm.DB, id uint) (*domain.InventoryAdjustment, error) {
 	var a domain.InventoryAdjustment
-	err := r.db.Preload("InventoryItem").First(&a, id).Error
+	err := db.Preload("InventoryItem").First(&a, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "inventory_adjustment"}
@@ -30,19 +28,22 @@ func (r *InventoryAdjustmentRepository) GetByID(id uint) (*domain.InventoryAdjus
 	return &a, nil
 }
 
-func (r *InventoryAdjustmentRepository) Create(a *domain.InventoryAdjustment) error {
-	return r.db.Create(a).Error
+func (r *InventoryAdjustmentRepository) Create(db *gorm.DB, a *domain.InventoryAdjustment) error {
+	return db.Create(a).Error
 }
 
-func (r *InventoryAdjustmentRepository) Update(a *domain.InventoryAdjustment) error {
-	return r.db.Save(a).Error
+func (r *InventoryAdjustmentRepository) Update(db *gorm.DB, a *domain.InventoryAdjustment) error {
+	return db.Model(a).Updates(map[string]any{
+		"status": a.Status,
+		"notes":  a.Notes,
+	}).Error
 }
 
-func (r *InventoryAdjustmentRepository) List(filters map[string]any, page, perPage int) ([]*domain.InventoryAdjustment, int64, error) {
+func (r *InventoryAdjustmentRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryAdjustment, int64, error) {
 	var data []*domain.InventoryAdjustment
 	var total int64
 
-	q := r.db.Model(&domain.InventoryAdjustment{}).Preload("InventoryItem")
+	q := db.Model(&domain.InventoryAdjustment{}).Preload("InventoryItem")
 
 	if v, ok := filters["status"]; ok {
 		q = q.Where("status = ?", v)

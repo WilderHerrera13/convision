@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // NotificationKind enumerates the categories of admin notifications.
 type NotificationKind string
@@ -36,15 +40,15 @@ type NotificationSummary struct {
 
 // NotificationRepository defines persistence operations for AdminUserNotification.
 type NotificationRepository interface {
-	GetByID(id uint) (*AdminUserNotification, error)
-	GetUnreadByUserID(userID uint) ([]*AdminUserNotification, error)
-	Create(n *AdminUserNotification) error
-	MarkAsRead(id uint) error
-	MarkAsUnread(id uint) error
-	Archive(id uint) error
-	Unarchive(id uint) error
-	ReadAll() error
-	Summary() (*NotificationSummary, error)
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*AdminUserNotification, int64, error)
+	GetByID(db *gorm.DB, id uint) (*AdminUserNotification, error)
+	GetUnreadByUserID(db *gorm.DB, userID uint) ([]*AdminUserNotification, error)
+	Create(db *gorm.DB, n *AdminUserNotification) error
+	MarkAsRead(db *gorm.DB, id uint) error
+	MarkAsUnread(db *gorm.DB, id uint) error
+	Archive(db *gorm.DB, id uint) error
+	Unarchive(db *gorm.DB, id uint) error
+	ReadAll(db *gorm.DB) error
+	Summary(db *gorm.DB) (*NotificationSummary, error)
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*AdminUserNotification, int64, error)
 }

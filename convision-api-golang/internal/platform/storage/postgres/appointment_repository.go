@@ -21,13 +21,11 @@ var appointmentFilterAllowlist = map[string]bool{
 }
 
 // AppointmentRepository is the PostgreSQL-backed implementation of domain.AppointmentRepository.
-type AppointmentRepository struct {
-	db *gorm.DB
-}
+type AppointmentRepository struct{}
 
 // NewAppointmentRepository creates a new AppointmentRepository.
-func NewAppointmentRepository(db *gorm.DB) *AppointmentRepository {
-	return &AppointmentRepository{db: db}
+func NewAppointmentRepository() *AppointmentRepository {
+	return &AppointmentRepository{}
 }
 
 func (r *AppointmentRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -39,9 +37,9 @@ func (r *AppointmentRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("TakenBy")
 }
 
-func (r *AppointmentRepository) GetByID(id uint) (*domain.Appointment, error) {
+func (r *AppointmentRepository) GetByID(db *gorm.DB, id uint) (*domain.Appointment, error) {
 	var a domain.Appointment
-	err := r.withRelations(r.db).First(&a, id).Error
+	err := r.withRelations(db).First(&a, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "appointment"}
@@ -51,20 +49,20 @@ func (r *AppointmentRepository) GetByID(id uint) (*domain.Appointment, error) {
 	return &a, nil
 }
 
-func (r *AppointmentRepository) GetByPatientID(patientID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
-	return r.List(map[string]any{"patient_id": patientID}, page, perPage)
+func (r *AppointmentRepository) GetByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
+	return r.List(db, map[string]any{"patient_id": patientID}, page, perPage)
 }
 
-func (r *AppointmentRepository) GetBySpecialistID(specialistID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
-	return r.List(map[string]any{"specialist_id": specialistID}, page, perPage)
+func (r *AppointmentRepository) GetBySpecialistID(db *gorm.DB, specialistID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
+	return r.List(db, map[string]any{"specialist_id": specialistID}, page, perPage)
 }
 
-func (r *AppointmentRepository) Create(a *domain.Appointment) error {
-	return r.db.Create(a).Error
+func (r *AppointmentRepository) Create(db *gorm.DB, a *domain.Appointment) error {
+	return db.Create(a).Error
 }
 
-func (r *AppointmentRepository) Update(a *domain.Appointment) error {
-	return r.db.Model(a).Updates(map[string]any{
+func (r *AppointmentRepository) Update(db *gorm.DB, a *domain.Appointment) error {
+	return db.Model(a).Updates(map[string]any{
 		"patient_id":                 a.PatientID,
 		"specialist_id":              a.SpecialistID,
 		"receptionist_id":            a.ReceptionistID,
@@ -82,18 +80,18 @@ func (r *AppointmentRepository) Update(a *domain.Appointment) error {
 	}).Error
 }
 
-func (r *AppointmentRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Appointment{}, id).Error
+func (r *AppointmentRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Appointment{}, id).Error
 }
 
 // ExistsByPatientAndDate checks whether an appointment already exists for the
 // same patient, same specialist, and same calendar day. Used by the bulk
 // importer to skip duplicate rows.
-func (r *AppointmentRepository) ExistsByPatientAndDate(patientID uint, specialistID *uint, date time.Time) (bool, error) {
+func (r *AppointmentRepository) ExistsByPatientAndDate(db *gorm.DB, patientID uint, specialistID *uint, date time.Time) (bool, error) {
 	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	q := r.db.Model(&domain.Appointment{}).
+	q := db.Model(&domain.Appointment{}).
 		Where("patient_id = ? AND scheduled_at >= ? AND scheduled_at < ?", patientID, dayStart, dayEnd)
 
 	if specialistID != nil {
@@ -111,8 +109,8 @@ func (r *AppointmentRepository) ExistsByPatientAndDate(patientID uint, specialis
 
 // SaveManagementReport updates only the specialist-report columns on an
 // appointment. Intentionally scoped to keep other columns untouched.
-func (r *AppointmentRepository) SaveManagementReport(id uint, consultationType, reportNotes string) error {
-	res := r.db.Model(&domain.Appointment{}).
+func (r *AppointmentRepository) SaveManagementReport(db *gorm.DB, id uint, consultationType, reportNotes string) error {
+	res := db.Model(&domain.Appointment{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"consultation_type": consultationType,
@@ -130,7 +128,7 @@ func (r *AppointmentRepository) SaveManagementReport(id uint, consultationType, 
 // GetConsolidatedReport returns per-specialist aggregated consultation counts
 // for the given date range. specialistIDs restricts results to those IDs when
 // non-empty; pass nil/empty for all specialists.
-func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
+func (r *AppointmentRepository) GetConsolidatedReport(db *gorm.DB, from, to string, specialistIDs []uint, branchID *uint) ([]*domain.SpecialistReportSummary, error) {
 	type row struct {
 		SpecialistID     uint   `gorm:"column:specialist_id"`
 		SpecialistName   string `gorm:"column:specialist_name"`
@@ -189,7 +187,7 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 		ORDER BY u.name, u.last_name`
 
 	var rows []row
-	if err := r.db.Raw(rawSQL, args...).Scan(&rows).Error; err != nil {
+	if err := db.Raw(rawSQL, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
@@ -214,6 +212,7 @@ func (r *AppointmentRepository) GetConsolidatedReport(from, to string, specialis
 // appointment within durationMins of the proposed scheduledAt.
 // excludeID allows skipping the appointment being updated (pass 0 when creating).
 func (r *AppointmentRepository) HasConflictForSpecialist(
+	db *gorm.DB,
 	specialistID uint,
 	scheduledAt time.Time,
 	excludeID uint,
@@ -223,7 +222,7 @@ func (r *AppointmentRepository) HasConflictForSpecialist(
 	from := scheduledAt.Add(-window + time.Minute)
 	to := scheduledAt.Add(window - time.Minute)
 
-	q := r.db.Model(&domain.Appointment{}).
+	q := db.Model(&domain.Appointment{}).
 		Where("specialist_id = ?", specialistID).
 		Where("status NOT IN ?", []string{"cancelled", "completed"}).
 		Where("scheduled_at IS NOT NULL").
@@ -242,12 +241,12 @@ func (r *AppointmentRepository) HasConflictForSpecialist(
 
 // GetBookedTimesForSpecialist returns HH:MM strings of all booked (non-cancelled)
 // appointments for a given specialist on the given calendar day (UTC).
-func (r *AppointmentRepository) GetBookedTimesForSpecialist(specialistID uint, date time.Time) ([]string, error) {
+func (r *AppointmentRepository) GetBookedTimesForSpecialist(db *gorm.DB, specialistID uint, date time.Time) ([]string, error) {
 	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
 	var appointments []*domain.Appointment
-	err := r.db.Model(&domain.Appointment{}).
+	err := db.Model(&domain.Appointment{}).
 		Select("scheduled_at").
 		Where("specialist_id = ?", specialistID).
 		Where("status NOT IN ?", []string{"cancelled"}).
@@ -269,9 +268,9 @@ func (r *AppointmentRepository) GetBookedTimesForSpecialist(specialistID uint, d
 
 // GetActiveBySpecialist returns the single in-progress appointment for the given specialist.
 // Returns ErrNotFound if no active appointment exists.
-func (r *AppointmentRepository) GetActiveBySpecialist(specialistID uint) (*domain.Appointment, error) {
+func (r *AppointmentRepository) GetActiveBySpecialist(db *gorm.DB, specialistID uint) (*domain.Appointment, error) {
 	var a domain.Appointment
-	err := r.withRelations(r.db).
+	err := r.withRelations(db).
 		Where("taken_by_id = ? AND status = ?", specialistID, domain.AppointmentStatusInProgress).
 		First(&a).Error
 	if err != nil {
@@ -283,11 +282,11 @@ func (r *AppointmentRepository) GetActiveBySpecialist(specialistID uint) (*domai
 	return &a, nil
 }
 
-func (r *AppointmentRepository) List(filters map[string]any, page, perPage int) ([]*domain.Appointment, int64, error) {
+func (r *AppointmentRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Appointment, int64, error) {
 	var appointments []*domain.Appointment
 	var total int64
 
-	q := r.db.Model(&domain.Appointment{})
+	q := db.Model(&domain.Appointment{})
 	needsPatientJoin := false
 	for field, value := range filters {
 		switch field {

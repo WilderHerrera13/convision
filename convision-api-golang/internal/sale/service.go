@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
 
 // Service handles sale use-cases.
 type Service struct {
+	db              *gorm.DB
 	saleRepo        domain.SaleRepository
 	adjRepo         domain.SaleLensPriceAdjustmentRepository
 	productRepo     domain.ProductRepository
@@ -22,6 +24,7 @@ type Service struct {
 
 // NewService creates a new sale Service.
 func NewService(
+	db *gorm.DB,
 	saleRepo domain.SaleRepository,
 	adjRepo domain.SaleLensPriceAdjustmentRepository,
 	productRepo domain.ProductRepository,
@@ -31,6 +34,7 @@ func NewService(
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
+		db:              db,
 		saleRepo:        saleRepo,
 		adjRepo:         adjRepo,
 		productRepo:     productRepo,
@@ -84,14 +88,14 @@ type CreateInput struct {
 
 // UpdateInput holds the validated data for updating a sale.
 type UpdateInput struct {
-	PatientID    uint    `json:"patient_id"`
-	Subtotal     float64 `json:"subtotal"`
-	Tax          float64 `json:"tax"`
-	Discount     float64 `json:"discount"`
-	Total        float64 `json:"total"`
-	Notes        string  `json:"notes"`
-	Status       string  `json:"status"`
-	PaymentStatus string `json:"payment_status"`
+	PatientID     uint    `json:"patient_id"`
+	Subtotal      float64 `json:"subtotal"`
+	Tax           float64 `json:"tax"`
+	Discount      float64 `json:"discount"`
+	Total         float64 `json:"total"`
+	Notes         string  `json:"notes"`
+	Status        string  `json:"status"`
+	PaymentStatus string  `json:"payment_status"`
 }
 
 // AddPaymentInput holds data for adding a payment to an existing sale.
@@ -157,7 +161,7 @@ func derivePaymentStatus(amountPaid, total float64, hasPayments bool) string {
 // List returns a paginated list of sales.
 func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.saleRepo.List(filters, page, perPage)
+	data, total, err := s.saleRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 
 // GetByID returns a single sale by ID.
 func (s *Service) GetByID(id uint) (*domain.Sale, error) {
-	return s.saleRepo.GetByID(id)
+	return s.saleRepo.GetByID(s.db, id)
 }
 
 // Create creates a new sale with optional initial payments.
@@ -261,7 +265,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 		Payments:      payments,
 	}
 
-	if err := s.saleRepo.Create(sale); err != nil {
+	if err := s.saleRepo.Create(s.db, sale); err != nil {
 		return nil, err
 	}
 
@@ -271,12 +275,12 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 	s.updateOrderPaymentStatus(sale)
 	s.updateAppointmentBilling(sale)
 
-	return s.saleRepo.GetByID(sale.ID)
+	return s.saleRepo.GetByID(s.db, sale.ID)
 }
 
 // Update updates an existing sale's fields.
 func (s *Service) Update(id uint, input UpdateInput) (*domain.Sale, error) {
-	sale, err := s.saleRepo.GetByID(id)
+	sale, err := s.saleRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -306,23 +310,23 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Sale, error) {
 		sale.PaymentStatus = input.PaymentStatus
 	}
 
-	if err := s.saleRepo.Update(sale); err != nil {
+	if err := s.saleRepo.Update(s.db, sale); err != nil {
 		return nil, err
 	}
-	return s.saleRepo.GetByID(sale.ID)
+	return s.saleRepo.GetByID(s.db, sale.ID)
 }
 
 // Delete soft-deletes a sale.
 func (s *Service) Delete(id uint) error {
-	if _, err := s.saleRepo.GetByID(id); err != nil {
+	if _, err := s.saleRepo.GetByID(s.db, id); err != nil {
 		return err
 	}
-	return s.saleRepo.Delete(id)
+	return s.saleRepo.Delete(s.db, id)
 }
 
 // AddPayment adds a payment to an existing sale and recalculates payment_status.
 func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*domain.Sale, error) {
-	sale, err := s.saleRepo.GetByID(saleID)
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +349,7 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 		CreatedBy:       &userID,
 	}
 
-	if err := s.saleRepo.AddPayment(payment); err != nil {
+	if err := s.saleRepo.AddPayment(s.db, payment); err != nil {
 		return nil, err
 	}
 
@@ -356,18 +360,18 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 		sale.Balance = 0
 	}
 	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total, true)
-	_ = s.saleRepo.Update(sale)
+	_ = s.saleRepo.Update(s.db, sale)
 
 	s.logger.Info("payment added to sale",
 		zap.Uint("sale_id", saleID),
 		zap.Float64("amount", input.Amount),
 	)
-	return s.saleRepo.GetByID(saleID)
+	return s.saleRepo.GetByID(s.db, saleID)
 }
 
 // RemovePayment removes a payment from a sale and recalculates payment_status.
 func (s *Service) RemovePayment(saleID, paymentID uint) (*domain.Sale, error) {
-	sale, err := s.saleRepo.GetByID(saleID)
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +385,7 @@ func (s *Service) RemovePayment(saleID, paymentID uint) (*domain.Sale, error) {
 		}
 	}
 
-	if err := s.saleRepo.RemovePayment(saleID, paymentID); err != nil {
+	if err := s.saleRepo.RemovePayment(s.db, saleID, paymentID); err != nil {
 		return nil, err
 	}
 
@@ -392,55 +396,55 @@ func (s *Service) RemovePayment(saleID, paymentID uint) (*domain.Sale, error) {
 	}
 	sale.Balance = sale.Total - sale.AmountPaid
 
-	refreshed, err := s.saleRepo.GetByID(saleID)
+	refreshed, err := s.saleRepo.GetByID(s.db, saleID)
 	if err != nil {
 		return nil, err
 	}
 	refreshed.PaymentStatus = derivePaymentStatus(refreshed.AmountPaid, refreshed.Total, len(refreshed.Payments) > 0)
-	_ = s.saleRepo.Update(refreshed)
+	_ = s.saleRepo.Update(s.db, refreshed)
 
-	return s.saleRepo.GetByID(saleID)
+	return s.saleRepo.GetByID(s.db, saleID)
 }
 
 // Cancel changes a sale's status to cancelled.
 func (s *Service) Cancel(id uint) (*domain.Sale, error) {
-	sale, err := s.saleRepo.GetByID(id)
+	sale, err := s.saleRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
 	sale.Status = domain.SaleStatusCancelled
-	if err := s.saleRepo.Update(sale); err != nil {
+	if err := s.saleRepo.Update(s.db, sale); err != nil {
 		return nil, err
 	}
-	return s.saleRepo.GetByID(id)
+	return s.saleRepo.GetByID(s.db, id)
 }
 
 // GetStats returns aggregate sale statistics.
 func (s *Service) GetStats() (map[string]any, error) {
-	return s.saleRepo.GetStats()
+	return s.saleRepo.GetStats(s.db)
 }
 
 // GetTodayStats returns today's aggregate sale statistics.
 func (s *Service) GetTodayStats() (map[string]any, error) {
-	return s.saleRepo.GetTodayStats()
+	return s.saleRepo.GetTodayStats(s.db)
 }
 
 // GetLensPriceAdjustments returns all lens price adjustments for a sale.
 func (s *Service) GetLensPriceAdjustments(saleID uint) ([]*domain.SaleLensPriceAdjustment, error) {
-	if _, err := s.saleRepo.GetByID(saleID); err != nil {
+	if _, err := s.saleRepo.GetByID(s.db, saleID); err != nil {
 		return nil, err
 	}
-	return s.adjRepo.GetBySaleID(saleID)
+	return s.adjRepo.GetBySaleID(s.db, saleID)
 }
 
 // CreateLensPriceAdjustment creates a lens price adjustment for a sale item.
 // It validates that adjusted_price > lens.price.
 func (s *Service) CreateLensPriceAdjustment(saleID uint, input LensPriceAdjInput, userID uint) (*domain.SaleLensPriceAdjustment, error) {
-	if _, err := s.saleRepo.GetByID(saleID); err != nil {
+	if _, err := s.saleRepo.GetByID(s.db, saleID); err != nil {
 		return nil, err
 	}
 
-	lens, err := s.productRepo.GetByID(input.LensID)
+	lens, err := s.productRepo.GetByID(s.db, input.LensID)
 	if err != nil {
 		return nil, err
 	}
@@ -463,32 +467,32 @@ func (s *Service) CreateLensPriceAdjustment(saleID uint, input LensPriceAdjInput
 		AdjustedBy:       &userID,
 	}
 
-	if err := s.adjRepo.Create(adj); err != nil {
+	if err := s.adjRepo.Create(s.db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjRepo.GetByID(adj.ID)
+	return s.adjRepo.GetByID(s.db, adj.ID)
 }
 
 // DeleteLensPriceAdjustment removes a lens price adjustment.
 func (s *Service) DeleteLensPriceAdjustment(saleID, adjID uint) error {
-	adj, err := s.adjRepo.GetByID(adjID)
+	adj, err := s.adjRepo.GetByID(s.db, adjID)
 	if err != nil {
 		return err
 	}
 	if adj.SaleID != saleID {
 		return &domain.ErrNotFound{Resource: "lens_price_adjustment"}
 	}
-	return s.adjRepo.Delete(adjID)
+	return s.adjRepo.Delete(s.db, adjID)
 }
 
 // GetAdjustedPrice returns price info for a specific lens in a sale.
 func (s *Service) GetAdjustedPrice(saleID, lensID uint) (map[string]any, error) {
-	lens, err := s.productRepo.GetByID(lensID)
+	lens, err := s.productRepo.GetByID(s.db, lensID)
 	if err != nil {
 		return nil, err
 	}
 
-	adj, err := s.adjRepo.GetBySaleLens(saleID, lensID)
+	adj, err := s.adjRepo.GetBySaleLens(s.db, saleID, lensID)
 	if err != nil {
 		// No adjustment found — return base price
 		return map[string]any{
@@ -509,7 +513,7 @@ func (s *Service) GetAdjustedPrice(saleID, lensID uint) (map[string]any, error) 
 
 // GeneratePdfToken generates a PDF access token for a sale.
 func (s *Service) GeneratePdfToken(id uint) (map[string]any, error) {
-	sale, err := s.saleRepo.GetByID(id)
+	sale, err := s.saleRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -532,14 +536,14 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 		return
 	}
 
-	existing, _ := s.labOrderRepo.GetBySaleID(sale.ID)
+	existing, _ := s.labOrderRepo.GetBySaleID(s.db, sale.ID)
 	if existing != nil {
 		return
 	}
 
 	resolvedLabID := labID
 	if resolvedLabID == nil {
-		lab, err := s.labRepo.GetFirstActive()
+		lab, err := s.labRepo.GetFirstActive(s.db)
 		if err != nil {
 			s.logger.Warn("no active laboratory found, skipping lab order creation",
 				zap.Uint("sale_id", sale.ID))
@@ -556,13 +560,13 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 		Priority:     "normal",
 		CreatedBy:    &userID,
 	}
-	if err := s.labOrderRepo.Create(lo); err != nil {
+	if err := s.labOrderRepo.Create(s.db, lo); err != nil {
 		s.logger.Warn("failed to create lab order from sale",
 			zap.Uint("sale_id", sale.ID),
 			zap.Error(err))
 		return
 	}
-	_ = s.labOrderRepo.AddStatusEntry(&domain.LaboratoryOrderStatusEntry{
+	_ = s.labOrderRepo.AddStatusEntry(s.db, &domain.LaboratoryOrderStatusEntry{
 		LaboratoryOrderID: lo.ID,
 		Status:            string(domain.LaboratoryOrderStatusPending),
 		Notes:             "Order created automatically from sale",
@@ -586,7 +590,7 @@ func (s *Service) updateAppointmentBilling(sale *domain.Sale) {
 	if sale.AppointmentID == nil {
 		return
 	}
-	appt, err := s.appointmentRepo.GetByID(*sale.AppointmentID)
+	appt, err := s.appointmentRepo.GetByID(s.db, *sale.AppointmentID)
 	if err != nil {
 		s.logger.Warn("appointment not found for billing update",
 			zap.Uint("sale_id", sale.ID),
@@ -605,7 +609,7 @@ func (s *Service) updateAppointmentBilling(sale *domain.Sale) {
 		appt.IsBilled = false
 	}
 
-	if err := s.appointmentRepo.Update(appt); err != nil {
+	if err := s.appointmentRepo.Update(s.db, appt); err != nil {
 		s.logger.Warn("failed to update appointment billing status",
 			zap.Uint("sale_id", sale.ID),
 			zap.Uint("appointment_id", *sale.AppointmentID),

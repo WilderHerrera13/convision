@@ -42,7 +42,8 @@ func (h *Handler) GetConsolidatedSpecialistReport(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.appointment.GetConsolidatedReport(from, to, specialistIDs, branchID)
+	db := tenantDBFromCtx(c)
+	rows, err := h.appointment.GetConsolidatedReport(db, from, to, specialistIDs, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -89,8 +90,10 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
+	db := tenantDBFromCtx(c)
+
 	// KPI aggregation for this specialist only.
-	rows, err := h.appointment.GetConsolidatedReport(from, to, []uint{specialistID}, nil)
+	rows, err := h.appointment.GetConsolidatedReport(db, from, to, []uint{specialistID}, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -102,7 +105,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 	}
 
 	// Specialist profile.
-	specialist, err := h.user.GetByID(specialistID)
+	specialist, err := h.user.GetByID(db, specialistID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -110,6 +113,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 
 	// Paginated consultation records.
 	records, err := h.appointment.ListManagementReport(
+		db,
 		specialistID,
 		c.Query("search"),
 		from,

@@ -10,74 +10,72 @@ import (
 )
 
 // NotificationRepository implements domain.NotificationRepository using GORM/PostgreSQL.
-type NotificationRepository struct {
-	db *gorm.DB
-}
+type NotificationRepository struct{}
 
 // NewNotificationRepository creates a new NotificationRepository.
-func NewNotificationRepository(db *gorm.DB) *NotificationRepository {
-	return &NotificationRepository{db: db}
+func NewNotificationRepository() *NotificationRepository {
+	return &NotificationRepository{}
 }
 
-func (r *NotificationRepository) GetByID(id uint) (*domain.AdminUserNotification, error) {
+func (r *NotificationRepository) GetByID(db *gorm.DB, id uint) (*domain.AdminUserNotification, error) {
 	var n domain.AdminUserNotification
-	err := r.db.First(&n, id).Error
+	err := db.First(&n, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "notification"}
 	}
 	return &n, err
 }
 
-func (r *NotificationRepository) GetUnreadByUserID(userID uint) ([]*domain.AdminUserNotification, error) {
+func (r *NotificationRepository) GetUnreadByUserID(db *gorm.DB, userID uint) ([]*domain.AdminUserNotification, error) {
 	var records []*domain.AdminUserNotification
-	err := r.db.Where("read_at IS NULL AND archived_at IS NULL").Find(&records).Error
+	err := db.Where("read_at IS NULL AND archived_at IS NULL").Find(&records).Error
 	return records, err
 }
 
-func (r *NotificationRepository) Create(n *domain.AdminUserNotification) error {
-	return r.db.Create(n).Error
+func (r *NotificationRepository) Create(db *gorm.DB, n *domain.AdminUserNotification) error {
+	return db.Create(n).Error
 }
 
-func (r *NotificationRepository) MarkAsRead(id uint) error {
+func (r *NotificationRepository) MarkAsRead(db *gorm.DB, id uint) error {
 	now := time.Now()
-	return r.db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("read_at", now).Error
+	return db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("read_at", now).Error
 }
 
-func (r *NotificationRepository) MarkAsUnread(id uint) error {
-	return r.db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("read_at", nil).Error
+func (r *NotificationRepository) MarkAsUnread(db *gorm.DB, id uint) error {
+	return db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("read_at", nil).Error
 }
 
-func (r *NotificationRepository) Archive(id uint) error {
+func (r *NotificationRepository) Archive(db *gorm.DB, id uint) error {
 	now := time.Now()
-	return r.db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("archived_at", now).Error
+	return db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("archived_at", now).Error
 }
 
-func (r *NotificationRepository) Unarchive(id uint) error {
-	return r.db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("archived_at", nil).Error
+func (r *NotificationRepository) Unarchive(db *gorm.DB, id uint) error {
+	return db.Model(&domain.AdminUserNotification{}).Where("id = ?", id).Update("archived_at", nil).Error
 }
 
-func (r *NotificationRepository) ReadAll() error {
+func (r *NotificationRepository) ReadAll(db *gorm.DB) error {
 	now := time.Now()
-	return r.db.Model(&domain.AdminUserNotification{}).Where("read_at IS NULL").Update("read_at", now).Error
+	return db.Model(&domain.AdminUserNotification{}).Where("read_at IS NULL").Update("read_at", now).Error
 }
 
-func (r *NotificationRepository) Summary() (*domain.NotificationSummary, error) {
+func (r *NotificationRepository) Summary(db *gorm.DB) (*domain.NotificationSummary, error) {
 	var total, unread, archived int64
-	r.db.Model(&domain.AdminUserNotification{}).Count(&total)
-	r.db.Model(&domain.AdminUserNotification{}).Where("read_at IS NULL AND archived_at IS NULL").Count(&unread)
-	r.db.Model(&domain.AdminUserNotification{}).Where("archived_at IS NOT NULL").Count(&archived)
+	db.Model(&domain.AdminUserNotification{}).Count(&total)
+	db.Model(&domain.AdminUserNotification{}).Where("read_at IS NULL AND archived_at IS NULL").Count(&unread)
+	db.Model(&domain.AdminUserNotification{}).Where("archived_at IS NOT NULL").Count(&archived)
 	return &domain.NotificationSummary{Unread: unread, Total: total, Archived: archived}, nil
 }
 
-func (r *NotificationRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.AdminUserNotification{}, id).Error
+func (r *NotificationRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.AdminUserNotification{}, id).Error
 }
 
-func (r *NotificationRepository) List(filters map[string]any, page, perPage int) ([]*domain.AdminUserNotification, int64, error) {
+func (r *NotificationRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.AdminUserNotification, int64, error) {
 	var records []*domain.AdminUserNotification
 	var total int64
 
-	q := r.db.Model(&domain.AdminUserNotification{})
+	q := db.Model(&domain.AdminUserNotification{})
 
 	if archived, ok := filters["archived"]; ok && archived == "1" {
 		q = q.Where("archived_at IS NOT NULL")

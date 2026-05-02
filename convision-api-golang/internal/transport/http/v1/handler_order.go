@@ -13,8 +13,8 @@ import (
 
 type orderShowResponse struct {
 	*domain.Order
-	PDFURL        string `json:"pdf_url"`
-	GuestPDFURL   string `json:"guest_pdf_url"`
+	PDFURL         string `json:"pdf_url"`
+	GuestPDFURL    string `json:"guest_pdf_url"`
 	GuestLabPDFURL string `json:"guest_lab_pdf_url"`
 }
 
@@ -32,6 +32,7 @@ func requestBaseURL(c *gin.Context) string {
 // ListOrders godoc
 // GET /api/v1/orders
 func (h *Handler) ListOrders(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
@@ -49,7 +50,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		filters["laboratory_id"] = v
 	}
 
-	out, err := h.order.List(filters, page, perPage)
+	out, err := h.order.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -60,11 +61,12 @@ func (h *Handler) ListOrders(c *gin.Context) {
 // GetOrder godoc
 // GET /api/v1/orders/:id
 func (h *Handler) GetOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	o, err := h.order.GetByID(id)
+	o, err := h.order.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -82,6 +84,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 // CreateOrder godoc
 // POST /api/v1/orders
 func (h *Handler) CreateOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input ordersvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -94,7 +97,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	o, err := h.order.Create(input, claims.UserID)
+	o, err := h.order.Create(db, input, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -105,6 +108,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 // UpdateOrder godoc
 // PUT /api/v1/orders/:id
 func (h *Handler) UpdateOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -116,7 +120,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	o, err := h.order.Update(id, input)
+	o, err := h.order.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -127,11 +131,12 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 // DeleteOrder godoc
 // DELETE /api/v1/orders/:id
 func (h *Handler) DeleteOrder(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	if err := h.order.Delete(id); err != nil {
+	if err := h.order.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -141,6 +146,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 // UpdateOrderStatus godoc
 // POST /api/v1/orders/:id/status
 func (h *Handler) UpdateOrderStatus(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -152,7 +158,7 @@ func (h *Handler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	o, err := h.order.UpdateStatus(id, input)
+	o, err := h.order.UpdateStatus(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -163,6 +169,7 @@ func (h *Handler) UpdateOrderStatus(c *gin.Context) {
 // UpdateOrderPaymentStatus godoc
 // POST /api/v1/orders/:id/payment-status
 func (h *Handler) UpdateOrderPaymentStatus(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -174,7 +181,7 @@ func (h *Handler) UpdateOrderPaymentStatus(c *gin.Context) {
 		return
 	}
 
-	o, err := h.order.UpdatePaymentStatus(id, input)
+	o, err := h.order.UpdatePaymentStatus(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Country represents a country in the location hierarchy.
 type Country struct {
@@ -53,8 +57,8 @@ type District struct {
 
 // LocationRepository defines lookup operations for hierarchical geographic data.
 type LocationRepository interface {
-	ListCountries() ([]*Country, error)
-	ListDepartmentsByCountry(countryID uint) ([]*Department, error)
-	ListCitiesByDepartment(departmentID uint) ([]*City, error)
-	ListDistrictsByCity(cityID uint) ([]*District, error)
+	ListCountries(db *gorm.DB) ([]*Country, error)
+	ListDepartmentsByCountry(db *gorm.DB, countryID uint) ([]*Department, error)
+	ListCitiesByDepartment(db *gorm.DB, departmentID uint) ([]*City, error)
+	ListDistrictsByCity(db *gorm.DB, cityID uint) ([]*District, error)
 }

@@ -65,7 +65,8 @@ func (h *Handler) BulkImportHistory(c *gin.Context) {
 		perPage = 50
 	}
 
-	logs, total, err := h.bulkImportLog.List(importType, page, perPage)
+	db := tenantDBFromCtx(c)
+	logs, total, err := h.bulkImportLog.List(db, importType, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error al obtener el historial"})
 		return
@@ -102,7 +103,8 @@ func (h *Handler) processBulkImport(c *gin.Context, importType bulkimport.Import
 		return
 	}
 
-	result, err := h.bulkImport.ProcessExcel(fh, importType)
+	db := tenantDBFromCtx(c)
+	result, err := h.bulkImport.ProcessExcel(db, fh, importType)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
@@ -124,7 +126,7 @@ func (h *Handler) processBulkImport(c *gin.Context, importType bulkimport.Import
 		ProcessedBy: processedBy,
 		ProcessedAt: time.Now().UTC(),
 	}
-	_ = h.bulkImportLog.Create(entry)
+	_ = h.bulkImportLog.Create(db, entry)
 
 	c.JSON(http.StatusOK, result)
 }

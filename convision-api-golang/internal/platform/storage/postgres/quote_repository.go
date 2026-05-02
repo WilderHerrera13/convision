@@ -17,13 +17,11 @@ var quoteFilterAllowlist = map[string]bool{
 }
 
 // QuoteRepository is the PostgreSQL-backed implementation of domain.QuoteRepository.
-type QuoteRepository struct {
-	db *gorm.DB
-}
+type QuoteRepository struct{}
 
 // NewQuoteRepository creates a new QuoteRepository.
-func NewQuoteRepository(db *gorm.DB) *QuoteRepository {
-	return &QuoteRepository{db: db}
+func NewQuoteRepository() *QuoteRepository {
+	return &QuoteRepository{}
 }
 
 func (r *QuoteRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -34,9 +32,9 @@ func (r *QuoteRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Items.Product")
 }
 
-func (r *QuoteRepository) GetByID(id uint) (*domain.Quote, error) {
+func (r *QuoteRepository) GetByID(db *gorm.DB, id uint) (*domain.Quote, error) {
 	var q domain.Quote
-	err := r.withRelations(r.db).First(&q, id).Error
+	err := r.withRelations(db).First(&q, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "quote"}
@@ -46,9 +44,9 @@ func (r *QuoteRepository) GetByID(id uint) (*domain.Quote, error) {
 	return &q, nil
 }
 
-func (r *QuoteRepository) GetByQuoteNumber(number string) (*domain.Quote, error) {
+func (r *QuoteRepository) GetByQuoteNumber(db *gorm.DB, number string) (*domain.Quote, error) {
 	var q domain.Quote
-	err := r.withRelations(r.db).Where("quote_number = ?", number).First(&q).Error
+	err := r.withRelations(db).Where("quote_number = ?", number).First(&q).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "quote"}
@@ -58,19 +56,19 @@ func (r *QuoteRepository) GetByQuoteNumber(number string) (*domain.Quote, error)
 	return &q, nil
 }
 
-func (r *QuoteRepository) Create(q *domain.Quote) error {
+func (r *QuoteRepository) Create(db *gorm.DB, q *domain.Quote) error {
 	// Use a temporary unique placeholder to satisfy NOT NULL + uniqueIndex
 	q.QuoteNumber = fmt.Sprintf("TEMP-%d", time.Now().UnixNano())
-	if err := r.db.Create(q).Error; err != nil {
+	if err := db.Create(q).Error; err != nil {
 		return err
 	}
 	// Now set the real number using the generated ID
 	q.QuoteNumber = fmt.Sprintf("COT-%04d", q.ID)
-	return r.db.Model(q).Update("quote_number", q.QuoteNumber).Error
+	return db.Model(q).Update("quote_number", q.QuoteNumber).Error
 }
 
-func (r *QuoteRepository) Update(q *domain.Quote) error {
-	return r.db.Model(q).Updates(map[string]any{
+func (r *QuoteRepository) Update(db *gorm.DB, q *domain.Quote) error {
+	return db.Model(q).Updates(map[string]any{
 		"patient_id":      q.PatientID,
 		"subtotal":        q.Subtotal,
 		"tax_amount":      q.TaxAmount,
@@ -83,15 +81,15 @@ func (r *QuoteRepository) Update(q *domain.Quote) error {
 	}).Error
 }
 
-func (r *QuoteRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Quote{}, id).Error
+func (r *QuoteRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Quote{}, id).Error
 }
 
-func (r *QuoteRepository) List(filters map[string]any, page, perPage int) ([]*domain.Quote, int64, error) {
+func (r *QuoteRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Quote, int64, error) {
 	var quotes []*domain.Quote
 	var total int64
 
-	q := r.db.Model(&domain.Quote{})
+	q := db.Model(&domain.Quote{})
 	for field, value := range filters {
 		if !quoteFilterAllowlist[field] {
 			continue

@@ -2,6 +2,7 @@ package order
 
 import (
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 	"github.com/google/uuid"
@@ -58,11 +59,11 @@ type UpdateInput struct {
 
 // ListOutput wraps paginated order results.
 type ListOutput struct {
-	Data        []*domain.Order `json:"data"`
-	Total       int64           `json:"total"`
-	Page        int             `json:"current_page"`
-	PerPage     int             `json:"per_page"`
-	LastPage    int             `json:"last_page"`
+	Data     []*domain.Order `json:"data"`
+	Total    int64           `json:"total"`
+	Page     int             `json:"current_page"`
+	PerPage  int             `json:"per_page"`
+	LastPage int             `json:"last_page"`
 }
 
 // StatusInput is used for updating order status.
@@ -77,8 +78,8 @@ type PaymentStatusInput struct {
 
 // --- Methods ---
 
-func (s *Service) GetByID(id uint) (*domain.Order, error) {
-	o, err := s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Order, error) {
+	o, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -92,15 +93,15 @@ func (s *Service) GetByID(id uint) (*domain.Order, error) {
 		changed = true
 	}
 	if changed {
-		if err := s.repo.Update(o); err != nil {
+		if err := s.repo.Update(db, o); err != nil {
 			return nil, err
 		}
-		return s.repo.GetByID(id)
+		return s.repo.GetByID(db, id)
 	}
 	return o, nil
 }
 
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -108,7 +109,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 		perPage = 15
 	}
 
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 	}, nil
 }
 
-func (s *Service) Create(input CreateInput, userID uint) (*domain.Order, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.Order, error) {
 	validStatuses := map[string]bool{"pending": true, "in_progress": true, "completed": true, "cancelled": true}
 	status := input.Status
 	if status == "" {
@@ -169,31 +170,31 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Order, error) 
 	total := subtotal + tax
 
 	o := &domain.Order{
-		PatientID:           input.PatientID,
-		AppointmentID:       input.AppointmentID,
-		LaboratoryID:        input.LaboratoryID,
-		Subtotal:            subtotal,
-		Tax:                 tax,
-		Total:               total,
-		Status:              domain.OrderStatus(status),
-		PaymentStatus:       paymentStatus,
-		Notes:               input.Notes,
-		CreatedBy:           &userID,
-		Items:               items,
-		PdfToken:            uuid.New().String(),
-		LaboratoryPdfToken:  uuid.New().String(),
+		PatientID:          input.PatientID,
+		AppointmentID:      input.AppointmentID,
+		LaboratoryID:       input.LaboratoryID,
+		Subtotal:           subtotal,
+		Tax:                tax,
+		Total:              total,
+		Status:             domain.OrderStatus(status),
+		PaymentStatus:      paymentStatus,
+		Notes:              input.Notes,
+		CreatedBy:          &userID,
+		Items:              items,
+		PdfToken:           uuid.New().String(),
+		LaboratoryPdfToken: uuid.New().String(),
 	}
 
-	if err := s.repo.Create(o); err != nil {
+	if err := s.repo.Create(db, o); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("order created", zap.Uint("id", o.ID), zap.String("order_number", o.OrderNumber))
-	return s.repo.GetByID(o.ID)
+	return s.repo.GetByID(db, o.ID)
 }
 
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Order, error) {
-	o, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Order, error) {
+	o, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -217,42 +218,42 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Order, error) {
 		o.Notes = input.Notes
 	}
 
-	if err := s.repo.Update(o); err != nil {
+	if err := s.repo.Update(db, o); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
-func (s *Service) UpdateStatus(id uint, input StatusInput) (*domain.Order, error) {
-	o, err := s.repo.GetByID(id)
+func (s *Service) UpdateStatus(db *gorm.DB, id uint, input StatusInput) (*domain.Order, error) {
+	o, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 
 	o.Status = domain.OrderStatus(input.Status)
-	if err := s.repo.Update(o); err != nil {
+	if err := s.repo.Update(db, o); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
-func (s *Service) UpdatePaymentStatus(id uint, input PaymentStatusInput) (*domain.Order, error) {
-	o, err := s.repo.GetByID(id)
+func (s *Service) UpdatePaymentStatus(db *gorm.DB, id uint, input PaymentStatusInput) (*domain.Order, error) {
+	o, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 
 	o.PaymentStatus = input.PaymentStatus
-	if err := s.repo.Update(o); err != nil {
+	if err := s.repo.Update(db, o); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
-func (s *Service) Delete(id uint) error {
-	_, err := s.repo.GetByID(id)
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	_, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

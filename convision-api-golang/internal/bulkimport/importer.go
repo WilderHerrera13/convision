@@ -1,5 +1,7 @@
 package bulkimport
 
+import "gorm.io/gorm"
+
 // Importer is the interface every import type must implement.
 // Each importer is responsible for a single entity type: it knows its
 // expected columns and how to process one Excel data row.
@@ -10,7 +12,7 @@ type Importer interface {
 
 	// ProcessRow processes one Excel data row and returns a RecordResult
 	// describing whether the record was created, skipped, or errored.
-	ProcessRow(rowNum int, data map[string]string) RecordResult
+	ProcessRow(db *gorm.DB, rowNum int, data map[string]string) RecordResult
 }
 
 // Registry maps an ImportType to its concrete Importer implementation.

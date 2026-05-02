@@ -14,18 +14,16 @@ var warehouseFilterAllowlist = map[string]bool{
 }
 
 // WarehouseRepository is the PostgreSQL-backed implementation of domain.WarehouseRepository.
-type WarehouseRepository struct {
-	db *gorm.DB
-}
+type WarehouseRepository struct{}
 
 // NewWarehouseRepository creates a new WarehouseRepository.
-func NewWarehouseRepository(db *gorm.DB) *WarehouseRepository {
-	return &WarehouseRepository{db: db}
+func NewWarehouseRepository() *WarehouseRepository {
+	return &WarehouseRepository{}
 }
 
-func (r *WarehouseRepository) GetByID(id uint) (*domain.Warehouse, error) {
+func (r *WarehouseRepository) GetByID(db *gorm.DB, id uint) (*domain.Warehouse, error) {
 	var w domain.Warehouse
-	err := r.db.Preload("Locations").First(&w, id).Error
+	err := db.Preload("Locations").First(&w, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "warehouse"}
@@ -35,12 +33,12 @@ func (r *WarehouseRepository) GetByID(id uint) (*domain.Warehouse, error) {
 	return &w, nil
 }
 
-func (r *WarehouseRepository) Create(w *domain.Warehouse) error {
-	return r.db.Create(w).Error
+func (r *WarehouseRepository) Create(db *gorm.DB, w *domain.Warehouse) error {
+	return db.Create(w).Error
 }
 
-func (r *WarehouseRepository) Update(w *domain.Warehouse) error {
-	return r.db.Model(w).Updates(map[string]any{
+func (r *WarehouseRepository) Update(db *gorm.DB, w *domain.Warehouse) error {
+	return db.Model(w).Updates(map[string]any{
 		"name":    w.Name,
 		"code":    w.Code,
 		"address": w.Address,
@@ -50,15 +48,15 @@ func (r *WarehouseRepository) Update(w *domain.Warehouse) error {
 	}).Error
 }
 
-func (r *WarehouseRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Warehouse{}, id).Error
+func (r *WarehouseRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Warehouse{}, id).Error
 }
 
-func (r *WarehouseRepository) List(filters map[string]any, page, perPage int) ([]*domain.Warehouse, int64, error) {
+func (r *WarehouseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Warehouse, int64, error) {
 	var warehouses []*domain.Warehouse
 	var total int64
 
-	q := r.db.Model(&domain.Warehouse{})
+	q := db.Model(&domain.Warehouse{})
 	for field, value := range filters {
 		if field == "branch_id" {
 			q = q.Where("warehouses.branch_id = ?", value)
@@ -87,9 +85,9 @@ func (r *WarehouseRepository) List(filters map[string]any, page, perPage int) ([
 	return warehouses, total, nil
 }
 
-func (r *WarehouseRepository) ListLocations(warehouseID uint) ([]*domain.WarehouseLocation, error) {
+func (r *WarehouseRepository) ListLocations(db *gorm.DB, warehouseID uint) ([]*domain.WarehouseLocation, error) {
 	var locations []*domain.WarehouseLocation
-	err := r.db.
+	err := db.
 		Select("id, warehouse_id, name, code, type, status, description, created_at, updated_at").
 		Where("warehouse_id = ?", warehouseID).
 		Order("id asc").

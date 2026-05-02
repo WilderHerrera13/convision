@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Expense represents an operating expense tracked in the system.
 type Expense struct {
@@ -29,11 +33,11 @@ type Expense struct {
 
 // ExpenseRepository defines persistence operations for Expense.
 type ExpenseRepository interface {
-	GetByID(id uint) (*Expense, error)
-	Create(e *Expense) error
-	Update(e *Expense) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Expense, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Expense, error)
+	Create(db *gorm.DB, e *Expense) error
+	Update(db *gorm.DB, e *Expense) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Expense, int64, error)
 }
 
 // ServiceOrder represents an external service order sent to a supplier.
@@ -107,18 +111,18 @@ func (Payroll) TableName() string {
 
 // ServiceOrderRepository defines persistence operations for ServiceOrder.
 type ServiceOrderRepository interface {
-	GetByID(id uint) (*ServiceOrder, error)
-	Create(s *ServiceOrder) error
-	Update(s *ServiceOrder) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*ServiceOrder, int64, error)
+	GetByID(db *gorm.DB, id uint) (*ServiceOrder, error)
+	Create(db *gorm.DB, s *ServiceOrder) error
+	Update(db *gorm.DB, s *ServiceOrder) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ServiceOrder, int64, error)
 }
 
 // PayrollRepository defines persistence operations for Payroll.
 type PayrollRepository interface {
-	GetByID(id uint) (*Payroll, error)
-	Create(p *Payroll) error
-	Update(p *Payroll) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Payroll, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Payroll, error)
+	Create(db *gorm.DB, p *Payroll) error
+	Update(db *gorm.DB, p *Payroll) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Payroll, int64, error)
 }

@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Branch struct {
 	ID           uint          `json:"id"          gorm:"primaryKey;autoIncrement"`
@@ -28,16 +32,16 @@ type UserBranch struct {
 }
 
 type BranchRepository interface {
-	GetByID(id uint) (*Branch, error)
-	GetActiveByID(id uint) (*Branch, error)
-	ListAll() ([]*Branch, error)
-	ListForUser(userID uint) ([]*Branch, error)
-	UserHasAccess(userID, branchID uint) (bool, error)
-	GetUserBranchPrimaryMap(userID uint) (map[uint]bool, error)
-	ListUserBranchesByUserID(userID uint) ([]UserBranch, error)
-	Create(b *Branch) error
-	Update(b *Branch) error
-	AssignUserBranches(userID uint, assignments []UserBranchInput) error
+	GetByID(db *gorm.DB, id uint) (*Branch, error)
+	GetActiveByID(db *gorm.DB, id uint) (*Branch, error)
+	ListAll(db *gorm.DB) ([]*Branch, error)
+	ListForUser(db *gorm.DB, userID uint) ([]*Branch, error)
+	UserHasAccess(db *gorm.DB, userID, branchID uint) (bool, error)
+	GetUserBranchPrimaryMap(db *gorm.DB, userID uint) (map[uint]bool, error)
+	ListUserBranchesByUserID(db *gorm.DB, userID uint) ([]UserBranch, error)
+	Create(db *gorm.DB, b *Branch) error
+	Update(db *gorm.DB, b *Branch) error
+	AssignUserBranches(db *gorm.DB, userID uint, assignments []UserBranchInput) error
 }
 
 type UserBranchInput struct {

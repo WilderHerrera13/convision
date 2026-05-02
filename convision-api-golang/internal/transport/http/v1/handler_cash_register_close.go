@@ -147,7 +147,8 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		filters["date_to"] = v
 	}
 
-	out, err := h.cashClose.List(filters, page, perPage, claims.Role, claims.UserID)
+	db := tenantDBFromCtx(c)
+	out, err := h.cashClose.List(db, filters, page, perPage, claims.Role, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -187,7 +188,8 @@ func (h *Handler) GetCashRegisterClose(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.GetByID(id, claims.Role, claims.UserID)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.GetByID(db, id, claims.Role, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -213,7 +215,8 @@ func (h *Handler) CreateCashRegisterClose(c *gin.Context) {
 
 	input.BranchID = branchmw.BranchIDFromCtx(c)
 
-	item, err := h.cashClose.Create(input, claims.UserID)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.Create(db, input, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -242,7 +245,8 @@ func (h *Handler) UpdateCashRegisterClose(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.Update(id, input, claims.Role, claims.UserID)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.Update(db, id, input, claims.Role, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -265,7 +269,8 @@ func (h *Handler) SubmitCashRegisterClose(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.Submit(id, claims.Role, claims.UserID)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.Submit(db, id, claims.Role, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -294,7 +299,8 @@ func (h *Handler) ApproveCashRegisterClose(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.Approve(id, claims.UserID, input)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.Approve(db, id, claims.UserID, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -317,7 +323,8 @@ func (h *Handler) ReturnCashRegisterCloseToDraft(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.ReturnToDraft(id, input)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.ReturnToDraft(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -340,7 +347,8 @@ func (h *Handler) PutCashRegisterCloseAdminActuals(c *gin.Context) {
 		return
 	}
 
-	item, err := h.cashClose.PutAdminActuals(id, input)
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.PutAdminActuals(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -360,7 +368,8 @@ func (h *Handler) ListCashRegisterClosesAdvisorsPending(c *gin.Context) {
 			branchID = *override
 		}
 	}
-	out, err := h.cashClose.AdvisorsPending(branchID)
+	db := tenantDBFromCtx(c)
+	out, err := h.cashClose.AdvisorsPending(db, branchID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -380,13 +389,14 @@ func (h *Handler) GetCashRegisterClosesConsolidated(c *gin.Context) {
 			branchID = *override
 		}
 	}
+	db := tenantDBFromCtx(c)
 	branchName := ""
 	if branchID > 0 {
-		if b, err := h.branchRepo.GetByID(branchID); err == nil {
+		if b, err := h.branchRepo.GetByID(db, branchID); err == nil {
 			branchName = b.Name
 		}
 	}
-	out, err := h.cashClose.Consolidated(branchID, branchName, c.Query("date_from"), c.Query("date_to"))
+	out, err := h.cashClose.Consolidated(db, branchID, branchName, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -411,7 +421,8 @@ func (h *Handler) GetCashRegisterClosesCalendar(c *gin.Context) {
 	}
 	userID := uint(userID64)
 
-	advisor, err := h.user.GetByID(userID)
+	db := tenantDBFromCtx(c)
+	advisor, err := h.user.GetByID(db, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -426,7 +437,7 @@ func (h *Handler) GetCashRegisterClosesCalendar(c *gin.Context) {
 		}
 	}
 
-	out, err := h.cashClose.CalendarForAdvisor(userID, branchID, c.Query("date_from"), c.Query("date_to"))
+	out, err := h.cashClose.CalendarForAdvisor(db, userID, branchID, c.Query("date_from"), c.Query("date_to"))
 	if err != nil {
 		respondError(c, err)
 		return

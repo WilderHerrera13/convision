@@ -15,7 +15,8 @@ import (
 // ---------- Payrolls ----------
 
 func (h *Handler) GetPayrollStats(c *gin.Context) {
-	stats, err := h.payroll.GetStats()
+	db := tenantDBFromCtx(c)
+	stats, err := h.payroll.GetStats(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -27,7 +28,8 @@ func (h *Handler) ListPayrolls(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.payroll.List(filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.payroll.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -41,7 +43,8 @@ func (h *Handler) GetPayroll(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	p, err := h.payroll.GetByID(uint(id))
+	db := tenantDBFromCtx(c)
+	p, err := h.payroll.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -61,7 +64,8 @@ func (h *Handler) CreatePayroll(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	p, err := h.payroll.Create(input, userID)
+	db := tenantDBFromCtx(c)
+	p, err := h.payroll.Create(db, input, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -80,7 +84,8 @@ func (h *Handler) UpdatePayroll(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	p, err := h.payroll.Update(uint(id), input)
+	db := tenantDBFromCtx(c)
+	p, err := h.payroll.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -94,7 +99,8 @@ func (h *Handler) DeletePayroll(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.payroll.Delete(uint(id)); err != nil {
+	db := tenantDBFromCtx(c)
+	if err := h.payroll.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -104,7 +110,8 @@ func (h *Handler) DeletePayroll(c *gin.Context) {
 // ---------- Service Orders ----------
 
 func (h *Handler) GetServiceOrderStats(c *gin.Context) {
-	stats, err := h.serviceOrder.GetStats()
+	db := tenantDBFromCtx(c)
+	stats, err := h.serviceOrder.GetStats(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -116,7 +123,8 @@ func (h *Handler) ListServiceOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.serviceOrder.List(filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.serviceOrder.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -130,7 +138,8 @@ func (h *Handler) GetServiceOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	o, err := h.serviceOrder.GetByID(uint(id))
+	db := tenantDBFromCtx(c)
+	o, err := h.serviceOrder.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -150,7 +159,8 @@ func (h *Handler) CreateServiceOrder(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	o, err := h.serviceOrder.Create(input, userID)
+	db := tenantDBFromCtx(c)
+	o, err := h.serviceOrder.Create(db, input, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -169,7 +179,8 @@ func (h *Handler) UpdateServiceOrder(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	o, err := h.serviceOrder.Update(uint(id), input)
+	db := tenantDBFromCtx(c)
+	o, err := h.serviceOrder.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -183,7 +194,8 @@ func (h *Handler) DeleteServiceOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.serviceOrder.Delete(uint(id)); err != nil {
+	db := tenantDBFromCtx(c)
+	if err := h.serviceOrder.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -193,7 +205,8 @@ func (h *Handler) DeleteServiceOrder(c *gin.Context) {
 // ---------- Cash Transfers ----------
 
 func (h *Handler) GetCashTransferStats(c *gin.Context) {
-	stats, err := h.cashTransfer.GetStats()
+	db := tenantDBFromCtx(c)
+	stats, err := h.cashTransfer.GetStats(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -205,7 +218,8 @@ func (h *Handler) ListCashTransfers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.cashTransfer.List(filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.cashTransfer.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -219,7 +233,8 @@ func (h *Handler) GetCashTransfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	t, err := h.cashTransfer.GetByID(uint(id))
+	db := tenantDBFromCtx(c)
+	t, err := h.cashTransfer.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -239,7 +254,8 @@ func (h *Handler) CreateCashTransfer(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	t, err := h.cashTransfer.Create(input, userID)
+	db := tenantDBFromCtx(c)
+	t, err := h.cashTransfer.Create(db, input, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -258,7 +274,8 @@ func (h *Handler) UpdateCashTransfer(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	t, err := h.cashTransfer.Update(uint(id), input)
+	db := tenantDBFromCtx(c)
+	t, err := h.cashTransfer.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -272,7 +289,8 @@ func (h *Handler) DeleteCashTransfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.cashTransfer.Delete(uint(id)); err != nil {
+	db := tenantDBFromCtx(c)
+	if err := h.cashTransfer.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -293,7 +311,8 @@ func (h *Handler) ApproveCashTransfer(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	t, err := h.cashTransfer.Approve(uint(id), userID, input)
+	db := tenantDBFromCtx(c)
+	t, err := h.cashTransfer.Approve(db, uint(id), userID, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -309,7 +328,8 @@ func (h *Handler) CancelCashTransfer(c *gin.Context) {
 	}
 	var input cashsvc.CancelInput
 	_ = c.ShouldBindJSON(&input)
-	t, err := h.cashTransfer.Cancel(uint(id), input)
+	db := tenantDBFromCtx(c)
+	t, err := h.cashTransfer.Cancel(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return

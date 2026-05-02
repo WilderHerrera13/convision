@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // SaleStatus enumerates valid sale statuses.
 type SaleStatus string
@@ -120,23 +124,23 @@ type SaleLensPriceAdjustment struct {
 
 // SaleRepository defines persistence operations for Sale.
 type SaleRepository interface {
-	GetByID(id uint) (*Sale, error)
-	GetBySaleNumber(number string) (*Sale, error)
-	Create(s *Sale) error
-	Update(s *Sale) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Sale, int64, error)
-	AddPayment(payment *SalePayment) error
-	RemovePayment(saleID, paymentID uint) error
-	GetStats() (map[string]any, error)
-	GetTodayStats() (map[string]any, error)
+	GetByID(db *gorm.DB, id uint) (*Sale, error)
+	GetBySaleNumber(db *gorm.DB, number string) (*Sale, error)
+	Create(db *gorm.DB, s *Sale) error
+	Update(db *gorm.DB, s *Sale) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Sale, int64, error)
+	AddPayment(db *gorm.DB, payment *SalePayment) error
+	RemovePayment(db *gorm.DB, saleID, paymentID uint) error
+	GetStats(db *gorm.DB) (map[string]any, error)
+	GetTodayStats(db *gorm.DB) (map[string]any, error)
 }
 
 // SaleLensPriceAdjustmentRepository defines persistence for lens price adjustments.
 type SaleLensPriceAdjustmentRepository interface {
-	GetBySaleID(saleID uint) ([]*SaleLensPriceAdjustment, error)
-	GetByID(id uint) (*SaleLensPriceAdjustment, error)
-	Create(adj *SaleLensPriceAdjustment) error
-	Delete(id uint) error
-	GetBySaleLens(saleID, lensID uint) (*SaleLensPriceAdjustment, error)
+	GetBySaleID(db *gorm.DB, saleID uint) ([]*SaleLensPriceAdjustment, error)
+	GetByID(db *gorm.DB, id uint) (*SaleLensPriceAdjustment, error)
+	Create(db *gorm.DB, adj *SaleLensPriceAdjustment) error
+	Delete(db *gorm.DB, id uint) error
+	GetBySaleLens(db *gorm.DB, saleID, lensID uint) (*SaleLensPriceAdjustment, error)
 }

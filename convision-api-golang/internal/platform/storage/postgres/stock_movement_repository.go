@@ -7,24 +7,22 @@ import (
 )
 
 // StockMovementRepository is the PostgreSQL-backed implementation of domain.StockMovementRepository.
-type StockMovementRepository struct {
-	db *gorm.DB
-}
+type StockMovementRepository struct{}
 
 // NewStockMovementRepository creates a new StockMovementRepository.
-func NewStockMovementRepository(db *gorm.DB) *StockMovementRepository {
-	return &StockMovementRepository{db: db}
+func NewStockMovementRepository() *StockMovementRepository {
+	return &StockMovementRepository{}
 }
 
-func (r *StockMovementRepository) Create(m *domain.StockMovement) error {
-	return r.db.Create(m).Error
+func (r *StockMovementRepository) Create(db *gorm.DB, m *domain.StockMovement) error {
+	return db.Create(m).Error
 }
 
-func (r *StockMovementRepository) List(filters map[string]any, page, perPage int) ([]*domain.StockMovement, int64, error) {
+func (r *StockMovementRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.StockMovement, int64, error) {
 	var data []*domain.StockMovement
 	var total int64
 
-	q := r.db.Model(&domain.StockMovement{}).
+	q := db.Model(&domain.StockMovement{}).
 		Preload("Product").
 		Preload("Warehouse")
 
@@ -47,6 +45,6 @@ func (r *StockMovementRepository) List(filters map[string]any, page, perPage int
 	return data, total, err
 }
 
-func (r *StockMovementRepository) ListByProduct(productID uint, page, perPage int) ([]*domain.StockMovement, int64, error) {
-	return r.List(map[string]any{"product_id": productID}, page, perPage)
+func (r *StockMovementRepository) ListByProduct(db *gorm.DB, productID uint, page, perPage int) ([]*domain.StockMovement, int64, error) {
+	return r.List(db, map[string]any{"product_id": productID}, page, perPage)
 }

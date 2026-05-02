@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -23,33 +24,33 @@ func NewService(repo domain.ServiceOrderRepository, logger *zap.Logger) *Service
 
 // CreateInput holds validated fields for creating a service order.
 type CreateInput struct {
-	SupplierID          *uint   `json:"supplier_id"`
-	CustomerName        string  `json:"customer_name"         binding:"required,max=255"`
-	CustomerPhone       string  `json:"customer_phone"        binding:"required,max=100"`
-	CustomerEmail       string  `json:"customer_email"`
-	ServiceType         string  `json:"service_type"          binding:"required,max=150"`
-	ProblemDescription  string  `json:"problem_description"   binding:"required"`
-	EstimatedCost       float64 `json:"estimated_cost"`
-	Deadline            string  `json:"deadline"`
-	Priority            string  `json:"priority"              binding:"required,oneof=low medium high"`
-	Notes               string  `json:"notes"`
+	SupplierID         *uint   `json:"supplier_id"`
+	CustomerName       string  `json:"customer_name"         binding:"required,max=255"`
+	CustomerPhone      string  `json:"customer_phone"        binding:"required,max=100"`
+	CustomerEmail      string  `json:"customer_email"`
+	ServiceType        string  `json:"service_type"          binding:"required,max=150"`
+	ProblemDescription string  `json:"problem_description"   binding:"required"`
+	EstimatedCost      float64 `json:"estimated_cost"`
+	Deadline           string  `json:"deadline"`
+	Priority           string  `json:"priority"              binding:"required,oneof=low medium high"`
+	Notes              string  `json:"notes"`
 }
 
 // UpdateInput holds fields for updating a service order.
 type UpdateInput struct {
-	SupplierID          *uint    `json:"supplier_id"`
-	CustomerName        string   `json:"customer_name"`
-	CustomerPhone       string   `json:"customer_phone"`
-	CustomerEmail       string   `json:"customer_email"`
-	ServiceType         string   `json:"service_type"`
-	ProblemDescription  string   `json:"problem_description"`
-	EstimatedCost       *float64 `json:"estimated_cost"`
-	FinalCost           *float64 `json:"final_cost"`
-	Deadline            string   `json:"deadline"`
-	Priority            string   `json:"priority"`
-	Status              string   `json:"status"`
-	Notes               string   `json:"notes"`
-	Observations        string   `json:"observations"`
+	SupplierID         *uint    `json:"supplier_id"`
+	CustomerName       string   `json:"customer_name"`
+	CustomerPhone      string   `json:"customer_phone"`
+	CustomerEmail      string   `json:"customer_email"`
+	ServiceType        string   `json:"service_type"`
+	ProblemDescription string   `json:"problem_description"`
+	EstimatedCost      *float64 `json:"estimated_cost"`
+	FinalCost          *float64 `json:"final_cost"`
+	Deadline           string   `json:"deadline"`
+	Priority           string   `json:"priority"`
+	Status             string   `json:"status"`
+	Notes              string   `json:"notes"`
+	Observations       string   `json:"observations"`
 }
 
 // StatsOutput holds service order statistics.
@@ -73,13 +74,13 @@ type ListOutput struct {
 var orderCounter int
 
 // GetByID returns a single service order.
-func (s *Service) GetByID(id uint) (*domain.ServiceOrder, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.ServiceOrder, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // GetStats returns aggregate statistics.
-func (s *Service) GetStats() (*StatsOutput, error) {
-	data, _, err := s.repo.List(map[string]any{}, 1, 10000)
+func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
+	data, _, err := s.repo.List(db, map[string]any{}, 1, 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -102,14 +103,14 @@ func (s *Service) GetStats() (*StatsOutput, error) {
 }
 
 // List returns a paginated list.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
 		perPage = 15
 	}
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Create creates a new service order.
-func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.ServiceOrder, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.ServiceOrder, error) {
 	var deadline *time.Time
 	if input.Deadline != "" {
 		if t, err := time.Parse("2006-01-02", input.Deadline); err == nil {
@@ -130,36 +131,35 @@ func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.Serv
 	}
 
 	// Generate order number
-	data, total, _ := s.repo.List(map[string]any{}, 1, 1)
-	_ = data
+	_, total, _ := s.repo.List(db, map[string]any{}, 1, 1)
 	orderNum := fmt.Sprintf("SO-%04d", total+1)
 
 	o := &domain.ServiceOrder{
-		OrderNumber:         orderNum,
-		SupplierID:          input.SupplierID,
-		CustomerName:        input.CustomerName,
-		CustomerPhone:       input.CustomerPhone,
-		CustomerEmail:       input.CustomerEmail,
-		ServiceType:         input.ServiceType,
-		Description:         input.ProblemDescription,
-		EstimatedCost:       input.EstimatedCost,
+		OrderNumber:           orderNum,
+		SupplierID:            input.SupplierID,
+		CustomerName:          input.CustomerName,
+		CustomerPhone:         input.CustomerPhone,
+		CustomerEmail:         input.CustomerEmail,
+		ServiceType:           input.ServiceType,
+		Description:           input.ProblemDescription,
+		EstimatedCost:         input.EstimatedCost,
 		EstimatedDeliveryDate: deadline,
-		Priority:            input.Priority,
-		Status:              "pending",
-		Notes:               input.Notes,
-		CreatedByUserID:     createdByUserID,
+		Priority:              input.Priority,
+		Status:                "pending",
+		Notes:                 input.Notes,
+		CreatedByUserID:       createdByUserID,
 	}
 
-	if err := s.repo.Create(o); err != nil {
+	if err := s.repo.Create(db, o); err != nil {
 		return nil, err
 	}
 	s.logger.Info("service order created", zap.Uint("id", o.ID))
-	return s.repo.GetByID(o.ID)
+	return s.repo.GetByID(db, o.ID)
 }
 
 // Update updates a service order.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.ServiceOrder, error) {
-	o, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.ServiceOrder, error) {
+	o, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -200,16 +200,16 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.ServiceOrder, erro
 		o.Observations = input.Observations
 	}
 
-	if err := s.repo.Update(o); err != nil {
+	if err := s.repo.Update(db, o); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(o.ID)
+	return s.repo.GetByID(db, o.ID)
 }
 
 // Delete removes a service order.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

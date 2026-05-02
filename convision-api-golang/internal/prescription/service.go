@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -22,62 +23,62 @@ func NewService(repo domain.PrescriptionRepository, logger *zap.Logger) *Service
 
 // CreateInput holds validated fields for creating a prescription.
 type CreateInput struct {
-	AppointmentID          *uint  `json:"appointment_id"`
-	Date                   string `json:"date"`
-	Document               string `json:"document"`
-	PatientName            string `json:"patient_name"`
-	RightSphere            string `json:"right_sphere"`
-	RightCylinder          string `json:"right_cylinder"`
-	RightAxis              string `json:"right_axis"`
-	RightAddition          string `json:"right_addition"`
-	RightHeight            string `json:"right_height"`
-	RightDistanceP         string `json:"right_distance_p"`
-	RightVisualAcuityFar   string `json:"right_visual_acuity_far"`
-	RightVisualAcuityNear  string `json:"right_visual_acuity_near"`
-	LeftSphere             string `json:"left_sphere"`
-	LeftCylinder           string `json:"left_cylinder"`
-	LeftAxis               string `json:"left_axis"`
-	LeftAddition           string `json:"left_addition"`
-	LeftHeight             string `json:"left_height"`
-	LeftDistanceP          string `json:"left_distance_p"`
-	LeftVisualAcuityFar    string `json:"left_visual_acuity_far"`
-	LeftVisualAcuityNear   string `json:"left_visual_acuity_near"`
-	CorrectionType         string `json:"correction_type"`
-	UsageType              string `json:"usage_type"`
-	Recommendation         string `json:"recommendation"`
-	Professional           string `json:"professional"`
-	Observation            string `json:"observation"`
-	Attachment             string `json:"attachment"`
+	AppointmentID         *uint  `json:"appointment_id"`
+	Date                  string `json:"date"`
+	Document              string `json:"document"`
+	PatientName           string `json:"patient_name"`
+	RightSphere           string `json:"right_sphere"`
+	RightCylinder         string `json:"right_cylinder"`
+	RightAxis             string `json:"right_axis"`
+	RightAddition         string `json:"right_addition"`
+	RightHeight           string `json:"right_height"`
+	RightDistanceP        string `json:"right_distance_p"`
+	RightVisualAcuityFar  string `json:"right_visual_acuity_far"`
+	RightVisualAcuityNear string `json:"right_visual_acuity_near"`
+	LeftSphere            string `json:"left_sphere"`
+	LeftCylinder          string `json:"left_cylinder"`
+	LeftAxis              string `json:"left_axis"`
+	LeftAddition          string `json:"left_addition"`
+	LeftHeight            string `json:"left_height"`
+	LeftDistanceP         string `json:"left_distance_p"`
+	LeftVisualAcuityFar   string `json:"left_visual_acuity_far"`
+	LeftVisualAcuityNear  string `json:"left_visual_acuity_near"`
+	CorrectionType        string `json:"correction_type"`
+	UsageType             string `json:"usage_type"`
+	Recommendation        string `json:"recommendation"`
+	Professional          string `json:"professional"`
+	Observation           string `json:"observation"`
+	Attachment            string `json:"attachment"`
 }
 
 // UpdateInput holds validated fields for updating a prescription (all optional).
 type UpdateInput struct {
-	AppointmentID          *uint  `json:"appointment_id"`
-	Date                   string `json:"date"`
-	Document               string `json:"document"`
-	PatientName            string `json:"patient_name"`
-	RightSphere            string `json:"right_sphere"`
-	RightCylinder          string `json:"right_cylinder"`
-	RightAxis              string `json:"right_axis"`
-	RightAddition          string `json:"right_addition"`
-	RightHeight            string `json:"right_height"`
-	RightDistanceP         string `json:"right_distance_p"`
-	RightVisualAcuityFar   string `json:"right_visual_acuity_far"`
-	RightVisualAcuityNear  string `json:"right_visual_acuity_near"`
-	LeftSphere             string `json:"left_sphere"`
-	LeftCylinder           string `json:"left_cylinder"`
-	LeftAxis               string `json:"left_axis"`
-	LeftAddition           string `json:"left_addition"`
-	LeftHeight             string `json:"left_height"`
-	LeftDistanceP          string `json:"left_distance_p"`
-	LeftVisualAcuityFar    string `json:"left_visual_acuity_far"`
-	LeftVisualAcuityNear   string `json:"left_visual_acuity_near"`
-	CorrectionType         string `json:"correction_type"`
-	UsageType              string `json:"usage_type"`
-	Recommendation         string `json:"recommendation"`
-	Professional           string `json:"professional"`
-	Observation            string `json:"observation"`
-	Attachment             string `json:"attachment"`
+	AppointmentID         *uint  `json:"appointment_id"`
+	Date                  string `json:"date"`
+	Document              string `json:"document"`
+	PatientName           string `json:"patient_name"`
+	RightSphere           string `json:"right_sphere"`
+	RightCylinder         string `json:"right_cylinder"`
+	RightAxis             string `json:"right_axis"`
+	RightAddition         string `json:"right_addition"`
+	RightHeight           string `json:"right_height"`
+	RightDistanceP        string `json:"right_distance_p"`
+	RightVisualAcuityFar  string `json:"right_visual_acuity_far"`
+	RightVisualAcuityNear string `json:"right_visual_acuity_near"`
+	LeftSphere            string `json:"left_sphere"`
+	LeftCylinder          string `json:"left_cylinder"`
+	LeftAxis              string `json:"left_axis"`
+	LeftAddition          string `json:"left_addition"`
+	LeftHeight            string `json:"left_height"`
+	LeftDistanceP         string `json:"left_distance_p"`
+	LeftVisualAcuityFar   string `json:"left_visual_acuity_far"`
+	LeftVisualAcuityNear  string `json:"left_visual_acuity_near"`
+	CorrectionType        string `json:"correction_type"`
+	UsageType             string `json:"usage_type"`
+	Recommendation        string `json:"recommendation"`
+	Professional          string `json:"professional"`
+	Observation           string `json:"observation"`
+	Attachment            string `json:"attachment"`
 }
 
 // ListOutput holds paginated prescription results.
@@ -100,14 +101,14 @@ func clampPage(page, perPage int) (int, int) {
 }
 
 // GetByID returns a single prescription by ID.
-func (s *Service) GetByID(id uint) (*domain.Prescription, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Prescription, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // List returns paginated prescriptions with optional filters.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +120,9 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // ListByPatient returns paginated prescriptions for a given patient (via appointments).
-func (s *Service) ListByPatient(patientID uint, page, perPage int) (*ListOutput, error) {
+func (s *Service) ListByPatient(db *gorm.DB, patientID uint, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.ListByPatientID(patientID, page, perPage)
+	data, total, err := s.repo.ListByPatientID(db, patientID, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func (s *Service) ListByPatient(patientID uint, page, perPage int) (*ListOutput,
 }
 
 // Create creates a new prescription.
-func (s *Service) Create(input CreateInput) (*domain.Prescription, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Prescription, error) {
 	p := &domain.Prescription{
 		AppointmentID:         input.AppointmentID,
 		Document:              input.Document,
@@ -169,17 +170,17 @@ func (s *Service) Create(input CreateInput) (*domain.Prescription, error) {
 		}
 	}
 
-	if err := s.repo.Create(p); err != nil {
+	if err := s.repo.Create(db, p); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("prescription created", zap.Uint("prescription_id", p.ID))
-	return s.repo.GetByID(p.ID)
+	return s.repo.GetByID(db, p.ID)
 }
 
 // Update updates an existing prescription.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Prescription, error) {
-	p, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Prescription, error) {
+	p, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -234,18 +235,18 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Prescription, erro
 		p.Attachment = input.Attachment
 	}
 
-	if err := s.repo.Update(p); err != nil {
+	if err := s.repo.Update(db, p); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("prescription updated", zap.Uint("prescription_id", p.ID))
-	return s.repo.GetByID(p.ID)
+	return s.repo.GetByID(db, p.ID)
 }
 
 // Delete removes a prescription by ID.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

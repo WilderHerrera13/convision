@@ -312,10 +312,11 @@ func (h *Handler) Refresh(c *gin.Context) {
 // ListUsers godoc
 // GET /api/v1/users
 func (h *Handler) ListUsers(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
-	out, err := h.user.List(page, perPage)
+	out, err := h.user.List(db, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
@@ -339,12 +340,13 @@ func (h *Handler) ListUsers(c *gin.Context) {
 // GetUser godoc
 // GET /api/v1/users/:id
 func (h *Handler) GetUser(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	u, err := h.user.GetByID(id)
+	u, err := h.user.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -352,7 +354,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 	res := toUserResource(u)
 	if u.Role == domain.RoleSpecialist || u.Role == domain.RoleReceptionist {
-		assigns, err := h.branch.ListAssignmentsForUser(id)
+		assigns, err := h.branch.ListAssignmentsForUser(db, id)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 			return
@@ -373,13 +375,14 @@ func (h *Handler) GetUser(c *gin.Context) {
 // CreateUser godoc
 // POST /api/v1/users
 func (h *Handler) CreateUser(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input usersvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
 
-	u, err := h.user.Create(input)
+	u, err := h.user.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -391,6 +394,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 // UpdateUser godoc
 // PUT /api/v1/users/:id
 func (h *Handler) UpdateUser(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -402,7 +406,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	u, err := h.user.Update(id, input)
+	u, err := h.user.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -414,12 +418,13 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 // DeleteUser godoc
 // DELETE /api/v1/users/:id
 func (h *Handler) DeleteUser(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	if err := h.user.Delete(id); err != nil {
+	if err := h.user.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -432,6 +437,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 // Returns all specialist-role users. Optionally filtered by branch_id.
 // Accessible to all authenticated roles.
 func (h *Handler) ListSpecialists(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	branchIDStr := c.Query("branch_id")
 	var branchID uint
 	if branchIDStr != "" {
@@ -443,9 +449,9 @@ func (h *Handler) ListSpecialists(c *gin.Context) {
 	var users []*domain.User
 	var err error
 	if branchID > 0 {
-		users, err = h.user.GetSpecialistsByBranch(branchID)
+		users, err = h.user.GetSpecialistsByBranch(db, branchID)
 	} else {
-		users, err = h.user.GetSpecialists()
+		users, err = h.user.GetSpecialists(db)
 	}
 
 	if err != nil {
@@ -585,11 +591,12 @@ func parseApiFilters(c *gin.Context) map[string]any {
 // ListPatients godoc
 // GET /api/v1/patients
 func (h *Handler) ListPatients(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
 
-	out, err := h.patient.List(filters, page, perPage)
+	out, err := h.patient.List(db, filters, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -612,12 +619,13 @@ func (h *Handler) ListPatients(c *gin.Context) {
 // GetPatient godoc
 // GET /api/v1/patients/:id
 func (h *Handler) GetPatient(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	p, err := h.patient.GetByID(id)
+	p, err := h.patient.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -628,13 +636,14 @@ func (h *Handler) GetPatient(c *gin.Context) {
 // CreatePatient godoc
 // POST /api/v1/patients
 func (h *Handler) CreatePatient(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input patient.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
 
-	p, err := h.patient.Create(input)
+	p, err := h.patient.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -645,6 +654,7 @@ func (h *Handler) CreatePatient(c *gin.Context) {
 // UpdatePatient godoc
 // PUT /api/v1/patients/:id
 func (h *Handler) UpdatePatient(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -656,7 +666,7 @@ func (h *Handler) UpdatePatient(c *gin.Context) {
 		return
 	}
 
-	p, err := h.patient.Update(id, input)
+	p, err := h.patient.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -667,12 +677,13 @@ func (h *Handler) UpdatePatient(c *gin.Context) {
 // DeletePatient godoc
 // DELETE /api/v1/patients/:id
 func (h *Handler) DeletePatient(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	if err := h.patient.Delete(id); err != nil {
+	if err := h.patient.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}

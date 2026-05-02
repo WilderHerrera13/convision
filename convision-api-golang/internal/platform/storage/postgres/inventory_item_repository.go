@@ -17,13 +17,11 @@ var inventoryItemFilterAllowlist = map[string]bool{
 }
 
 // InventoryItemRepository is the PostgreSQL-backed implementation of domain.InventoryItemRepository.
-type InventoryItemRepository struct {
-	db *gorm.DB
-}
+type InventoryItemRepository struct{}
 
 // NewInventoryItemRepository creates a new InventoryItemRepository.
-func NewInventoryItemRepository(db *gorm.DB) *InventoryItemRepository {
-	return &InventoryItemRepository{db: db}
+func NewInventoryItemRepository() *InventoryItemRepository {
+	return &InventoryItemRepository{}
 }
 
 func (r *InventoryItemRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -33,9 +31,9 @@ func (r *InventoryItemRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("WarehouseLocation")
 }
 
-func (r *InventoryItemRepository) GetByID(id uint) (*domain.InventoryItem, error) {
+func (r *InventoryItemRepository) GetByID(db *gorm.DB, id uint) (*domain.InventoryItem, error) {
 	var item domain.InventoryItem
-	err := r.withRelations(r.db).First(&item, id).Error
+	err := r.withRelations(db).First(&item, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "inventory_item"}
@@ -45,12 +43,12 @@ func (r *InventoryItemRepository) GetByID(id uint) (*domain.InventoryItem, error
 	return &item, nil
 }
 
-func (r *InventoryItemRepository) Create(i *domain.InventoryItem) error {
-	return r.db.Create(i).Error
+func (r *InventoryItemRepository) Create(db *gorm.DB, i *domain.InventoryItem) error {
+	return db.Create(i).Error
 }
 
-func (r *InventoryItemRepository) Update(i *domain.InventoryItem) error {
-	return r.db.Model(i).Updates(map[string]any{
+func (r *InventoryItemRepository) Update(db *gorm.DB, i *domain.InventoryItem) error {
+	return db.Model(i).Updates(map[string]any{
 		"product_id":            i.ProductID,
 		"warehouse_id":          i.WarehouseID,
 		"warehouse_location_id": i.WarehouseLocationID,
@@ -60,15 +58,15 @@ func (r *InventoryItemRepository) Update(i *domain.InventoryItem) error {
 	}).Error
 }
 
-func (r *InventoryItemRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.InventoryItem{}, id).Error
+func (r *InventoryItemRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.InventoryItem{}, id).Error
 }
 
-func (r *InventoryItemRepository) List(filters map[string]any, page, perPage int) ([]*domain.InventoryItem, int64, error) {
+func (r *InventoryItemRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryItem, int64, error) {
 	var items []*domain.InventoryItem
 	var total int64
 
-	q := r.db.Model(&domain.InventoryItem{})
+	q := db.Model(&domain.InventoryItem{})
 	for field, value := range filters {
 		if field == "branch_id" {
 			q = q.Where("inventory_items.branch_id = ?", value)
@@ -97,9 +95,9 @@ func (r *InventoryItemRepository) List(filters map[string]any, page, perPage int
 	return items, total, nil
 }
 
-func (r *InventoryItemRepository) TotalStock() (int64, error) {
+func (r *InventoryItemRepository) TotalStock(db *gorm.DB) (int64, error) {
 	var total int64
-	err := r.db.Model(&domain.InventoryItem{}).
+	err := db.Model(&domain.InventoryItem{}).
 		Where("status = ?", domain.InventoryItemStatusAvailable).
 		Select("COALESCE(SUM(quantity), 0)").
 		Scan(&total).Error
@@ -116,8 +114,8 @@ var totalStockProductFilterAllowlist = map[string]bool{
 	"supplier_id": true,
 }
 
-func (r *InventoryItemRepository) TotalStockPerProduct(filters map[string]any) ([]*domain.ProductStockEntry, error) {
-	q := r.db.Table("inventory_items").
+func (r *InventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any) ([]*domain.ProductStockEntry, error) {
+	q := db.Table("inventory_items").
 		Select("inventory_items.product_id, products.description AS product_name, COALESCE(SUM(inventory_items.quantity), 0) AS total_quantity").
 		Joins("JOIN products ON products.id = inventory_items.product_id").
 		Where("inventory_items.status = ?", domain.InventoryItemStatusAvailable).
@@ -146,8 +144,8 @@ func (r *InventoryItemRepository) TotalStockPerProduct(filters map[string]any) (
 	return results, nil
 }
 
-func (r *InventoryItemRepository) ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error) {
-	q := r.db.Model(&domain.InventoryItem{}).
+func (r *InventoryItemRepository) ExistsByProductAndLocation(db *gorm.DB, productID, locationID, excludeID uint) (bool, error) {
+	q := db.Model(&domain.InventoryItem{}).
 		Where("product_id = ? AND warehouse_location_id = ?", productID, locationID)
 	if excludeID != 0 {
 		q = q.Where("id != ?", excludeID)

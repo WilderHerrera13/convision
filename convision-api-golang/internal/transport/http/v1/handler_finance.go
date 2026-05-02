@@ -92,10 +92,11 @@ func buildSupplierResponse(s *domain.Supplier) SupplierResponse {
 // ---------- Suppliers ----------
 
 func (h *Handler) ListSuppliers(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.supplier.List(filters, page, perPage)
+	out, err := h.supplier.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -117,12 +118,13 @@ func (h *Handler) ListSuppliers(c *gin.Context) {
 }
 
 func (h *Handler) GetSupplier(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	s, err := h.supplier.GetByID(uint(id))
+	s, err := h.supplier.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -131,12 +133,13 @@ func (h *Handler) GetSupplier(c *gin.Context) {
 }
 
 func (h *Handler) CreateSupplier(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input suppliersvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	s, err := h.supplier.Create(input)
+	s, err := h.supplier.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -145,6 +148,7 @@ func (h *Handler) CreateSupplier(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSupplier(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
@@ -155,7 +159,7 @@ func (h *Handler) UpdateSupplier(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	s, err := h.supplier.Update(uint(id), input)
+	s, err := h.supplier.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -164,12 +168,13 @@ func (h *Handler) UpdateSupplier(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSupplier(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.supplier.Delete(uint(id)); err != nil {
+	if err := h.supplier.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -179,10 +184,11 @@ func (h *Handler) DeleteSupplier(c *gin.Context) {
 // ---------- Purchases ----------
 
 func (h *Handler) ListPurchases(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.purchase.List(filters, page, perPage)
+	out, err := h.purchase.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -191,12 +197,13 @@ func (h *Handler) ListPurchases(c *gin.Context) {
 }
 
 func (h *Handler) GetPurchase(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	p, err := h.purchase.GetByID(uint(id))
+	p, err := h.purchase.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -205,6 +212,7 @@ func (h *Handler) GetPurchase(c *gin.Context) {
 }
 
 func (h *Handler) CreatePurchase(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input purchasesvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -216,7 +224,7 @@ func (h *Handler) CreatePurchase(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	p, err := h.purchase.Create(input, userID)
+	p, err := h.purchase.Create(db, input, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -225,6 +233,7 @@ func (h *Handler) CreatePurchase(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePurchase(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
@@ -235,7 +244,7 @@ func (h *Handler) UpdatePurchase(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	p, err := h.purchase.Update(uint(id), input)
+	p, err := h.purchase.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -244,12 +253,13 @@ func (h *Handler) UpdatePurchase(c *gin.Context) {
 }
 
 func (h *Handler) DeletePurchase(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.purchase.Delete(uint(id)); err != nil {
+	if err := h.purchase.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -259,12 +269,13 @@ func (h *Handler) DeletePurchase(c *gin.Context) {
 // ReceivePurchase marks a purchase as received
 // POST /api/v1/purchases/:id/receive
 func (h *Handler) ReceivePurchase(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	p, err := h.purchase.Receive(uint(id))
+	p, err := h.purchase.Receive(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -275,7 +286,8 @@ func (h *Handler) ReceivePurchase(c *gin.Context) {
 // ---------- Expenses ----------
 
 func (h *Handler) GetExpenseStats(c *gin.Context) {
-	stats, err := h.expense.GetStats()
+	db := tenantDBFromCtx(c)
+	stats, err := h.expense.GetStats(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -287,7 +299,8 @@ func (h *Handler) ListExpenses(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseApiFilters(c)
-	out, err := h.expense.List(filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.expense.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -301,7 +314,8 @@ func (h *Handler) GetExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	e, err := h.expense.GetByID(uint(id))
+	db := tenantDBFromCtx(c)
+	e, err := h.expense.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -321,7 +335,8 @@ func (h *Handler) CreateExpense(c *gin.Context) {
 		uid := uint(claims.UserID)
 		userID = &uid
 	}
-	e, err := h.expense.Create(input, userID)
+	db := tenantDBFromCtx(c)
+	e, err := h.expense.Create(db, input, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -340,7 +355,8 @@ func (h *Handler) UpdateExpense(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	e, err := h.expense.Update(uint(id), input)
+	db := tenantDBFromCtx(c)
+	e, err := h.expense.Update(db, uint(id), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -354,7 +370,8 @@ func (h *Handler) DeleteExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.expense.Delete(uint(id)); err != nil {
+	db := tenantDBFromCtx(c)
+	if err := h.expense.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}

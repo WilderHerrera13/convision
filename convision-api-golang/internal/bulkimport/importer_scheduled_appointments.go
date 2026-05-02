@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -39,7 +40,7 @@ func newScheduledAppointmentsImporter(
 
 func (i *scheduledAppointmentsImporter) Columns() []string { return scheduledAppointmentsColumns }
 
-func (i *scheduledAppointmentsImporter) ProcessRow(rowNum int, data map[string]string) RecordResult {
+func (i *scheduledAppointmentsImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]string) RecordResult {
 	rec := RecordResult{Row: rowNum, Data: data}
 
 	appointmentDate := parseDate(strings.TrimSpace(data["fechaconsulta"]))
@@ -56,17 +57,17 @@ func (i *scheduledAppointmentsImporter) ProcessRow(rowNum int, data map[string]s
 		return rec
 	}
 
-	patient, err := i.findOrCreatePatient(rowNum, identification, data)
+	patient, err := i.findOrCreatePatient(db, rowNum, identification, data)
 	if err != nil {
 		rec.Status = RecordStatusError
 		rec.Reason = "error al procesar paciente: " + err.Error()
 		return rec
 	}
 
-	specialistID := i.findOrCreateSpecialist(rowNum, data)
-	receptionistID := i.findOrCreateReceptionist(rowNum, data)
+	specialistID := i.findOrCreateSpecialist(db, rowNum, data)
+	receptionistID := i.findOrCreateReceptionist(db, rowNum, data)
 
-	exists, err := i.appointmentRepo.ExistsByPatientAndDate(patient.ID, specialistID, *appointmentDate)
+	exists, err := i.appointmentRepo.ExistsByPatientAndDate(db, patient.ID, specialistID, *appointmentDate)
 	if err == nil && exists {
 		rec.Status = RecordStatusSkipped
 		rec.Reason = "consulta duplicada (mismo paciente, especialista y día)"
@@ -81,7 +82,7 @@ func (i *scheduledAppointmentsImporter) ProcessRow(rowNum int, data map[string]s
 		Status:       domain.AppointmentStatusCompleted,
 	}
 
-	if err := i.appointmentRepo.Create(appt); err != nil {
+	if err := i.appointmentRepo.Create(db, appt); err != nil {
 		i.logger.Warn("bulk import scheduled-appointments: failed to create appointment",
 			zap.Int("row", rowNum),
 			zap.String("identification", identification),
@@ -96,8 +97,8 @@ func (i *scheduledAppointmentsImporter) ProcessRow(rowNum int, data map[string]s
 	return rec
 }
 
-func (i *scheduledAppointmentsImporter) findOrCreatePatient(rowNum int, identification string, data map[string]string) (*domain.Patient, error) {
-	if p, err := i.patientRepo.GetByIdentification(identification); err == nil {
+func (i *scheduledAppointmentsImporter) findOrCreatePatient(db *gorm.DB, rowNum int, identification string, data map[string]string) (*domain.Patient, error) {
+	if p, err := i.patientRepo.GetByIdentification(db, identification); err == nil {
 		return p, nil
 	}
 
@@ -117,7 +118,7 @@ func (i *scheduledAppointmentsImporter) findOrCreatePatient(rowNum int, identifi
 		}
 	}
 
-	if err := i.patientRepo.Create(p); err != nil {
+	if err := i.patientRepo.Create(db, p); err != nil {
 		return nil, fmt.Errorf("fila %d: %w", rowNum, err)
 	}
 	return p, nil
@@ -129,14 +130,14 @@ func cleanDocumento(s string) string {
 	return strings.ReplaceAll(strings.TrimSpace(s), ".", "")
 }
 
-func (i *scheduledAppointmentsImporter) findOrCreateSpecialist(rowNum int, data map[string]string) *uint {
+func (i *scheduledAppointmentsImporter) findOrCreateSpecialist(db *gorm.DB, rowNum int, data map[string]string) *uint {
 	doc := cleanDocumento(data["idusuario"])
 	// "1" is the placeholder for "Usuario Externo" — no real specialist
 	if doc == "" || doc == "1" {
 		return nil
 	}
 	fullName := strings.TrimSpace(data["usuario"])
-	u, err := i.findOrCreateUserByIdentification(rowNum, doc, fullName, domain.RoleSpecialist)
+	u, err := i.findOrCreateUserByIdentification(db, rowNum, doc, fullName, domain.RoleSpecialist)
 	if err != nil {
 		i.logger.Warn("bulk import: could not resolve specialist",
 			zap.Int("row", rowNum), zap.String("doc", doc), zap.Error(err))
@@ -146,13 +147,13 @@ func (i *scheduledAppointmentsImporter) findOrCreateSpecialist(rowNum int, data 
 	return &id
 }
 
-func (i *scheduledAppointmentsImporter) findOrCreateReceptionist(rowNum int, data map[string]string) *uint {
+func (i *scheduledAppointmentsImporter) findOrCreateReceptionist(db *gorm.DB, rowNum int, data map[string]string) *uint {
 	doc := cleanDocumento(data["creadopor"])
 	if doc == "" {
 		return nil
 	}
 	fullName := strings.TrimSpace(data["creadopornombre"])
-	u, err := i.findOrCreateUserByIdentification(rowNum, doc, fullName, domain.RoleReceptionist)
+	u, err := i.findOrCreateUserByIdentification(db, rowNum, doc, fullName, domain.RoleReceptionist)
 	if err != nil {
 		i.logger.Warn("bulk import: could not resolve receptionist",
 			zap.Int("row", rowNum), zap.String("doc", doc), zap.Error(err))
@@ -163,12 +164,13 @@ func (i *scheduledAppointmentsImporter) findOrCreateReceptionist(rowNum int, dat
 }
 
 func (i *scheduledAppointmentsImporter) findOrCreateUserByIdentification(
+	db *gorm.DB,
 	rowNum int,
 	identification string,
 	fullName string,
 	role domain.Role,
 ) (*domain.User, error) {
-	users, _, err := i.userRepo.List(map[string]any{"identification": identification}, 1, 1)
+	users, _, err := i.userRepo.List(db, map[string]any{"identification": identification}, 1, 1)
 	if err == nil && len(users) > 0 {
 		return users[0], nil
 	}
@@ -184,9 +186,9 @@ func (i *scheduledAppointmentsImporter) findOrCreateUserByIdentification(
 		Active:         true,
 		Phone:          "",
 	}
-	if err := i.userRepo.Create(u); err != nil {
+	if err := i.userRepo.Create(db, u); err != nil {
 		// Race: another row may have just created this user — retry lookup
-		users2, _, err2 := i.userRepo.List(map[string]any{"identification": identification}, 1, 1)
+		users2, _, err2 := i.userRepo.List(db, map[string]any{"identification": identification}, 1, 1)
 		if err2 == nil && len(users2) > 0 {
 			return users2[0], nil
 		}

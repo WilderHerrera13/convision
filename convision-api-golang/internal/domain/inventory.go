@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Warehouse represents a physical storage location.
 type Warehouse struct {
@@ -98,21 +102,21 @@ type InventoryTransfer struct {
 
 // WarehouseRepository defines persistence operations for Warehouse.
 type WarehouseRepository interface {
-	GetByID(id uint) (*Warehouse, error)
-	Create(w *Warehouse) error
-	Update(w *Warehouse) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Warehouse, int64, error)
-	ListLocations(warehouseID uint) ([]*WarehouseLocation, error)
+	GetByID(db *gorm.DB, id uint) (*Warehouse, error)
+	Create(db *gorm.DB, w *Warehouse) error
+	Update(db *gorm.DB, w *Warehouse) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Warehouse, int64, error)
+	ListLocations(db *gorm.DB, warehouseID uint) ([]*WarehouseLocation, error)
 }
 
 // WarehouseLocationRepository defines persistence operations for WarehouseLocation.
 type WarehouseLocationRepository interface {
-	GetByID(id uint) (*WarehouseLocation, error)
-	Create(l *WarehouseLocation) error
-	Update(l *WarehouseLocation) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*WarehouseLocation, int64, error)
+	GetByID(db *gorm.DB, id uint) (*WarehouseLocation, error)
+	Create(db *gorm.DB, l *WarehouseLocation) error
+	Update(db *gorm.DB, l *WarehouseLocation) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*WarehouseLocation, int64, error)
 }
 
 // ProductStockEntry holds the aggregated stock quantity for a single product.
@@ -124,28 +128,28 @@ type ProductStockEntry struct {
 
 // InventoryItemRepository defines persistence operations for InventoryItem.
 type InventoryItemRepository interface {
-	GetByID(id uint) (*InventoryItem, error)
-	Create(i *InventoryItem) error
-	Update(i *InventoryItem) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
-	TotalStock() (int64, error)
+	GetByID(db *gorm.DB, id uint) (*InventoryItem, error)
+	Create(db *gorm.DB, i *InventoryItem) error
+	Update(db *gorm.DB, i *InventoryItem) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
+	TotalStock(db *gorm.DB) (int64, error)
 	// TotalStockPerProduct returns aggregated stock grouped by product.
 	// Supported filter keys: warehouse_id, warehouse_location_id.
-	TotalStockPerProduct(filters map[string]any) ([]*ProductStockEntry, error)
+	TotalStockPerProduct(db *gorm.DB, filters map[string]any) ([]*ProductStockEntry, error)
 	// ExistsByProductAndLocation returns true when an InventoryItem already
 	// exists for the given (productID, locationID) pair, optionally excluding
 	// the item with excludeID (use 0 to skip the exclusion).
-	ExistsByProductAndLocation(productID, locationID, excludeID uint) (bool, error)
+	ExistsByProductAndLocation(db *gorm.DB, productID, locationID, excludeID uint) (bool, error)
 }
 
 // InventoryTransferRepository defines persistence operations for InventoryTransfer.
 type InventoryTransferRepository interface {
-	GetByID(id uint) (*InventoryTransfer, error)
-	Create(t *InventoryTransfer) error
-	Update(t *InventoryTransfer) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*InventoryTransfer, int64, error)
+	GetByID(db *gorm.DB, id uint) (*InventoryTransfer, error)
+	Create(db *gorm.DB, t *InventoryTransfer) error
+	Update(db *gorm.DB, t *InventoryTransfer) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryTransfer, int64, error)
 }
 
 // MovementType enumerates valid stock movement types for the Kardex.
@@ -198,9 +202,9 @@ type StockMovement struct {
 
 // StockMovementRepository defines persistence for StockMovement (Kardex).
 type StockMovementRepository interface {
-	Create(m *StockMovement) error
-	List(filters map[string]any, page, perPage int) ([]*StockMovement, int64, error)
-	ListByProduct(productID uint, page, perPage int) ([]*StockMovement, int64, error)
+	Create(db *gorm.DB, m *StockMovement) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*StockMovement, int64, error)
+	ListByProduct(db *gorm.DB, productID uint, page, perPage int) ([]*StockMovement, int64, error)
 }
 
 // AdjustmentStatus enumerates valid statuses for inventory adjustments.
@@ -248,8 +252,8 @@ type InventoryAdjustment struct {
 
 // InventoryAdjustmentRepository defines persistence for InventoryAdjustment.
 type InventoryAdjustmentRepository interface {
-	GetByID(id uint) (*InventoryAdjustment, error)
-	Create(a *InventoryAdjustment) error
-	Update(a *InventoryAdjustment) error
-	List(filters map[string]any, page, perPage int) ([]*InventoryAdjustment, int64, error)
+	GetByID(db *gorm.DB, id uint) (*InventoryAdjustment, error)
+	Create(db *gorm.DB, a *InventoryAdjustment) error
+	Update(db *gorm.DB, a *InventoryAdjustment) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryAdjustment, int64, error)
 }

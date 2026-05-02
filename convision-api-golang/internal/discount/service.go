@@ -75,18 +75,18 @@ type RejectInput struct {
 
 // ListOutput is the paginated discount response.
 type ListOutput struct {
-	CurrentPage int                        `json:"current_page"`
-	Data        []*domain.DiscountRequest  `json:"data"`
-	LastPage    int                        `json:"last_page"`
-	PerPage     int                        `json:"per_page"`
-	Total       int64                      `json:"total"`
+	CurrentPage int                       `json:"current_page"`
+	Data        []*domain.DiscountRequest `json:"data"`
+	LastPage    int                       `json:"last_page"`
+	PerPage     int                       `json:"per_page"`
+	Total       int64                     `json:"total"`
 }
 
 // --- Methods ---
 
 func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 func (s *Service) GetByID(id uint) (*domain.DiscountRequest, error) {
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(s.db, id)
 }
 
 func (s *Service) Create(input CreateInput) (*domain.DiscountRequest, error) {
@@ -150,10 +150,10 @@ func (s *Service) Create(input CreateInput) (*domain.DiscountRequest, error) {
 			ApprovedAt:         approvedAt,
 			ApprovalNotes:      approvalNotes,
 		}
-		if err := s.repo.Create(d); err != nil {
+		if err := s.repo.Create(tx, d); err != nil {
 			return err
 		}
-		fetched, err := s.repo.GetByID(d.ID)
+		fetched, err := s.repo.GetByID(tx, d.ID)
 		if err != nil {
 			return err
 		}
@@ -176,7 +176,7 @@ func (s *Service) Update(id uint, input CreateInput, callerID uint, callerRole d
 
 	var result *domain.DiscountRequest
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		d, err := s.repo.GetByID(id)
+		d, err := s.repo.GetByID(tx, id)
 		if err != nil {
 			return err
 		}
@@ -210,10 +210,10 @@ func (s *Service) Update(id uint, input CreateInput, callerID uint, callerRole d
 			d.DiscountedPrice = basePrice * (1 - d.DiscountPercentage/100)
 		}
 
-		if err := s.repo.Update(d); err != nil {
+		if err := s.repo.Update(tx, d); err != nil {
 			return err
 		}
-		result, err = s.repo.GetByID(id)
+		result, err = s.repo.GetByID(tx, id)
 		return err
 	})
 	if err != nil {
@@ -224,17 +224,17 @@ func (s *Service) Update(id uint, input CreateInput, callerID uint, callerRole d
 
 func (s *Service) Delete(id uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		if _, err := s.repo.GetByID(id); err != nil {
+		if _, err := s.repo.GetByID(tx, id); err != nil {
 			return err
 		}
-		return s.repo.Delete(id)
+		return s.repo.Delete(tx, id)
 	})
 }
 
 func (s *Service) Approve(id uint, approverID uint, input ApproveInput) (*domain.DiscountRequest, error) {
 	var result *domain.DiscountRequest
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		d, err := s.repo.GetByID(id)
+		d, err := s.repo.GetByID(tx, id)
 		if err != nil {
 			return err
 		}
@@ -250,10 +250,10 @@ func (s *Service) Approve(id uint, approverID uint, input ApproveInput) (*domain
 			d.ExpiryDate = input.ExpiryDate
 		}
 
-		if err := s.repo.Update(d); err != nil {
+		if err := s.repo.Update(tx, d); err != nil {
 			return err
 		}
-		result, err = s.repo.GetByID(id)
+		result, err = s.repo.GetByID(tx, id)
 		return err
 	})
 	if err != nil {
@@ -265,7 +265,7 @@ func (s *Service) Approve(id uint, approverID uint, input ApproveInput) (*domain
 func (s *Service) Reject(id uint, reason string) (*domain.DiscountRequest, error) {
 	var result *domain.DiscountRequest
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		d, err := s.repo.GetByID(id)
+		d, err := s.repo.GetByID(tx, id)
 		if err != nil {
 			return err
 		}
@@ -275,10 +275,10 @@ func (s *Service) Reject(id uint, reason string) (*domain.DiscountRequest, error
 		d.Status = domain.DiscountRequestStatusRejected
 		d.RejectionReason = reason
 
-		if err := s.repo.Update(d); err != nil {
+		if err := s.repo.Update(tx, d); err != nil {
 			return err
 		}
-		result, err = s.repo.GetByID(id)
+		result, err = s.repo.GetByID(tx, id)
 		return err
 	})
 	if err != nil {
@@ -291,20 +291,20 @@ func (s *Service) ListActive(productID, patientID *uint) ([]*domain.DiscountRequ
 	if productID == nil {
 		return nil, &domain.ErrValidation{Field: "product_id", Message: "required"}
 	}
-	return s.repo.GetActiveForProductWithPatient(*productID, patientID)
+	return s.repo.GetActiveForProductWithPatient(s.db, *productID, patientID)
 }
 
 func (s *Service) ListAllActiveForProduct(productID uint) ([]*domain.DiscountRequest, error) {
-	return s.repo.GetActiveForProduct(productID)
+	return s.repo.GetActiveForProduct(s.db, productID)
 }
 
-// GetBestDiscount returns the best applicable discount for a product/lens. (GOQA-011)
+// GetBestDiscount returns the best applicable discount for a product/lens.
 // When patientID is provided, patient-specific discounts take priority over global ones.
 func (s *Service) GetBestDiscount(lensID, patientID *uint) (*domain.DiscountRequest, error) {
 	if lensID == nil {
 		return nil, nil
 	}
-	best, err := s.repo.GetBestForProduct(*lensID, patientID)
+	best, err := s.repo.GetBestForProduct(s.db, *lensID, patientID)
 	if err != nil {
 		var notFound *domain.ErrNotFound
 		if errors.As(err, &notFound) {

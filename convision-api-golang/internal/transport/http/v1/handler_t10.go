@@ -296,7 +296,8 @@ func dailyActivityResponseWithLegacyAliases(nested DailyActivityNestedResponse) 
 // ---------- Dashboard ----------
 
 func (h *Handler) GetDashboardSummary(c *gin.Context) {
-	summary, err := h.dashboard.Summary()
+	db := tenantDBFromCtx(c)
+	summary, err := h.dashboard.Summary(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -323,7 +324,8 @@ func (h *Handler) GetDashboardSummary(c *gin.Context) {
 // ---------- Notifications ----------
 
 func (h *Handler) GetNotificationSummary(c *gin.Context) {
-	s, err := h.notification.Summary()
+	db := tenantDBFromCtx(c)
+	s, err := h.notification.Summary(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -340,6 +342,7 @@ func (h *Handler) GetNotificationSummary(c *gin.Context) {
 }
 
 func (h *Handler) ListNotifications(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := map[string]any{}
@@ -349,14 +352,14 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	if unread := c.Query("unread"); unread != "" {
 		filters["unread"] = unread
 	}
-	out, err := h.notification.List(filters, page, perPage)
+	out, err := h.notification.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	
+
 	// Get summary for counts
-	summary, err := h.notification.Summary()
+	summary, err := h.notification.Summary(db)
 	if err != nil {
 		summary = &domain.NotificationSummary{Unread: 0, Total: 0, Archived: 0}
 	}
@@ -386,12 +389,13 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 }
 
 func (h *Handler) MarkNotificationRead(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.MarkAsRead(uint(id))
+	n, err := h.notification.MarkAsRead(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -400,12 +404,13 @@ func (h *Handler) MarkNotificationRead(c *gin.Context) {
 }
 
 func (h *Handler) MarkNotificationUnread(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.MarkAsUnread(uint(id))
+	n, err := h.notification.MarkAsUnread(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -414,12 +419,13 @@ func (h *Handler) MarkNotificationUnread(c *gin.Context) {
 }
 
 func (h *Handler) MarkAllNotificationsRead(c *gin.Context) {
-	summary, err := h.notification.Summary()
+	db := tenantDBFromCtx(c)
+	summary, err := h.notification.Summary(db)
 	if err != nil {
 		summary = &domain.NotificationSummary{}
 	}
 
-	if err := h.notification.ReadAll(); err != nil {
+	if err := h.notification.ReadAll(db); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -431,12 +437,13 @@ func (h *Handler) MarkAllNotificationsRead(c *gin.Context) {
 }
 
 func (h *Handler) ArchiveNotification(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.Archive(uint(id))
+	n, err := h.notification.Archive(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -445,12 +452,13 @@ func (h *Handler) ArchiveNotification(c *gin.Context) {
 }
 
 func (h *Handler) UnarchiveNotification(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.Unarchive(uint(id))
+	n, err := h.notification.Unarchive(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -459,12 +467,13 @@ func (h *Handler) UnarchiveNotification(c *gin.Context) {
 }
 
 func (h *Handler) DeleteNotification(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.notification.Delete(uint(id)); err != nil {
+	if err := h.notification.Delete(db, uint(id)); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -474,6 +483,7 @@ func (h *Handler) DeleteNotification(c *gin.Context) {
 // ---------- Notes ----------
 
 func (h *Handler) ListNotes(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	resourceType := c.Param("type")
 	resourceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -482,7 +492,7 @@ func (h *Handler) ListNotes(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	out, err := h.note.List(resourceType, uint(resourceID), page, perPage)
+	out, err := h.note.List(db, resourceType, uint(resourceID), page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -491,6 +501,7 @@ func (h *Handler) ListNotes(c *gin.Context) {
 }
 
 func (h *Handler) CreateNote(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	resourceType := c.Param("type")
 	resourceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -507,7 +518,7 @@ func (h *Handler) CreateNote(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
 		return
 	}
-	n, err := h.note.Create(resourceType, uint(resourceID), input, uint(claims.UserID))
+	n, err := h.note.Create(db, resourceType, uint(resourceID), input, uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -550,7 +561,8 @@ func (h *Handler) ListDailyActivityReports(c *gin.Context) {
 	if status := c.Query("status"); status != "" {
 		filters["status"] = status
 	}
-	out, err := h.dailyActivity.List(filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.dailyActivity.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -577,7 +589,8 @@ func (h *Handler) GetDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	report, err := h.dailyActivity.GetByID(uint(id))
+	db := tenantDBFromCtx(c)
+	report, err := h.dailyActivity.GetByID(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -612,11 +625,12 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		return
 	}
 
+	db := tenantDBFromCtx(c)
 	var nestedInput DailyActivityNestedInput
 	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
 		input := flattenDailyActivityInput(nestedInput)
 		input.BranchID = branchID
-		report, err := h.dailyActivity.Create(input, uint(claims.UserID))
+		report, err := h.dailyActivity.Create(db, input, uint(claims.UserID))
 		if err != nil {
 			respondError(c, err)
 			return
@@ -633,7 +647,7 @@ func (h *Handler) CreateDailyActivityReport(c *gin.Context) {
 		return
 	}
 	input.BranchID = branchID
-	report, err := h.dailyActivity.Create(input, uint(claims.UserID))
+	report, err := h.dailyActivity.Create(db, input, uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -660,10 +674,11 @@ func (h *Handler) UpdateDailyActivityReport(c *gin.Context) {
 		return
 	}
 
+	db := tenantDBFromCtx(c)
 	var nestedInput DailyActivityNestedInput
 	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
 		input := flattenDailyActivityInput(nestedInput)
-		report, err := h.dailyActivity.Update(uint(id), input, uint(claims.UserID), claims.Role == "admin")
+		report, err := h.dailyActivity.Update(db, uint(id), input, uint(claims.UserID), claims.Role == "admin")
 		if err != nil {
 			respondError(c, err)
 			return
@@ -679,7 +694,7 @@ func (h *Handler) UpdateDailyActivityReport(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	report, err := h.dailyActivity.Update(uint(id), input, uint(claims.UserID), claims.Role == "admin")
+	report, err := h.dailyActivity.Update(db, uint(id), input, uint(claims.UserID), claims.Role == "admin")
 	if err != nil {
 		respondError(c, err)
 		return
@@ -699,7 +714,8 @@ func (h *Handler) CloseReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
 		return
 	}
-	report, err := h.dailyActivity.Close(uint(id), uint(claims.UserID), claims.Role == "admin")
+	db := tenantDBFromCtx(c)
+	report, err := h.dailyActivity.Close(db, uint(id), uint(claims.UserID), claims.Role == "admin")
 	if err != nil {
 		respondError(c, err)
 		return
@@ -714,7 +730,8 @@ func (h *Handler) ReopenReport(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	report, err := h.dailyActivity.Reopen(uint(id))
+	db := tenantDBFromCtx(c)
+	report, err := h.dailyActivity.Reopen(db, uint(id))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -739,7 +756,8 @@ func (h *Handler) QuickAttentionDailyActivity(c *gin.Context) {
 		return
 	}
 	input.BranchID = branchmw.BranchIDFromCtx(c)
-	report, err := h.dailyActivity.QuickAttention(input, uint(claims.UserID))
+	db := tenantDBFromCtx(c)
+	report, err := h.dailyActivity.QuickAttention(db, input, uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)
 		return

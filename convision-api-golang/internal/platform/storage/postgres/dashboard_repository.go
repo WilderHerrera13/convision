@@ -62,44 +62,42 @@ type DashboardOrder struct {
 }
 
 // DashboardRepository provides aggregated dashboard data.
-type DashboardRepository struct {
-	db *gorm.DB
-}
+type DashboardRepository struct{}
 
 // NewDashboardRepository creates a new DashboardRepository.
-func NewDashboardRepository(db *gorm.DB) *DashboardRepository {
-	return &DashboardRepository{db: db}
+func NewDashboardRepository() *DashboardRepository {
+	return &DashboardRepository{}
 }
 
 // Summary computes all dashboard metrics and returns them as a DashboardSummary.
-func (r *DashboardRepository) Summary() (*DashboardSummary, error) {
+func (r *DashboardRepository) Summary(db *gorm.DB) (*DashboardSummary, error) {
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 
 	// Monthly sales
 	var monthlySalesTotal *float64
 	var monthlySalesCount int64
-	r.db.Table("sales").
+	db.Table("sales").
 		Where("created_at >= ? AND status != 'cancelled'", monthStart).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&monthlySalesTotal)
-	r.db.Table("sales").
+	db.Table("sales").
 		Where("created_at >= ? AND status != 'cancelled'", monthStart).
 		Count(&monthlySalesCount)
 
 	// Monthly patients (new patients created this month)
 	var monthlyPatients int64
-	r.db.Table("patients").
+	db.Table("patients").
 		Where("created_at >= ?", monthStart).
 		Count(&monthlyPatients)
 
 	// Lab orders
 	var labTotal, labPending int64
-	r.db.Table("laboratory_orders").Count(&labTotal)
-	r.db.Table("laboratory_orders").Where("status = 'pending' OR status = 'in_process'").Count(&labPending)
+	db.Table("laboratory_orders").Count(&labTotal)
+	db.Table("laboratory_orders").Where("status = 'pending' OR status = 'in_process'").Count(&labPending)
 
 	// Pending balance (sales with payment_status = pending)
 	var pendingBalance *float64
-	r.db.Table("sales").
+	db.Table("sales").
 		Where("payment_status = 'pending' AND status != 'cancelled'").
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&pendingBalance)
 
@@ -119,7 +117,7 @@ func (r *DashboardRepository) Summary() (*DashboardSummary, error) {
 		dayStart := monday.AddDate(0, 0, i)
 		dayEnd := dayStart.Add(24 * time.Hour)
 		var dayTotal *float64
-		r.db.Table("sales").
+		db.Table("sales").
 			Where("created_at >= ? AND created_at < ? AND status != 'cancelled'", dayStart, dayEnd).
 			Select("COALESCE(SUM(total_amount), 0)").Scan(&dayTotal)
 		if dayTotal != nil {
@@ -151,15 +149,15 @@ func (r *DashboardRepository) Summary() (*DashboardSummary, error) {
 
 	// Recent orders (last 8)
 	type OrderRow struct {
-		ID            uint
-		PatientName   string
+		ID              uint
+		PatientName     string
 		PatientLastName string
-		ProductName   string
-		Status        string
-		TotalAmount   float64
+		ProductName     string
+		Status          string
+		TotalAmount     float64
 	}
 	var orderRows []OrderRow
-	r.db.Table("orders o").
+	db.Table("orders o").
 		Joins("LEFT JOIN patients p ON p.id = o.patient_id").
 		Joins("LEFT JOIN products pr ON pr.id = o.product_id").
 		Select("o.id, p.name as patient_name, p.last_name as patient_last_name, COALESCE(pr.name, '') as product_name, o.status, o.total_amount").

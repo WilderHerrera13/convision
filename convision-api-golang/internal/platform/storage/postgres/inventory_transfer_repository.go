@@ -17,13 +17,11 @@ var inventoryTransferFilterAllowlist = map[string]bool{
 }
 
 // InventoryTransferRepository is the PostgreSQL-backed implementation of domain.InventoryTransferRepository.
-type InventoryTransferRepository struct {
-	db *gorm.DB
-}
+type InventoryTransferRepository struct{}
 
 // NewInventoryTransferRepository creates a new InventoryTransferRepository.
-func NewInventoryTransferRepository(db *gorm.DB) *InventoryTransferRepository {
-	return &InventoryTransferRepository{db: db}
+func NewInventoryTransferRepository() *InventoryTransferRepository {
+	return &InventoryTransferRepository{}
 }
 
 func (r *InventoryTransferRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -34,9 +32,9 @@ func (r *InventoryTransferRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("TransferredByUser")
 }
 
-func (r *InventoryTransferRepository) GetByID(id uint) (*domain.InventoryTransfer, error) {
+func (r *InventoryTransferRepository) GetByID(db *gorm.DB, id uint) (*domain.InventoryTransfer, error) {
 	var t domain.InventoryTransfer
-	err := r.withRelations(r.db).First(&t, id).Error
+	err := r.withRelations(db).First(&t, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "inventory_transfer"}
@@ -46,27 +44,27 @@ func (r *InventoryTransferRepository) GetByID(id uint) (*domain.InventoryTransfe
 	return &t, nil
 }
 
-func (r *InventoryTransferRepository) Create(t *domain.InventoryTransfer) error {
-	return r.db.Create(t).Error
+func (r *InventoryTransferRepository) Create(db *gorm.DB, t *domain.InventoryTransfer) error {
+	return db.Create(t).Error
 }
 
-func (r *InventoryTransferRepository) Update(t *domain.InventoryTransfer) error {
-	return r.db.Model(t).Updates(map[string]any{
+func (r *InventoryTransferRepository) Update(db *gorm.DB, t *domain.InventoryTransfer) error {
+	return db.Model(t).Updates(map[string]any{
 		"notes":        t.Notes,
 		"status":       t.Status,
 		"completed_at": t.CompletedAt,
 	}).Error
 }
 
-func (r *InventoryTransferRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.InventoryTransfer{}, id).Error
+func (r *InventoryTransferRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.InventoryTransfer{}, id).Error
 }
 
-func (r *InventoryTransferRepository) List(filters map[string]any, page, perPage int) ([]*domain.InventoryTransfer, int64, error) {
+func (r *InventoryTransferRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryTransfer, int64, error) {
 	var transfers []*domain.InventoryTransfer
 	var total int64
 
-	q := r.db.Model(&domain.InventoryTransfer{})
+	q := db.Model(&domain.InventoryTransfer{})
 	for field, value := range filters {
 		if !inventoryTransferFilterAllowlist[field] {
 			continue

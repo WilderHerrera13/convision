@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -23,7 +24,7 @@ func newPatientImporter(repo domain.PatientRepository, logger *zap.Logger) Impor
 
 func (i *patientImporter) Columns() []string { return patientImportColumns }
 
-func (i *patientImporter) ProcessRow(rowNum int, data map[string]string) RecordResult {
+func (i *patientImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]string) RecordResult {
 	rec := RecordResult{Row: rowNum, Data: data}
 
 	identification := strings.TrimSpace(data["documento"])
@@ -40,7 +41,7 @@ func (i *patientImporter) ProcessRow(rowNum int, data map[string]string) RecordR
 		return rec
 	}
 
-	if _, err := i.repo.GetByIdentification(identification); err == nil {
+	if _, err := i.repo.GetByIdentification(db, identification); err == nil {
 		rec.Status = RecordStatusSkipped
 		rec.Reason = "paciente ya existe (Documento duplicado)"
 		return rec
@@ -62,7 +63,7 @@ func (i *patientImporter) ProcessRow(rowNum int, data map[string]string) RecordR
 		}
 	}
 
-	if err := i.repo.Create(p); err != nil {
+	if err := i.repo.Create(db, p); err != nil {
 		i.logger.Warn("bulk import: failed to create patient",
 			zap.Int("row", rowNum),
 			zap.String("identification", identification),

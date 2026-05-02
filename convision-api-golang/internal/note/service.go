@@ -2,6 +2,7 @@ package note
 
 import (
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -37,7 +38,7 @@ type ListOutput struct {
 }
 
 // List returns paginated notes for a noteable resource.
-func (s *Service) List(urlType string, resourceID uint, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, urlType string, resourceID uint, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -48,7 +49,7 @@ func (s *Service) List(urlType string, resourceID uint, page, perPage int) (*Lis
 	if !ok {
 		return nil, &domain.ErrValidation{Message: "tipo de recurso no soportado: " + urlType}
 	}
-	data, total, err := s.repo.List(noteableType, resourceID, page, perPage)
+	data, total, err := s.repo.List(db, noteableType, resourceID, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func (s *Service) List(urlType string, resourceID uint, page, perPage int) (*Lis
 }
 
 // Create creates a new note.
-func (s *Service) Create(urlType string, resourceID uint, input CreateInput, userID uint) (*domain.Note, error) {
+func (s *Service) Create(db *gorm.DB, urlType string, resourceID uint, input CreateInput, userID uint) (*domain.Note, error) {
 	noteableType, ok := noteableTypeMap[urlType]
 	if !ok {
 		return nil, &domain.ErrValidation{Message: "tipo de recurso no soportado: " + urlType}
@@ -67,7 +68,7 @@ func (s *Service) Create(urlType string, resourceID uint, input CreateInput, use
 		NoteableType: noteableType,
 		NoteableID:   resourceID,
 	}
-	if err := s.repo.Create(n); err != nil {
+	if err := s.repo.Create(db, n); err != nil {
 		return nil, err
 	}
 	return n, nil

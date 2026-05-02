@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -47,34 +48,34 @@ func clampPage(page, perPage int) (int, int) {
 
 // CreateInput holds validated fields for creating a product.
 type CreateInput struct {
-	InternalCode      string  `json:"internal_code"`
-	Identifier        string  `json:"identifier"          binding:"omitempty"`
-	Name              string  `json:"name"`
-	Description       string  `json:"description"`
-	Cost              float64 `json:"cost"`
+	InternalCode      string   `json:"internal_code"`
+	Identifier        string   `json:"identifier"          binding:"omitempty"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Cost              float64  `json:"cost"`
 	Price             *float64 `json:"price"`
 	SalePrice         *float64 `json:"sale_price"`
-	ProductCategoryID *uint   `json:"product_category_id"`
-	CategoryID        *uint   `json:"category_id"`
-	BrandID           *uint   `json:"brand_id"`
-	SupplierID        *uint   `json:"supplier_id"`
-	Status            string  `json:"status"`
+	ProductCategoryID *uint    `json:"product_category_id"`
+	CategoryID        *uint    `json:"category_id"`
+	BrandID           *uint    `json:"brand_id"`
+	SupplierID        *uint    `json:"supplier_id"`
+	Status            string   `json:"status"`
 }
 
 // UpdateInput holds validated fields for updating a product.
 type UpdateInput struct {
-	InternalCode      string  `json:"internal_code"`
-	Identifier        string  `json:"identifier"`
-	Name              string  `json:"name"`
-	Description       string  `json:"description"`
+	InternalCode      string   `json:"internal_code"`
+	Identifier        string   `json:"identifier"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
 	Cost              *float64 `json:"cost"`
 	Price             *float64 `json:"price"`
 	SalePrice         *float64 `json:"sale_price"`
-	ProductCategoryID *uint   `json:"product_category_id"`
-	CategoryID        *uint   `json:"category_id"`
-	BrandID           *uint   `json:"brand_id"`
-	SupplierID        *uint   `json:"supplier_id"`
-	Status            string  `json:"status"`
+	ProductCategoryID *uint    `json:"product_category_id"`
+	CategoryID        *uint    `json:"category_id"`
+	BrandID           *uint    `json:"brand_id"`
+	SupplierID        *uint    `json:"supplier_id"`
+	Status            string   `json:"status"`
 }
 
 // ListOutput is the paginated product response.
@@ -94,10 +95,10 @@ type StockOutput struct {
 
 // DiscountInfoOutput holds discount information for a product.
 type DiscountInfoOutput struct {
-	HasDiscounts       bool    `json:"has_discounts"`
-	BestDiscountPct    float64 `json:"best_discount_percentage"`
-	DiscountedPrice    float64 `json:"discounted_price"`
-	OriginalPrice      float64 `json:"original_price"`
+	HasDiscounts    bool    `json:"has_discounts"`
+	BestDiscountPct float64 `json:"best_discount_percentage"`
+	DiscountedPrice float64 `json:"discounted_price"`
+	OriginalPrice   float64 `json:"original_price"`
 }
 
 // PriceOutput holds calculated price information.
@@ -116,9 +117,9 @@ type BulkStatusInput struct {
 
 // --- Methods ---
 
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +132,11 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 	}, nil
 }
 
-func (s *Service) GetByID(id uint) (*domain.Product, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Product, error) {
+	return s.repo.GetByID(db, id)
 }
 
-func (s *Service) Create(input CreateInput) (*domain.Product, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Product, error) {
 	status := domain.ProductStatus(input.Status)
 	if status == "" {
 		status = domain.ProductStatusEnabled
@@ -173,14 +174,14 @@ func (s *Service) Create(input CreateInput) (*domain.Product, error) {
 		SupplierID:        input.SupplierID,
 		Status:            status,
 	}
-	if err := s.repo.Create(p); err != nil {
+	if err := s.repo.Create(db, p); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(p.ID)
+	return s.repo.GetByID(db, p.ID)
 }
 
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Product, error) {
-	p, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Product, error) {
+	p, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -222,18 +223,18 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Product, error) {
 		p.Status = domain.ProductStatus(input.Status)
 	}
 
-	if err := s.repo.Update(p); err != nil {
+	if err := s.repo.Update(db, p); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
 	// Block deletion when the product has inventory stock.
-	stock, err := s.repo.StockByProduct(id)
+	stock, err := s.repo.StockByProduct(db, id)
 	if err != nil {
 		return err
 	}
@@ -246,7 +247,7 @@ func (s *Service) Delete(id uint) error {
 		}
 	}
 	// Block deletion when the product has active approved discounts.
-	activeDiscounts, err := s.discountRepo.GetActiveForProduct(id)
+	activeDiscounts, err := s.discountRepo.GetActiveForProduct(db, id)
 	if err != nil {
 		return err
 	}
@@ -256,12 +257,12 @@ func (s *Service) Delete(id uint) error {
 			Message: "no se puede eliminar el producto porque tiene descuentos activos",
 		}
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }
 
-func (s *Service) Search(query, category string, page, perPage int) (*ListOutput, error) {
+func (s *Service) Search(db *gorm.DB, query, category string, page, perPage int) (*ListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.Search(query, category, page, perPage)
+	data, total, err := s.repo.Search(db, query, category, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -274,11 +275,11 @@ func (s *Service) Search(query, category string, page, perPage int) (*ListOutput
 	}, nil
 }
 
-func (s *Service) BulkUpdateStatus(ids []uint, status string) (int64, error) {
+func (s *Service) BulkUpdateStatus(db *gorm.DB, ids []uint, status string) (int64, error) {
 	if status != string(domain.ProductStatusEnabled) && status != string(domain.ProductStatusDisabled) {
 		return 0, &domain.ErrValidation{Field: "status", Message: "must be 'enabled' or 'disabled'"}
 	}
-	return s.repo.BulkUpdateStatus(ids, status)
+	return s.repo.BulkUpdateStatus(db, ids, status)
 }
 
 // ListByCategoryOutput is the paginated response for category-scoped product listing.
@@ -290,9 +291,9 @@ type ListByCategoryOutput struct {
 	Total       int64             `json:"total"`
 }
 
-func (s *Service) ListByCategory(slug string, filters map[string]any, page, perPage int) (*ListByCategoryOutput, error) {
+func (s *Service) ListByCategory(db *gorm.DB, slug string, filters map[string]any, page, perPage int) (*ListByCategoryOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.ListByCategory(slug, filters, page, perPage)
+	data, total, err := s.repo.ListByCategory(db, slug, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -305,24 +306,24 @@ func (s *Service) ListByCategory(slug string, filters map[string]any, page, perP
 	}, nil
 }
 
-func (s *Service) ListByPrescription(f domain.PrescriptionFilter) ([]*domain.Product, error) {
-	return s.repo.ListByPrescription(f)
+func (s *Service) ListByPrescription(db *gorm.DB, f domain.PrescriptionFilter) ([]*domain.Product, error) {
+	return s.repo.ListByPrescription(db, f)
 }
 
-func (s *Service) GetProductStock(id uint) ([]*domain.ProductStockByWarehouse, error) {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) GetProductStock(db *gorm.DB, id uint) ([]*domain.ProductStockByWarehouse, error) {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return nil, err
 	}
-	return s.repo.StockByProduct(id)
+	return s.repo.StockByProduct(db, id)
 }
 
-func (s *Service) GetDiscountInfo(productID uint, patientID *uint) (*DiscountInfoOutput, error) {
-	p, err := s.repo.GetByID(productID)
+func (s *Service) GetDiscountInfo(db *gorm.DB, productID uint, patientID *uint) (*DiscountInfoOutput, error) {
+	p, err := s.repo.GetByID(db, productID)
 	if err != nil {
 		return nil, err
 	}
 
-	best, err := s.discountRepo.GetBestForProduct(productID, patientID)
+	best, err := s.discountRepo.GetBestForProduct(db, productID, patientID)
 	if err != nil {
 		var notFound *domain.ErrNotFound
 		if errors.As(err, &notFound) {
@@ -354,11 +355,9 @@ type LensCatalogListOutput struct {
 }
 
 // ListLensCatalog returns paginated products with product_type = 'lens'.
-// Supported filter keys: brand_id, supplier_id, status, search,
-// sphere_od, cylinder_od, addition_od (prescription ranges).
-func (s *Service) ListLensCatalog(filters map[string]any, page, perPage int) (*LensCatalogListOutput, error) {
+func (s *Service) ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) (*LensCatalogListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.ListLensCatalog(filters, page, perPage)
+	data, total, err := s.repo.ListLensCatalog(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -371,21 +370,18 @@ func (s *Service) ListLensCatalog(filters map[string]any, page, perPage int) (*L
 	}, nil
 }
 
-func (s *Service) HasActiveDiscounts(productID uint) bool {
-	_, err := s.discountRepo.GetBestForProduct(productID, nil)
-	if err != nil {
-		return false
-	}
-	return true
+func (s *Service) HasActiveDiscounts(db *gorm.DB, productID uint) bool {
+	_, err := s.discountRepo.GetBestForProduct(db, productID, nil)
+	return err == nil
 }
 
-func (s *Service) CalculatePrice(productID uint, patientID *uint) (*PriceOutput, error) {
-	p, err := s.repo.GetByID(productID)
+func (s *Service) CalculatePrice(db *gorm.DB, productID uint, patientID *uint) (*PriceOutput, error) {
+	p, err := s.repo.GetByID(db, productID)
 	if err != nil {
 		return nil, err
 	}
 
-	best, err := s.discountRepo.GetBestForProduct(productID, patientID)
+	best, err := s.discountRepo.GetBestForProduct(db, productID, patientID)
 	if err != nil {
 		var notFound *domain.ErrNotFound
 		if errors.As(err, &notFound) {

@@ -9,18 +9,16 @@ import (
 )
 
 // ClinicalRecordRepository is the PostgreSQL-backed implementation of domain.ClinicalRecordRepository.
-type ClinicalRecordRepository struct {
-	db *gorm.DB
-}
+type ClinicalRecordRepository struct{}
 
 // NewClinicalRecordRepository creates a new ClinicalRecordRepository.
-func NewClinicalRecordRepository(db *gorm.DB) *ClinicalRecordRepository {
-	return &ClinicalRecordRepository{db: db}
+func NewClinicalRecordRepository() *ClinicalRecordRepository {
+	return &ClinicalRecordRepository{}
 }
 
-func (r *ClinicalRecordRepository) GetByAppointmentID(appointmentID uint) (*domain.ClinicalRecord, error) {
+func (r *ClinicalRecordRepository) GetByAppointmentID(db *gorm.DB, appointmentID uint) (*domain.ClinicalRecord, error) {
 	var rec domain.ClinicalRecord
-	err := r.db.
+	err := db.
 		Preload("Anamnesis").
 		Preload("VisualExam").
 		Preload("Diagnosis").
@@ -36,25 +34,25 @@ func (r *ClinicalRecordRepository) GetByAppointmentID(appointmentID uint) (*doma
 	return &rec, nil
 }
 
-func (r *ClinicalRecordRepository) Create(rec *domain.ClinicalRecord) error {
-	return r.db.Create(rec).Error
+func (r *ClinicalRecordRepository) Create(db *gorm.DB, rec *domain.ClinicalRecord) error {
+	return db.Create(rec).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertVisualExam(clinicalRecordID uint, branchID uint, v *domain.VisualExam) error {
+func (r *ClinicalRecordRepository) UpsertVisualExam(db *gorm.DB, clinicalRecordID uint, branchID uint, v *domain.VisualExam) error {
 	v.ClinicalRecordID = clinicalRecordID
 	v.BranchID = branchID
 
 	var existing domain.VisualExam
-	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
+	err := db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(v).Error
+			return db.Create(v).Error
 		}
 		return err
 	}
 
 	v.ID = existing.ID
-	return r.db.Model(&existing).Updates(map[string]any{
+	return db.Model(&existing).Updates(map[string]any{
 		"av_sc_dist_od":        v.AvScOd,
 		"av_sc_dist_oi":        v.AvScOi,
 		"av_sc_near_od":        v.AvNearScOd,
@@ -111,21 +109,21 @@ func (r *ClinicalRecordRepository) UpsertVisualExam(clinicalRecordID uint, branc
 	}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertDiagnosis(clinicalRecordID uint, branchID uint, d *domain.Diagnosis) error {
+func (r *ClinicalRecordRepository) UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID uint, d *domain.Diagnosis) error {
 	d.ClinicalRecordID = clinicalRecordID
 	d.BranchID = branchID
 
 	var existing domain.Diagnosis
-	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
+	err := db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(d).Error
+			return db.Create(d).Error
 		}
 		return err
 	}
 
 	d.ID = existing.ID
-	return r.db.Model(&existing).Updates(map[string]any{
+	return db.Model(&existing).Updates(map[string]any{
 		"primary_code":            d.PrimaryCode,
 		"primary_description":     d.PrimaryDescription,
 		"diagnosis_type":          d.DiagnosisType,
@@ -145,21 +143,21 @@ func (r *ClinicalRecordRepository) UpsertDiagnosis(clinicalRecordID uint, branch
 	}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertPrescription(clinicalRecordID uint, branchID uint, p *domain.ClinicalPrescription) error {
+func (r *ClinicalRecordRepository) UpsertPrescription(db *gorm.DB, clinicalRecordID uint, branchID uint, p *domain.ClinicalPrescription) error {
 	p.ClinicalRecordID = clinicalRecordID
 	p.BranchID = branchID
 
 	var existing domain.ClinicalPrescription
-	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
+	err := db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(p).Error
+			return db.Create(p).Error
 		}
 		return err
 	}
 
 	p.ID = existing.ID
-	return r.db.Model(&existing).Updates(map[string]any{
+	return db.Model(&existing).Updates(map[string]any{
 		"sph_od":          p.SphOd,
 		"cyl_od":          p.CylOd,
 		"axis_od":         p.AxisOd,
@@ -182,14 +180,14 @@ func (r *ClinicalRecordRepository) UpsertPrescription(clinicalRecordID uint, bra
 	}).Error
 }
 
-func (r *ClinicalRecordRepository) SignClinicalRecord(clinicalRecordID uint, professionalTp string) error {
-	now := r.db.NowFunc()
-	if err := r.db.Model(&domain.ClinicalRecord{}).
+func (r *ClinicalRecordRepository) SignClinicalRecord(db *gorm.DB, clinicalRecordID uint, professionalTp string) error {
+	now := db.NowFunc()
+	if err := db.Model(&domain.ClinicalRecord{}).
 		Where("id = ?", clinicalRecordID).
 		Updates(map[string]any{"status": "signed"}).Error; err != nil {
 		return err
 	}
-	return r.db.Model(&domain.ClinicalPrescription{}).
+	return db.Model(&domain.ClinicalPrescription{}).
 		Where("clinical_record_id = ?", clinicalRecordID).
 		Updates(map[string]any{
 			"professional_tp": professionalTp,
@@ -197,21 +195,21 @@ func (r *ClinicalRecordRepository) SignClinicalRecord(clinicalRecordID uint, pro
 		}).Error
 }
 
-func (r *ClinicalRecordRepository) UpsertAnamnesis(clinicalRecordID uint, branchID uint, a *domain.Anamnesis) error {
+func (r *ClinicalRecordRepository) UpsertAnamnesis(db *gorm.DB, clinicalRecordID uint, branchID uint, a *domain.Anamnesis) error {
 	a.ClinicalRecordID = clinicalRecordID
 	a.BranchID = branchID
 
 	var existing domain.Anamnesis
-	err := r.db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
+	err := db.Where("clinical_record_id = ?", clinicalRecordID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(a).Error
+			return db.Create(a).Error
 		}
 		return err
 	}
 
 	a.ID = existing.ID
-	return r.db.Model(&existing).Updates(map[string]any{
+	return db.Model(&existing).Updates(map[string]any{
 		"reason_for_visit":             a.ReasonForVisit,
 		"onset":                        a.Onset,
 		"duration":                     a.Duration,

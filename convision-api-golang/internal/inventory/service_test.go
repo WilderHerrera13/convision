@@ -55,8 +55,8 @@ func TestCreateTransfer_InsufficientStock(t *testing.T) {
 func TestDeleteLocation_HasActiveItems(t *testing.T) {
 	loc := &mocks.MockWarehouseLocationRepository{}
 	item := &mocks.MockInventoryItemRepository{}
-	loc.On("GetByID", uint(1)).Return(&domain.WarehouseLocation{ID: 1}, nil)
-	item.On("List", map[string]any{"warehouse_location_id": uint(1)}, 1, 1).Return(
+	loc.On("GetByID", mock.Anything, uint(1)).Return(&domain.WarehouseLocation{ID: 1}, nil)
+	item.On("List", mock.Anything, map[string]any{"warehouse_location_id": uint(1)}, 1, 1).Return(
 		[]*domain.InventoryItem{{ID: 1}},
 		int64(1),
 		nil,
@@ -76,13 +76,13 @@ func TestDeleteLocation_HasActiveItems(t *testing.T) {
 func TestDeleteLocation_EmptySuccess(t *testing.T) {
 	loc := &mocks.MockWarehouseLocationRepository{}
 	item := &mocks.MockInventoryItemRepository{}
-	loc.On("GetByID", uint(2)).Return(&domain.WarehouseLocation{ID: 2}, nil)
-	item.On("List", map[string]any{"warehouse_location_id": uint(2)}, 1, 1).Return(
+	loc.On("GetByID", mock.Anything, uint(2)).Return(&domain.WarehouseLocation{ID: 2}, nil)
+	item.On("List", mock.Anything, map[string]any{"warehouse_location_id": uint(2)}, 1, 1).Return(
 		[]*domain.InventoryItem{},
 		int64(0),
 		nil,
 	)
-	loc.On("Delete", uint(2)).Return(nil)
+	loc.On("Delete", mock.Anything, uint(2)).Return(nil)
 
 	svc := newInventorySvc(&mocks.MockWarehouseRepository{}, loc, item, &mocks.MockInventoryTransferRepository{})
 	err := svc.DeleteLocation(2)
@@ -94,7 +94,7 @@ func TestDeleteLocation_EmptySuccess(t *testing.T) {
 
 func TestGetWarehouse_Found(t *testing.T) {
 	wh := &mocks.MockWarehouseRepository{}
-	wh.On("GetByID", uint(1)).Return(&domain.Warehouse{ID: 1, Name: "Main"}, nil)
+	wh.On("GetByID", mock.Anything, uint(1)).Return(&domain.Warehouse{ID: 1, Name: "Main"}, nil)
 
 	svc := newInventorySvc(wh, &mocks.MockWarehouseLocationRepository{}, &mocks.MockInventoryItemRepository{}, &mocks.MockInventoryTransferRepository{})
 	w, err := svc.GetWarehouse(1)
@@ -106,7 +106,7 @@ func TestGetWarehouse_Found(t *testing.T) {
 
 func TestGetWarehouse_NotFound(t *testing.T) {
 	wh := &mocks.MockWarehouseRepository{}
-	wh.On("GetByID", uint(99)).Return(nil, &domain.ErrNotFound{Resource: "warehouse"})
+	wh.On("GetByID", mock.Anything, uint(99)).Return(nil, &domain.ErrNotFound{Resource: "warehouse"})
 
 	_, err := newInventorySvc(wh, &mocks.MockWarehouseLocationRepository{}, &mocks.MockInventoryItemRepository{}, &mocks.MockInventoryTransferRepository{}).GetWarehouse(99)
 
@@ -119,8 +119,8 @@ func TestGetWarehouse_NotFound(t *testing.T) {
 func TestCreateLocation_Success(t *testing.T) {
 	loc := &mocks.MockWarehouseLocationRepository{}
 	wh := &mocks.MockWarehouseRepository{}
-	loc.On("Create", mock.Anything).Return(nil)
-	loc.On("GetByID", uint(0)).Return(&domain.WarehouseLocation{ID: 1, Name: "Shelf A"}, nil)
+	loc.On("Create", mock.Anything, mock.Anything).Return(nil)
+	loc.On("GetByID", mock.Anything, uint(0)).Return(&domain.WarehouseLocation{ID: 1, Name: "Shelf A"}, nil)
 
 	svc := newInventorySvc(wh, loc, &mocks.MockInventoryItemRepository{}, &mocks.MockInventoryTransferRepository{})
 	_, err := svc.CreateLocation(inventory.LocationCreateInput{

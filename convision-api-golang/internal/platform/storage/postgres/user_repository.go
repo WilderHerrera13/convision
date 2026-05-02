@@ -25,18 +25,16 @@ var allowedUserFilters = map[string]string{
 }
 
 // UserRepository is the PostgreSQL-backed implementation of domain.UserRepository.
-type UserRepository struct {
-	db *gorm.DB
-}
+type UserRepository struct{}
 
 // NewUserRepository creates a new UserRepository.
-func NewUserRepository(db *gorm.DB) *UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository() *UserRepository {
+	return &UserRepository{}
 }
 
-func (r *UserRepository) GetByID(id uint) (*domain.User, error) {
+func (r *UserRepository) GetByID(db *gorm.DB, id uint) (*domain.User, error) {
 	var u domain.User
-	err := r.db.Select(userCols).First(&u, id).Error
+	err := db.Select(userCols).First(&u, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "user"}
@@ -46,9 +44,9 @@ func (r *UserRepository) GetByID(id uint) (*domain.User, error) {
 	return &u, nil
 }
 
-func (r *UserRepository) GetByEmail(email string) (*domain.User, error) {
+func (r *UserRepository) GetByEmail(db *gorm.DB, email string) (*domain.User, error) {
 	var u domain.User
-	err := r.db.Select(userCols).Where("email = ?", email).First(&u).Error
+	err := db.Select(userCols).Where("email = ?", email).First(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "user"}
@@ -58,8 +56,8 @@ func (r *UserRepository) GetByEmail(email string) (*domain.User, error) {
 	return &u, nil
 }
 
-func (r *UserRepository) Create(u *domain.User) error {
-	err := r.db.Create(u).Error
+func (r *UserRepository) Create(db *gorm.DB, u *domain.User) error {
+	err := db.Create(u).Error
 	if err != nil {
 		var pgErr *pq.Error
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -73,8 +71,8 @@ func (r *UserRepository) Create(u *domain.User) error {
 	return nil
 }
 
-func (r *UserRepository) Update(u *domain.User) error {
-	err := r.db.Model(u).Updates(map[string]any{
+func (r *UserRepository) Update(db *gorm.DB, u *domain.User) error {
+	err := db.Model(u).Updates(map[string]any{
 		"name":           u.Name,
 		"last_name":      u.LastName,
 		"email":          u.Email,
@@ -97,15 +95,15 @@ func (r *UserRepository) Update(u *domain.User) error {
 	return nil
 }
 
-func (r *UserRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.User{}, id).Error
+func (r *UserRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.User{}, id).Error
 }
 
-func (r *UserRepository) List(filters map[string]any, page, perPage int) ([]*domain.User, int64, error) {
+func (r *UserRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.User, int64, error) {
 	var users []*domain.User
 	var total int64
 
-	q := r.db.Model(&domain.User{}).Select(userCols)
+	q := db.Model(&domain.User{}).Select(userCols)
 	for field, value := range filters {
 		matchType, ok := allowedUserFilters[field]
 		if !ok {
@@ -131,9 +129,9 @@ func (r *UserRepository) List(filters map[string]any, page, perPage int) ([]*dom
 	return users, total, nil
 }
 
-func (r *UserRepository) GetSpecialistsByBranch(branchID uint) ([]*domain.User, error) {
+func (r *UserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
 	var users []*domain.User
-	err := r.db.Model(&domain.User{}).Select(userCols).
+	err := db.Model(&domain.User{}).Select(userCols).
 		Joins("JOIN user_branches ON user_branches.user_id = users.id").
 		Where("users.role = ? AND users.active = true AND user_branches.branch_id = ?",
 			string(domain.RoleSpecialist), branchID).

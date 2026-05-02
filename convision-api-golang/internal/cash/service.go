@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -71,13 +72,13 @@ type ListOutput struct {
 }
 
 // GetByID returns a single cash transfer.
-func (s *Service) GetByID(id uint) (*domain.CashTransfer, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.CashTransfer, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // GetStats returns aggregate statistics.
-func (s *Service) GetStats() (*StatsOutput, error) {
-	data, _, err := s.repo.List(map[string]any{}, 1, 10000)
+func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
+	data, _, err := s.repo.List(db, map[string]any{}, 1, 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -97,14 +98,14 @@ func (s *Service) GetStats() (*StatsOutput, error) {
 }
 
 // List returns a paginated list.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
 		perPage = 15
 	}
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +117,8 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Create creates a new cash transfer.
-func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.CashTransfer, error) {
-	_, total, _ := s.repo.List(map[string]any{}, 1, 1)
+func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.CashTransfer, error) {
+	_, total, _ := s.repo.List(db, map[string]any{}, 1, 1)
 	transferNum := fmt.Sprintf("CT-%04d", total+1)
 	now := time.Now()
 
@@ -138,16 +139,16 @@ func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.Cash
 		CreatedByUserID:        createdByUserID,
 	}
 
-	if err := s.repo.Create(t); err != nil {
+	if err := s.repo.Create(db, t); err != nil {
 		return nil, err
 	}
 	s.logger.Info("cash transfer created", zap.Uint("id", t.ID))
-	return s.repo.GetByID(t.ID)
+	return s.repo.GetByID(db, t.ID)
 }
 
 // Update updates a cash transfer.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.CashTransfer, error) {
-	t, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.CashTransfer, error) {
+	t, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +161,15 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.CashTransfer, erro
 	if input.Notes != "" {
 		t.Description = input.Notes
 	}
-	if err := s.repo.Update(t); err != nil {
+	if err := s.repo.Update(db, t); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(t.ID)
+	return s.repo.GetByID(db, t.ID)
 }
 
 // Approve approves a cash transfer.
-func (s *Service) Approve(id uint, approvedByUserID *uint, input ApproveInput) (*domain.CashTransfer, error) {
-	t, err := s.repo.GetByID(id)
+func (s *Service) Approve(db *gorm.DB, id uint, approvedByUserID *uint, input ApproveInput) (*domain.CashTransfer, error) {
+	t, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -179,15 +180,15 @@ func (s *Service) Approve(id uint, approvedByUserID *uint, input ApproveInput) (
 	if input.Notes != "" {
 		t.Notes = input.Notes
 	}
-	if err := s.repo.Update(t); err != nil {
+	if err := s.repo.Update(db, t); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(t.ID)
+	return s.repo.GetByID(db, t.ID)
 }
 
 // Cancel cancels a cash transfer.
-func (s *Service) Cancel(id uint, input CancelInput) (*domain.CashTransfer, error) {
-	t, err := s.repo.GetByID(id)
+func (s *Service) Cancel(db *gorm.DB, id uint, input CancelInput) (*domain.CashTransfer, error) {
+	t, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -195,16 +196,16 @@ func (s *Service) Cancel(id uint, input CancelInput) (*domain.CashTransfer, erro
 	if input.Notes != "" {
 		t.Notes = input.Notes
 	}
-	if err := s.repo.Update(t); err != nil {
+	if err := s.repo.Update(db, t); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(t.ID)
+	return s.repo.GetByID(db, t.ID)
 }
 
 // Delete removes a cash transfer.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

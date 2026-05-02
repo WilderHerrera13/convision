@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -97,7 +98,7 @@ type PutAdminActualsInput struct {
 }
 
 // List returns cash register closes scoped by role.
-func (s *Service) List(filters map[string]any, page, perPage int, role domain.Role, userID uint) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int, role domain.Role, userID uint) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -112,7 +113,7 @@ func (s *Service) List(filters map[string]any, page, perPage int, role domain.Ro
 		filters["user_id"] = userID
 	}
 
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +135,8 @@ func (s *Service) List(filters map[string]any, page, perPage int, role domain.Ro
 }
 
 // GetByID returns one close and enforces role-based visibility.
-func (s *Service) GetByID(id uint, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
-	item, err := s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
+	item, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func (s *Service) GetByID(id uint, role domain.Role, userID uint) (*domain.CashR
 	return item, nil
 }
 
-func (s *Service) Create(input CreateInput, userID uint) (*domain.CashRegisterClose, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.CashRegisterClose, error) {
 	closeDate, err := parseAndValidateCloseDate(input.CloseDate)
 	if err != nil {
 		return nil, err
@@ -166,7 +167,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.CashRegisterCl
 	notes := sanitizeOptionalText(input.AdvisorNotes, 2000)
 
 	// UPSERT logic: check for an existing close for this (user_id, close_date).
-	existing, lookupErr := s.repo.GetByUserAndDate(userID, input.CloseDate)
+	existing, lookupErr := s.repo.GetByUserAndDate(db, userID, input.CloseDate)
 	if lookupErr == nil {
 		// A record already exists for this user+date.
 		switch existing.Status {
@@ -176,11 +177,11 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.CashRegisterCl
 			// Status is draft — update the existing draft in place and return it.
 			existing.TotalCounted = totalCounted
 			existing.AdvisorNotes = notes
-			if err := s.repo.Update(existing, &payments, &denoms); err != nil {
+			if err := s.repo.Update(db, existing, &payments, &denoms); err != nil {
 				return nil, err
 			}
 			s.logger.Info("cash register close draft reused (upsert)", zap.Uint("id", existing.ID), zap.Uint("user_id", userID))
-			return s.repo.GetByID(existing.ID)
+			return s.repo.GetByID(db, existing.ID)
 		}
 	}
 
@@ -194,16 +195,16 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.CashRegisterCl
 		AdvisorNotes: notes,
 	}
 
-	if err := s.repo.Create(item, payments, denoms); err != nil {
+	if err := s.repo.Create(db, item, payments, denoms); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close created", zap.Uint("id", item.ID), zap.Uint("user_id", userID))
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(db, item.ID)
 }
 
-func (s *Service) Update(id uint, input UpdateInput, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
-	item, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
+	item, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -246,16 +247,16 @@ func (s *Service) Update(id uint, input UpdateInput, role domain.Role, userID ui
 		item.AdvisorNotes = sanitizeOptionalText(input.AdvisorNotes, 2000)
 	}
 
-	if err := s.repo.Update(item, mappedPayments, mappedDenoms); err != nil {
+	if err := s.repo.Update(db, item, mappedPayments, mappedDenoms); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close updated", zap.Uint("id", item.ID))
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(db, item.ID)
 }
 
-func (s *Service) Submit(id uint, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
-	item, err := s.repo.GetByID(id)
+func (s *Service) Submit(db *gorm.DB, id uint, role domain.Role, userID uint) (*domain.CashRegisterClose, error) {
+	item, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -281,16 +282,16 @@ func (s *Service) Submit(id uint, role domain.Role, userID uint) (*domain.CashRe
 
 	item.TotalCounted = totalPayment
 	item.Status = domain.CashRegisterCloseStatusSubmitted
-	if err := s.repo.Update(item, nil, nil); err != nil {
+	if err := s.repo.Update(db, item, nil, nil); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close submitted", zap.Uint("id", item.ID))
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(db, item.ID)
 }
 
-func (s *Service) Approve(id uint, adminID uint, input ApproveInput) (*domain.CashRegisterClose, error) {
-	item, err := s.repo.GetByID(id)
+func (s *Service) Approve(db *gorm.DB, id uint, adminID uint, input ApproveInput) (*domain.CashRegisterClose, error) {
+	item, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -304,16 +305,16 @@ func (s *Service) Approve(id uint, adminID uint, input ApproveInput) (*domain.Ca
 	item.ApprovedAt = &now
 	item.AdminNotes = sanitizeOptionalText(input.AdminNotes, 1000)
 
-	if err := s.repo.Update(item, nil, nil); err != nil {
+	if err := s.repo.Update(db, item, nil, nil); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close approved", zap.Uint("id", item.ID), zap.Uint("admin_id", adminID))
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(db, item.ID)
 }
 
-func (s *Service) ReturnToDraft(id uint, input ApproveInput) (*domain.CashRegisterClose, error) {
-	item, err := s.repo.GetByID(id)
+func (s *Service) ReturnToDraft(db *gorm.DB, id uint, input ApproveInput) (*domain.CashRegisterClose, error) {
+	item, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -323,15 +324,15 @@ func (s *Service) ReturnToDraft(id uint, input ApproveInput) (*domain.CashRegist
 
 	item.Status = domain.CashRegisterCloseStatusDraft
 	item.AdminNotes = sanitizeOptionalText(input.AdminNotes, 1000)
-	if err := s.repo.Update(item, nil, nil); err != nil {
+	if err := s.repo.Update(db, item, nil, nil); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close returned to draft", zap.Uint("id", item.ID))
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(db, item.ID)
 }
 
-func (s *Service) PutAdminActuals(id uint, input PutAdminActualsInput) (*domain.CashRegisterClose, error) {
+func (s *Service) PutAdminActuals(db *gorm.DB, id uint, input PutAdminActualsInput) (*domain.CashRegisterClose, error) {
 	if len(input.ActualPaymentMethods) != len(allowedPaymentMethods) {
 		return nil, &domain.ErrValidation{Field: "actual_payment_methods", Message: fmt.Sprintf("debe enviar exactamente %d medios de pago", len(allowedPaymentMethods))}
 	}
@@ -356,15 +357,15 @@ func (s *Service) PutAdminActuals(id uint, input PutAdminActualsInput) (*domain.
 		})
 	}
 
-	if _, err := s.repo.GetByID(id); err != nil {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return nil, err
 	}
-	if err := s.repo.SyncActualPayments(id, mapped); err != nil {
+	if err := s.repo.SyncActualPayments(db, id, mapped); err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("cash register close admin actuals synced", zap.Uint("id", id))
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // -------------------------------------------------------------------
@@ -399,12 +400,12 @@ type AdvisorsPendingOutput struct {
 
 // AdvisorsPending fetches all draft/submitted closes and groups them per advisor.
 // Only one DB round-trip is performed (+ one preload query for users).
-func (s *Service) AdvisorsPending(branchID uint) (*AdvisorsPendingOutput, error) {
+func (s *Service) AdvisorsPending(db *gorm.DB, branchID uint) (*AdvisorsPendingOutput, error) {
 	statuses := []domain.CashRegisterCloseStatus{
 		domain.CashRegisterCloseStatusDraft,
 		domain.CashRegisterCloseStatusSubmitted,
 	}
-	closes, err := s.repo.ListByStatuses(statuses, branchID)
+	closes, err := s.repo.ListByStatuses(db, statuses, branchID)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +643,7 @@ func computeInitials(name string) string {
 }
 
 // Consolidated returns the admin aggregated view for cash register closes within a date range.
-func (s *Service) Consolidated(branchID uint, branchName string, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
+func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchName string, dateFrom, dateTo string) (*ConsolidatedOutput, error) {
 	now := time.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -680,7 +681,7 @@ func (s *Service) Consolidated(branchID uint, branchName string, dateFrom, dateT
 		filters["branch_id"] = branchID
 	}
 
-	closes, _, err := s.repo.List(filters, 1, 10000)
+	closes, _, err := s.repo.List(db, filters, 1, 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -856,7 +857,7 @@ func (s *Service) Consolidated(branchID uint, branchName string, dateFrom, dateT
 	}, nil
 }
 
-func (s *Service) CalendarForAdvisor(userID uint, branchID uint, dateFrom, dateTo string) (*CalendarOutput, error) {
+func (s *Service) CalendarForAdvisor(db *gorm.DB, userID uint, branchID uint, dateFrom, dateTo string) (*CalendarOutput, error) {
 	if userID == 0 {
 		return nil, &domain.ErrValidation{Field: "user_id", Message: "es requerido"}
 	}
@@ -888,7 +889,7 @@ func (s *Service) CalendarForAdvisor(userID uint, branchID uint, dateFrom, dateT
 
 	fromStr := from.Format("2006-01-02")
 	toStr := to.Format("2006-01-02")
-	closes, err := s.repo.ListByUserAndDateRange(userID, branchID, fromStr, toStr)
+	closes, err := s.repo.ListByUserAndDateRange(db, userID, branchID, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}

@@ -464,6 +464,7 @@ func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
 // ListLensCatalog returns the paginated lens product catalog (product_type = 'lens').
 // GET /api/v1/inventory/lens-catalog
 func (h *Handler) ListLensCatalog(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 	if v := c.Query("brand_id"); v != "" {
@@ -489,7 +490,7 @@ func (h *Handler) ListLensCatalog(c *gin.Context) {
 			}
 		}
 	}
-	out, err := h.product.ListLensCatalog(filters, page, perPage)
+	out, err := h.product.ListLensCatalog(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return

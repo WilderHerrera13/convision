@@ -20,13 +20,11 @@ var productFilterAllowlist = map[string]bool{
 }
 
 // ProductRepository is the PostgreSQL-backed implementation of domain.ProductRepository.
-type ProductRepository struct {
-	db *gorm.DB
-}
+type ProductRepository struct{}
 
 // NewProductRepository creates a new ProductRepository.
-func NewProductRepository(db *gorm.DB) *ProductRepository {
-	return &ProductRepository{db: db}
+func NewProductRepository() *ProductRepository {
+	return &ProductRepository{}
 }
 
 func (r *ProductRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -43,9 +41,9 @@ func (r *ProductRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("ContactLensAttributes")
 }
 
-func (r *ProductRepository) GetByID(id uint) (*domain.Product, error) {
+func (r *ProductRepository) GetByID(db *gorm.DB, id uint) (*domain.Product, error) {
 	var p domain.Product
-	err := r.withRelations(r.db).First(&p, id).Error
+	err := r.withRelations(db).First(&p, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "product"}
@@ -55,12 +53,12 @@ func (r *ProductRepository) GetByID(id uint) (*domain.Product, error) {
 	return &p, nil
 }
 
-func (r *ProductRepository) Create(p *domain.Product) error {
-	return r.db.Create(p).Error
+func (r *ProductRepository) Create(db *gorm.DB, p *domain.Product) error {
+	return db.Create(p).Error
 }
 
-func (r *ProductRepository) Update(p *domain.Product) error {
-	return r.db.Model(p).Updates(map[string]any{
+func (r *ProductRepository) Update(db *gorm.DB, p *domain.Product) error {
+	return db.Model(p).Updates(map[string]any{
 		"internal_code":       p.InternalCode,
 		"identifier":          p.Identifier,
 		"description":         p.Description,
@@ -73,15 +71,15 @@ func (r *ProductRepository) Update(p *domain.Product) error {
 	}).Error
 }
 
-func (r *ProductRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Product{}, id).Error
+func (r *ProductRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Product{}, id).Error
 }
 
-func (r *ProductRepository) List(filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	q := r.db.Model(&domain.Product{})
+	q := db.Model(&domain.Product{})
 	for field, value := range filters {
 		if !productFilterAllowlist[field] {
 			continue
@@ -106,11 +104,11 @@ func (r *ProductRepository) List(filters map[string]any, page, perPage int) ([]*
 	return products, total, nil
 }
 
-func (r *ProductRepository) Search(query string, category string, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) Search(db *gorm.DB, query string, category string, page, perPage int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	q := r.db.Model(&domain.Product{})
+	q := db.Model(&domain.Product{})
 	if query != "" {
 		like := "%" + strings.ToLower(query) + "%"
 		q = q.Where("LOWER(products.identifier) LIKE ? OR LOWER(products.internal_code) LIKE ? OR LOWER(products.description) LIKE ?", like, like, like)
@@ -137,18 +135,18 @@ func (r *ProductRepository) Search(query string, category string, page, perPage 
 	return products, total, nil
 }
 
-func (r *ProductRepository) BulkUpdateStatus(ids []uint, status string) (int64, error) {
-	result := r.db.Model(&domain.Product{}).
+func (r *ProductRepository) BulkUpdateStatus(db *gorm.DB, ids []uint, status string) (int64, error) {
+	result := db.Model(&domain.Product{}).
 		Where("id IN ?", ids).
 		Update("status", status)
 	return result.RowsAffected, result.Error
 }
 
-func (r *ProductRepository) ListByCategory(slug string, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) ListByCategory(db *gorm.DB, slug string, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
 	var products []*domain.Product
 	var total int64
 
-	q := r.db.Model(&domain.Product{}).
+	q := db.Model(&domain.Product{}).
 		Joins("JOIN product_categories ON product_categories.id = products.product_category_id").
 		Where("product_categories.slug = ?", slug)
 
@@ -221,10 +219,10 @@ func (r *ProductRepository) ListByCategory(slug string, filters map[string]any, 
 	return products, total, nil
 }
 
-func (r *ProductRepository) ListByPrescription(f domain.PrescriptionFilter) ([]*domain.Product, error) {
+func (r *ProductRepository) ListByPrescription(db *gorm.DB, f domain.PrescriptionFilter) ([]*domain.Product, error) {
 	var products []*domain.Product
 
-	q := r.db.Model(&domain.Product{}).
+	q := db.Model(&domain.Product{}).
 		Joins("JOIN product_categories ON product_categories.id = products.product_category_id").
 		Where("product_categories.slug = ?", "lens").
 		Joins("JOIN product_lens_attributes la ON la.product_id = products.id")
@@ -257,9 +255,9 @@ func (r *ProductRepository) ListByPrescription(f domain.PrescriptionFilter) ([]*
 	return products, err
 }
 
-func (r *ProductRepository) StockByProduct(productID uint) ([]*domain.ProductStockByWarehouse, error) {
+func (r *ProductRepository) StockByProduct(db *gorm.DB, productID uint) ([]*domain.ProductStockByWarehouse, error) {
 	var results []*domain.ProductStockByWarehouse
-	err := r.db.Table("inventory_items ii").
+	err := db.Table("inventory_items ii").
 		Select(`ii.warehouse_id,
 			w.name AS warehouse_name,
 			ii.warehouse_location_id AS location_id,
@@ -274,11 +272,11 @@ func (r *ProductRepository) StockByProduct(productID uint) ([]*domain.ProductSto
 	return results, err
 }
 
-func (r *ProductRepository) ListLensCatalog(filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
 	var data []*domain.Product
 	var total int64
 
-	q := r.db.Model(&domain.Product{}).
+	q := db.Model(&domain.Product{}).
 		Where("products.product_type = ?", domain.ProductTypeLens).
 		Preload("Brand").
 		Preload("LensAttributes").

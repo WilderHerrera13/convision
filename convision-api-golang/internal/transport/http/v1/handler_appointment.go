@@ -158,6 +158,7 @@ func parseAppointmentApiFilters(c *gin.Context) map[string]any {
 // ListAppointments godoc
 // GET /api/v1/appointments
 func (h *Handler) ListAppointments(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 	filters := parseAppointmentApiFilters(c)
@@ -181,7 +182,7 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 		filters["_end_date"] = v
 	}
 
-	out, err := h.appointment.List(filters, page, perPage)
+	out, err := h.appointment.List(db, filters, page, perPage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -204,12 +205,13 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 // GetAppointment godoc
 // GET /api/v1/appointments/:id
 func (h *Handler) GetAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	a, err := h.appointment.GetByID(id)
+	a, err := h.appointment.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -220,6 +222,7 @@ func (h *Handler) GetAppointment(c *gin.Context) {
 // CreateAppointment godoc
 // POST /api/v1/appointments
 func (h *Handler) CreateAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input appointmentsvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
@@ -234,7 +237,7 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 
 	input.BranchID = branchmw.BranchIDFromCtx(c)
 
-	a, err := h.appointment.Create(input, claims.UserID)
+	a, err := h.appointment.Create(db, input, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -245,6 +248,7 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 // UpdateAppointment godoc
 // PUT /api/v1/appointments/:id
 func (h *Handler) UpdateAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -256,7 +260,7 @@ func (h *Handler) UpdateAppointment(c *gin.Context) {
 		return
 	}
 
-	a, err := h.appointment.Update(id, input)
+	a, err := h.appointment.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -267,12 +271,13 @@ func (h *Handler) UpdateAppointment(c *gin.Context) {
 // DeleteAppointment godoc
 // DELETE /api/v1/appointments/:id
 func (h *Handler) DeleteAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	if err := h.appointment.Delete(id); err != nil {
+	if err := h.appointment.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -282,6 +287,7 @@ func (h *Handler) DeleteAppointment(c *gin.Context) {
 // TakeAppointment godoc
 // POST /api/v1/appointments/:id/take
 func (h *Handler) TakeAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -293,7 +299,7 @@ func (h *Handler) TakeAppointment(c *gin.Context) {
 		return
 	}
 
-	a, err := h.appointment.Take(id, claims.UserID)
+	a, err := h.appointment.Take(db, id, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -304,12 +310,13 @@ func (h *Handler) TakeAppointment(c *gin.Context) {
 // PauseAppointment godoc
 // POST /api/v1/appointments/:id/pause
 func (h *Handler) PauseAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	a, err := h.appointment.Pause(id)
+	a, err := h.appointment.Pause(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -320,12 +327,13 @@ func (h *Handler) PauseAppointment(c *gin.Context) {
 // ResumeAppointment godoc
 // POST /api/v1/appointments/:id/resume
 func (h *Handler) ResumeAppointment(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	a, err := h.appointment.Resume(id)
+	a, err := h.appointment.Resume(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -336,6 +344,7 @@ func (h *Handler) ResumeAppointment(c *gin.Context) {
 // SaveAppointmentAnnotations godoc
 // POST /api/v1/appointments/:id/annotations
 func (h *Handler) SaveAppointmentAnnotations(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -347,7 +356,7 @@ func (h *Handler) SaveAppointmentAnnotations(c *gin.Context) {
 		return
 	}
 
-	a, err := h.appointment.SaveAnnotations(id, input)
+	a, err := h.appointment.SaveAnnotations(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -358,6 +367,7 @@ func (h *Handler) SaveAppointmentAnnotations(c *gin.Context) {
 // GetAppointmentAvailableSlots godoc
 // GET /api/v1/appointments/available-slots?specialist_id=X&date=YYYY-MM-DD
 func (h *Handler) GetAppointmentAvailableSlots(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	specialistIDStr := c.Query("specialist_id")
 	dateStr := c.Query("date")
 
@@ -378,7 +388,7 @@ func (h *Handler) GetAppointmentAvailableSlots(c *gin.Context) {
 		return
 	}
 
-	booked, err := h.appointment.GetBookedSlots(uint(specialistID), date)
+	booked, err := h.appointment.GetBookedSlots(db, uint(specialistID), date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -390,12 +400,13 @@ func (h *Handler) GetAppointmentAvailableSlots(c *gin.Context) {
 // GetLensAnnotation godoc
 // GET /api/v1/appointments/:id/lens-annotation
 func (h *Handler) GetLensAnnotation(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
 
-	a, err := h.appointment.GetByID(id)
+	a, err := h.appointment.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return

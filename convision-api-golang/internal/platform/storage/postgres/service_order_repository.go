@@ -15,18 +15,16 @@ var serviceOrderFilterAllowlist = map[string]bool{
 }
 
 // ServiceOrderRepository implements domain.ServiceOrderRepository using GORM/PostgreSQL.
-type ServiceOrderRepository struct {
-	db *gorm.DB
-}
+type ServiceOrderRepository struct{}
 
 // NewServiceOrderRepository creates a new ServiceOrderRepository.
-func NewServiceOrderRepository(db *gorm.DB) *ServiceOrderRepository {
-	return &ServiceOrderRepository{db: db}
+func NewServiceOrderRepository() *ServiceOrderRepository {
+	return &ServiceOrderRepository{}
 }
 
-func (r *ServiceOrderRepository) GetByID(id uint) (*domain.ServiceOrder, error) {
+func (r *ServiceOrderRepository) GetByID(db *gorm.DB, id uint) (*domain.ServiceOrder, error) {
 	var o domain.ServiceOrder
-	err := r.db.Preload("Supplier").Preload("CreatedByUser").
+	err := db.Preload("Supplier").Preload("CreatedByUser").
 		First(&o, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "service_order"}
@@ -34,12 +32,12 @@ func (r *ServiceOrderRepository) GetByID(id uint) (*domain.ServiceOrder, error) 
 	return &o, err
 }
 
-func (r *ServiceOrderRepository) Create(o *domain.ServiceOrder) error {
-	return r.db.Create(o).Error
+func (r *ServiceOrderRepository) Create(db *gorm.DB, o *domain.ServiceOrder) error {
+	return db.Create(o).Error
 }
 
-func (r *ServiceOrderRepository) Update(o *domain.ServiceOrder) error {
-	return r.db.Model(o).Updates(map[string]any{
+func (r *ServiceOrderRepository) Update(db *gorm.DB, o *domain.ServiceOrder) error {
+	return db.Model(o).Updates(map[string]any{
 		"supplier_id":             o.SupplierID,
 		"customer_name":           o.CustomerName,
 		"customer_phone":          o.CustomerPhone,
@@ -57,15 +55,15 @@ func (r *ServiceOrderRepository) Update(o *domain.ServiceOrder) error {
 	}).Error
 }
 
-func (r *ServiceOrderRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.ServiceOrder{}, id).Error
+func (r *ServiceOrderRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.ServiceOrder{}, id).Error
 }
 
-func (r *ServiceOrderRepository) List(filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
+func (r *ServiceOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
 	var records []*domain.ServiceOrder
 	var total int64
 
-	q := r.db.Model(&domain.ServiceOrder{})
+	q := db.Model(&domain.ServiceOrder{})
 	for k, v := range filters {
 		if serviceOrderFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)

@@ -13,18 +13,16 @@ var productCategoryFilterAllowlist = map[string]bool{
 }
 
 // ProductCategoryRepository is the PostgreSQL-backed implementation of domain.ProductCategoryRepository.
-type ProductCategoryRepository struct {
-	db *gorm.DB
-}
+type ProductCategoryRepository struct{}
 
 // NewProductCategoryRepository creates a new ProductCategoryRepository.
-func NewProductCategoryRepository(db *gorm.DB) *ProductCategoryRepository {
-	return &ProductCategoryRepository{db: db}
+func NewProductCategoryRepository() *ProductCategoryRepository {
+	return &ProductCategoryRepository{}
 }
 
-func (r *ProductCategoryRepository) GetByID(id uint) (*domain.ProductCategory, error) {
+func (r *ProductCategoryRepository) GetByID(db *gorm.DB, id uint) (*domain.ProductCategory, error) {
 	var c domain.ProductCategory
-	err := r.db.First(&c, id).Error
+	err := db.First(&c, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "product_category"}
@@ -34,12 +32,12 @@ func (r *ProductCategoryRepository) GetByID(id uint) (*domain.ProductCategory, e
 	return &c, nil
 }
 
-func (r *ProductCategoryRepository) Create(c *domain.ProductCategory) error {
-	return r.db.Create(c).Error
+func (r *ProductCategoryRepository) Create(db *gorm.DB, c *domain.ProductCategory) error {
+	return db.Create(c).Error
 }
 
-func (r *ProductCategoryRepository) Update(c *domain.ProductCategory) error {
-	return r.db.Model(c).Updates(map[string]any{
+func (r *ProductCategoryRepository) Update(db *gorm.DB, c *domain.ProductCategory) error {
+	return db.Model(c).Updates(map[string]any{
 		"name":        c.Name,
 		"slug":        c.Slug,
 		"description": c.Description,
@@ -48,15 +46,15 @@ func (r *ProductCategoryRepository) Update(c *domain.ProductCategory) error {
 	}).Error
 }
 
-func (r *ProductCategoryRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.ProductCategory{}, id).Error
+func (r *ProductCategoryRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.ProductCategory{}, id).Error
 }
 
-func (r *ProductCategoryRepository) List(filters map[string]any, page, perPage int) ([]*domain.ProductCategory, int64, error) {
+func (r *ProductCategoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductCategory, int64, error) {
 	var cats []*domain.ProductCategory
 	var total int64
 
-	q := r.db.Model(&domain.ProductCategory{})
+	q := db.Model(&domain.ProductCategory{})
 	for field, value := range filters {
 		if !productCategoryFilterAllowlist[field] {
 			continue
@@ -81,22 +79,22 @@ func (r *ProductCategoryRepository) List(filters map[string]any, page, perPage i
 	return cats, total, nil
 }
 
-func (r *ProductCategoryRepository) All() ([]*domain.ProductCategory, error) {
+func (r *ProductCategoryRepository) All(db *gorm.DB) ([]*domain.ProductCategory, error) {
 	var cats []*domain.ProductCategory
-	err := r.db.Model(&domain.ProductCategory{}).
+	err := db.Model(&domain.ProductCategory{}).
 		Where("is_active = ?", true).
 		Order("product_categories.id asc").
 		Find(&cats).Error
 	return cats, err
 }
 
-func (r *ProductCategoryRepository) ListWithProductCount() ([]*domain.CategoryWithCount, error) {
+func (r *ProductCategoryRepository) ListWithProductCount(db *gorm.DB) ([]*domain.CategoryWithCount, error) {
 	type row struct {
 		domain.ProductCategory
 		ProductCount int64 `gorm:"column:product_count"`
 	}
 	var rows []row
-	err := r.db.Table("product_categories").
+	err := db.Table("product_categories").
 		Select("product_categories.*, COUNT(p.id) AS product_count").
 		Joins("LEFT JOIN products p ON p.product_category_id = product_categories.id AND p.deleted_at IS NULL").
 		Group("product_categories.id").
@@ -116,9 +114,9 @@ func (r *ProductCategoryRepository) ListWithProductCount() ([]*domain.CategoryWi
 	return out, nil
 }
 
-func (r *ProductCategoryRepository) GetBySlug(slug string) (*domain.ProductCategory, error) {
+func (r *ProductCategoryRepository) GetBySlug(db *gorm.DB, slug string) (*domain.ProductCategory, error) {
 	var c domain.ProductCategory
-	err := r.db.Where("slug = ?", slug).First(&c).Error
+	err := db.Where("slug = ?", slug).First(&c).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "product_category"}

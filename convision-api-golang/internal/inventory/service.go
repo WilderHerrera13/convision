@@ -144,7 +144,7 @@ type WarehouseListOutput struct {
 
 func (s *Service) ListWarehouses(filters map[string]any, page, perPage int) (*WarehouseListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.warehouseRepo.List(filters, page, perPage)
+	data, total, err := s.warehouseRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (s *Service) ListWarehouses(filters map[string]any, page, perPage int) (*Wa
 }
 
 func (s *Service) GetWarehouse(id uint) (*domain.Warehouse, error) {
-	return s.warehouseRepo.GetByID(id)
+	return s.warehouseRepo.GetByID(s.db, id)
 }
 
 func (s *Service) CreateWarehouse(input WarehouseCreateInput) (*domain.Warehouse, error) {
@@ -175,14 +175,14 @@ func (s *Service) CreateWarehouse(input WarehouseCreateInput) (*domain.Warehouse
 		Status:   status,
 		Notes:    input.Notes,
 	}
-	if err := s.warehouseRepo.Create(w); err != nil {
+	if err := s.warehouseRepo.Create(s.db, w); err != nil {
 		return nil, err
 	}
-	return s.warehouseRepo.GetByID(w.ID)
+	return s.warehouseRepo.GetByID(s.db, w.ID)
 }
 
 func (s *Service) UpdateWarehouse(id uint, input WarehouseUpdateInput) (*domain.Warehouse, error) {
-	w, err := s.warehouseRepo.GetByID(id)
+	w, err := s.warehouseRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -199,17 +199,17 @@ func (s *Service) UpdateWarehouse(id uint, input WarehouseUpdateInput) (*domain.
 	}
 	w.Notes = input.Notes
 
-	if err := s.warehouseRepo.Update(w); err != nil {
+	if err := s.warehouseRepo.Update(s.db, w); err != nil {
 		return nil, err
 	}
-	return s.warehouseRepo.GetByID(id)
+	return s.warehouseRepo.GetByID(s.db, id)
 }
 
 func (s *Service) DeleteWarehouse(id uint) error {
-	if _, err := s.warehouseRepo.GetByID(id); err != nil {
+	if _, err := s.warehouseRepo.GetByID(s.db, id); err != nil {
 		return err
 	}
-	items, _, err := s.itemRepo.List(map[string]any{"warehouse_id": id}, 1, 1)
+	items, _, err := s.itemRepo.List(s.db, map[string]any{"warehouse_id": id}, 1, 1)
 	if err != nil {
 		return err
 	}
@@ -219,11 +219,11 @@ func (s *Service) DeleteWarehouse(id uint) error {
 			Message: "no se puede eliminar una bodega que tiene inventario activo",
 		}
 	}
-	return s.warehouseRepo.Delete(id)
+	return s.warehouseRepo.Delete(s.db, id)
 }
 
 func (s *Service) ListWarehouseLocations(warehouseID uint) ([]*domain.WarehouseLocation, error) {
-	return s.warehouseRepo.ListLocations(warehouseID)
+	return s.warehouseRepo.ListLocations(s.db, warehouseID)
 }
 
 // ======== WarehouseLocation ========
@@ -259,7 +259,7 @@ type LocationListOutput struct {
 
 func (s *Service) ListLocations(filters map[string]any, page, perPage int) (*LocationListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.locationRepo.List(filters, page, perPage)
+	data, total, err := s.locationRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (s *Service) ListLocations(filters map[string]any, page, perPage int) (*Loc
 }
 
 func (s *Service) GetLocation(id uint) (*domain.WarehouseLocation, error) {
-	return s.locationRepo.GetByID(id)
+	return s.locationRepo.GetByID(s.db, id)
 }
 
 func (s *Service) CreateLocation(input LocationCreateInput) (*domain.WarehouseLocation, error) {
@@ -289,14 +289,14 @@ func (s *Service) CreateLocation(input LocationCreateInput) (*domain.WarehouseLo
 		Status:      status,
 		Description: input.Description,
 	}
-	if err := s.locationRepo.Create(l); err != nil {
+	if err := s.locationRepo.Create(s.db, l); err != nil {
 		return nil, err
 	}
-	return s.locationRepo.GetByID(l.ID)
+	return s.locationRepo.GetByID(s.db, l.ID)
 }
 
 func (s *Service) UpdateLocation(id uint, input LocationUpdateInput) (*domain.WarehouseLocation, error) {
-	l, err := s.locationRepo.GetByID(id)
+	l, err := s.locationRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -314,17 +314,17 @@ func (s *Service) UpdateLocation(id uint, input LocationUpdateInput) (*domain.Wa
 	}
 	l.Description = input.Description
 
-	if err := s.locationRepo.Update(l); err != nil {
+	if err := s.locationRepo.Update(s.db, l); err != nil {
 		return nil, err
 	}
-	return s.locationRepo.GetByID(id)
+	return s.locationRepo.GetByID(s.db, id)
 }
 
 func (s *Service) DeleteLocation(id uint) error {
-	if _, err := s.locationRepo.GetByID(id); err != nil {
+	if _, err := s.locationRepo.GetByID(s.db, id); err != nil {
 		return err
 	}
-	items, _, err := s.itemRepo.List(map[string]any{"warehouse_location_id": id}, 1, 1)
+	items, _, err := s.itemRepo.List(s.db, map[string]any{"warehouse_location_id": id}, 1, 1)
 	if err != nil {
 		return err
 	}
@@ -334,12 +334,12 @@ func (s *Service) DeleteLocation(id uint) error {
 			Message: "no se puede eliminar una ubicación que tiene inventario activo",
 		}
 	}
-	return s.locationRepo.Delete(id)
+	return s.locationRepo.Delete(s.db, id)
 }
 
 // validateLocationBelongsToWarehouse verifies that locationID belongs to warehouseID.
 func (s *Service) validateLocationBelongsToWarehouse(locationID, warehouseID uint) error {
-	loc, err := s.locationRepo.GetByID(locationID)
+	loc, err := s.locationRepo.GetByID(s.db, locationID)
 	if err != nil {
 		return err
 	}
@@ -391,7 +391,7 @@ type TotalStockOutput struct {
 
 func (s *Service) ListItems(filters map[string]any, page, perPage int) (*ItemListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.itemRepo.List(filters, page, perPage)
+	data, total, err := s.itemRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +405,7 @@ func (s *Service) ListItems(filters map[string]any, page, perPage int) (*ItemLis
 }
 
 func (s *Service) GetItem(id uint) (*domain.InventoryItem, error) {
-	return s.itemRepo.GetByID(id)
+	return s.itemRepo.GetByID(s.db, id)
 }
 
 func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, error) {
@@ -413,7 +413,7 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		if err := s.validateLocationBelongsToWarehouse(*input.WarehouseLocationID, input.WarehouseID); err != nil {
 			return nil, err
 		}
-		exists, err := s.itemRepo.ExistsByProductAndLocation(input.ProductID, *input.WarehouseLocationID, 0)
+		exists, err := s.itemRepo.ExistsByProductAndLocation(s.db, input.ProductID, *input.WarehouseLocationID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -437,7 +437,7 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		Status:              status,
 		Notes:               input.Notes,
 	}
-	if err := s.itemRepo.Create(i); err != nil {
+	if err := s.itemRepo.Create(s.db, i); err != nil {
 		return nil, err
 	}
 	movement := &domain.StockMovement{
@@ -451,14 +451,14 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		QuantityAfter:       i.Quantity,
 		Notes:               "stock entry via CreateItem",
 	}
-	if err := s.movementRepo.Create(movement); err != nil {
+	if err := s.movementRepo.Create(s.db, movement); err != nil {
 		s.logger.Warn("failed to write stock movement for CreateItem", zap.Error(err))
 	}
-	return s.itemRepo.GetByID(i.ID)
+	return s.itemRepo.GetByID(s.db, i.ID)
 }
 
 func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryItem, error) {
-	i, err := s.itemRepo.GetByID(id)
+	i, err := s.itemRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +483,7 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		if input.ProductID != 0 {
 			productID = input.ProductID
 		}
-		exists, err := s.itemRepo.ExistsByProductAndLocation(productID, *newLocationID, id)
+		exists, err := s.itemRepo.ExistsByProductAndLocation(s.db, productID, *newLocationID, id)
 		if err != nil {
 			return nil, err
 		}
@@ -510,14 +510,14 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		i.Notes = *input.Notes
 	}
 
-	if err := s.itemRepo.Update(i); err != nil {
+	if err := s.itemRepo.Update(s.db, i); err != nil {
 		return nil, err
 	}
-	return s.itemRepo.GetByID(id)
+	return s.itemRepo.GetByID(s.db, id)
 }
 
 func (s *Service) DeleteItem(id uint) error {
-	item, err := s.itemRepo.GetByID(id)
+	item, err := s.itemRepo.GetByID(s.db, id)
 	if err != nil {
 		return err
 	}
@@ -527,11 +527,11 @@ func (s *Service) DeleteItem(id uint) error {
 			Message: "no se puede eliminar un ítem con stock activo",
 		}
 	}
-	return s.itemRepo.Delete(id)
+	return s.itemRepo.Delete(s.db, id)
 }
 
 func (s *Service) TotalStock() (*TotalStockOutput, error) {
-	total, err := s.itemRepo.TotalStock()
+	total, err := s.itemRepo.TotalStock(s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -541,17 +541,17 @@ func (s *Service) TotalStock() (*TotalStockOutput, error) {
 // TotalStockPerProduct returns available stock aggregated by product.
 // Supported filters: warehouse_id, warehouse_location_id.
 func (s *Service) TotalStockPerProduct(filters map[string]any) ([]*domain.ProductStockEntry, error) {
-	return s.itemRepo.TotalStockPerProduct(filters)
+	return s.itemRepo.TotalStockPerProduct(s.db, filters)
 }
 
 // ListItemsByLocation returns paginated inventory items for a given location.
 func (s *Service) ListItemsByLocation(locationID uint, page, perPage int) (*ItemListOutput, error) {
-	if _, err := s.locationRepo.GetByID(locationID); err != nil {
+	if _, err := s.locationRepo.GetByID(s.db, locationID); err != nil {
 		return nil, err
 	}
 	page, perPage = clampPage(page, perPage)
 	filters := map[string]any{"warehouse_location_id": locationID}
-	data, total, err := s.itemRepo.List(filters, page, perPage)
+	data, total, err := s.itemRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +573,7 @@ type ProductInventorySummary struct {
 
 // GetProductInventorySummary returns all inventory items for a product.
 func (s *Service) GetProductInventorySummary(productID uint) (*ProductInventorySummary, error) {
-	data, total, err := s.itemRepo.List(map[string]any{"product_id": productID}, 1, 1000)
+	data, total, err := s.itemRepo.List(s.db, map[string]any{"product_id": productID}, 1, 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +613,7 @@ type TransferListOutput struct {
 
 func (s *Service) ListTransfers(filters map[string]any, page, perPage int) (*TransferListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.transferRepo.List(filters, page, perPage)
+	data, total, err := s.transferRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +627,7 @@ func (s *Service) ListTransfers(filters map[string]any, page, perPage int) (*Tra
 }
 
 func (s *Service) GetTransfer(id uint) (*domain.InventoryTransfer, error) {
-	return s.transferRepo.GetByID(id)
+	return s.transferRepo.GetByID(s.db, id)
 }
 
 func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTransfer, error) {
@@ -675,7 +675,7 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(created.ID)
+	return s.transferRepo.GetByID(s.db, created.ID)
 }
 
 // CompleteTransfer atomically moves stock from source to destination and marks the transfer completed.
@@ -795,7 +795,7 @@ func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(result.ID)
+	return s.transferRepo.GetByID(s.db, result.ID)
 }
 
 // CancelTransfer sets the transfer status to cancelled, preventing any further state changes.
@@ -823,7 +823,7 @@ func (s *Service) CancelTransfer(id uint) (*domain.InventoryTransfer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(id)
+	return s.transferRepo.GetByID(s.db, id)
 }
 
 // ======== Inventory Adjustments ========
@@ -870,7 +870,7 @@ func (s *Service) CreateAdjustment(input AdjustmentCreateInput) (*domain.Invento
 	if !validAdjustmentReasons[input.AdjustmentReason] {
 		return nil, &domain.ErrValidation{Field: "adjustment_reason", Message: "motivo de ajuste inválido"}
 	}
-	item, err := s.itemRepo.GetByID(input.InventoryItemID)
+	item, err := s.itemRepo.GetByID(s.db, input.InventoryItemID)
 	if err != nil {
 		return nil, err
 	}
@@ -889,10 +889,10 @@ func (s *Service) CreateAdjustment(input AdjustmentCreateInput) (*domain.Invento
 		Notes:            input.Notes,
 		EvidenceURL:      input.EvidenceURL,
 	}
-	if err := s.adjustmentRepo.Create(adj); err != nil {
+	if err := s.adjustmentRepo.Create(s.db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(adj.ID)
+	return s.adjustmentRepo.GetByID(s.db, adj.ID)
 }
 
 func (s *Service) ApproveAdjustment(id uint, approvedBy uint) (*domain.InventoryAdjustment, error) {
@@ -953,11 +953,11 @@ func (s *Service) ApproveAdjustment(id uint, approvedBy uint) (*domain.Inventory
 	if err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(result.ID)
+	return s.adjustmentRepo.GetByID(s.db, result.ID)
 }
 
 func (s *Service) RejectAdjustment(id uint, approvedBy uint, notes string) (*domain.InventoryAdjustment, error) {
-	adj, err := s.adjustmentRepo.GetByID(id)
+	adj, err := s.adjustmentRepo.GetByID(s.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -971,15 +971,15 @@ func (s *Service) RejectAdjustment(id uint, approvedBy uint, notes string) (*dom
 	if notes != "" {
 		adj.Notes = notes
 	}
-	if err := s.adjustmentRepo.Update(adj); err != nil {
+	if err := s.adjustmentRepo.Update(s.db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(adj.ID)
+	return s.adjustmentRepo.GetByID(s.db, adj.ID)
 }
 
 func (s *Service) ListAdjustments(filters map[string]any, page, perPage int) (*AdjustmentListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.adjustmentRepo.List(filters, page, perPage)
+	data, total, err := s.adjustmentRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -994,7 +994,7 @@ func (s *Service) ListAdjustments(filters map[string]any, page, perPage int) (*A
 
 func (s *Service) ListMovements(filters map[string]any, page, perPage int) (*MovementListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.movementRepo.List(filters, page, perPage)
+	data, total, err := s.movementRepo.List(s.db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -1024,7 +1024,7 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 		if _, err := validateTransferStatus(input.Status); err != nil {
 			return nil, err
 		}
-		t, err := s.transferRepo.GetByID(id)
+		t, err := s.transferRepo.GetByID(s.db, id)
 		if err != nil {
 			return nil, err
 		}
@@ -1074,11 +1074,11 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(result.ID)
+	return s.transferRepo.GetByID(s.db, result.ID)
 }
 
 func (s *Service) DeleteTransfer(id uint) error {
-	t, err := s.transferRepo.GetByID(id)
+	t, err := s.transferRepo.GetByID(s.db, id)
 	if err != nil {
 		return err
 	}
@@ -1088,7 +1088,7 @@ func (s *Service) DeleteTransfer(id uint) error {
 			Message: "solo se pueden eliminar transferencias en estado pendiente",
 		}
 	}
-	return s.transferRepo.Delete(id)
+	return s.transferRepo.Delete(s.db, id)
 }
 
 // AdjustStockByItemID adjusts the quantity of a specific InventoryItem using a
@@ -1142,5 +1142,5 @@ func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*d
 	if err != nil {
 		return nil, err
 	}
-	return s.itemRepo.GetByID(result.ID)
+	return s.itemRepo.GetByID(s.db, result.ID)
 }

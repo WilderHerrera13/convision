@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Purchase represents a purchase invoice from a supplier.
 type Purchase struct {
@@ -73,9 +77,9 @@ type PurchasePayment struct {
 
 // PurchaseRepository defines persistence operations for Purchase.
 type PurchaseRepository interface {
-	GetByID(id uint) (*Purchase, error)
-	Create(p *Purchase) error
-	Update(p *Purchase) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Purchase, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Purchase, error)
+	Create(db *gorm.DB, p *Purchase) error
+	Update(db *gorm.DB, p *Purchase) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Purchase, int64, error)
 }

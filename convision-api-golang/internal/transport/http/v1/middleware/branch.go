@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
@@ -13,7 +14,7 @@ import (
 
 const branchIDKey = "branch_id"
 
-func BranchContext(branchRepo domain.BranchRepository) gin.HandlerFunc {
+func BranchContext(branchRepo domain.BranchRepository, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		headerVal := c.GetHeader("X-Branch-ID")
 		if headerVal == "" {
@@ -28,7 +29,7 @@ func BranchContext(branchRepo domain.BranchRepository) gin.HandlerFunc {
 		}
 		branchID := uint(parsed)
 
-		branch, err := branchRepo.GetActiveByID(branchID)
+		branch, err := branchRepo.GetActiveByID(db, branchID)
 		if err != nil {
 			var notFound *domain.ErrBranchNotFound
 			var inactive *domain.ErrBranchInactive
@@ -48,7 +49,7 @@ func BranchContext(branchRepo domain.BranchRepository) gin.HandlerFunc {
 		}
 
 		if claims.Role != domain.RoleAdmin {
-			hasAccess, err := branchRepo.UserHasAccess(claims.UserID, branchID)
+			hasAccess, err := branchRepo.UserHasAccess(db, claims.UserID, branchID)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 				return

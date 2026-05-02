@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -14,28 +15,28 @@ type MockExpenseRepository struct {
 	mock.Mock
 }
 
-func (m *MockExpenseRepository) GetByID(id uint) (*domain.Expense, error) {
-	args := m.Called(id)
+func (m *MockExpenseRepository) GetByID(db *gorm.DB, id uint) (*domain.Expense, error) {
+	args := m.Called(db, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Expense), args.Error(1)
 }
 
-func (m *MockExpenseRepository) Create(e *domain.Expense) error {
-	return m.Called(e).Error(0)
+func (m *MockExpenseRepository) Create(db *gorm.DB, e *domain.Expense) error {
+	return m.Called(db, e).Error(0)
 }
 
-func (m *MockExpenseRepository) Update(e *domain.Expense) error {
-	return m.Called(e).Error(0)
+func (m *MockExpenseRepository) Update(db *gorm.DB, e *domain.Expense) error {
+	return m.Called(db, e).Error(0)
 }
 
-func (m *MockExpenseRepository) Delete(id uint) error {
-	return m.Called(id).Error(0)
+func (m *MockExpenseRepository) Delete(db *gorm.DB, id uint) error {
+	return m.Called(db, id).Error(0)
 }
 
-func (m *MockExpenseRepository) List(filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
-	args := m.Called(filters, page, perPage)
+func (m *MockExpenseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
+	args := m.Called(db, filters, page, perPage)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -46,28 +47,28 @@ type MockPayrollRepository struct {
 	mock.Mock
 }
 
-func (m *MockPayrollRepository) GetByID(id uint) (*domain.Payroll, error) {
-	args := m.Called(id)
+func (m *MockPayrollRepository) GetByID(db *gorm.DB, id uint) (*domain.Payroll, error) {
+	args := m.Called(db, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Payroll), args.Error(1)
 }
 
-func (m *MockPayrollRepository) Create(p *domain.Payroll) error {
-	return m.Called(p).Error(0)
+func (m *MockPayrollRepository) Create(db *gorm.DB, p *domain.Payroll) error {
+	return m.Called(db, p).Error(0)
 }
 
-func (m *MockPayrollRepository) Update(p *domain.Payroll) error {
-	return m.Called(p).Error(0)
+func (m *MockPayrollRepository) Update(db *gorm.DB, p *domain.Payroll) error {
+	return m.Called(db, p).Error(0)
 }
 
-func (m *MockPayrollRepository) Delete(id uint) error {
-	return m.Called(id).Error(0)
+func (m *MockPayrollRepository) Delete(db *gorm.DB, id uint) error {
+	return m.Called(db, id).Error(0)
 }
 
-func (m *MockPayrollRepository) List(filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
-	args := m.Called(filters, page, perPage)
+func (m *MockPayrollRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
+	args := m.Called(db, filters, page, perPage)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -78,28 +79,28 @@ type MockServiceOrderRepository struct {
 	mock.Mock
 }
 
-func (m *MockServiceOrderRepository) GetByID(id uint) (*domain.ServiceOrder, error) {
-	args := m.Called(id)
+func (m *MockServiceOrderRepository) GetByID(db *gorm.DB, id uint) (*domain.ServiceOrder, error) {
+	args := m.Called(db, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.ServiceOrder), args.Error(1)
 }
 
-func (m *MockServiceOrderRepository) Create(s *domain.ServiceOrder) error {
-	return m.Called(s).Error(0)
+func (m *MockServiceOrderRepository) Create(db *gorm.DB, s *domain.ServiceOrder) error {
+	return m.Called(db, s).Error(0)
 }
 
-func (m *MockServiceOrderRepository) Update(s *domain.ServiceOrder) error {
-	return m.Called(s).Error(0)
+func (m *MockServiceOrderRepository) Update(db *gorm.DB, s *domain.ServiceOrder) error {
+	return m.Called(db, s).Error(0)
 }
 
-func (m *MockServiceOrderRepository) Delete(id uint) error {
-	return m.Called(id).Error(0)
+func (m *MockServiceOrderRepository) Delete(db *gorm.DB, id uint) error {
+	return m.Called(db, id).Error(0)
 }
 
-func (m *MockServiceOrderRepository) List(filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
-	args := m.Called(filters, page, perPage)
+func (m *MockServiceOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
+	args := m.Called(db, filters, page, perPage)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

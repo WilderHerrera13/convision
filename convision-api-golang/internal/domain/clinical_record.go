@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // StringSlice is a JSONB-backed string array for PostgreSQL storage.
@@ -257,11 +259,11 @@ type ClinicalPrescription struct {
 
 // ClinicalRecordRepository defines persistence operations for ClinicalRecord.
 type ClinicalRecordRepository interface {
-	GetByAppointmentID(appointmentID uint) (*ClinicalRecord, error)
-	Create(r *ClinicalRecord) error
-	UpsertAnamnesis(clinicalRecordID uint, branchID uint, a *Anamnesis) error
-	UpsertVisualExam(clinicalRecordID uint, branchID uint, v *VisualExam) error
-	UpsertDiagnosis(clinicalRecordID uint, branchID uint, d *Diagnosis) error
-	UpsertPrescription(clinicalRecordID uint, branchID uint, p *ClinicalPrescription) error
-	SignClinicalRecord(clinicalRecordID uint, professionalTp string) error
+	GetByAppointmentID(db *gorm.DB, appointmentID uint) (*ClinicalRecord, error)
+	Create(db *gorm.DB, r *ClinicalRecord) error
+	UpsertAnamnesis(db *gorm.DB, clinicalRecordID uint, branchID uint, a *Anamnesis) error
+	UpsertVisualExam(db *gorm.DB, clinicalRecordID uint, branchID uint, v *VisualExam) error
+	UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID uint, d *Diagnosis) error
+	UpsertPrescription(db *gorm.DB, clinicalRecordID uint, branchID uint, p *ClinicalPrescription) error
+	SignClinicalRecord(db *gorm.DB, clinicalRecordID uint, professionalTp string) error
 }

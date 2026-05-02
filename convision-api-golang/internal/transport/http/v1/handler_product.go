@@ -15,26 +15,26 @@ func productResponse(p *domain.Product) gin.H {
 		return gin.H{}
 	}
 	return gin.H{
-		"id":                  p.ID,
-		"internal_code":       p.InternalCode,
-		"identifier":          p.Identifier,
-		"description":         p.Description,
-		"name":                p.Description,
-		"cost":                p.Cost,
-		"price":               p.Price,
-		"sale_price":          p.Price,
-		"product_category_id": p.ProductCategoryID,
-		"category_id":         p.ProductCategoryID,
-		"brand_id":            p.BrandID,
-		"supplier_id":         p.SupplierID,
-		"status":              p.Status,
-		"created_at":          p.CreatedAt,
-		"updated_at":          p.UpdatedAt,
-		"deleted_at":          p.DeletedAt,
-		"category":            p.Category,
-		"brand":               p.Brand,
-		"lens_attributes":     p.LensAttributes,
-		"frame_attributes":    p.FrameAttributes,
+		"id":                      p.ID,
+		"internal_code":           p.InternalCode,
+		"identifier":              p.Identifier,
+		"description":             p.Description,
+		"name":                    p.Description,
+		"cost":                    p.Cost,
+		"price":                   p.Price,
+		"sale_price":              p.Price,
+		"product_category_id":     p.ProductCategoryID,
+		"category_id":             p.ProductCategoryID,
+		"brand_id":                p.BrandID,
+		"supplier_id":             p.SupplierID,
+		"status":                  p.Status,
+		"created_at":              p.CreatedAt,
+		"updated_at":              p.UpdatedAt,
+		"deleted_at":              p.DeletedAt,
+		"category":                p.Category,
+		"brand":                   p.Brand,
+		"lens_attributes":         p.LensAttributes,
+		"frame_attributes":        p.FrameAttributes,
 		"contact_lens_attributes": p.ContactLensAttributes,
 	}
 }
@@ -47,11 +47,12 @@ func productResponseSlice(data []*domain.Product) []gin.H {
 	return out
 }
 
-func (h *Handler) productResponsesWithDiscounts(data []*domain.Product) []gin.H {
+func (h *Handler) productResponsesWithDiscounts(c *gin.Context, data []*domain.Product) []gin.H {
+	db := tenantDBFromCtx(c)
 	out := make([]gin.H, len(data))
 	for i, p := range data {
 		resp := productResponse(p)
-		resp["has_discounts"] = h.product.HasActiveDiscounts(p.ID)
+		resp["has_discounts"] = h.product.HasActiveDiscounts(db, p.ID)
 		out[i] = resp
 	}
 	return out
@@ -60,6 +61,7 @@ func (h *Handler) productResponsesWithDiscounts(data []*domain.Product) []gin.H 
 // ======== Products ========
 
 func (h *Handler) ListProducts(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 	if s := c.Query("status"); s != "" {
@@ -83,14 +85,14 @@ func (h *Handler) ListProducts(c *gin.Context) {
 
 	// Inline search falls through to the Search endpoint logic when present.
 	if q := c.Query("search"); q != "" {
-		out, err := h.product.Search(q, "", page, perPage)
+		out, err := h.product.Search(db, q, "", page, perPage)
 		if err != nil {
 			respondError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"current_page": out.CurrentPage,
-			"data":         h.productResponsesWithDiscounts(out.Data),
+			"data":         h.productResponsesWithDiscounts(c, out.Data),
 			"last_page":    out.LastPage,
 			"per_page":     out.PerPage,
 			"total":        out.Total,
@@ -104,14 +106,14 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		return
 	}
 
-	out, err := h.product.List(filters, page, perPage)
+	out, err := h.product.List(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"current_page": out.CurrentPage,
-		"data":         h.productResponsesWithDiscounts(out.Data),
+		"data":         h.productResponsesWithDiscounts(c, out.Data),
 		"last_page":    out.LastPage,
 		"per_page":     out.PerPage,
 		"total":        out.Total,
@@ -125,27 +127,29 @@ func (h *Handler) ListProducts(c *gin.Context) {
 }
 
 func (h *Handler) GetProduct(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	p, err := h.product.GetByID(id)
+	p, err := h.product.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	resp := productResponse(p)
-	resp["has_discounts"] = h.product.HasActiveDiscounts(id)
+	resp["has_discounts"] = h.product.HasActiveDiscounts(db, id)
 	c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input product.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	p, err := h.product.Create(input)
+	p, err := h.product.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -154,6 +158,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProduct(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -163,7 +168,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	p, err := h.product.Update(id, input)
+	p, err := h.product.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -172,11 +177,12 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProduct(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	if err := h.product.Delete(id); err != nil {
+	if err := h.product.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -184,10 +190,11 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 }
 
 func (h *Handler) SearchProducts(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	query := c.Query("q")
 	category := c.Query("category")
-	out, err := h.product.Search(query, category, page, perPage)
+	out, err := h.product.Search(db, query, category, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -196,12 +203,13 @@ func (h *Handler) SearchProducts(c *gin.Context) {
 }
 
 func (h *Handler) BulkProductStatus(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input product.BulkStatusInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	affected, err := h.product.BulkUpdateStatus(input.IDs, input.Status)
+	affected, err := h.product.BulkUpdateStatus(db, input.IDs, input.Status)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -210,11 +218,12 @@ func (h *Handler) BulkProductStatus(c *gin.Context) {
 }
 
 func (h *Handler) GetProductStock(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	stock, err := h.product.GetProductStock(id)
+	stock, err := h.product.GetProductStock(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -223,6 +232,7 @@ func (h *Handler) GetProductStock(c *gin.Context) {
 }
 
 func (h *Handler) ListProductsByCategory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	slug := c.Param("slug")
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
@@ -246,14 +256,14 @@ func (h *Handler) ListProductsByCategory(c *gin.Context) {
 			}
 		}
 	}
-	out, err := h.product.ListByCategory(slug, filters, page, perPage)
+	out, err := h.product.ListByCategory(db, slug, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"current_page": out.CurrentPage,
-		"data":         h.productResponsesWithDiscounts(out.Data),
+		"data":         h.productResponsesWithDiscounts(c, out.Data),
 		"last_page":    out.LastPage,
 		"per_page":     out.PerPage,
 		"total":        out.Total,
@@ -267,6 +277,7 @@ func (h *Handler) ListProductsByCategory(c *gin.Context) {
 }
 
 func (h *Handler) ListLensesByPrescription(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var f struct {
 		SphereOD   *float64 `json:"sphere_od"`
 		CylinderOD *float64 `json:"cylinder_od"`
@@ -279,7 +290,7 @@ func (h *Handler) ListLensesByPrescription(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	lenses, err := h.product.ListByPrescription(domain.PrescriptionFilter{
+	lenses, err := h.product.ListByPrescription(db, domain.PrescriptionFilter{
 		SphereOD:   f.SphereOD,
 		CylinderOD: f.CylinderOD,
 		AdditionOD: f.AdditionOD,
@@ -308,6 +319,7 @@ func (h *Handler) GetProductDiscounts(c *gin.Context) {
 }
 
 func (h *Handler) GetProductDiscountInfo(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -320,7 +332,7 @@ func (h *Handler) GetProductDiscountInfo(c *gin.Context) {
 			patientID = &uid
 		}
 	}
-	out, err := h.product.GetDiscountInfo(id, patientID)
+	out, err := h.product.GetDiscountInfo(db, id, patientID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -342,6 +354,7 @@ func (h *Handler) GetProductActiveDiscounts(c *gin.Context) {
 }
 
 func (h *Handler) CalculateProductPrice(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -354,7 +367,7 @@ func (h *Handler) CalculateProductPrice(c *gin.Context) {
 			patientID = &uid
 		}
 	}
-	out, err := h.product.CalculatePrice(id, patientID)
+	out, err := h.product.CalculatePrice(db, id, patientID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -365,8 +378,9 @@ func (h *Handler) CalculateProductPrice(c *gin.Context) {
 // ======== Product Categories ========
 
 func (h *Handler) ListProductCategories(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
-	out, err := h.category.List(map[string]any{}, page, perPage)
+	out, err := h.category.List(db, map[string]any{}, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -387,11 +401,12 @@ func (h *Handler) ListProductCategories(c *gin.Context) {
 }
 
 func (h *Handler) GetProductCategory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	cat, err := h.category.GetByID(id)
+	cat, err := h.category.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -400,12 +415,13 @@ func (h *Handler) GetProductCategory(c *gin.Context) {
 }
 
 func (h *Handler) CreateProductCategory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input product.CategoryCreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	cat, err := h.category.Create(input)
+	cat, err := h.category.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -414,6 +430,7 @@ func (h *Handler) CreateProductCategory(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProductCategory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -423,7 +440,7 @@ func (h *Handler) UpdateProductCategory(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	cat, err := h.category.Update(id, input)
+	cat, err := h.category.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -432,11 +449,12 @@ func (h *Handler) UpdateProductCategory(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProductCategory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	if err := h.category.Delete(id); err != nil {
+	if err := h.category.Delete(db, id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -444,7 +462,8 @@ func (h *Handler) DeleteProductCategory(c *gin.Context) {
 }
 
 func (h *Handler) ListAllProductCategories(c *gin.Context) {
-	cats, err := h.category.All()
+	db := tenantDBFromCtx(c)
+	cats, err := h.category.All(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -453,7 +472,8 @@ func (h *Handler) ListAllProductCategories(c *gin.Context) {
 }
 
 func (h *Handler) ListProductCategoriesWithCount(c *gin.Context) {
-	cats, err := h.category.ListWithCount()
+	db := tenantDBFromCtx(c)
+	cats, err := h.category.ListWithCount(db)
 	if err != nil {
 		respondError(c, err)
 		return

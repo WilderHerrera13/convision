@@ -19,13 +19,11 @@ var orderFilterAllowlist = map[string]bool{
 }
 
 // OrderRepository is the PostgreSQL-backed implementation of domain.OrderRepository.
-type OrderRepository struct {
-	db *gorm.DB
-}
+type OrderRepository struct{}
 
 // NewOrderRepository creates a new OrderRepository.
-func NewOrderRepository(db *gorm.DB) *OrderRepository {
-	return &OrderRepository{db: db}
+func NewOrderRepository() *OrderRepository {
+	return &OrderRepository{}
 }
 
 func (r *OrderRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -37,9 +35,9 @@ func (r *OrderRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Items.Product")
 }
 
-func (r *OrderRepository) GetByID(id uint) (*domain.Order, error) {
+func (r *OrderRepository) GetByID(db *gorm.DB, id uint) (*domain.Order, error) {
 	var o domain.Order
-	err := r.withRelations(r.db).First(&o, id).Error
+	err := r.withRelations(db).First(&o, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "order"}
@@ -49,9 +47,9 @@ func (r *OrderRepository) GetByID(id uint) (*domain.Order, error) {
 	return &o, nil
 }
 
-func (r *OrderRepository) GetByOrderNumber(number string) (*domain.Order, error) {
+func (r *OrderRepository) GetByOrderNumber(db *gorm.DB, number string) (*domain.Order, error) {
 	var o domain.Order
-	err := r.withRelations(r.db).Where("order_number = ?", number).First(&o).Error
+	err := r.withRelations(db).Where("order_number = ?", number).First(&o).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "order"}
@@ -61,44 +59,44 @@ func (r *OrderRepository) GetByOrderNumber(number string) (*domain.Order, error)
 	return &o, nil
 }
 
-func (r *OrderRepository) Create(o *domain.Order) error {
+func (r *OrderRepository) Create(db *gorm.DB, o *domain.Order) error {
 	o.OrderNumber = fmt.Sprintf("TEMP-%d", time.Now().UnixNano())
-	if err := r.db.Create(o).Error; err != nil {
+	if err := db.Create(o).Error; err != nil {
 		return err
 	}
 	o.OrderNumber = fmt.Sprintf("ORD-%04d", o.ID)
-	return r.db.Model(o).Update("order_number", o.OrderNumber).Error
+	return db.Model(o).Update("order_number", o.OrderNumber).Error
 }
 
-func (r *OrderRepository) Update(o *domain.Order) error {
-	return r.db.Model(o).Updates(map[string]any{
-		"patient_id":     o.PatientID,
-		"appointment_id": o.AppointmentID,
-		"laboratory_id":  o.LaboratoryID,
-		"subtotal":       o.Subtotal,
-		"tax":            o.Tax,
-		"total":          o.Total,
-		"status":         o.Status,
-		"payment_status": o.PaymentStatus,
-		"notes":          o.Notes,
-		"pdf_token":      o.PdfToken,
+func (r *OrderRepository) Update(db *gorm.DB, o *domain.Order) error {
+	return db.Model(o).Updates(map[string]any{
+		"patient_id":           o.PatientID,
+		"appointment_id":       o.AppointmentID,
+		"laboratory_id":        o.LaboratoryID,
+		"subtotal":             o.Subtotal,
+		"tax":                  o.Tax,
+		"total":                o.Total,
+		"status":               o.Status,
+		"payment_status":       o.PaymentStatus,
+		"notes":                o.Notes,
+		"pdf_token":            o.PdfToken,
 		"laboratory_pdf_token": o.LaboratoryPdfToken,
 	}).Error
 }
 
-func (r *OrderRepository) Delete(id uint) error {
+func (r *OrderRepository) Delete(db *gorm.DB, id uint) error {
 	// Delete child items first to avoid FK constraint
-	if err := r.db.Where("order_id = ?", id).Delete(&domain.OrderItem{}).Error; err != nil {
+	if err := db.Where("order_id = ?", id).Delete(&domain.OrderItem{}).Error; err != nil {
 		return err
 	}
-	return r.db.Delete(&domain.Order{}, id).Error
+	return db.Delete(&domain.Order{}, id).Error
 }
 
-func (r *OrderRepository) List(filters map[string]any, page, perPage int) ([]*domain.Order, int64, error) {
+func (r *OrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Order, int64, error) {
 	var orders []*domain.Order
 	var total int64
 
-	q := r.db.Model(&domain.Order{})
+	q := db.Model(&domain.Order{})
 
 	for k, v := range filters {
 		if orderFilterAllowlist[k] {

@@ -3,6 +3,8 @@ package domain
 import (
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // CashRegisterCloseStatus enumerates valid statuses for a cash register close.
@@ -78,22 +80,22 @@ type CashCountDenomination struct {
 
 // CashRegisterCloseRepository defines persistence operations for cash register closes.
 type CashRegisterCloseRepository interface {
-	GetByID(id uint) (*CashRegisterClose, error)
+	GetByID(db *gorm.DB, id uint) (*CashRegisterClose, error)
 	// GetByUserAndDate returns the single close for (userID, date). Returns ErrNotFound if none exist.
 	// Prioritizes submitted/approved over draft when multiple exist (historical duplicates).
-	GetByUserAndDate(userID uint, date string) (*CashRegisterClose, error)
-	List(filters map[string]any, page, perPage int) ([]*CashRegisterClose, int64, error)
+	GetByUserAndDate(db *gorm.DB, userID uint, date string) (*CashRegisterClose, error)
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*CashRegisterClose, int64, error)
 	// ListByStatuses returns all closes whose status is in the given list, ordered by close_date DESC.
 	// Intended for the advisors-pending aggregation (no pagination needed — result is grouped per user).
-	ListByStatuses(statuses []CashRegisterCloseStatus, branchID uint) ([]*CashRegisterClose, error)
+	ListByStatuses(db *gorm.DB, statuses []CashRegisterCloseStatus, branchID uint) ([]*CashRegisterClose, error)
 	// ListByUserAndDateRange returns all closes for a user within a date range ordered by close_date ASC.
 	// Used by the calendar endpoint.
-	ListByUserAndDateRange(userID uint, branchID uint, from, to string) ([]*CashRegisterClose, error)
-	Create(c *CashRegisterClose, payments []CashRegisterClosePayment, denoms []CashCountDenomination) error
-	Update(c *CashRegisterClose, payments *[]CashRegisterClosePayment, denoms *[]CashCountDenomination) error
-	Delete(id uint) error
+	ListByUserAndDateRange(db *gorm.DB, userID uint, branchID uint, from, to string) ([]*CashRegisterClose, error)
+	Create(db *gorm.DB, c *CashRegisterClose, payments []CashRegisterClosePayment, denoms []CashCountDenomination) error
+	Update(db *gorm.DB, c *CashRegisterClose, payments *[]CashRegisterClosePayment, denoms *[]CashCountDenomination) error
+	Delete(db *gorm.DB, id uint) error
 	// SyncActualPayments replaces all actual_payments and recalculates total_actual_amount.
-	SyncActualPayments(closeID uint, payments []CashRegisterCloseActualPayment) error
+	SyncActualPayments(db *gorm.DB, closeID uint, payments []CashRegisterCloseActualPayment) error
 }
 
 // CashTransferType enumerates types of cash transfer movements.
@@ -139,11 +141,11 @@ type CashTransfer struct {
 
 // CashTransferRepository defines persistence operations for CashTransfer.
 type CashTransferRepository interface {
-	GetByID(id uint) (*CashTransfer, error)
-	Create(t *CashTransfer) error
-	Update(t *CashTransfer) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*CashTransfer, int64, error)
+	GetByID(db *gorm.DB, id uint) (*CashTransfer, error)
+	Create(db *gorm.DB, t *CashTransfer) error
+	Update(db *gorm.DB, t *CashTransfer) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*CashTransfer, int64, error)
 }
 
 // DailyShift enumerates the shift options for daily reports.
@@ -218,10 +220,10 @@ type DailyActivityReport struct {
 
 // DailyActivityRepository defines persistence operations for DailyActivityReport.
 type DailyActivityRepository interface {
-	GetByID(id uint) (*DailyActivityReport, error)
+	GetByID(db *gorm.DB, id uint) (*DailyActivityReport, error)
 	// FindByUserAndDate returns the report for the given user on the given date (YYYY-MM-DD).
-	FindByUserAndDate(userID uint, date string) (*DailyActivityReport, error)
-	Create(r *DailyActivityReport) error
-	Update(r *DailyActivityReport) error
-	List(filters map[string]any, page, perPage int) ([]*DailyActivityReport, int64, error)
+	FindByUserAndDate(db *gorm.DB, userID uint, date string) (*DailyActivityReport, error)
+	Create(db *gorm.DB, r *DailyActivityReport) error
+	Update(db *gorm.DB, r *DailyActivityReport) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*DailyActivityReport, int64, error)
 }

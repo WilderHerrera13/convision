@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Patient represents a clinic patient.
 type Patient struct {
@@ -53,10 +57,10 @@ func (p *Patient) FullName() string {
 
 // PatientRepository defines persistence operations for Patient.
 type PatientRepository interface {
-	GetByID(id uint) (*Patient, error)
-	GetByIdentification(doc string) (*Patient, error)
-	Create(p *Patient) error
-	Update(p *Patient) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*Patient, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Patient, error)
+	GetByIdentification(db *gorm.DB, doc string) (*Patient, error)
+	Create(db *gorm.DB, p *Patient) error
+	Update(db *gorm.DB, p *Patient) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Patient, int64, error)
 }

@@ -53,7 +53,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 
 	// Protected routes — require a valid JWT (revocation-checked) + tenant schema scoping
 	protected := v1.Group("/")
-	protected.Use(jwtauth.Authenticate(h.revokedTokens))
+	protected.Use(jwtauth.Authenticate(h.revokedTokens, globalDB))
 	protected.Use(branchmw.TenantSchema(globalDB))
 	{
 		// Auth endpoints that require a valid token
@@ -77,7 +77,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 
 		// Branch-scoped routes: require X-Branch-ID header
 		branchScoped := protected.Group("/")
-		branchScoped.Use(branchmw.BranchContext(h.branchRepo))
+		branchScoped.Use(branchmw.BranchContext(h.branchRepo, globalDB))
 
 		// Users — admin only
 		users := protected.Group("/users")

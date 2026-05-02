@@ -20,7 +20,8 @@ type BranchResource struct {
 }
 
 func (h *Handler) ListBranches(c *gin.Context) {
-	branches, err := h.branch.ListAll()
+	db := tenantDBFromCtx(c)
+	branches, err := h.branch.ListAll(db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
@@ -36,11 +37,12 @@ func (h *Handler) ListBranches(c *gin.Context) {
 }
 
 func (h *Handler) GetBranch(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
 	}
-	b, err := h.branch.GetByID(id)
+	b, err := h.branch.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -52,12 +54,13 @@ func (h *Handler) GetBranch(c *gin.Context) {
 }
 
 func (h *Handler) CreateBranch(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	var input branchsvc.CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	b, err := h.branch.Create(input)
+	b, err := h.branch.Create(db, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -69,6 +72,7 @@ func (h *Handler) CreateBranch(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBranch(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	id, err := parseID(c, "id")
 	if err != nil {
 		return
@@ -78,7 +82,7 @@ func (h *Handler) UpdateBranch(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	b, err := h.branch.Update(id, input)
+	b, err := h.branch.Update(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -90,6 +94,7 @@ func (h *Handler) UpdateBranch(c *gin.Context) {
 }
 
 func (h *Handler) AssignUserBranches(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	rawID := c.Param("id")
 	parsed, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
@@ -102,7 +107,7 @@ func (h *Handler) AssignUserBranches(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	if err := h.branch.AssignUserBranches(userID, input); err != nil {
+	if err := h.branch.AssignUserBranches(db, userID, input); err != nil {
 		respondError(c, err)
 		return
 	}

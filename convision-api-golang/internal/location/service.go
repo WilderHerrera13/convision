@@ -2,6 +2,7 @@ package location
 
 import (
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -18,40 +19,40 @@ func NewService(repo domain.LocationRepository, patientRepo domain.PatientLookup
 	return &Service{repo: repo, patientRepo: patientRepo, logger: logger}
 }
 
-func (s *Service) ListCountries() ([]*domain.Country, error) {
-	return s.repo.ListCountries()
+func (s *Service) ListCountries(db *gorm.DB) ([]*domain.Country, error) {
+	return s.repo.ListCountries(db)
 }
 
-func (s *Service) ListDepartments(countryID uint) ([]*domain.Department, error) {
-	return s.repo.ListDepartmentsByCountry(countryID)
+func (s *Service) ListDepartments(db *gorm.DB, countryID uint) ([]*domain.Department, error) {
+	return s.repo.ListDepartmentsByCountry(db, countryID)
 }
 
-func (s *Service) ListCities(departmentID uint) ([]*domain.City, error) {
-	return s.repo.ListCitiesByDepartment(departmentID)
+func (s *Service) ListCities(db *gorm.DB, departmentID uint) ([]*domain.City, error) {
+	return s.repo.ListCitiesByDepartment(db, departmentID)
 }
 
-func (s *Service) ListDistricts(cityID uint) ([]*domain.District, error) {
-	return s.repo.ListDistrictsByCity(cityID)
+func (s *Service) ListDistricts(db *gorm.DB, cityID uint) ([]*domain.District, error) {
+	return s.repo.ListDistrictsByCity(db, cityID)
 }
 
-func (s *Service) ListIdentificationTypes() ([]*domain.IdentificationType, error) {
-	return s.patientRepo.ListIdentificationTypes()
+func (s *Service) ListIdentificationTypes(db *gorm.DB) ([]*domain.IdentificationType, error) {
+	return s.patientRepo.ListIdentificationTypes(db)
 }
 
-func (s *Service) ListHealthInsuranceProviders() ([]*domain.HealthInsuranceProvider, error) {
-	return s.patientRepo.ListHealthInsuranceProviders()
+func (s *Service) ListHealthInsuranceProviders(db *gorm.DB) ([]*domain.HealthInsuranceProvider, error) {
+	return s.patientRepo.ListHealthInsuranceProviders(db)
 }
 
-func (s *Service) ListAffiliationTypes() ([]*domain.AffiliationType, error) {
-	return s.patientRepo.ListAffiliationTypes()
+func (s *Service) ListAffiliationTypes(db *gorm.DB) ([]*domain.AffiliationType, error) {
+	return s.patientRepo.ListAffiliationTypes(db)
 }
 
-func (s *Service) ListCoverageTypes() ([]*domain.CoverageType, error) {
-	return s.patientRepo.ListCoverageTypes()
+func (s *Service) ListCoverageTypes(db *gorm.DB) ([]*domain.CoverageType, error) {
+	return s.patientRepo.ListCoverageTypes(db)
 }
 
-func (s *Service) ListEducationLevels() ([]*domain.EducationLevel, error) {
-	return s.patientRepo.ListEducationLevels()
+func (s *Service) ListEducationLevels(db *gorm.DB) ([]*domain.EducationLevel, error) {
+	return s.patientRepo.ListEducationLevels(db)
 }
 
 // PatientLookupData aggregates all patient-form catalogs in one call.
@@ -63,24 +64,24 @@ type PatientLookupData struct {
 	EducationLevels          []*domain.EducationLevel          `json:"education_levels"`
 }
 
-func (s *Service) GetPatientLookupData() (*PatientLookupData, error) {
-	identTypes, err := s.patientRepo.ListIdentificationTypes()
+func (s *Service) GetPatientLookupData(db *gorm.DB) (*PatientLookupData, error) {
+	identTypes, err := s.patientRepo.ListIdentificationTypes(db)
 	if err != nil {
 		return nil, err
 	}
-	healthProviders, err := s.patientRepo.ListHealthInsuranceProviders()
+	healthProviders, err := s.patientRepo.ListHealthInsuranceProviders(db)
 	if err != nil {
 		return nil, err
 	}
-	affTypes, err := s.patientRepo.ListAffiliationTypes()
+	affTypes, err := s.patientRepo.ListAffiliationTypes(db)
 	if err != nil {
 		return nil, err
 	}
-	covTypes, err := s.patientRepo.ListCoverageTypes()
+	covTypes, err := s.patientRepo.ListCoverageTypes(db)
 	if err != nil {
 		return nil, err
 	}
-	eduLevels, err := s.patientRepo.ListEducationLevels()
+	eduLevels, err := s.patientRepo.ListEducationLevels(db)
 	if err != nil {
 		return nil, err
 	}

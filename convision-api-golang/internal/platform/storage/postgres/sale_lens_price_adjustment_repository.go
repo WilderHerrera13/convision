@@ -9,18 +9,16 @@ import (
 )
 
 // SaleLensPriceAdjustmentRepository implements domain.SaleLensPriceAdjustmentRepository.
-type SaleLensPriceAdjustmentRepository struct {
-	db *gorm.DB
-}
+type SaleLensPriceAdjustmentRepository struct{}
 
 // NewSaleLensPriceAdjustmentRepository creates a new repository.
-func NewSaleLensPriceAdjustmentRepository(db *gorm.DB) *SaleLensPriceAdjustmentRepository {
-	return &SaleLensPriceAdjustmentRepository{db: db}
+func NewSaleLensPriceAdjustmentRepository() *SaleLensPriceAdjustmentRepository {
+	return &SaleLensPriceAdjustmentRepository{}
 }
 
-func (r *SaleLensPriceAdjustmentRepository) GetBySaleID(saleID uint) ([]*domain.SaleLensPriceAdjustment, error) {
+func (r *SaleLensPriceAdjustmentRepository) GetBySaleID(db *gorm.DB, saleID uint) ([]*domain.SaleLensPriceAdjustment, error) {
 	var adjs []*domain.SaleLensPriceAdjustment
-	err := r.db.
+	err := db.
 		Preload("Lens").
 		Preload("AdjustedByUser").
 		Where("sale_id = ?", saleID).
@@ -28,9 +26,9 @@ func (r *SaleLensPriceAdjustmentRepository) GetBySaleID(saleID uint) ([]*domain.
 	return adjs, err
 }
 
-func (r *SaleLensPriceAdjustmentRepository) GetByID(id uint) (*domain.SaleLensPriceAdjustment, error) {
+func (r *SaleLensPriceAdjustmentRepository) GetByID(db *gorm.DB, id uint) (*domain.SaleLensPriceAdjustment, error) {
 	var adj domain.SaleLensPriceAdjustment
-	err := r.db.
+	err := db.
 		Preload("Lens").
 		Preload("AdjustedByUser").
 		First(&adj, id).Error
@@ -43,12 +41,12 @@ func (r *SaleLensPriceAdjustmentRepository) GetByID(id uint) (*domain.SaleLensPr
 	return &adj, nil
 }
 
-func (r *SaleLensPriceAdjustmentRepository) Create(adj *domain.SaleLensPriceAdjustment) error {
-	return r.db.Create(adj).Error
+func (r *SaleLensPriceAdjustmentRepository) Create(db *gorm.DB, adj *domain.SaleLensPriceAdjustment) error {
+	return db.Create(adj).Error
 }
 
-func (r *SaleLensPriceAdjustmentRepository) Delete(id uint) error {
-	result := r.db.Delete(&domain.SaleLensPriceAdjustment{}, id)
+func (r *SaleLensPriceAdjustmentRepository) Delete(db *gorm.DB, id uint) error {
+	result := db.Delete(&domain.SaleLensPriceAdjustment{}, id)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -58,9 +56,9 @@ func (r *SaleLensPriceAdjustmentRepository) Delete(id uint) error {
 	return nil
 }
 
-func (r *SaleLensPriceAdjustmentRepository) GetBySaleLens(saleID, lensID uint) (*domain.SaleLensPriceAdjustment, error) {
+func (r *SaleLensPriceAdjustmentRepository) GetBySaleLens(db *gorm.DB, saleID, lensID uint) (*domain.SaleLensPriceAdjustment, error) {
 	var adj domain.SaleLensPriceAdjustment
-	err := r.db.
+	err := db.
 		Where("sale_id = ? AND lens_id = ?", saleID, lensID).
 		First(&adj).Error
 	if err != nil {

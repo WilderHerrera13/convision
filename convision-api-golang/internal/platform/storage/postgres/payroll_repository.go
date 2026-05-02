@@ -14,18 +14,16 @@ var payrollFilterAllowlist = map[string]bool{
 }
 
 // PayrollRepository implements domain.PayrollRepository using GORM/PostgreSQL.
-type PayrollRepository struct {
-	db *gorm.DB
-}
+type PayrollRepository struct{}
 
 // NewPayrollRepository creates a new PayrollRepository.
-func NewPayrollRepository(db *gorm.DB) *PayrollRepository {
-	return &PayrollRepository{db: db}
+func NewPayrollRepository() *PayrollRepository {
+	return &PayrollRepository{}
 }
 
-func (r *PayrollRepository) GetByID(id uint) (*domain.Payroll, error) {
+func (r *PayrollRepository) GetByID(db *gorm.DB, id uint) (*domain.Payroll, error) {
 	var p domain.Payroll
-	err := r.db.Preload("PaymentMethod").Preload("CreatedByUser").
+	err := db.Preload("PaymentMethod").Preload("CreatedByUser").
 		First(&p, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "payroll"}
@@ -33,45 +31,45 @@ func (r *PayrollRepository) GetByID(id uint) (*domain.Payroll, error) {
 	return &p, err
 }
 
-func (r *PayrollRepository) Create(p *domain.Payroll) error {
-	return r.db.Create(p).Error
+func (r *PayrollRepository) Create(db *gorm.DB, p *domain.Payroll) error {
+	return db.Create(p).Error
 }
 
-func (r *PayrollRepository) Update(p *domain.Payroll) error {
-	return r.db.Model(p).Updates(map[string]any{
-		"employee_name":            p.EmployeeName,
-		"employee_identification":  p.EmployeeIdentification,
-		"employee_position":        p.EmployeePosition,
-		"base_salary":              p.BaseSalary,
-		"overtime_hours":           p.OvertimeHours,
-		"overtime_rate":            p.OvertimeRate,
-		"overtime_amount":          p.OvertimeAmount,
-		"bonuses":                  p.Bonuses,
-		"commissions":              p.Commissions,
-		"other_income":             p.OtherIncome,
-		"gross_salary":             p.GrossSalary,
-		"health_deduction":         p.HealthDeduction,
-		"pension_deduction":        p.PensionDeduction,
-		"tax_deduction":            p.TaxDeduction,
-		"other_deductions":         p.OtherDeductions,
-		"total_deductions":         p.TotalDeductions,
-		"net_salary":               p.NetSalary,
-		"payment_method_id":        p.PaymentMethodID,
-		"reference":                p.Reference,
-		"notes":                    p.Notes,
-		"status":                   p.Status,
+func (r *PayrollRepository) Update(db *gorm.DB, p *domain.Payroll) error {
+	return db.Model(p).Updates(map[string]any{
+		"employee_name":           p.EmployeeName,
+		"employee_identification": p.EmployeeIdentification,
+		"employee_position":       p.EmployeePosition,
+		"base_salary":             p.BaseSalary,
+		"overtime_hours":          p.OvertimeHours,
+		"overtime_rate":           p.OvertimeRate,
+		"overtime_amount":         p.OvertimeAmount,
+		"bonuses":                 p.Bonuses,
+		"commissions":             p.Commissions,
+		"other_income":            p.OtherIncome,
+		"gross_salary":            p.GrossSalary,
+		"health_deduction":        p.HealthDeduction,
+		"pension_deduction":       p.PensionDeduction,
+		"tax_deduction":           p.TaxDeduction,
+		"other_deductions":        p.OtherDeductions,
+		"total_deductions":        p.TotalDeductions,
+		"net_salary":              p.NetSalary,
+		"payment_method_id":       p.PaymentMethodID,
+		"reference":               p.Reference,
+		"notes":                   p.Notes,
+		"status":                  p.Status,
 	}).Error
 }
 
-func (r *PayrollRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Payroll{}, id).Error
+func (r *PayrollRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Payroll{}, id).Error
 }
 
-func (r *PayrollRepository) List(filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
+func (r *PayrollRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
 	var records []*domain.Payroll
 	var total int64
 
-	q := r.db.Model(&domain.Payroll{})
+	q := db.Model(&domain.Payroll{})
 	for k, v := range filters {
 		if payrollFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)

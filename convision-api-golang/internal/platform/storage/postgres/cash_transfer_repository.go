@@ -14,18 +14,16 @@ var cashTransferFilterAllowlist = map[string]bool{
 }
 
 // CashTransferRepository implements domain.CashTransferRepository using GORM/PostgreSQL.
-type CashTransferRepository struct {
-	db *gorm.DB
-}
+type CashTransferRepository struct{}
 
 // NewCashTransferRepository creates a new CashTransferRepository.
-func NewCashTransferRepository(db *gorm.DB) *CashTransferRepository {
-	return &CashTransferRepository{db: db}
+func NewCashTransferRepository() *CashTransferRepository {
+	return &CashTransferRepository{}
 }
 
-func (r *CashTransferRepository) GetByID(id uint) (*domain.CashTransfer, error) {
+func (r *CashTransferRepository) GetByID(db *gorm.DB, id uint) (*domain.CashTransfer, error) {
 	var t domain.CashTransfer
-	err := r.db.Preload("CreatedByUser").Preload("ApprovedByUser").
+	err := db.Preload("CreatedByUser").Preload("ApprovedByUser").
 		First(&t, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, &domain.ErrNotFound{Resource: "cash_transfer"}
@@ -33,12 +31,12 @@ func (r *CashTransferRepository) GetByID(id uint) (*domain.CashTransfer, error) 
 	return &t, err
 }
 
-func (r *CashTransferRepository) Create(t *domain.CashTransfer) error {
-	return r.db.Create(t).Error
+func (r *CashTransferRepository) Create(db *gorm.DB, t *domain.CashTransfer) error {
+	return db.Create(t).Error
 }
 
-func (r *CashTransferRepository) Update(t *domain.CashTransfer) error {
-	return r.db.Model(t).Updates(map[string]any{
+func (r *CashTransferRepository) Update(db *gorm.DB, t *domain.CashTransfer) error {
+	return db.Model(t).Updates(map[string]any{
 		"from_account":        t.FromAccount,
 		"to_account":          t.ToAccount,
 		"amount":              t.Amount,
@@ -52,15 +50,15 @@ func (r *CashTransferRepository) Update(t *domain.CashTransfer) error {
 	}).Error
 }
 
-func (r *CashTransferRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.CashTransfer{}, id).Error
+func (r *CashTransferRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.CashTransfer{}, id).Error
 }
 
-func (r *CashTransferRepository) List(filters map[string]any, page, perPage int) ([]*domain.CashTransfer, int64, error) {
+func (r *CashTransferRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.CashTransfer, int64, error) {
 	var records []*domain.CashTransfer
 	var total int64
 
-	q := r.db.Model(&domain.CashTransfer{})
+	q := db.Model(&domain.CashTransfer{})
 	for k, v := range filters {
 		if cashTransferFilterAllowlist[k] {
 			q = q.Where(k+" = ?", v)

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -55,7 +56,7 @@ func newLensImporter(
 
 func (i *lensImporter) Columns() []string { return lensImportColumns }
 
-func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResult {
+func (i *lensImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]string) RecordResult {
 	rec := RecordResult{Row: rowNum, Data: data}
 
 	internalCode := strings.TrimSpace(data["codigointerno"])
@@ -66,7 +67,7 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 	}
 
 	// Duplicate check: look for existing product with same internal_code and product_type=lens.
-	existing, _, err := i.productRepo.List(map[string]any{
+	existing, _, err := i.productRepo.List(db, map[string]any{
 		"internal_code": internalCode,
 		"product_type":  string(domain.ProductTypeLens),
 	}, 1, 1)
@@ -105,14 +106,14 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 		}
 	}
 
-	p.BrandID = i.resolveOrCreateBrand(rowNum, strings.TrimSpace(data["marca"]))
-	p.SupplierID = i.resolveOrCreateSupplier(rowNum, strings.TrimSpace(data["proveedor"]))
+	p.BrandID = i.resolveOrCreateBrand(db, rowNum, strings.TrimSpace(data["marca"]))
+	p.SupplierID = i.resolveOrCreateSupplier(db, rowNum, strings.TrimSpace(data["proveedor"]))
 
-	lensTypeID := i.resolveOrCreateLensType(rowNum, strings.TrimSpace(data["tipolente"]))
-	materialID := i.resolveOrCreateMaterial(rowNum, strings.TrimSpace(data["material"]))
-	lensClassID := i.resolveOrCreateLensClass(rowNum, strings.TrimSpace(data["claselente"]))
-	treatmentID := i.resolveOrCreateTreatment(rowNum, strings.TrimSpace(data["tratamiento"]))
-	photochromicID := i.resolveOrCreatePhotochromic(rowNum, strings.TrimSpace(data["fotocromático"]))
+	lensTypeID := i.resolveOrCreateLensType(db, rowNum, strings.TrimSpace(data["tipolente"]))
+	materialID := i.resolveOrCreateMaterial(db, rowNum, strings.TrimSpace(data["material"]))
+	lensClassID := i.resolveOrCreateLensClass(db, rowNum, strings.TrimSpace(data["claselente"]))
+	treatmentID := i.resolveOrCreateTreatment(db, rowNum, strings.TrimSpace(data["tratamiento"]))
+	photochromicID := i.resolveOrCreatePhotochromic(db, rowNum, strings.TrimSpace(data["fotocromático"]))
 
 	p.LensAttributes = &domain.ProductLensAttributes{
 		LensTypeID:     lensTypeID,
@@ -122,7 +123,7 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 		PhotochromicID: photochromicID,
 	}
 
-	if err := i.productRepo.Create(p); err != nil {
+	if err := i.productRepo.Create(db, p); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create product",
 			zap.Int("row", rowNum),
 			zap.String("internal_code", internalCode),
@@ -137,17 +138,17 @@ func (i *lensImporter) ProcessRow(rowNum int, data map[string]string) RecordResu
 	return rec
 }
 
-func (i *lensImporter) resolveOrCreateLensType(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateLensType(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.lensTypeRepo.GetByName(name)
+	e, err := i.lensTypeRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.LensType{Name: name}
-	if err := i.lensTypeRepo.Create(newEntry); err != nil {
+	if err := i.lensTypeRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create lens_type",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -156,17 +157,17 @@ func (i *lensImporter) resolveOrCreateLensType(rowNum int, name string) *uint {
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreateBrand(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateBrand(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.brandRepo.GetByName(name)
+	e, err := i.brandRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.Brand{Name: name}
-	if err := i.brandRepo.Create(newEntry); err != nil {
+	if err := i.brandRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create brand",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -175,17 +176,17 @@ func (i *lensImporter) resolveOrCreateBrand(rowNum int, name string) *uint {
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreateMaterial(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateMaterial(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.materialRepo.GetByName(name)
+	e, err := i.materialRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.Material{Name: name}
-	if err := i.materialRepo.Create(newEntry); err != nil {
+	if err := i.materialRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create material",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -194,17 +195,17 @@ func (i *lensImporter) resolveOrCreateMaterial(rowNum int, name string) *uint {
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreateLensClass(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateLensClass(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.lensClassRepo.GetByName(name)
+	e, err := i.lensClassRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.LensClass{Name: name}
-	if err := i.lensClassRepo.Create(newEntry); err != nil {
+	if err := i.lensClassRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create lens_class",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -213,17 +214,17 @@ func (i *lensImporter) resolveOrCreateLensClass(rowNum int, name string) *uint {
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreateTreatment(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateTreatment(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.treatmentRepo.GetByName(name)
+	e, err := i.treatmentRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.Treatment{Name: name}
-	if err := i.treatmentRepo.Create(newEntry); err != nil {
+	if err := i.treatmentRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create treatment",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -232,17 +233,17 @@ func (i *lensImporter) resolveOrCreateTreatment(rowNum int, name string) *uint {
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreatePhotochromic(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreatePhotochromic(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	e, err := i.photochromicRepo.GetByName(name)
+	e, err := i.photochromicRepo.GetByName(db, name)
 	if err == nil {
 		id := e.ID
 		return &id
 	}
 	newEntry := &domain.Photochromic{Name: name}
-	if err := i.photochromicRepo.Create(newEntry); err != nil {
+	if err := i.photochromicRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create photochromic",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil
@@ -251,17 +252,17 @@ func (i *lensImporter) resolveOrCreatePhotochromic(rowNum int, name string) *uin
 	return &id
 }
 
-func (i *lensImporter) resolveOrCreateSupplier(rowNum int, name string) *uint {
+func (i *lensImporter) resolveOrCreateSupplier(db *gorm.DB, rowNum int, name string) *uint {
 	if name == "" {
 		return nil
 	}
-	suppliers, _, err := i.supplierRepo.List(map[string]any{"name": name}, 1, 1)
+	suppliers, _, err := i.supplierRepo.List(db, map[string]any{"name": name}, 1, 1)
 	if err == nil && len(suppliers) > 0 {
 		id := suppliers[0].ID
 		return &id
 	}
 	newEntry := &domain.Supplier{Name: name}
-	if err := i.supplierRepo.Create(newEntry); err != nil {
+	if err := i.supplierRepo.Create(db, newEntry); err != nil {
 		i.logger.Warn("bulk import lenses: failed to create supplier",
 			zap.Int("row", rowNum), zap.String("name", name), zap.Error(err))
 		return nil

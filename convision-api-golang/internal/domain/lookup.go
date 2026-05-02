@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // IdentificationType represents a document type for patient identification.
 type IdentificationType struct {
@@ -54,11 +58,11 @@ type EducationLevel struct {
 
 // PatientLookupRepository defines read-only catalog queries for patient form dropdowns.
 type PatientLookupRepository interface {
-	ListIdentificationTypes() ([]*IdentificationType, error)
-	ListHealthInsuranceProviders() ([]*HealthInsuranceProvider, error)
-	ListAffiliationTypes() ([]*AffiliationType, error)
-	ListCoverageTypes() ([]*CoverageType, error)
-	ListEducationLevels() ([]*EducationLevel, error)
+	ListIdentificationTypes(db *gorm.DB) ([]*IdentificationType, error)
+	ListHealthInsuranceProviders(db *gorm.DB) ([]*HealthInsuranceProvider, error)
+	ListAffiliationTypes(db *gorm.DB) ([]*AffiliationType, error)
+	ListCoverageTypes(db *gorm.DB) ([]*CoverageType, error)
+	ListEducationLevels(db *gorm.DB) ([]*EducationLevel, error)
 }
 
 // PaymentMethod represents a payment method accepted in transactions.
@@ -76,12 +80,12 @@ type PaymentMethod struct {
 
 // PaymentMethodRepository defines persistence operations for PaymentMethod.
 type PaymentMethodRepository interface {
-	GetByID(id uint) (*PaymentMethod, error)
-	Create(e *PaymentMethod) error
-	Update(e *PaymentMethod) error
-	Delete(id uint) error
-	List(page, perPage int) ([]*PaymentMethod, int64, error)
-	ListActive() ([]*PaymentMethod, error)
+	GetByID(db *gorm.DB, id uint) (*PaymentMethod, error)
+	Create(db *gorm.DB, e *PaymentMethod) error
+	Update(db *gorm.DB, e *PaymentMethod) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, page, perPage int) ([]*PaymentMethod, int64, error)
+	ListActive(db *gorm.DB) ([]*PaymentMethod, error)
 }
 
 // ProductCategory represents a category for products (lens, frame, contact_lens, etc.).
@@ -105,17 +109,17 @@ type CategoryWithCount struct {
 
 // ProductCategoryRepository defines persistence operations for ProductCategory.
 type ProductCategoryRepository interface {
-	GetByID(id uint) (*ProductCategory, error)
-	Create(c *ProductCategory) error
-	Update(c *ProductCategory) error
-	Delete(id uint) error
-	List(filters map[string]any, page, perPage int) ([]*ProductCategory, int64, error)
+	GetByID(db *gorm.DB, id uint) (*ProductCategory, error)
+	Create(db *gorm.DB, c *ProductCategory) error
+	Update(db *gorm.DB, c *ProductCategory) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ProductCategory, int64, error)
 	// All returns every active category without pagination.
-	All() ([]*ProductCategory, error)
+	All(db *gorm.DB) ([]*ProductCategory, error)
 	// ListWithProductCount returns all categories annotated with the count of associated products.
-	ListWithProductCount() ([]*CategoryWithCount, error)
+	ListWithProductCount(db *gorm.DB) ([]*CategoryWithCount, error)
 	// GetBySlug returns a single category by its slug.
-	GetBySlug(slug string) (*ProductCategory, error)
+	GetBySlug(db *gorm.DB, slug string) (*ProductCategory, error)
 }
 
 // Brand represents a product brand.
@@ -129,12 +133,12 @@ type Brand struct {
 
 // BrandRepository defines persistence operations for Brand.
 type BrandRepository interface {
-	GetByID(id uint) (*Brand, error)
-	GetByName(name string) (*Brand, error)
-	Create(e *Brand) error
-	Update(e *Brand) error
-	Delete(id uint) error
-	List(page, perPage int) ([]*Brand, int64, error)
+	GetByID(db *gorm.DB, id uint) (*Brand, error)
+	GetByName(db *gorm.DB, name string) (*Brand, error)
+	Create(db *gorm.DB, e *Brand) error
+	Update(db *gorm.DB, e *Brand) error
+	Delete(db *gorm.DB, id uint) error
+	List(db *gorm.DB, page, perPage int) ([]*Brand, int64, error)
 }
 
 // Note represents a polymorphic note attachable to products, lenses, etc.
@@ -164,6 +168,6 @@ type LensNote struct {
 
 // NoteRepository defines persistence for polymorphic Note records.
 type NoteRepository interface {
-	List(noteableType string, noteableID uint, page, perPage int) ([]*Note, int64, error)
-	Create(n *Note) error
+	List(db *gorm.DB, noteableType string, noteableID uint, page, perPage int) ([]*Note, int64, error)
+	Create(db *gorm.DB, n *Note) error
 }

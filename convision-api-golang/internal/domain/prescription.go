@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 func (Prescription) TableName() string { return "appointment_prescriptions" }
 
@@ -42,11 +46,11 @@ type Prescription struct {
 
 // PrescriptionRepository defines persistence operations for Prescription.
 type PrescriptionRepository interface {
-	GetByID(id uint) (*Prescription, error)
-	GetByAppointmentID(appointmentID uint) (*Prescription, error)
-	List(filters map[string]any, page, perPage int) ([]*Prescription, int64, error)
-	ListByPatientID(patientID uint, page, perPage int) ([]*Prescription, int64, error)
-	Create(p *Prescription) error
-	Update(p *Prescription) error
-	Delete(id uint) error
+	GetByID(db *gorm.DB, id uint) (*Prescription, error)
+	GetByAppointmentID(db *gorm.DB, appointmentID uint) (*Prescription, error)
+	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Prescription, int64, error)
+	ListByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*Prescription, int64, error)
+	Create(db *gorm.DB, p *Prescription) error
+	Update(db *gorm.DB, p *Prescription) error
+	Delete(db *gorm.DB, id uint) error
 }

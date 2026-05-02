@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -68,13 +69,13 @@ type ListOutput struct {
 }
 
 // GetByID returns a single expense or ErrNotFound.
-func (s *Service) GetByID(id uint) (*domain.Expense, error) {
-	return s.repo.GetByID(id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Expense, error) {
+	return s.repo.GetByID(db, id)
 }
 
 // GetStats returns aggregate expense statistics.
-func (s *Service) GetStats() (*StatsOutput, error) {
-	data, total, err := s.repo.List(map[string]any{}, 1, 10000)
+func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
+	data, total, err := s.repo.List(db, map[string]any{}, 1, 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -91,14 +92,14 @@ func (s *Service) GetStats() (*StatsOutput, error) {
 }
 
 // List returns a paginated list of expenses.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
 	if perPage < 1 || perPage > 100 {
 		perPage = 15
 	}
-	data, total, err := s.repo.List(filters, page, perPage)
+	data, total, err := s.repo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +111,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Create creates a new expense.
-func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.Expense, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.Expense, error) {
 	var expenseDate *time.Time
 	if input.ExpenseDate != "" {
 		t, err := time.Parse("2006-01-02", input.ExpenseDate)
@@ -148,16 +149,16 @@ func (s *Service) Create(input CreateInput, createdByUserID *uint) (*domain.Expe
 		CreatedByUserID: createdByUserID,
 	}
 
-	if err := s.repo.Create(e); err != nil {
+	if err := s.repo.Create(db, e); err != nil {
 		return nil, err
 	}
 	s.logger.Info("expense created", zap.Uint("id", e.ID), zap.String("concept", e.Concept))
-	return s.repo.GetByID(e.ID)
+	return s.repo.GetByID(db, e.ID)
 }
 
 // Update updates an expense.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.Expense, error) {
-	e, err := s.repo.GetByID(id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Expense, error) {
+	e, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -210,16 +211,16 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Expense, error) {
 		e.Status = "pending"
 	}
 
-	if err := s.repo.Update(e); err != nil {
+	if err := s.repo.Update(db, e); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(id)
+	return s.repo.GetByID(db, id)
 }
 
 // Delete removes an expense.
-func (s *Service) Delete(id uint) error {
-	if _, err := s.repo.GetByID(id); err != nil {
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	if _, err := s.repo.GetByID(db, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(db, id)
 }

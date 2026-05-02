@@ -22,13 +22,11 @@ var patientFilterAllowlist = map[string]string{
 }
 
 // PatientRepository is the PostgreSQL-backed implementation of domain.PatientRepository.
-type PatientRepository struct {
-	db *gorm.DB
-}
+type PatientRepository struct{}
 
 // NewPatientRepository creates a new PatientRepository.
-func NewPatientRepository(db *gorm.DB) *PatientRepository {
-	return &PatientRepository{db: db}
+func NewPatientRepository() *PatientRepository {
+	return &PatientRepository{}
 }
 
 func (r *PatientRepository) withRelations(q *gorm.DB) *gorm.DB {
@@ -44,9 +42,9 @@ func (r *PatientRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("EducationLevel")
 }
 
-func (r *PatientRepository) GetByID(id uint) (*domain.Patient, error) {
+func (r *PatientRepository) GetByID(db *gorm.DB, id uint) (*domain.Patient, error) {
 	var p domain.Patient
-	err := r.withRelations(r.db).
+	err := r.withRelations(db).
 		Where("patients.deleted_at IS NULL").
 		First(&p, id).Error
 	if err != nil {
@@ -58,9 +56,9 @@ func (r *PatientRepository) GetByID(id uint) (*domain.Patient, error) {
 	return &p, nil
 }
 
-func (r *PatientRepository) GetByIdentification(doc string) (*domain.Patient, error) {
+func (r *PatientRepository) GetByIdentification(db *gorm.DB, doc string) (*domain.Patient, error) {
 	var p domain.Patient
-	if err := r.db.Where("identification = ?", doc).First(&p).Error; err != nil {
+	if err := db.Where("identification = ?", doc).First(&p).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, &domain.ErrNotFound{Resource: "patient"}
 		}
@@ -69,12 +67,12 @@ func (r *PatientRepository) GetByIdentification(doc string) (*domain.Patient, er
 	return &p, nil
 }
 
-func (r *PatientRepository) Create(p *domain.Patient) error {
-	return r.db.Create(p).Error
+func (r *PatientRepository) Create(db *gorm.DB, p *domain.Patient) error {
+	return db.Create(p).Error
 }
 
-func (r *PatientRepository) Update(p *domain.Patient) error {
-	return r.db.Model(p).Updates(map[string]any{
+func (r *PatientRepository) Update(db *gorm.DB, p *domain.Patient) error {
+	return db.Model(p).Updates(map[string]any{
 		"first_name":             p.FirstName,
 		"last_name":              p.LastName,
 		"email":                  p.Email,
@@ -102,15 +100,15 @@ func (r *PatientRepository) Update(p *domain.Patient) error {
 	}).Error
 }
 
-func (r *PatientRepository) Delete(id uint) error {
-	return r.db.Delete(&domain.Patient{}, id).Error
+func (r *PatientRepository) Delete(db *gorm.DB, id uint) error {
+	return db.Delete(&domain.Patient{}, id).Error
 }
 
-func (r *PatientRepository) List(filters map[string]any, page, perPage int) ([]*domain.Patient, int64, error) {
+func (r *PatientRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Patient, int64, error) {
 	var patients []*domain.Patient
 	var total int64
 
-	q := r.db.Model(&domain.Patient{}).Where("patients.deleted_at IS NULL")
+	q := db.Model(&domain.Patient{}).Where("patients.deleted_at IS NULL")
 
 	orMode := filters["_or_mode"] == "true"
 	if orMode {

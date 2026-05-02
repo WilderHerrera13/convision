@@ -9,6 +9,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -85,7 +86,7 @@ func NewService(
 
 // ProcessExcel parses the uploaded file and processes each row with the
 // Importer registered for importType.
-func (s *Service) ProcessExcel(fh *multipart.FileHeader, importType ImportType) (*ImportResult, error) {
+func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType ImportType) (*ImportResult, error) {
 	importer, ok := s.registry[importType]
 	if !ok {
 		return nil, fmt.Errorf("tipo de importación desconocido: %q", importType)
@@ -124,7 +125,7 @@ func (s *Service) ProcessExcel(fh *multipart.FileHeader, importType ImportType) 
 	for i, row := range dataRows {
 		rowNum := i + 2
 		rowData := mapRowToHeaders(headers, row)
-		rec := importer.ProcessRow(rowNum, rowData)
+		rec := importer.ProcessRow(db, rowNum, rowData)
 		result.Records = append(result.Records, rec)
 		switch rec.Status {
 		case RecordStatusCreated:

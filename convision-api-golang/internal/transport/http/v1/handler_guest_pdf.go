@@ -113,7 +113,8 @@ func (h *Handler) GuestLaboratoryOrderPdf(c *gin.Context) {
 		return
 	}
 
-	order, err := h.laboratory.GetOrder(uint(id))
+	db := tenantDBFromCtx(c)
+	order, err := h.laboratory.GetOrder(db, uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Orden no encontrada."})
 		return

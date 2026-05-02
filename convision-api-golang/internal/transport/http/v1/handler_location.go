@@ -34,7 +34,8 @@ type DistrictResource struct {
 
 // GET /api/v1/lookup/countries
 func (h *Handler) LookupCountries(c *gin.Context) {
-	data, err := h.location.ListCountries()
+	db := tenantDBFromCtx(c)
+	data, err := h.location.ListCountries(db)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -48,12 +49,13 @@ func (h *Handler) LookupCountries(c *gin.Context) {
 
 // GET /api/v1/lookup/departments?country_id=1
 func (h *Handler) LookupDepartments(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	countryID, err := strconv.ParseUint(c.Query("country_id"), 10, 64)
 	if err != nil || countryID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "country_id is required"})
 		return
 	}
-	data, err := h.location.ListDepartments(uint(countryID))
+	data, err := h.location.ListDepartments(db, uint(countryID))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -67,12 +69,13 @@ func (h *Handler) LookupDepartments(c *gin.Context) {
 
 // GET /api/v1/lookup/cities?department_id=10
 func (h *Handler) LookupCities(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	departmentID, err := strconv.ParseUint(c.Query("department_id"), 10, 64)
 	if err != nil || departmentID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "department_id is required"})
 		return
 	}
-	data, err := h.location.ListCities(uint(departmentID))
+	data, err := h.location.ListCities(db, uint(departmentID))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -86,12 +89,13 @@ func (h *Handler) LookupCities(c *gin.Context) {
 
 // GET /api/v1/lookup/districts?city_id=100
 func (h *Handler) LookupDistricts(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	cityID, err := strconv.ParseUint(c.Query("city_id"), 10, 64)
 	if err != nil || cityID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "city_id is required"})
 		return
 	}
-	data, err := h.location.ListDistricts(uint(cityID))
+	data, err := h.location.ListDistricts(db, uint(cityID))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -112,27 +116,28 @@ type LookupItem struct {
 // GET /api/v1/lookup/patient-data
 // Returns all reference tables needed by the patient form in a single request.
 func (h *Handler) LookupPatientData(c *gin.Context) {
-	idTypes, err := h.location.ListIdentificationTypes()
+	db := tenantDBFromCtx(c)
+	idTypes, err := h.location.ListIdentificationTypes(db)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	eps, err := h.location.ListHealthInsuranceProviders()
+	eps, err := h.location.ListHealthInsuranceProviders(db)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	aff, err := h.location.ListAffiliationTypes()
+	aff, err := h.location.ListAffiliationTypes(db)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	cov, err := h.location.ListCoverageTypes()
+	cov, err := h.location.ListCoverageTypes(db)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	edu, err := h.location.ListEducationLevels()
+	edu, err := h.location.ListEducationLevels(db)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -50,7 +50,9 @@ func (h *Handler) ListManagementReport(c *gin.Context) {
 		}
 	}
 
+	db := tenantDBFromCtx(c)
 	out, err := h.appointment.ListManagementReport(
+		db,
 		specialistID,
 		c.Query("search"),
 		c.Query("start_date"),
@@ -97,7 +99,8 @@ func (h *Handler) GetManagementReport(c *gin.Context) {
 		return
 	}
 
-	a, err := h.appointment.GetByID(id)
+	db := tenantDBFromCtx(c)
+	a, err := h.appointment.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -129,7 +132,8 @@ func (h *Handler) SaveManagementReport(c *gin.Context) {
 		return
 	}
 
-	existing, err := h.appointment.GetByID(id)
+	db := tenantDBFromCtx(c)
+	existing, err := h.appointment.GetByID(db, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -146,7 +150,7 @@ func (h *Handler) SaveManagementReport(c *gin.Context) {
 		return
 	}
 
-	a, err := h.appointment.SaveManagementReport(id, input)
+	a, err := h.appointment.SaveManagementReport(db, id, input)
 	if err != nil {
 		respondError(c, err)
 		return
