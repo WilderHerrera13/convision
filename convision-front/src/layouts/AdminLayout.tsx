@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, useFeature } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, UserRound, CalendarDays, ShoppingCart,
@@ -13,7 +13,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import SidebarBranchSwitcher from '@/components/sidebar/SidebarBranchSwitcher';
 
-type NavItem = { title: string; path: string; icon: React.ComponentType<{ className?: string }> };
+type NavItem = { title: string; path: string; icon: React.ComponentType<{ className?: string }>; featureKey?: string };
 type NavSection = { label: string | null; items: NavItem[] };
 
 const adminNav: NavSection[] = [
@@ -28,28 +28,28 @@ const adminNav: NavSection[] = [
     label: 'CLÍNICA',
     items: [
       { title: 'Pacientes', path: '/admin/patients', icon: UserRound },
-      { title: 'Citas', path: '/admin/appointments', icon: CalendarDays },
+      { title: 'Citas', path: '/admin/appointments', icon: CalendarDays, featureKey: 'sidebar.appointments' },
     ],
   },
   {
     label: 'COMERCIAL',
     items: [
-      { title: 'Ventas', path: '/admin/sales', icon: ShoppingCart },
-      { title: 'Cotizaciones', path: '/admin/quotes', icon: FileText },
-      { title: 'Órdenes de Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen },
+      { title: 'Ventas', path: '/admin/sales', icon: ShoppingCart, featureKey: 'sidebar.sales' },
+      { title: 'Cotizaciones', path: '/admin/quotes', icon: FileText, featureKey: 'sidebar.quotes' },
+      { title: 'Órdenes de Laboratorio', path: '/admin/laboratory-orders', icon: PackageOpen, featureKey: 'sidebar.laboratory' },
       { title: 'Gestión de Cartera', path: '/admin/portfolio', icon: Wallet },
       { title: 'Órdenes de Arreglo', path: '/admin/service-orders', icon: Wrench },
-      { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag },
+      { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag, featureKey: 'sidebar.discounts' },
     ],
   },
   {
     label: 'ADMINISTRACIÓN',
     items: [
       { title: 'Sedes', path: '/admin/sedes', icon: Building2 },
-      { title: 'Compras', path: '/admin/purchases-dashboard', icon: ShoppingBag },
-      { title: 'Inventario', path: '/admin/inventory', icon: Archive },
-      { title: 'Nómina', path: '/admin/payrolls', icon: CreditCard },
-      { title: 'Gastos', path: '/admin/expenses', icon: TrendingUp },
+      { title: 'Compras', path: '/admin/purchases-dashboard', icon: ShoppingBag, featureKey: 'sidebar.purchases' },
+      { title: 'Inventario', path: '/admin/inventory', icon: Archive, featureKey: 'sidebar.inventory' },
+      { title: 'Nómina', path: '/admin/payrolls', icon: CreditCard, featureKey: 'sidebar.payroll' },
+      { title: 'Gastos', path: '/admin/expenses', icon: TrendingUp, featureKey: 'sidebar.expenses' },
       { title: 'Traslados', path: '/admin/cash-transfers', icon: ArrowLeftRight },
       { title: 'Pagos Proveedores', path: '/admin/supplier-payments', icon: Banknote },
       { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList },
@@ -61,7 +61,7 @@ const adminNav: NavSection[] = [
       { title: 'Usuarios', path: '/admin/users', icon: Users2 },
       { title: 'Proveedores', path: '/admin/suppliers', icon: Building2 },
       { title: 'Laboratorios', path: '/admin/laboratories', icon: FlaskConical },
-      { title: 'Informe Gestión Especialista', path: '/admin/specialist-reports', icon: FileBarChart2 },
+      { title: 'Informe Gestión Especialista', path: '/admin/specialist-reports', icon: FileBarChart2, featureKey: 'sidebar.reports' },
       { title: 'Carga Masiva', path: '/admin/bulk-import', icon: Upload },
     ],
   },
@@ -138,6 +138,34 @@ const AdminLayout: React.FC = () => {
   const { state, toggleSidebar, setOpen, setOpenMobile, isMobile, openMobile } = useSidebar();
   const isCollapsed = isMobile ? !openMobile : state === 'collapsed';
 
+  const showAppointments = useFeature('sidebar.appointments');
+  const showSales = useFeature('sidebar.sales');
+  const showPurchases = useFeature('sidebar.purchases');
+  const showInventory = useFeature('sidebar.inventory');
+  const showLaboratory = useFeature('sidebar.laboratory');
+  const showReports = useFeature('sidebar.reports');
+  const showPayroll = useFeature('sidebar.payroll');
+  const showExpenses = useFeature('sidebar.expenses');
+  const showClinical = useFeature('sidebar.clinical');
+  const showCatalog = useFeature('sidebar.catalog');
+  const showQuotes = useFeature('sidebar.quotes');
+  const showDiscounts = useFeature('sidebar.discounts');
+
+  const featureVisibility: Record<string, boolean> = {
+    'sidebar.appointments': showAppointments,
+    'sidebar.sales': showSales,
+    'sidebar.purchases': showPurchases,
+    'sidebar.inventory': showInventory,
+    'sidebar.laboratory': showLaboratory,
+    'sidebar.reports': showReports,
+    'sidebar.payroll': showPayroll,
+    'sidebar.expenses': showExpenses,
+    'sidebar.clinical': showClinical,
+    'sidebar.catalog': showCatalog,
+    'sidebar.quotes': showQuotes,
+    'sidebar.discounts': showDiscounts,
+  };
+
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 1023px)');
     const apply = () => {
@@ -148,7 +176,15 @@ const AdminLayout: React.FC = () => {
     return () => mql.removeEventListener('change', apply);
   }, [setOpen]);
 
-  let navSections = adminNav;
+  const filterNavSections = (sections: NavSection[]): NavSection[] =>
+    sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !item.featureKey || featureVisibility[item.featureKey] !== false),
+      }))
+      .filter((section) => section.items.length > 0);
+
+  let navSections = filterNavSections(adminNav);
   if (user?.role === 'receptionist') navSections = receptionistNav;
   else if (user?.role === 'specialist') navSections = specialistNav;
 

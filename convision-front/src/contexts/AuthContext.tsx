@@ -10,6 +10,7 @@ const ROLE_COLORS: Record<string, { primary: string; dark: string; light: string
   admin:        { primary: '#3a71f8', dark: '#2558d4', light: '#eff1ff' },
   specialist:   { primary: '#0f8f64', dark: '#0a6e4d', light: '#e5f8ef' },
   receptionist: { primary: '#8753ef', dark: '#6a3cc4', light: '#f1ebff' },
+  super_admin:  { primary: '#1a1a2e', dark: '#0f0f1a', light: '#e8e8f0' },
 };
 
 function applyRoleColors(role: string | undefined) {
@@ -43,6 +44,13 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export function useFeature(key: string): boolean {
+  const { user } = useAuth();
+  if (!user) return false;
+  if (user.role === 'super_admin') return true;
+  return (user.feature_flags ?? []).includes(key);
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -108,7 +116,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userBranches = response.branches ?? [];
       setBranches(userBranches);
 
-      if (response.user.role === 'admin') {
+      if (response.user.role === 'super_admin') {
+        navigate('/super-admin/opticas');
+      } else if (response.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else if (userBranches.length === 1) {
         setBranch(userBranches[0].id, userBranches[0].name);
@@ -163,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = () => user?.role === 'admin';
   const isSpecialist = () => user?.role === 'specialist';
   const isReceptionist = () => user?.role === 'receptionist';
+
 
   const value = {
     user,

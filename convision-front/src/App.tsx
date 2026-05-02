@@ -4,6 +4,10 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { BranchProvider, useBranch } from '@/contexts/BranchContext';
 import SelectBranchPage from '@/pages/SelectBranchPage';
 import AdminLayout from '@/layouts/AdminLayout';
+import SuperAdminLayout from '@/layouts/SuperAdminLayout';
+import OpticasPage from '@/pages/super-admin/OpticasPage';
+import OpticaCreatePage from '@/pages/super-admin/OpticaCreatePage';
+import OpticaDetailPage from '@/pages/super-admin/OpticaDetailPage';
 import Dashboard from '@/pages/admin/Dashboard';
 import SpecialistDashboard from '@/pages/specialist/SpecialistDashboard';
 import SpecialistAppointmentDetail from '@/pages/specialist/SpecialistAppointmentDetail';
@@ -219,7 +223,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated && user) {
-    if (user.role === 'admin') {
+    if (user.role === 'super_admin') {
+      return <Navigate to="/super-admin/opticas" replace />;
+    } else if (user.role === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     } else if (user.role === 'specialist') {
       return <Navigate to="/specialist/dashboard" replace />;
@@ -248,7 +254,9 @@ const HomePage: React.FC = () => {
     return <Navigate to="/select-branch" replace />;
   }
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'super_admin') {
+    return <Navigate to="/super-admin/opticas" replace />;
+  } else if (user?.role === 'admin') {
     return <Navigate to="/admin/dashboard" replace />;
   } else if (user?.role === 'specialist') {
     return <Navigate to="/specialist/dashboard" replace />;
@@ -876,6 +884,20 @@ const router = createBrowserRouter([
             path: "profile",
             element: <Profile />,
           },
+        ],
+      },
+      {
+        path: "/super-admin",
+        element: (
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <SuperAdminLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: <Navigate to="/super-admin/opticas" replace /> },
+          { path: "opticas", element: <OpticasPage /> },
+          { path: "opticas/nueva", element: <OpticaCreatePage /> },
+          { path: "opticas/:id", element: <OpticaDetailPage /> },
         ],
       },
       {
