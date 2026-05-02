@@ -9,39 +9,60 @@ import (
 
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	"github.com/convision/api/internal/platform/featurecache"
 )
 
-// Service handles authentication use-cases.
 type Service struct {
 	db            *gorm.DB
 	users         domain.UserRepository
 	revokedTokens domain.RevokedTokenRepository
 	branches      domain.BranchRepository
+	superAdmins   domain.SuperAdminRepository
+	featureCache  *featurecache.Cache
 	logger        *zap.Logger
 }
 
-// NewService creates a new auth Service.
-func NewService(db *gorm.DB, users domain.UserRepository, revokedTokens domain.RevokedTokenRepository, branches domain.BranchRepository, logger *zap.Logger) *Service {
-	return &Service{db: db, users: users, revokedTokens: revokedTokens, branches: branches, logger: logger}
+func NewService(
+	db *gorm.DB,
+	users domain.UserRepository,
+	revokedTokens domain.RevokedTokenRepository,
+	branches domain.BranchRepository,
+	superAdmins domain.SuperAdminRepository,
+	featureCache *featurecache.Cache,
+	logger *zap.Logger,
+) *Service {
+	return &Service{
+		db:            db,
+		users:         users,
+		revokedTokens: revokedTokens,
+		branches:      branches,
+		superAdmins:   superAdmins,
+		featureCache:  featureCache,
+		logger:        logger,
+	}
 }
 
-// LoginInput holds credentials for the login use-case.
 type LoginInput struct {
 	Email    string `json:"email"    binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginOutput holds the response after a successful login or token refresh.
-type LoginOutput struct {
-	AccessToken string       `json:"access_token"`
-	TokenType   string       `json:"token_type"`
-	ExpiresIn   int64        `json:"expires_in"`
-	JTI         string       `json:"-"` // used internally for revocation; not sent to client
-	User        *domain.User `json:"-"` // handler converts to UserResource
-	Branches    []BranchInfo `json:"branches"`
+type LoginContext struct {
+	SchemaName string
+	OpticaID   uint
+	DB         *gorm.DB
 }
 
-// BranchInfo is the lightweight branch reference returned in the login response.
+type LoginOutput struct {
+	AccessToken  string       `json:"access_token"`
+	TokenType    string       `json:"token_type"`
+	ExpiresIn    int64        `json:"expires_in"`
+	JTI          string       `json:"-"`
+	User         *domain.User `json:"-"`
+	Branches     []BranchInfo `json:"branches"`
+	FeatureFlags []string     `json:"feature_flags"`
+}
+
 type BranchInfo struct {
 	ID        uint   `json:"id"`
 	Name      string `json:"name"`
@@ -49,62 +70,92 @@ type BranchInfo struct {
 	IsPrimary bool   `json:"is_primary"`
 }
 
-// Login validates credentials and returns a signed JWT.
-func (s *Service) Login(input LoginInput) (*LoginOutput, error) {
-	user, err := s.users.GetByEmail(s.db, input.Email)
+func (s *Service) Login(input LoginInput, ctx LoginContext) (*LoginOutput, error) {
+	if ctx.SchemaName == "platform" {
+		return s.loginSuperAdmin(input)
+	}
+	return s.loginTenantUser(input, ctx)
+}
+
+func (s *Service) loginSuperAdmin(input LoginInput) (*LoginOutput, error) {
+	sa, err := s.superAdmins.GetByEmail(input.Email)
 	if err != nil {
-		// Do not leak whether the email exists.
 		return nil, errors.New("invalid credentials")
 	}
+	if !sa.IsActive {
+		return nil, errors.New("account is disabled")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(sa.PasswordHash), []byte(input.Password)); err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+	user := &domain.User{
+		ID:    sa.ID,
+		Email: sa.Email,
+		Name:  sa.Name,
+		Role:  domain.RoleSuperAdmin,
+	}
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil)
+	if err != nil {
+		return nil, err
+	}
+	return &LoginOutput{
+		AccessToken:  tokenStr,
+		TokenType:    "bearer",
+		ExpiresIn:    expiresIn,
+		JTI:          jti,
+		User:         user,
+		Branches:     nil,
+		FeatureFlags: nil,
+	}, nil
+}
 
+func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOutput, error) {
+	user, err := s.users.GetByEmail(ctx.DB, input.Email)
+	if err != nil {
+		return nil, errors.New("invalid credentials")
+	}
 	if !user.Active {
 		return nil, errors.New("account is disabled")
 	}
-
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		s.logger.Warn("failed login attempt", zap.String("email", input.Email))
 		return nil, errors.New("invalid credentials")
 	}
-
-	if err := s.ensureOperatorBranchesForLogin(user); err != nil {
+	if err := s.ensureOperatorBranchesForLogin(ctx.DB, user); err != nil {
 		return nil, err
 	}
-
-	// OpticaID/SchemaName/FeatureFlags populated by auth service in 16-03
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "", nil)
+	flags, _ := s.featureCache.GetEnabled(ctx.OpticaID)
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, ctx.OpticaID, ctx.SchemaName, flags)
 	if err != nil {
 		return nil, err
 	}
-
 	s.logger.Info("user logged in", zap.Uint("user_id", user.ID), zap.String("role", string(user.Role)))
 	return &LoginOutput{
-		AccessToken: tokenStr,
-		TokenType:   "bearer",
-		ExpiresIn:   expiresIn,
-		JTI:         jti,
-		User:        user,
-		Branches:    s.loadBranches(user),
+		AccessToken:  tokenStr,
+		TokenType:    "bearer",
+		ExpiresIn:    expiresIn,
+		JTI:          jti,
+		User:         user,
+		Branches:     s.loadBranches(ctx.DB, user),
+		FeatureFlags: flags,
 	}, nil
 }
 
-// Logout revokes the token identified by jti.
 func (s *Service) Logout(jti string) error {
 	return s.revokedTokens.Revoke(s.db, jti)
 }
 
-// Me fetches the currently authenticated user by their ID.
 func (s *Service) Me(userID uint) (*domain.User, error) {
 	return s.users.GetByID(s.db, userID)
 }
 
-// Refresh revokes the old token and issues a new one for the same user.
-func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
+func (s *Service) Refresh(oldJti string, userID uint, opticaID uint, schemaName string) (*LoginOutput, error) {
 	user, err := s.users.GetByID(s.db, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.ensureOperatorBranchesForLogin(user); err != nil {
+	if err := s.ensureOperatorBranchesForLogin(s.db, user); err != nil {
 		return nil, err
 	}
 
@@ -112,28 +163,29 @@ func (s *Service) Refresh(oldJti string, userID uint) (*LoginOutput, error) {
 		return nil, err
 	}
 
-	// OpticaID/SchemaName/FeatureFlags populated by auth service in 16-03
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "", nil)
+	flags, _ := s.featureCache.GetEnabled(opticaID)
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, opticaID, schemaName, flags)
 	if err != nil {
 		return nil, err
 	}
 
 	s.logger.Info("token refreshed", zap.Uint("user_id", user.ID))
 	return &LoginOutput{
-		AccessToken: tokenStr,
-		TokenType:   "bearer",
-		ExpiresIn:   expiresIn,
-		JTI:         jti,
-		User:        user,
-		Branches:    s.loadBranches(user),
+		AccessToken:  tokenStr,
+		TokenType:    "bearer",
+		ExpiresIn:    expiresIn,
+		JTI:          jti,
+		User:         user,
+		Branches:     s.loadBranches(s.db, user),
+		FeatureFlags: flags,
 	}, nil
 }
 
-func (s *Service) ensureOperatorBranchesForLogin(user *domain.User) error {
+func (s *Service) ensureOperatorBranchesForLogin(db *gorm.DB, user *domain.User) error {
 	if user.Role != domain.RoleSpecialist && user.Role != domain.RoleReceptionist {
 		return nil
 	}
-	branches, err := s.branches.ListForUser(s.db, user.ID)
+	branches, err := s.branches.ListForUser(db, user.ID)
 	if err != nil {
 		s.logger.Warn("branch list failed on login", zap.Uint("user_id", user.ID), zap.Error(err))
 		return errors.New("invalid credentials")
@@ -145,14 +197,14 @@ func (s *Service) ensureOperatorBranchesForLogin(user *domain.User) error {
 	return nil
 }
 
-func (s *Service) loadBranches(user *domain.User) []BranchInfo {
+func (s *Service) loadBranches(db *gorm.DB, user *domain.User) []BranchInfo {
 	if user.Role == domain.RoleAdmin {
-		rawBranches, err := s.branches.ListAll(s.db)
+		rawBranches, err := s.branches.ListAll(db)
 		if err != nil {
 			s.logger.Warn("could not load branches for admin", zap.Uint("user_id", user.ID), zap.Error(err))
 			return []BranchInfo{}
 		}
-		primaryMap, err := s.branches.GetUserBranchPrimaryMap(s.db, user.ID)
+		primaryMap, err := s.branches.GetUserBranchPrimaryMap(db, user.ID)
 		if err != nil {
 			s.logger.Warn("could not load primary map for admin", zap.Uint("user_id", user.ID), zap.Error(err))
 			primaryMap = map[uint]bool{}
@@ -164,13 +216,13 @@ func (s *Service) loadBranches(user *domain.User) []BranchInfo {
 		return out
 	}
 
-	rawBranches, err := s.branches.ListForUser(s.db, user.ID)
+	rawBranches, err := s.branches.ListForUser(db, user.ID)
 	if err != nil {
 		s.logger.Warn("could not load branches for user", zap.Uint("user_id", user.ID), zap.Error(err))
 		return []BranchInfo{}
 	}
 
-	primaryMap, err := s.branches.GetUserBranchPrimaryMap(s.db, user.ID)
+	primaryMap, err := s.branches.GetUserBranchPrimaryMap(db, user.ID)
 	if err != nil {
 		s.logger.Warn("could not load primary map for user", zap.Uint("user_id", user.ID), zap.Error(err))
 		primaryMap = map[uint]bool{}
