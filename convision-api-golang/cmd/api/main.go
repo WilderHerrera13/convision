@@ -285,8 +285,9 @@ func buildLogger() *zap.Logger {
 func corsMiddleware() gin.HandlerFunc {
 	allowedOriginSuffix := ".app.opticaconvision.com"
 	localOrigins := map[string]bool{
-		"http://localhost:4300": true,
-		"http://localhost:5173": true,
+		"http://localhost:4300":          true,
+		"http://localhost:5173":          true,
+		"https://app.opticaconvision.com": true,
 	}
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")

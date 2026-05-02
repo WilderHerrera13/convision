@@ -275,6 +275,41 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// PlatformLogin handles super-admin login without requiring a tenant subdomain.
+// This endpoint is registered outside the TenantFromSubdomain middleware so it
+// works from app.opticaconvision.com directly.
+func (h *Handler) PlatformLogin(c *gin.Context) {
+	var input authsvc.LoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx := authsvc.LoginContext{
+		SchemaName: "platform",
+		OpticaID:   0,
+		DB:         h.db,
+	}
+
+	out, err := h.auth.Login(input, ctx)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Credenciales incorrectas"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": out.AccessToken,
+		"token_type":   out.TokenType,
+		"expires_in":   out.ExpiresIn,
+		"user": gin.H{
+			"id":    out.User.ID,
+			"name":  out.User.Name,
+			"email": out.User.Email,
+			"role":  string(out.User.Role),
+		},
+	})
+}
+
 // ChangePassword godoc
 // POST /api/v1/auth/change-password
 func (h *Handler) ChangePassword(c *gin.Context) {

@@ -145,6 +145,9 @@ const AdminCashCloses: React.FC = () => {
   });
 
   const mergedAdvisors = useMemo((): AdvisorPendingGroup[] => {
+    if (branchFilter !== 'all') {
+      return [...advisorGroups].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
+    }
     const byId = new Map(advisorGroups.map((g) => [g.user_id, g]));
     const rows = advisors.map((u) => {
       const hit = byId.get(u.id);
@@ -165,7 +168,7 @@ const AdminCashCloses: React.FC = () => {
       };
     });
     return [...rows].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
-  }, [advisors, advisorGroups]);
+  }, [branchFilter, advisors, advisorGroups]);
 
   const filteredAdvisors = useMemo(() => {
     let rows = mergedAdvisors;

@@ -47,6 +47,9 @@ api.interceptors.request.use(
     if (branchId) {
       config.headers['X-Branch-ID'] = branchId;
     }
+    if (typeof window !== 'undefined' && window.location.hostname) {
+      config.headers['X-Forwarded-Host'] = window.location.hostname;
+    }
     return config;
   },
   (error) => {

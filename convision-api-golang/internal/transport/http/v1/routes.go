@@ -12,6 +12,13 @@ import (
 
 // RegisterRoutes mounts all v1 API routes on the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.Cache, globalDB *gorm.DB) {
+	// Platform login — no subdomain middleware, always uses platform schema.
+	// Allows super admin to log in from app.opticaconvision.com/platform/login.
+	platformAuth := rg.Group("/v1/platform/auth")
+	{
+		platformAuth.POST("/login", h.PlatformLogin)
+	}
+
 	v1 := rg.Group("/v1")
 	v1.Use(branchmw.TenantFromSubdomain(opticaCache, "app.opticaconvision.com"))
 

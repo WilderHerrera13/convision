@@ -23,6 +23,7 @@ import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
 import QualityReview from '@/pages/specialist/QualityReview';
 import QualityReviewDetail from '@/pages/specialist/QualityReviewDetail';
 import Login from '@/pages/Login';
+import PlatformLoginPage from '@/pages/platform/PlatformLoginPage';
 import ChangePasswordPage from '@/pages/ChangePasswordPage';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -895,6 +896,10 @@ const router = createBrowserRouter([
             element: <Profile />,
           },
         ],
+      },
+      {
+        path: "/platform/login",
+        element: <PlatformLoginPage />,
       },
       {
         path: "/super-admin",

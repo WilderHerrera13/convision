@@ -75,6 +75,13 @@ func TenantFromSubdomain(cache *opticacache.Cache, baseDomain string) gin.Handle
 }
 
 func extractSlug(host, baseDomain string) string {
+	if host == baseDomain {
+		slug := os.Getenv("DEFAULT_TENANT_SLUG")
+		if slug == "" {
+			slug = "main"
+		}
+		return slug
+	}
 	suffix := "." + baseDomain
 	if !strings.HasSuffix(host, suffix) {
 		return ""
