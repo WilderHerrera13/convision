@@ -51,6 +51,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		evolutions.DELETE("/:id", h.DeleteClinicalEvolution)
 	}
 
+	// Super admin routes — operate on platform schema, no TenantSchema middleware.
+	superAdmin := v1.Group("/super-admin")
+	superAdmin.Use(jwtauth.Authenticate(h.revokedTokens, globalDB))
+	superAdmin.Use(jwtauth.RequireRole(domain.RoleSuperAdmin))
+	{
+		superAdmin.GET("/opticas", h.ListOpticas)
+		superAdmin.POST("/opticas", h.CreateOptica)
+		superAdmin.GET("/opticas/:id", h.GetOptica)
+		superAdmin.PATCH("/opticas/:id", h.UpdateOptica)
+		superAdmin.GET("/opticas/:id/features", h.ListOpticaFeatures)
+		superAdmin.PUT("/opticas/:id/features", h.BulkUpdateOpticaFeatures)
+		superAdmin.PATCH("/opticas/:id/features/:key", h.ToggleOpticaFeature)
+		superAdmin.GET("/feature-keys", h.ListFeatureKeys)
+	}
+
 	// Protected routes — require a valid JWT (revocation-checked) + tenant schema scoping
 	protected := v1.Group("/")
 	protected.Use(jwtauth.Authenticate(h.revokedTokens, globalDB))

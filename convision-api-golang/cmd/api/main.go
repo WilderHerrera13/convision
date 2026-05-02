@@ -27,8 +27,10 @@ import (
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
+	platformmigrations "github.com/convision/api/db/migrations/platform"
 	notesvc "github.com/convision/api/internal/note"
 	notificationsvc "github.com/convision/api/internal/notification"
+	opticasvc "github.com/convision/api/internal/optica"
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
@@ -153,8 +155,6 @@ func main() {
 	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
 	opticaRepo := postgresplatform.NewOpticaRepository(db)
 	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
-	_ = opticaRepo
-	_ = opticaFeatureRepo
 
 	// ---- Services (use-case layer) ----
 	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, logger)
@@ -193,6 +193,10 @@ func main() {
 	// Branch service
 	branchService := branchsvc.NewService(branchRepo, logger)
 
+	// Super admin / multi-tenancy services
+	opticaService := opticasvc.NewService(opticaRepo, opticaFeatureRepo, featureCache, opticaCache, platformmigrations.FS, db, logger)
+	featureService := opticasvc.NewFeatureService(opticaFeatureRepo, featureCache, logger)
+
 	// ---- HTTP Router (Gin) ----
 	if os.Getenv("APP_ENV") != "local" {
 		gin.SetMode(gin.ReleaseMode)
@@ -220,7 +224,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----

@@ -27,6 +27,7 @@ import (
 	"github.com/convision/api/internal/location"
 	notesvc "github.com/convision/api/internal/note"
 	notificationsvc "github.com/convision/api/internal/notification"
+	opticasvc "github.com/convision/api/internal/optica"
 	ordersvc "github.com/convision/api/internal/order"
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
@@ -138,6 +139,8 @@ type Handler struct {
 	bulkImportLog domain.BulkImportLogRepository
 	branchRepo    domain.BranchRepository
 	revokedTokens domain.RevokedTokenRepository
+	optica        *opticasvc.Service
+	featureFlag   *opticasvc.FeatureService
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -176,6 +179,8 @@ func NewHandler(
 	bulkImportLogRepo domain.BulkImportLogRepository,
 	revokedTokens    domain.RevokedTokenRepository,
 	branchRepo       domain.BranchRepository,
+	opticaSvc        *opticasvc.Service,
+	featureSvc       *opticasvc.FeatureService,
 ) *Handler {
 	return &Handler{
 		db:             db,
@@ -212,6 +217,8 @@ func NewHandler(
 		bulkImportLog: bulkImportLogRepo,
 		branchRepo:    branchRepo,
 		revokedTokens: revokedTokens,
+		optica:        opticaSvc,
+		featureFlag:   featureSvc,
 	}
 }
 
