@@ -15,6 +15,7 @@ import {
 import { Loader2, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+import { DatePicker } from '@/components/ui/date-picker';
 import dailyActivityReportService, {
   defaultCustomerAttention,
   defaultOperations,
@@ -60,7 +61,10 @@ const SOCIAL_FIELDS = [
 
 const DailyReport: React.FC = () => {
   const { toast } = useToast();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const isToday = selectedDateStr === todayStr;
 
   const [customerAttention, setCustomerAttention] = useState<CustomerAttention>(defaultCustomerAttention());
   const [operations, setOperations] = useState<Operations>(defaultOperations());
@@ -75,10 +79,11 @@ const DailyReport: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const isClosed = status === 'closed';
+  const isReadOnly = isClosed || !isToday;
 
   const loadTodayReport = useCallback(async () => {
     try {
-      const resp = await dailyActivityReportService.list({ date_from: today, date_to: today, branch_id: '0' });
+      const resp = await dailyActivityReportService.list({ date_from: selectedDateStr, date_to: selectedDateStr, branch_id: '0' });
       const rawList = (resp as { data?: unknown[] })?.data ?? (Array.isArray(resp) ? resp : []);
       const items = Array.isArray(rawList) ? rawList : [];
       if (items[0]) {
@@ -102,7 +107,7 @@ const DailyReport: React.FC = () => {
     } catch {
       setExistingId(null);
     }
-  }, [today]);
+  }, [selectedDateStr]);
 
   useEffect(() => {
     loadTodayReport();
@@ -182,9 +187,18 @@ const DailyReport: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Reporte Diario de Gestión</h1>
-          <p className="text-muted-foreground text-sm">Registro de actividades y gestión del día · {today}</p>
+          <div className="flex items-center gap-3">
+            <DatePicker
+              value={selectedDate}
+              onChange={(d) => { if (d) setSelectedDate(d); }}
+              maxDate={new Date()}
+            />
+            {!isToday && (
+              <span className="text-xs text-muted-foreground">Vista de solo lectura</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {isClosed ? (
@@ -211,10 +225,22 @@ const DailyReport: React.FC = () => {
         </div>
       )}
 
+      {!isToday && !isClosed && existingId && (
+        <div className="rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm text-[#1e40af]">
+          Estás viendo el reporte del {selectedDateStr}. Para editar, regresa a la fecha de hoy.
+        </div>
+      )}
+
+      {!isToday && !existingId && (
+        <div className="rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-4 py-3 text-sm text-[#92400e]">
+          No existe reporte para el {selectedDateStr}.
+        </div>
+      )}
+
       <CustomerAttentionMatrix
         values={customerAttention}
         onChange={(key, value) => {
-          if (isClosed) return;
+          if (isReadOnly) return;
           setCustomerAttention((prev) => ({ ...prev, [key]: value }));
           setErrors((prev) => {
             if (!prev[`customer_attention.${key}`]) return prev;
@@ -254,7 +280,7 @@ const DailyReport: React.FC = () => {
         <Textarea
           value={observations}
           onChange={(e) => {
-            if (isClosed) return;
+            if (isReadOnly) return;
             setObservations(e.target.value);
             setErrors((prev) => {
               if (!prev.observations) return prev;
@@ -265,7 +291,7 @@ const DailyReport: React.FC = () => {
           }}
           placeholder="Escribe tus observaciones del día..."
           rows={4}
-          disabled={isClosed}
+          disabled={isReadOnly}
           className={errors.observations ? 'border-red-500 focus-visible:ring-red-500' : ''}
         />
         {errors.observations && (
@@ -273,7 +299,7 @@ const DailyReport: React.FC = () => {
         )}
       </div>
 
-      {!isClosed && (
+      {!isReadOnly && (
         <div className="flex justify-end gap-3">
           <Button
             variant="outline"
