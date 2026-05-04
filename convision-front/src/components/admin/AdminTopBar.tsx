@@ -7,7 +7,6 @@ import { adminNotificationService } from '@/services/adminNotificationService';
 import { AdminNotificationBellButton } from '@/components/admin/AdminNotificationBellButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
-import { Building2 } from 'lucide-react';
 
 export const AdminTopBar: React.FC = () => {
   const { user } = useAuth();
@@ -52,13 +51,7 @@ export const AdminTopBar: React.FC = () => {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        {branchName && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e5e9] bg-[#f8f8fb] px-2.5 py-1 text-[11px] font-medium text-[#4b4b57]">
-            <Building2 className="h-3.5 w-3.5 text-[#8753ef]" />
-            {branchName}
-          </span>
-        )}
-        {showNotifications && <AdminNotificationBellButton unread={unread} />}
+{showNotifications && <AdminNotificationBellButton unread={unread} />}
         <div className="text-right">
           <p className="text-[11px] capitalize text-convision-text-secondary">Hoy · {todayLine}</p>
         </div>

@@ -23,9 +23,10 @@ func NewService(repo domain.DailyActivityRepository, logger *zap.Logger) *Servic
 }
 
 // CreateInput holds validated fields for creating a daily activity report.
-// report_date and shift are no longer required; the backend sets today and 'full' automatically.
+// report_date is optional; when omitted the backend defaults to today (Bogotá).
 type CreateInput struct {
 	BranchID                       uint    `json:"branch_id"`
+	ReportDate                     string  `json:"report_date"` // YYYY-MM-DD, optional
 	InquiriesMale                  int     `json:"preguntas_hombre"`
 	InquiriesFemale                int     `json:"preguntas_mujeres"`
 	InquiriesChildren              int     `json:"preguntas_ninos"`
@@ -63,11 +64,14 @@ type CreateInput struct {
 	CustomerTags                   int     `json:"etiquetas_clientes"`
 	WorkQuotes                     int     `json:"cotizaciones_trabajo"`
 	WorkOrders                     int     `json:"ordenes_trabajo"`
-	Observations                   string  `json:"observations"`
+	Observations                   string             `json:"observations"`
+	RecepcionesDinero              map[string]float64 `json:"recepciones_dinero"`
 }
 
-// UpdateInput holds the same fields as CreateInput for updating a report.
-type UpdateInput = CreateInput
+// UpdateInput extends CreateInput with fields only relevant to updates.
+type UpdateInput struct {
+	CreateInput
+}
 
 // QuickAttentionInput holds fields for the quick-attention endpoint.
 // report_date and shift are no longer required; the backend uses today automatically.
@@ -109,12 +113,23 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.DailyActivityReport, er
 
 // Create creates a new daily activity report for today.
 func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.DailyActivityReport, error) {
-	todayStr := ClinicTodayYMD()
-	reportDate := ClinicReportDateForToday()
+	dateStr := input.ReportDate
+	var reportDate time.Time
+	if dateStr == "" {
+		dateStr = ClinicTodayYMD()
+		reportDate = ClinicReportDateForToday()
+	} else {
+		loc := clinicLocation()
+		parsed, err := time.ParseInLocation("2006-01-02", dateStr, loc)
+		if err != nil {
+			return nil, &domain.ErrValidation{Message: "report_date inválido, use formato YYYY-MM-DD"}
+		}
+		reportDate = parsed.UTC()
+	}
 
-	_, err := s.repo.FindByUserAndDate(db, userID, todayStr)
+	_, err := s.repo.FindByUserAndDate(db, userID, dateStr)
 	if err == nil {
-		return nil, &domain.ErrValidation{Message: "ya existe un reporte para el día de hoy"}
+		return nil, &domain.ErrValidation{Message: fmt.Sprintf("ya existe un reporte para el día %s", dateStr)}
 	}
 	if _, ok := err.(*domain.ErrNotFound); !ok {
 		return nil, err
@@ -122,6 +137,10 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.D
 
 	r := buildReport(input, userID, reportDate)
 	r.Status = domain.DailyReportStatusPending
+	if len(input.RecepcionesDinero) > 0 {
+		raw, _ := json.Marshal(input.RecepcionesDinero)
+		r.MoneyReceipts = raw
+	}
 	if err := s.repo.Create(db, r); err != nil {
 		return nil, err
 	}
@@ -148,12 +167,17 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput, requestingUser
 		reportDate = *existing.ReportDate
 	}
 
-	updated := buildReport(input, existing.UserID, reportDate)
+	updated := buildReport(input.CreateInput, existing.UserID, reportDate)
 	updated.ID = existing.ID
 	updated.Status = existing.Status
-	updated.MoneyReceipts = existing.MoneyReceipts
 	updated.BranchID = existing.BranchID
 	updated.CreatedAt = existing.CreatedAt
+	if len(input.RecepcionesDinero) > 0 {
+		raw, _ := json.Marshal(input.RecepcionesDinero)
+		updated.MoneyReceipts = raw
+	} else {
+		updated.MoneyReceipts = existing.MoneyReceipts
+	}
 	if err := s.repo.Update(db, updated); err != nil {
 		return nil, err
 	}

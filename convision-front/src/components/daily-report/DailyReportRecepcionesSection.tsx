@@ -4,19 +4,32 @@ import {
   RecepcionesDinero,
   sumRecepcionesDinero,
 } from '@/services/dailyActivityReportService';
-import { formatCOP } from '@/lib/formatMoney';
+import { formatCOP, formatCOPGroupedInput, digitsOnlyMoneyInput } from '@/lib/formatMoney';
 
 type Props = {
   recepciones: RecepcionesDinero;
+  onChange?: (key: keyof RecepcionesDinero, value: number) => void;
+  readOnly?: boolean;
   variant?: 'default' | 'compact';
 };
 
-const DailyReportRecepcionesSection: React.FC<Props> = ({ recepciones, variant = 'default' }) => {
+const DailyReportRecepcionesSection: React.FC<Props> = ({
+  recepciones,
+  onChange,
+  readOnly = false,
+  variant = 'default',
+}) => {
   const total = sumRecepcionesDinero(recepciones);
   const hasAnyValue = RECEPCIONES_DINERO_META.some(({ key }) => (Number(recepciones[key]) || 0) > 0);
   const rows = variant === 'default'
     ? RECEPCIONES_DINERO_META
     : RECEPCIONES_DINERO_META.filter(({ key }) => (Number(recepciones[key]) || 0) > 0);
+
+  const handleChange = (key: keyof RecepcionesDinero, raw: string) => {
+    if (!onChange) return;
+    const digits = digitsOnlyMoneyInput(raw);
+    onChange(key, digits ? Number(digits) : 0);
+  };
 
   return (
     <div
@@ -57,9 +70,24 @@ const DailyReportRecepcionesSection: React.FC<Props> = ({ recepciones, variant =
             {rows.map(({ key, label }) => (
               <div key={key} className="space-y-1.5">
                 <p className="text-[11px] font-medium text-[#7d7d87]">{label}</p>
-                <div className="flex h-[30px] items-center rounded-md border border-[#dcdce0] bg-white px-2 text-[12px] tabular-nums text-[#0f0f12]">
-                  {formatCOP(Number(recepciones[key]) || 0)}
-                </div>
+                {readOnly || !onChange ? (
+                  <div className="flex h-[30px] items-center rounded-md border border-[#dcdce0] bg-white px-2 text-[12px] tabular-nums text-[#0f0f12]">
+                    {formatCOP(Number(recepciones[key]) || 0)}
+                  </div>
+                ) : (
+                  <div className="flex h-[30px] items-center rounded-md border border-[#dcdce0] bg-white px-2 text-[12px] tabular-nums text-[#0f0f12] focus-within:border-[#8753ef] focus-within:ring-1 focus-within:ring-[#8753ef]">
+                    <span className="mr-1 text-[#7d7d87]">$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formatCOPGroupedInput(Number(recepciones[key]) || 0)}
+                      placeholder="0"
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full bg-transparent outline-none tabular-nums"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -66,10 +66,6 @@ const DailyReportDetailPage: React.FC = () => {
     }
   };
 
-  const isToday = report
-    ? report.report_date === format(new Date(), 'yyyy-MM-dd')
-    : false;
-
   if (!Number.isFinite(numericId)) {
     return (
       <PageLayout title="Reporte no válido" subtitle="El identificador no es correcto." contentClassName="bg-[#f5f5f6]">
@@ -128,7 +124,7 @@ const DailyReportDetailPage: React.FC = () => {
               Pendiente
             </Badge>
           )}
-          {isAdmin && isClosed && isToday && (
+          {isAdmin && isClosed && (
             <Button
               variant="outline"
               size="sm"
@@ -155,7 +151,7 @@ const DailyReportDetailPage: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Reabrir el reporte?</AlertDialogTitle>
             <AlertDialogDescription>
-              El reporte volverá a estado pendiente y el recepcionista podrá editarlo nuevamente. Solo es posible reabrir el reporte del día de hoy.
+              El reporte volverá a estado pendiente y el asesor podrá editarlo nuevamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -26,6 +26,7 @@ type DailyActivityNestedInput struct {
 	Operations        map[string]interface{} `json:"operations"`
 	SocialMedia       map[string]interface{} `json:"social_media"`
 	Observations      string                 `json:"observations"`
+	RecepcionesDinero map[string]float64     `json:"recepciones_dinero"`
 }
 
 // DailyActivityNestedResponse is the nested structure returned to the frontend.
@@ -677,7 +678,11 @@ func (h *Handler) UpdateDailyActivityReport(c *gin.Context) {
 	db := tenantDBFromCtx(c)
 	var nestedInput DailyActivityNestedInput
 	if jsonErr := json.Unmarshal(bodyBytes, &nestedInput); jsonErr == nil && nestedInput.CustomerAttention != nil {
-		input := flattenDailyActivityInput(nestedInput)
+		flatIn := flattenDailyActivityInput(nestedInput)
+		flatIn.RecepcionesDinero = nestedInput.RecepcionesDinero
+		input := dailyactivitysvc.UpdateInput{
+			CreateInput: flatIn,
+		}
 		report, err := h.dailyActivity.Update(db, uint(id), input, uint(claims.UserID), claims.Role == "admin")
 		if err != nil {
 			respondError(c, err)

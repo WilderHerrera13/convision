@@ -356,7 +356,11 @@ const dailyActivityReportService = {
       data.social_media,
       data.observations,
     );
-    const response = await api.post('/api/v1/daily-activity-reports', flat);
+    const response = await api.post('/api/v1/daily-activity-reports', {
+      ...flat,
+      ...(data.report_date ? { report_date: data.report_date } : {}),
+      ...(data.recepciones_dinero ? { recepciones_dinero: data.recepciones_dinero } : {}),
+    });
     return response.data;
   },
 
@@ -367,7 +371,10 @@ const dailyActivityReportService = {
       data.social_media,
       data.observations,
     );
-    const response = await api.put(`/api/v1/daily-activity-reports/${id}`, flat);
+    const response = await api.put(`/api/v1/daily-activity-reports/${id}`, {
+      ...flat,
+      ...(data.recepciones_dinero ? { recepciones_dinero: data.recepciones_dinero } : {}),
+    });
     return response.data;
   },
 

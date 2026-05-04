@@ -79,7 +79,7 @@ const DailyReport: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const isClosed = status === 'closed';
-  const isReadOnly = isClosed || !isToday;
+  const isReadOnly = isClosed;
 
   const loadTodayReport = useCallback(async () => {
     try {
@@ -137,13 +137,14 @@ const DailyReport: React.FC = () => {
         operations,
         social_media: socialMedia,
         observations,
+        recepciones_dinero: recepcionesDinero,
       };
       if (existingId) {
         const result = await dailyActivityReportService.update(existingId, payload);
         const updated = normalizeDailyActivityReport((result?.data ?? result) as Record<string, unknown>);
         setStatus(updated.status ?? 'pending');
       } else {
-        const created = await dailyActivityReportService.create(payload);
+        const created = await dailyActivityReportService.create({ ...payload, report_date: selectedDateStr });
         const normalized = normalizeDailyActivityReport((created?.data ?? created) as Record<string, unknown>);
         setExistingId(normalized.id);
         setStatus(normalized.status ?? 'pending');
@@ -189,16 +190,11 @@ const DailyReport: React.FC = () => {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Reporte Diario de Gestión</h1>
-          <div className="flex items-center gap-3">
-            <DatePicker
-              value={selectedDate}
-              onChange={(d) => { if (d) setSelectedDate(d); }}
-              maxDate={new Date()}
-            />
-            {!isToday && (
-              <span className="text-xs text-muted-foreground">Vista de solo lectura</span>
-            )}
-          </div>
+          <DatePicker
+            value={selectedDate}
+            onChange={(d) => { if (d) setSelectedDate(d); }}
+            maxDate={new Date()}
+          />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {isClosed ? (
@@ -219,23 +215,18 @@ const DailyReport: React.FC = () => {
         </div>
       </div>
 
+      {!isToday && (
+        <div className="rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-4 py-3 text-sm text-[#92400e]">
+          El <strong>Registro rápido de atención</strong> siempre registra para el día de hoy ({todayStr}), no para la fecha seleccionada.
+        </div>
+      )}
+
       {isClosed && (
         <div className="rounded-lg border border-[#d1fae5] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
           Este reporte fue cerrado y no puede ser editado. Solo el administrador puede reabrirlo.
         </div>
       )}
 
-      {!isToday && !isClosed && existingId && (
-        <div className="rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm text-[#1e40af]">
-          Estás viendo el reporte del {selectedDateStr}. Para editar, regresa a la fecha de hoy.
-        </div>
-      )}
-
-      {!isToday && !existingId && (
-        <div className="rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-4 py-3 text-sm text-[#92400e]">
-          No existe reporte para el {selectedDateStr}.
-        </div>
-      )}
 
       <CustomerAttentionMatrix
         values={customerAttention}
@@ -253,7 +244,14 @@ const DailyReport: React.FC = () => {
         errorPrefix="customer_attention."
       />
 
-      <DailyReportRecepcionesSection recepciones={recepcionesDinero} />
+      <DailyReportRecepcionesSection
+        recepciones={recepcionesDinero}
+        onChange={(key, value) => {
+          if (isReadOnly) return;
+          setRecepcionesDinero((prev) => ({ ...prev, [key]: value }));
+        }}
+        readOnly={isReadOnly}
+      />
 
       <DailyReportSection
         title="Operaciones"

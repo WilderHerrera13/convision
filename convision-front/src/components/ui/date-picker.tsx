@@ -31,8 +31,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   error,
   useInputTrigger = false,
 }) => {
-  // Convert string date to Date object if needed
+  const [open, setOpen] = React.useState(false);
+
   const dateValue = value ? (typeof value === 'string' ? new Date(value) : value) : undefined;
+
+  const handleSelect = (date: Date | undefined) => {
+    onChange(date);
+    setOpen(false);
+  };
 
   const triggerContent = useInputTrigger ? (
     <Input
@@ -60,13 +66,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       {disabled ? (
         triggerContent
       ) : (
-        <Popover>
+        <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>{triggerContent}</PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
               selected={dateValue}
-              onSelect={onChange}
+              onSelect={handleSelect}
               initialFocus
               disabled={
                 minDate || maxDate

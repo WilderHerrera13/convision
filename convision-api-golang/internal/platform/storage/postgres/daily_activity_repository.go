@@ -101,10 +101,10 @@ func (r *DailyActivityRepository) List(db *gorm.DB, filters map[string]any, page
 		q = q.Where("user_id = ?", userID)
 	}
 	if dateFrom, ok := filters["date_from"]; ok {
-		q = q.Where("DATE(report_date) >= ?", dateFrom)
+		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date >= ?::date", dateFrom)
 	}
 	if dateTo, ok := filters["date_to"]; ok {
-		q = q.Where("DATE(report_date) <= ?", dateTo)
+		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date <= ?::date", dateTo)
 	}
 	if status, ok := filters["status"]; ok {
 		q = q.Where("status = ?", status)
