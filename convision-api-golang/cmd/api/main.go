@@ -65,6 +65,9 @@ func main() {
 		if err := postgresplatform.Migrate(db); err != nil {
 			logger.Fatal("auto-migration failed", zap.Error(err))
 		}
+		if err := postgresplatform.MigrateAllTenantSchemas(db); err != nil {
+			logger.Fatal("tenant schema migration failed", zap.Error(err))
+		}
 		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
 			logger.Fatal("failed to ensure local dev users", zap.Error(err))
 		}

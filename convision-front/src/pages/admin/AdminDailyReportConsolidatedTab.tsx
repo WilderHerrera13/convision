@@ -40,7 +40,7 @@ function aggregateReports(reports: DailyActivityReport[]) {
 
 function computeKPIs(ca: CustomerAttention, op: Operations, sm: SocialMedia) {
   return {
-    atenciones: ca.effective_consultations_men + ca.effective_consultations_women + ca.effective_consultations_children,
+    atenciones: ca.effective_consultations_men + ca.effective_consultations_women + ca.effective_consultations_children + ca.quotes_men + ca.quotes_women + ca.quotes_children,
     operaciones: op.bonos_entregados + op.bonos_redimidos + op.sistecreditos_realizados + op.addi_realizados + op.otras_ventas + op.plan_separe + op.ordenes,
     redesSociales: sm.publicaciones_fb + sm.publicaciones_ig + sm.mensajes_fb + sm.mensajes_ig,
     bonosEntregados: op.bonos_entregados,

@@ -293,3 +293,19 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		// in the platform schema and must NOT be migrated into tenant schemas.
 	)
 }
+
+// MigrateAllTenantSchemas runs MigrateTenantSchema for every optica that already exists.
+// Call this on startup so new tables added to MigrateTenantSchema are applied to
+// existing tenants, not only to newly-created ones.
+func MigrateAllTenantSchemas(db *gorm.DB) error {
+	var schemas []string
+	if err := db.Raw(`SELECT schema_name FROM platform.opticas WHERE schema_name IS NOT NULL AND schema_name <> ''`).Scan(&schemas).Error; err != nil {
+		return err
+	}
+	for _, s := range schemas {
+		if err := MigrateTenantSchema(db, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
