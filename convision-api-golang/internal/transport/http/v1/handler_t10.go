@@ -735,14 +735,58 @@ func (h *Handler) ReopenReport(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	report, err := h.dailyActivity.Reopen(db, uint(id))
+	report, err := h.dailyActivity.Reopen(db, uint(id), uint(claims.UserID))
 	if err != nil {
 		respondError(c, err)
 		return
 	}
 	nested := nestDailyActivityResponse(report)
 	c.JSON(http.StatusOK, nested)
+}
+
+func (h *Handler) GetDailyActivityReportEditLogs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
+		return
+	}
+	db := tenantDBFromCtx(c)
+	logs, err := h.dailyActivity.GetEditLogs(db, uint(id))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	type editLogResponse struct {
+		ID          uint   `json:"id"`
+		Action      string `json:"action"`
+		PerformedAt string `json:"performed_at"`
+		PerformedBy struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		} `json:"performed_by"`
+	}
+	result := make([]editLogResponse, 0, len(logs))
+	for _, l := range logs {
+		entry := editLogResponse{
+			ID:          l.ID,
+			Action:      l.Action,
+			PerformedAt: l.PerformedAt.UTC().Format(timeFormat) + "Z",
+		}
+		if l.PerformedByUser != nil {
+			entry.PerformedBy.ID = l.PerformedByUser.ID
+			entry.PerformedBy.Name = l.PerformedByUser.Name
+		} else {
+			entry.PerformedBy.ID = l.PerformedByUserID
+		}
+		result = append(result, entry)
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
 func (h *Handler) QuickAttentionDailyActivity(c *gin.Context) {

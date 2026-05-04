@@ -27,7 +27,7 @@ const FieldBox: React.FC<FieldBoxProps> = ({ label, value }) => (
 const DailyReportDetailView: React.FC<{
   report: DailyActivityReport;
   role: RoleVariant;
-  onExportPrint: () => void;
+  onExportPrint?: () => void;
 }> = ({ report, role, onExportPrint }) => {
   const op = report.operations;
   const sm = report.social_media;
@@ -82,11 +82,13 @@ const DailyReportDetailView: React.FC<{
         />
       </div>
 
-      <div className="flex justify-end print:hidden">
-        <Button type="button" className={`h-9 rounded-md px-6 text-[13px] font-semibold ${primaryButtonClass[role]}`} onClick={onExportPrint}>
-          Exportar informe
-        </Button>
-      </div>
+      {onExportPrint && (
+        <div className="flex justify-end print:hidden">
+          <Button type="button" className={`h-9 rounded-md px-6 text-[13px] font-semibold ${primaryButtonClass[role]}`} onClick={onExportPrint}>
+            Exportar informe
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

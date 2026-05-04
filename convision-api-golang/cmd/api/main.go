@@ -145,6 +145,7 @@ func main() {
 	notificationRepo := postgresplatform.NewNotificationRepository()
 	noteRepo := postgresplatform.NewNoteRepository()
 	dailyActivityRepo := postgresplatform.NewDailyActivityRepository()
+	dailyReportEditLogRepo := postgresplatform.NewDailyReportEditLogRepository()
 	dashboardRepo := postgresplatform.NewDashboardRepository()
 
 	// Branch repo
@@ -185,7 +186,7 @@ func main() {
 	cashCloseService := cashclosesvc.NewService(cashRegisterCloseRepo, logger)
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
-	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, logger)
+	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, dailyReportEditLogRepo, logger)
 	bulkImportService := bulkimport.NewService(patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 

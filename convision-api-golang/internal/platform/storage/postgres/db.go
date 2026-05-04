@@ -160,6 +160,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.CashCountDenomination{},
 		&domain.CashTransfer{},
 		&domain.DailyActivityReport{},
+		&domain.DailyReportEditLog{},
 		// Notes & notifications
 		&domain.Note{},
 		&domain.LensNote{},
@@ -281,6 +282,7 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.CashCountDenomination{},
 		&domain.CashTransfer{},
 		&domain.DailyActivityReport{},
+		&domain.DailyReportEditLog{},
 		// Notes & notifications
 		&domain.Note{},
 		&domain.LensNote{},

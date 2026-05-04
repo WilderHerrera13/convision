@@ -13,13 +13,14 @@ import (
 
 // Service handles daily activity report use-cases.
 type Service struct {
-	repo   domain.DailyActivityRepository
-	logger *zap.Logger
+	repo       domain.DailyActivityRepository
+	editLogRepo domain.DailyReportEditLogRepository
+	logger     *zap.Logger
 }
 
 // NewService creates a new daily activity Service.
-func NewService(repo domain.DailyActivityRepository, logger *zap.Logger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo domain.DailyActivityRepository, editLogRepo domain.DailyReportEditLogRepository, logger *zap.Logger) *Service {
+	return &Service{repo: repo, editLogRepo: editLogRepo, logger: logger}
 }
 
 // CreateInput holds validated fields for creating a daily activity report.
@@ -74,13 +75,14 @@ type UpdateInput struct {
 }
 
 // QuickAttentionInput holds fields for the quick-attention endpoint.
-// report_date and shift are no longer required; the backend uses today automatically.
+// ReportDate is optional (YYYY-MM-DD); when omitted the backend defaults to today (Bogotá).
 type QuickAttentionInput struct {
-	BranchID uint    `json:"branch_id"`
-	Item     string  `json:"item"    binding:"required"`
-	Profile  string  `json:"profile"`
-	Amount   float64 `json:"amount"`
-	Note     string  `json:"note"`
+	BranchID   uint    `json:"branch_id"`
+	ReportDate string  `json:"report_date"`
+	Item       string  `json:"item"    binding:"required"`
+	Profile    string  `json:"profile"`
+	Amount     float64 `json:"amount"`
+	Note       string  `json:"note"`
 }
 
 // ListOutput is the paginated list response.
@@ -144,6 +146,12 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.D
 	if err := s.repo.Create(db, r); err != nil {
 		return nil, err
 	}
+	_ = s.editLogRepo.Create(db, &domain.DailyReportEditLog{
+		DailyActivityReportID: r.ID,
+		Action:                "created",
+		PerformedByUserID:     userID,
+		PerformedAt:           time.Now().UTC(),
+	})
 	return s.repo.GetByID(db, r.ID)
 }
 
@@ -181,6 +189,12 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput, requestingUser
 	if err := s.repo.Update(db, updated); err != nil {
 		return nil, err
 	}
+	_ = s.editLogRepo.Create(db, &domain.DailyReportEditLog{
+		DailyActivityReportID: id,
+		Action:                "updated",
+		PerformedByUserID:     requestingUserID,
+		PerformedAt:           time.Now().UTC(),
+	})
 	return s.repo.GetByID(db, id)
 }
 
@@ -201,12 +215,18 @@ func (s *Service) Close(db *gorm.DB, id uint, requestingUserID uint, isAdmin boo
 	if err := s.repo.Update(db, report); err != nil {
 		return nil, err
 	}
+	_ = s.editLogRepo.Create(db, &domain.DailyReportEditLog{
+		DailyActivityReportID: id,
+		Action:                "closed",
+		PerformedByUserID:     requestingUserID,
+		PerformedAt:           time.Now().UTC(),
+	})
 	return s.repo.GetByID(db, id)
 }
 
 // Reopen sets a closed report back to pending status.
 // Admin-only action enforced at the handler level.
-func (s *Service) Reopen(db *gorm.DB, id uint) (*domain.DailyActivityReport, error) {
+func (s *Service) Reopen(db *gorm.DB, id uint, performedByUserID uint) (*domain.DailyActivityReport, error) {
 	report, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
@@ -218,15 +238,37 @@ func (s *Service) Reopen(db *gorm.DB, id uint) (*domain.DailyActivityReport, err
 	if err := s.repo.Update(db, report); err != nil {
 		return nil, err
 	}
+	_ = s.editLogRepo.Create(db, &domain.DailyReportEditLog{
+		DailyActivityReportID: id,
+		Action:                "reopened",
+		PerformedByUserID:     performedByUserID,
+		PerformedAt:           time.Now().UTC(),
+	})
 	return s.repo.GetByID(db, id)
 }
 
-// QuickAttention finds or creates today's report and increments a counter or accumulates an amount.
-func (s *Service) QuickAttention(db *gorm.DB, input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
-	todayStr := ClinicTodayYMD()
-	reportDate := ClinicReportDateForToday()
+// GetEditLogs returns the audit log entries for a daily activity report.
+func (s *Service) GetEditLogs(db *gorm.DB, reportID uint) ([]*domain.DailyReportEditLog, error) {
+	return s.editLogRepo.ListByReportID(db, reportID)
+}
 
-	report, err := s.repo.FindByUserAndDate(db, userID, todayStr)
+// QuickAttention finds or creates the report for the given date and increments a counter or accumulates an amount.
+func (s *Service) QuickAttention(db *gorm.DB, input QuickAttentionInput, userID uint) (*domain.DailyActivityReport, error) {
+	dateStr := input.ReportDate
+	var reportDate time.Time
+	if dateStr == "" {
+		dateStr = ClinicTodayYMD()
+		reportDate = ClinicReportDateForToday()
+	} else {
+		loc := clinicLocation()
+		parsed, err := time.ParseInLocation("2006-01-02", dateStr, loc)
+		if err != nil {
+			return nil, &domain.ErrValidation{Message: "report_date inválido, use formato YYYY-MM-DD"}
+		}
+		reportDate = parsed.UTC()
+	}
+
+	report, err := s.repo.FindByUserAndDate(db, userID, dateStr)
 	if err != nil {
 		if _, ok := err.(*domain.ErrNotFound); !ok {
 			return nil, err

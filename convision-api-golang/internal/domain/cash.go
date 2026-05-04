@@ -227,3 +227,20 @@ type DailyActivityRepository interface {
 	Update(db *gorm.DB, r *DailyActivityReport) error
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*DailyActivityReport, int64, error)
 }
+
+// DailyReportEditLog records every mutation applied to a DailyActivityReport.
+type DailyReportEditLog struct {
+	ID                    uint      `json:"id"                      gorm:"primaryKey;autoIncrement"`
+	DailyActivityReportID uint      `json:"daily_activity_report_id" gorm:"not null;index"`
+	Action                string    `json:"action"                  gorm:"type:varchar(30);not null"`
+	PerformedByUserID     uint      `json:"performed_by_user_id"    gorm:"not null"`
+	PerformedAt           time.Time `json:"performed_at"            gorm:"not null"`
+
+	PerformedByUser *User `json:"performed_by_user,omitempty" gorm:"foreignKey:PerformedByUserID"`
+}
+
+// DailyReportEditLogRepository defines persistence operations for DailyReportEditLog.
+type DailyReportEditLogRepository interface {
+	Create(db *gorm.DB, entry *DailyReportEditLog) error
+	ListByReportID(db *gorm.DB, reportID uint) ([]*DailyReportEditLog, error)
+}

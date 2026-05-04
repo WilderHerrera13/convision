@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { ArrowLeft, Lock, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,7 @@ import PageLayout from '@/components/layouts/PageLayout';
 import DailyReportDetailView from '@/components/daily-report/DailyReportDetailView';
 import dailyActivityReportService, {
   normalizeDailyActivityReport,
+  type EditLogEntry,
 } from '@/services/dailyActivityReportService';
 
 const DailyReportDetailPage: React.FC = () => {
@@ -45,6 +47,12 @@ const DailyReportDetailPage: React.FC = () => {
       return normalizeDailyActivityReport(body as Record<string, unknown>);
     },
     enabled: Number.isFinite(numericId),
+  });
+
+  const { data: editLogs = [] } = useQuery<EditLogEntry[]>({
+    queryKey: ['daily-report-edit-logs', numericId],
+    queryFn: () => dailyActivityReportService.getEditLogs(numericId),
+    enabled: isAdmin && Number.isFinite(numericId),
   });
 
   const handleExportPrint = useCallback(() => {
@@ -96,6 +104,13 @@ const DailyReportDetailPage: React.FC = () => {
     );
   }
 
+  const ACTION_LABELS: Record<string, string> = {
+    created: 'Reporte creado',
+    updated: 'Reporte editado',
+    closed: 'Reporte cerrado',
+    reopened: 'Reporte reabierto',
+  };
+
   const advisorName = report.user
     ? `${report.user.name} ${report.user.last_name ?? ''}`.trim()
     : 'Asesor';
@@ -145,6 +160,31 @@ const DailyReportDetailPage: React.FC = () => {
       }
     >
       <DailyReportDetailView report={report} role={role} onExportPrint={handleExportPrint} />
+
+      {isAdmin && editLogs.length > 0 && (
+        <div className="overflow-hidden rounded-lg border border-[#e5e5e9] bg-white">
+          <div className="border-b border-[#e5e5e9] px-5 py-3">
+            <p className="text-[13px] font-semibold text-[#0f0f12]">Historial de cambios</p>
+          </div>
+          <ul className="divide-y divide-[#f0f0f2]">
+            {editLogs.map((entry) => (
+              <li key={entry.id} className="flex items-center justify-between px-5 py-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[13px] font-medium text-[#0f0f12]">
+                    {ACTION_LABELS[entry.action] ?? entry.action}
+                  </span>
+                  <span className="text-[11px] text-[#7d7d87]">
+                    por {entry.performed_by?.name ?? `Usuario ${entry.performed_by?.id}`}
+                  </span>
+                </div>
+                <span className="text-[11px] tabular-nums text-[#7d7d87]">
+                  {format(new Date(entry.performed_at), "d 'de' MMM yyyy, HH:mm", { locale: es })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <AlertDialog open={showReopenConfirm} onOpenChange={setShowReopenConfirm}>
         <AlertDialogContent>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
@@ -40,6 +40,7 @@ const HEADER_TINT = 'bg-[#f1edff]';
 
 const DailyQuickAttention: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -49,7 +50,7 @@ const DailyQuickAttention: React.FC = () => {
   const [amountDigits, setAmountDigits] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const reportDate = searchParams.get('date') ?? format(new Date(), 'yyyy-MM-dd');
   const needsAmount = Boolean(item && quickAttentionNeedsAmount(item as QuickAttentionItem));
   const needsProfile = Boolean(item && quickAttentionNeedsProfile(item as QuickAttentionItem));
   const profileSkipped = Boolean(item && step === 3 && !needsProfile && !needsAmount);
@@ -86,11 +87,12 @@ const DailyQuickAttention: React.FC = () => {
     try {
       await dailyActivityReportService.quickAttention({
         item,
+        report_date: reportDate,
         profile: quickAttentionNeedsProfile(item) ? (profile || undefined) : undefined,
         amount: quickAttentionNeedsAmount(item) ? parsedAmount : undefined,
         note: note.trim() || undefined,
       });
-      toast({ title: 'Registrado', description: 'Se actualizó el reporte del día.' });
+      toast({ title: 'Registrado', description: `Se actualizó el reporte del ${reportDate}.` });
       navigate(DAILY_REPORT_LIST_PATH);
     } catch (err) {
       toast({
@@ -111,7 +113,7 @@ const DailyQuickAttention: React.FC = () => {
             Registro rápido de atención
           </h1>
           <p className="text-[12px] text-[#7d7d87]">
-            Nota por cliente al salir · {today}. Se totaliza en el reporte diario.
+            Nota por cliente al salir · {reportDate}. Se totaliza en el reporte diario.
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-3">

@@ -1,5 +1,12 @@
 import api from '@/lib/axios';
 
+export interface EditLogEntry {
+  id: number;
+  action: 'created' | 'updated' | 'closed' | 'reopened';
+  performed_at: string;
+  performed_by: { id: number; name: string };
+}
+
 export interface CustomerAttention {
   questions_men: number;
   questions_women: number;
@@ -388,8 +395,14 @@ const dailyActivityReportService = {
     return response.data;
   },
 
+  getEditLogs: async (id: number): Promise<EditLogEntry[]> => {
+    const response = await api.get(`/api/v1/daily-activity-reports/${id}/edit-logs`);
+    return (response.data?.data ?? []) as EditLogEntry[];
+  },
+
   quickAttention: async (payload: {
     item: QuickAttentionItem;
+    report_date?: string;
     profile?: 'hombre' | 'mujer' | 'nino';
     amount?: number;
     note?: string;

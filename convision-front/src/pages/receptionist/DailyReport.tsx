@@ -208,18 +208,12 @@ const DailyReport: React.FC = () => {
             </Badge>
           )}
           <Button variant="outline" asChild className="border-[#8753ef] text-[#8753ef] hover:bg-[#f5f0ff]">
-            <Link to="/receptionist/daily-report/quick-attention">
+            <Link to={`/receptionist/daily-report/quick-attention?date=${selectedDateStr}`}>
               Registro rápido de atención
             </Link>
           </Button>
         </div>
       </div>
-
-      {!isToday && (
-        <div className="rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-4 py-3 text-sm text-[#92400e]">
-          El <strong>Registro rápido de atención</strong> siempre registra para el día de hoy ({todayStr}), no para la fecha seleccionada.
-        </div>
-      )}
 
       {isClosed && (
         <div className="rounded-lg border border-[#d1fae5] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">

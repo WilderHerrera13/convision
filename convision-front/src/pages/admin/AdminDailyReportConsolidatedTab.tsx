@@ -175,7 +175,6 @@ const AdminDailyReportConsolidatedTab: React.FC = () => {
             <DailyReportDetailView
               report={syntheticReport}
               role="admin"
-              onExportPrint={() => window.print()}
             />
           </div>
         </>

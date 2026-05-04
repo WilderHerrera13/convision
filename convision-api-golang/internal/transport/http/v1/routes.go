@@ -793,6 +793,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			dailyActivity.POST("/:id/close", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.CloseReport)
 			dailyActivity.POST("/:id/reopen", jwtauth.RequireRole(domain.RoleAdmin), h.ReopenReport)
 			dailyActivity.POST("/quick-attention", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.QuickAttentionDailyActivity)
+			dailyActivity.GET("/:id/edit-logs", jwtauth.RequireRole(domain.RoleAdmin), h.GetDailyActivityReportEditLogs)
 		}
 	}
 }
