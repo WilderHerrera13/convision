@@ -283,6 +283,12 @@ func (s *Service) QuickAttention(db *gorm.DB, input QuickAttentionInput, userID 
 		if err := s.repo.Create(db, report); err != nil {
 			return nil, err
 		}
+		_ = s.editLogRepo.Create(db, &domain.DailyReportEditLog{
+			DailyActivityReportID: report.ID,
+			Action:                "created",
+			PerformedByUserID:     userID,
+			PerformedAt:           time.Now().UTC(),
+		})
 	}
 
 	if report.Status == domain.DailyReportStatusClosed {

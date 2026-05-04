@@ -65,6 +65,7 @@ const DailyReportDetailPage: React.FC = () => {
     try {
       await dailyActivityReportService.reopen(numericId);
       await queryClient.invalidateQueries({ queryKey: ['daily-activity-report', numericId] });
+      await queryClient.invalidateQueries({ queryKey: ['daily-report-edit-logs', numericId] });
       toast({ title: 'Reporte reabierto', description: 'El reporte vuelve a estado pendiente.' });
     } catch {
       toast({ title: 'Error', description: 'No se pudo reabrir el reporte.', variant: 'destructive' });

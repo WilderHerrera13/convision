@@ -1,10 +1,13 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import { COPMoneyInput } from '@/components/ui/cop-money-input';
+import { formatCurrency } from '@/lib/utils';
 
 interface NumericFieldConfig {
   key: string;
   label: string;
   columns?: string[];
+  money?: boolean;
 }
 
 interface Props {
@@ -40,20 +43,35 @@ const DailyReportSection: React.FC<Props> = ({
           <div key={field.key} className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">{field.label}</label>
             {readOnly ? (
-              <p className="text-sm font-medium">{values[field.key] ?? 0}</p>
+              <p className="text-sm font-medium">
+                {field.money
+                  ? formatCurrency(values[field.key] ?? 0, 'COP', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                  : (values[field.key] ?? 0)}
+              </p>
             ) : (
               <>
-                <Input
-                  type="number"
-                  min={0}
-                  value={values[field.key] || ''}
-                  onChange={(e) => onChange(field.key, parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                  title={errors?.[`${errorPrefix}${field.key}`]?.[0]}
-                  className={`h-8 text-sm ${
-                    errors?.[`${errorPrefix}${field.key}`] ? 'border-red-500 bg-red-50 focus-visible:ring-red-500' : ''
-                  }`}
-                />
+                {field.money ? (
+                  <COPMoneyInput
+                    value={values[field.key] ?? 0}
+                    onChange={(v) => onChange(field.key, v)}
+                    title={errors?.[`${errorPrefix}${field.key}`]?.[0]}
+                    className={`h-8 text-sm ${
+                      errors?.[`${errorPrefix}${field.key}`] ? 'border-red-500 bg-red-50 focus-visible:ring-red-500' : ''
+                    }`}
+                  />
+                ) : (
+                  <Input
+                    type="number"
+                    min={0}
+                    value={values[field.key] || ''}
+                    onChange={(e) => onChange(field.key, parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                    title={errors?.[`${errorPrefix}${field.key}`]?.[0]}
+                    className={`h-8 text-sm ${
+                      errors?.[`${errorPrefix}${field.key}`] ? 'border-red-500 bg-red-50 focus-visible:ring-red-500' : ''
+                    }`}
+                  />
+                )}
                 {errors?.[`${errorPrefix}${field.key}`] && (
                   <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
                     {errors[`${errorPrefix}${field.key}`][0]}

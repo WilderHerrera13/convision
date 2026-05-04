@@ -45,7 +45,7 @@ const OPERATIONS_FIELDS = [
   { key: 'otras_ventas', label: 'Otras Ventas' },
   { key: 'entregas', label: 'Entregas' },
   { key: 'sistecreditos_abonos', label: 'Sistecreditos Abonos' },
-  { key: 'valor_ordenes', label: 'Valor de las Órdenes ($)' },
+  { key: 'valor_ordenes', label: 'Valor de las Órdenes ($)', money: true },
 ];
 
 const SOCIAL_FIELDS = [
