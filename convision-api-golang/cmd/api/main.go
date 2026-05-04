@@ -27,7 +27,6 @@ import (
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
-	platformmigrations "github.com/convision/api/db/migrations/platform"
 	notesvc "github.com/convision/api/internal/note"
 	notificationsvc "github.com/convision/api/internal/notification"
 	opticasvc "github.com/convision/api/internal/optica"
@@ -194,7 +193,9 @@ func main() {
 	branchService := branchsvc.NewService(branchRepo, logger)
 
 	// Super admin / multi-tenancy services
-	opticaService := opticasvc.NewService(opticaRepo, opticaFeatureRepo, featureCache, opticaCache, platformmigrations.FS, db, logger)
+	opticaService := opticasvc.NewService(opticaRepo, opticaFeatureRepo, featureCache, opticaCache,
+		func(schemaName string) error { return postgresplatform.MigrateTenantSchema(db, schemaName) },
+		db, logger)
 	featureService := opticasvc.NewFeatureService(opticaFeatureRepo, featureCache, logger)
 
 	// ---- HTTP Router (Gin) ----

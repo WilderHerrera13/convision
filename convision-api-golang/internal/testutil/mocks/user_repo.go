@@ -68,3 +68,11 @@ func (m *MockUserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) 
 	}
 	return args.Get(0).([]*domain.User), args.Error(1)
 }
+
+func (m *MockUserRepository) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
+	args := m.Called(db, branchID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.User), args.Error(1)
+}

@@ -126,8 +126,8 @@ const AdminCashCloses: React.FC = () => {
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
 
   const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['users-list'],
-    queryFn: () => userService.getAll(),
+    queryKey: ['users-list', branchFilter],
+    queryFn: () => userService.getAll(branchFilter !== 'all' ? branchFilter : undefined),
   });
 
   const advisors = useMemo(
@@ -145,9 +145,6 @@ const AdminCashCloses: React.FC = () => {
   });
 
   const mergedAdvisors = useMemo((): AdvisorPendingGroup[] => {
-    if (branchFilter !== 'all') {
-      return [...advisorGroups].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
-    }
     const byId = new Map(advisorGroups.map((g) => [g.user_id, g]));
     const rows = advisors.map((u) => {
       const hit = byId.get(u.id);
@@ -163,12 +160,12 @@ const AdminCashCloses: React.FC = () => {
         total_today: 0,
         total_yesterday: null,
         accumulated_variance: null,
-        latest_status: 'approved',
+        latest_status: 'approved' as const,
         closes: [],
       };
     });
     return [...rows].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
-  }, [branchFilter, advisors, advisorGroups]);
+  }, [advisors, advisorGroups]);
 
   const filteredAdvisors = useMemo(() => {
     let rows = mergedAdvisors;

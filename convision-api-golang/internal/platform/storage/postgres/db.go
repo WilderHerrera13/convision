@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -171,5 +172,122 @@ func Migrate(db *gorm.DB) error {
 		&domain.Optica{},
 		&domain.SuperAdmin{},
 		&domain.OpticaFeature{},
+	)
+}
+
+// MigrateTenantSchema creates all tenant-level tables inside the given PostgreSQL schema.
+// It acquires a dedicated connection, pins search_path to schemaName, then runs AutoMigrate
+// so every table is created in that schema without touching the platform schema.
+func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("get sql.DB: %w", err)
+	}
+	conn, err := sqlDB.Conn(context.Background())
+	if err != nil {
+		return fmt.Errorf("get connection: %w", err)
+	}
+	defer conn.Close() //nolint:errcheck
+
+	if _, err := conn.ExecContext(context.Background(),
+		fmt.Sprintf("SET search_path = %s", schemaName)); err != nil {
+		return fmt.Errorf("set search_path: %w", err)
+	}
+
+	tenantDB, err := gorm.Open(postgres.New(postgres.Config{Conn: conn}), &gorm.Config{
+		Logger: db.Config.Logger,
+	})
+	if err != nil {
+		return fmt.Errorf("gorm open: %w", err)
+	}
+
+	return tenantDB.AutoMigrate(
+		// Lookup / reference tables
+		&domain.Country{},
+		&domain.Department{},
+		&domain.City{},
+		&domain.District{},
+		&domain.IdentificationType{},
+		&domain.AffiliationType{},
+		&domain.CoverageType{},
+		&domain.HealthInsuranceProvider{},
+		&domain.EducationLevel{},
+		&domain.PaymentMethod{},
+		&domain.ProductCategory{},
+		&domain.Brand{},
+		// Branch / multi-clinic
+		&domain.Branch{},
+		&domain.UserBranch{},
+		// Core entities
+		&domain.User{},
+		&domain.Patient{},
+		// Appointments & clinical
+		&domain.Appointment{},
+		&domain.Prescription{},
+		&domain.ClinicalHistory{},
+		&domain.ClinicalEvolution{},
+		&domain.ClinicalRecord{},
+		&domain.Anamnesis{},
+		&domain.VisualExam{},
+		&domain.Diagnosis{},
+		&domain.ClinicalPrescription{},
+		// Catalogue
+		&domain.LensType{},
+		&domain.LensClass{},
+		&domain.Material{},
+		&domain.Treatment{},
+		&domain.Photochromic{},
+		&domain.Supplier{},
+		&domain.Lens{},
+		&domain.Product{},
+		&domain.ProductLensAttributes{},
+		&domain.ProductFrameAttributes{},
+		&domain.ProductContactLensAttributes{},
+		// Inventory
+		&domain.Warehouse{},
+		&domain.WarehouseLocation{},
+		&domain.InventoryItem{},
+		&domain.InventoryTransfer{},
+		&domain.StockMovement{},
+		&domain.InventoryAdjustment{},
+		// Laboratory
+		&domain.Laboratory{},
+		&domain.LaboratoryOrder{},
+		&domain.LaboratoryOrderStatusEntry{},
+		&domain.LaboratoryOrderEvidence{},
+		&domain.LaboratoryOrderCall{},
+		// Commerce
+		&domain.Order{},
+		&domain.OrderItem{},
+		&domain.Sale{},
+		&domain.SaleItem{},
+		&domain.SalePayment{},
+		&domain.PartialPayment{},
+		&domain.SaleLensPriceAdjustment{},
+		&domain.Quote{},
+		&domain.QuoteItem{},
+		&domain.DiscountRequest{},
+		// Purchasing & finance
+		&domain.Purchase{},
+		&domain.PurchaseItem{},
+		&domain.PurchasePayment{},
+		&domain.Expense{},
+		&domain.ServiceOrder{},
+		&domain.Payroll{},
+		// Cash management
+		&domain.CashRegisterClose{},
+		&domain.CashRegisterClosePayment{},
+		&domain.CashRegisterCloseActualPayment{},
+		&domain.CashCountDenomination{},
+		&domain.CashTransfer{},
+		&domain.DailyActivityReport{},
+		// Notes & notifications
+		&domain.Note{},
+		&domain.LensNote{},
+		&domain.AdminUserNotification{},
+		// Bulk import audit
+		&domain.BulkImportLog{},
+		// RevokedToken and platform models (Optica, SuperAdmin, OpticaFeature) live
+		// in the platform schema and must NOT be migrated into tenant schemas.
 	)
 }

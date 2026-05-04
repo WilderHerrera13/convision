@@ -1,10 +1,7 @@
 package optica
 
 import (
-	"embed"
 	"fmt"
-	"sort"
-	"strings"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -15,15 +12,18 @@ import (
 	"github.com/convision/api/internal/platform/opticacache"
 )
 
+// SchemaProvisioner creates all tenant tables inside the given PostgreSQL schema.
+type SchemaProvisioner func(schemaName string) error
+
 // Service handles optica management use-cases including schema provisioning.
 type Service struct {
-	repo         domain.OpticaRepository
-	featureRepo  domain.OpticaFeatureRepository
-	featureCache *featurecache.Cache
-	opticaCache  *opticacache.Cache
-	migrations   embed.FS
-	db           *gorm.DB
-	logger       *zap.Logger
+	repo            domain.OpticaRepository
+	featureRepo     domain.OpticaFeatureRepository
+	featureCache    *featurecache.Cache
+	opticaCache     *opticacache.Cache
+	provisionSchema SchemaProvisioner
+	db              *gorm.DB
+	logger          *zap.Logger
 }
 
 // NewService creates a new optica Service.
@@ -32,18 +32,18 @@ func NewService(
 	featureRepo domain.OpticaFeatureRepository,
 	featureCache *featurecache.Cache,
 	opticaCache *opticacache.Cache,
-	migrations embed.FS,
+	provisionSchema SchemaProvisioner,
 	db *gorm.DB,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		repo:         repo,
-		featureRepo:  featureRepo,
-		featureCache: featureCache,
-		opticaCache:  opticaCache,
-		migrations:   migrations,
-		db:           db,
-		logger:       logger,
+		repo:            repo,
+		featureRepo:     featureRepo,
+		featureCache:    featureCache,
+		opticaCache:     opticaCache,
+		provisionSchema: provisionSchema,
+		db:              db,
+		logger:          logger,
 	}
 }
 
@@ -96,20 +96,21 @@ func (s *Service) Create(input CreateOpticaInput) (*domain.Optica, error) {
 		return nil, &domain.ErrSchemaCreationFailed{Schema: schemaName, Err: err}
 	}
 
-	// Phase 3: run migrations and seed initial data inside a transaction.
+	// Phase 3: provision all tenant tables via AutoMigrate on a schema-scoped connection.
+	if err := s.provisionSchema(schemaName); err != nil {
+		_ = s.db.Exec("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE")
+		_ = s.repo.Delete(optica.ID)
+		return nil, fmt.Errorf("schema provisioning: %w", err)
+	}
+
+	// Phase 4: seed initial admin user and primary branch inside a transaction.
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
-		tx.Exec("SET LOCAL search_path = ?", schemaName)
-		if err := s.runMigrations(tx); err != nil {
-			return fmt.Errorf("migrations: %w", err)
-		}
-		if err := s.seedTenant(tx, input.Admin); err != nil {
-			return fmt.Errorf("seed: %w", err)
-		}
-		return nil
+		tx.Exec(fmt.Sprintf("SET LOCAL search_path = %s", schemaName))
+		return s.seedTenant(tx, input.Admin)
 	}); err != nil {
 		_ = s.db.Exec("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE")
 		_ = s.repo.Delete(optica.ID)
-		return nil, err
+		return nil, fmt.Errorf("seed: %w", err)
 	}
 
 	// Seed feature flags (non-fatal: log on failure).
@@ -178,33 +179,6 @@ func (s *Service) seedTenant(tx *gorm.DB, admin CreateTenantAdminInput) error {
 		return err
 	}
 	return tx.Exec(
-		`INSERT INTO branches (name, city, is_primary) VALUES ('Sede Principal', '', true)`,
+		`INSERT INTO branches (name, city) VALUES ('Sede Principal', '')`,
 	).Error
-}
-
-// runMigrations executes all *.up.sql migration files against the given transaction.
-func (s *Service) runMigrations(tx *gorm.DB) error {
-	entries, err := s.migrations.ReadDir(".")
-	if err != nil {
-		return err
-	}
-
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".up.sql") {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		content, err := s.migrations.ReadFile(name)
-		if err != nil {
-			return fmt.Errorf("read %s: %w", name, err)
-		}
-		if err := tx.Exec(string(content)).Error; err != nil {
-			return fmt.Errorf("exec %s: %w", name, err)
-		}
-	}
-	return nil
 }

@@ -161,3 +161,19 @@ func (r *UserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*
 	}
 	return users, nil
 }
+
+func (r *UserRepository) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
+	var users []*domain.User
+	err := db.Model(&domain.User{}).
+		Select("users.id, users.name, users.last_name, users.email, users.identification, users.phone, users.password_hash, users.role, users.active, users.must_change_password, users.created_at, users.updated_at").
+		Joins("JOIN user_branches ON user_branches.user_id = users.id").
+		Where("users.role IN (?, ?) AND users.active = true AND user_branches.branch_id = ?",
+			string(domain.RoleSpecialist), string(domain.RoleReceptionist), branchID).
+		Distinct().
+		Order("users.name ASC").
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}

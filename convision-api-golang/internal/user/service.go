@@ -104,6 +104,10 @@ func (s *Service) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.
 	return s.repo.GetSpecialistsByBranch(db, branchID)
 }
 
+func (s *Service) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
+	return s.repo.GetAdvisorsByBranch(db, branchID)
+}
+
 // Create creates a new user with a bcrypt-hashed password.
 func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)

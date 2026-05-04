@@ -44,4 +44,5 @@ type UserRepository interface {
 	Delete(db *gorm.DB, id uint) error
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*User, int64, error)
 	GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
+	GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 }

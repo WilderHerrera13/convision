@@ -48,8 +48,8 @@ export type PaginatedUsers = {
 class UserService {
   private readonly baseUrl = '/api/v1/users';
 
-  async getUsers(params: { page?: number; per_page?: number; search?: string }): Promise<PaginatedUsers> {
-    const { page = 1, per_page = 15, search } = params;
+  async getUsers(params: { page?: number; per_page?: number; search?: string; branch_id?: string }): Promise<PaginatedUsers> {
+    const { page = 1, per_page = 15, search, branch_id } = params;
     const query: Record<string, string | number> = {
       page,
       per_page,
@@ -61,6 +61,9 @@ class UserService {
       query.s_v = JSON.stringify([`%${t}%`, `%${t}%`]);
       query.s_o = 'or';
     }
+    if (branch_id && branch_id !== 'all' && branch_id !== '0') {
+      query.branch_id = branch_id;
+    }
     const response = await axios.get(this.baseUrl, { params: query });
     const body = response.data;
     return {
@@ -70,8 +73,8 @@ class UserService {
     };
   }
 
-  async getAll(): Promise<User[]> {
-    const res = await this.getUsers({ page: 1, per_page: 100 });
+  async getAll(branchId?: string): Promise<User[]> {
+    const res = await this.getUsers({ page: 1, per_page: 100, branch_id: branchId });
     return res.data;
   }
 
