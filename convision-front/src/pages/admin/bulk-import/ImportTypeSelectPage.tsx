@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layouts/PageLayout';
-import { UserRound, Stethoscope, CalendarCheck, Glasses, Users } from 'lucide-react';
+import { UserRound, Stethoscope, CalendarCheck, Glasses, Users, Package } from 'lucide-react';
 
 interface ImportOption {
   type: string;
@@ -52,6 +52,14 @@ const OPTIONS: ImportOption[] = [
     columns: ['Nombre', 'Documento', 'Rol', 'Sede'],
     icon: Users,
     path: '/admin/bulk-import/staff-users',
+  },
+  {
+    type: 'inventory',
+    title: 'Inventario',
+    description: 'Carga masiva de inventario de monturas y accesorios. Las cantidades se acumulan si el mismo producto aparece varias veces. Se integra automáticamente con el kardex de bodega.',
+    columns: ['Código', 'Identificador', 'Descripción', 'tipoproducto', 'Marca', 'Categoria', 'Tipo', 'Cant', 'precioventa', 'preciocompra', 'Sede'],
+    icon: Package,
+    path: '/admin/bulk-import/inventory',
   },
 ];
 
