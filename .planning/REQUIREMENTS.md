@@ -35,6 +35,14 @@
 - [ ] **QUAL-02**: New/edited frontend screens use shared table/date/form patterns
 - [ ] **QUAL-03**: Critical paths have executable verification evidence (tests or phase verification)
 
+### Backend Filter Standardization
+
+- [ ] **FILTER-01**: All list endpoints use typed Filter structs with `c.ShouldBindQuery()` binding — no manual `c.Query()` loops
+- [ ] **FILTER-02**: `parseApiFilters()` and `s_f`/`s_v`/`s_o` query parameters are removed from the codebase
+- [ ] **FILTER-03**: Filter structs are defined in `internal/domain/` alongside their entity — filters are part of the domain contract
+- [ ] **FILTER-04**: Repository allowlist maps are removed — struct fields enforce the allowlist at compile time
+- [ ] **FILTER-05**: All existing filter query parameter names are preserved (backwards-compatible for frontend/API consumers)
+
 ### Cash Register Close (Cierre de Caja)
 
 - [ ] **CASH-01**: Asesores pueden registrar el cierre de caja diario por medios de pago (Efectivo, Voucher, Bancolombia, Daviplata, Nequi, Addi, Sistecredito, Anticipo, Bono, Pago Sistecredito) con valor registrado y valor contado
@@ -127,9 +135,15 @@
 | CASH-04 | Phase 6 | Pending |
 | CASH-05 | Phase 6 | Pending |
 
+| FILTER-01 | Phase 21 | Pending |
+| FILTER-02 | Phase 21 | Pending |
+| FILTER-03 | Phase 21 | Pending |
+| FILTER-04 | Phase 21 | Pending |
+| FILTER-05 | Phase 21 | Pending |
+
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20
+- v1 requirements: 25 total
+- Mapped to phases: 25
 - Unmapped: 0 ✓
 
 ---
