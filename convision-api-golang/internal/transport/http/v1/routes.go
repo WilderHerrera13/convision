@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	"github.com/convision/api/internal/platform/opticacache"
 	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
@@ -61,7 +60,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 	// Super admin routes — operate on platform schema, no TenantSchema middleware.
 	superAdmin := v1.Group("/super-admin")
 	superAdmin.Use(jwtauth.Authenticate(h.revokedTokens, globalDB))
-	superAdmin.Use(jwtauth.RequireRole(domain.RoleSuperAdmin))
+	superAdmin.Use(jwtauth.RequirePermission("super_admin:access"))
 	{
 		superAdmin.GET("/opticas", h.ListOpticas)
 		superAdmin.POST("/opticas", h.CreateOptica)
@@ -92,7 +91,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 
 		// Branches — admin only for management (no branch context required)
 		branchesAdmin := protected.Group("/branches")
-		branchesAdmin.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		branchesAdmin.Use(jwtauth.RequirePermission("branches:manage"))
 		{
 			branchesAdmin.GET("", h.ListBranches)
 			branchesAdmin.POST("/users/:id/assign", h.AssignUserBranches)
@@ -107,7 +106,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 
 		// Users — admin only
 		users := protected.Group("/users")
-		users.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		users.Use(jwtauth.RequirePermission("users:view"))
 		{
 			users.GET("", h.ListUsers)
 			users.GET("/:id", h.GetUser)
@@ -153,15 +152,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			patients.GET("", h.ListPatients)
 			patients.GET("/:id", h.GetPatient)
 			patients.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("patients:create", "patients:edit"),
 				h.CreatePatient,
 			)
 			patients.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("patients:create", "patients:edit"),
 				h.UpdatePatient,
 			)
 			patients.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("patients:delete"),
 				h.DeletePatient,
 			)
 			// Nested: prescriptions and clinical history for a patient
@@ -176,15 +175,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			prescriptions.GET("", h.ListPrescriptions)
 			prescriptions.GET("/:id", h.GetPrescription)
 			prescriptions.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("prescriptions:create", "prescriptions:edit"),
 				h.CreatePrescription,
 			)
 			prescriptions.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("prescriptions:create", "prescriptions:edit"),
 				h.UpdatePrescription,
 			)
 			prescriptions.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("prescriptions:delete"),
 				h.DeletePrescription,
 			)
 		}
@@ -196,65 +195,65 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			appointments.GET("/available-slots", h.GetAppointmentAvailableSlots)
 			appointments.GET("/:id", h.GetAppointment)
 			appointments.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.CreateAppointment,
 			)
 			appointments.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.UpdateAppointment,
 			)
 			appointments.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.DeleteAppointment,
 			)
 			appointments.POST("/:id/take",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("appointments:edit"),
 				h.TakeAppointment,
 			)
 			appointments.POST("/:id/pause",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.PauseAppointment,
 			)
 			appointments.POST("/:id/resume",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.ResumeAppointment,
 			)
 			appointments.POST("/:id/annotations",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
 				h.SaveAppointmentAnnotations,
 			)
 			appointments.GET("/:id/lens-annotation",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("appointments:view"),
 				h.GetLensAnnotation,
 			)
 
 			// Appointment clinical record (specialist-only writes)
 			appointments.GET("/:id/clinical-record",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("clinical_histories:view", "clinical_histories:create"),
 				h.GetAppointmentClinicalRecord,
 			)
 			appointments.POST("/:id/clinical-record",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.CreateAppointmentClinicalRecord,
 			)
 			appointments.PUT("/:id/clinical-record/anamnesis",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.UpsertAppointmentAnamnesis,
 			)
 			appointments.PUT("/:id/clinical-record/visual-exam",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.UpsertAppointmentVisualExam,
 			)
 			appointments.PUT("/:id/clinical-record/diagnosis",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.UpsertAppointmentDiagnosis,
 			)
 			appointments.PUT("/:id/clinical-record/prescription",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.UpsertAppointmentPrescription,
 			)
 			appointments.POST("/:id/clinical-record/sign",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("clinical_histories:create"),
 				h.SignAppointmentClinicalRecord,
 			)
 		}
@@ -264,15 +263,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		managementReport := protected.Group("/management-report")
 		{
 			managementReport.GET("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("management_report:view", "management_report:create"),
 				h.ListManagementReport,
 			)
 			managementReport.GET("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("management_report:view", "management_report:create"),
 				h.GetManagementReport,
 			)
 			managementReport.POST("/:id",
-				jwtauth.RequireRole(domain.RoleSpecialist),
+				jwtauth.RequirePermission("management_report:create"),
 				h.SaveManagementReport,
 			)
 		}
@@ -281,15 +280,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		specialistReports := protected.Group("/specialist-reports")
 		{
 			specialistReports.GET("/consolidated",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("specialist_reports:view", "specialist_reports:manage"),
 				h.GetConsolidatedSpecialistReport,
 			)
 			specialistReports.GET("/specialists/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("specialist_reports:view", "specialist_reports:manage"),
 				h.GetSpecialistReportDetail,
 			)
 			specialistReports.POST("/bulk-upload",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("specialist_reports:view", "specialist_reports:manage"),
 				h.UploadBulkExcel,
 			)
 		}
@@ -299,63 +298,63 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		{
 			brands.GET("", h.ListBrands)
 			brands.GET("/:id", h.GetBrand)
-			brands.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateBrand)
-			brands.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateBrand)
-			brands.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteBrand)
+			brands.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateBrand)
+			brands.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateBrand)
+			brands.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteBrand)
 		}
 
 		lensTypes := protected.Group("/lens-types")
 		{
 			lensTypes.GET("", h.ListLensTypes)
 			lensTypes.GET("/:id", h.GetLensType)
-			lensTypes.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateLensType)
-			lensTypes.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateLensType)
-			lensTypes.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteLensType)
+			lensTypes.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateLensType)
+			lensTypes.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateLensType)
+			lensTypes.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteLensType)
 		}
 
 		materials := protected.Group("/materials")
 		{
 			materials.GET("", h.ListMaterials)
 			materials.GET("/:id", h.GetMaterial)
-			materials.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateMaterial)
-			materials.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateMaterial)
-			materials.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteMaterial)
+			materials.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateMaterial)
+			materials.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateMaterial)
+			materials.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteMaterial)
 		}
 
 		lensClasses := protected.Group("/lens-classes")
 		{
 			lensClasses.GET("", h.ListLensClasses)
 			lensClasses.GET("/:id", h.GetLensClass)
-			lensClasses.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateLensClass)
-			lensClasses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateLensClass)
-			lensClasses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteLensClass)
+			lensClasses.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateLensClass)
+			lensClasses.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateLensClass)
+			lensClasses.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteLensClass)
 		}
 
 		treatments := protected.Group("/treatments")
 		{
 			treatments.GET("", h.ListTreatments)
 			treatments.GET("/:id", h.GetTreatment)
-			treatments.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateTreatment)
-			treatments.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateTreatment)
-			treatments.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteTreatment)
+			treatments.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateTreatment)
+			treatments.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateTreatment)
+			treatments.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteTreatment)
 		}
 
 		photochromics := protected.Group("/photochromics")
 		{
 			photochromics.GET("", h.ListPhotochromics)
 			photochromics.GET("/:id", h.GetPhotochromic)
-			photochromics.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreatePhotochromic)
-			photochromics.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdatePhotochromic)
-			photochromics.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeletePhotochromic)
+			photochromics.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreatePhotochromic)
+			photochromics.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdatePhotochromic)
+			photochromics.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeletePhotochromic)
 		}
 
 		paymentMethods := protected.Group("/payment-methods")
 		{
 			paymentMethods.GET("", h.ListPaymentMethods)
 			paymentMethods.GET("/:id", h.GetPaymentMethod)
-			paymentMethods.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreatePaymentMethod)
-			paymentMethods.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdatePaymentMethod)
-			paymentMethods.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeletePaymentMethod)
+			paymentMethods.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreatePaymentMethod)
+			paymentMethods.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdatePaymentMethod)
+			paymentMethods.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeletePaymentMethod)
 		}
 
 		// Lookup / Locations — all authenticated roles, read-only
@@ -375,9 +374,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			productCategories.GET("/all", h.ListAllProductCategories)
 			productCategories.GET("/products-count", h.ListProductCategoriesWithCount)
 			productCategories.GET("/:id", h.GetProductCategory)
-			productCategories.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProductCategory)
-			productCategories.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProductCategory)
-			productCategories.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteProductCategory)
+			productCategories.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateProductCategory)
+			productCategories.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateProductCategory)
+			productCategories.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteProductCategory)
 		}
 
 		// Alias: categories → product-categories (GOQA-008)
@@ -387,9 +386,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			categories.GET("/all", h.ListAllProductCategories)
 			categories.GET("/products-count", h.ListProductCategoriesWithCount)
 			categories.GET("/:id", h.GetProductCategory)
-			categories.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProductCategory)
-			categories.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProductCategory)
-			categories.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteProductCategory)
+			categories.POST("", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.CreateProductCategory)
+			categories.PUT("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.UpdateProductCategory)
+			categories.DELETE("/:id", jwtauth.RequireAnyPermission("catalog:create", "catalog:edit", "catalog:delete"), h.DeleteProductCategory)
 		}
 
 		// Products — read: all; write: admin only
@@ -397,13 +396,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		{
 			products.GET("", h.ListProducts)
 			products.GET("/search", h.SearchProducts)
-			products.POST("/bulk-status", jwtauth.RequireRole(domain.RoleAdmin), h.BulkProductStatus)
+			products.POST("/bulk-status", jwtauth.RequireAnyPermission("products:create", "products:edit", "products:delete"), h.BulkProductStatus)
 			products.POST("/lenses/by-prescription", h.ListLensesByPrescription)
 			products.GET("/category/:slug", h.ListProductsByCategory)
-			products.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateProduct)
+			products.POST("", jwtauth.RequireAnyPermission("products:create", "products:edit", "products:delete"), h.CreateProduct)
 			products.GET("/:id", h.GetProduct)
-			products.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateProduct)
-			products.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteProduct)
+			products.PUT("/:id", jwtauth.RequireAnyPermission("products:create", "products:edit", "products:delete"), h.UpdateProduct)
+			products.DELETE("/:id", jwtauth.RequireAnyPermission("products:create", "products:edit", "products:delete"), h.DeleteProduct)
 			products.GET("/:id/stock", h.GetProductStock)
 			products.GET("/:id/discounts", h.GetProductDiscounts)
 			products.GET("/:id/discount-info", h.GetProductDiscountInfo)
@@ -419,9 +418,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			warehouses.GET("", h.ListWarehouses)
 			warehouses.GET("/:id", h.GetWarehouse)
 			warehouses.GET("/:id/locations", h.GetWarehouseLocations)
-			warehouses.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateWarehouse)
-			warehouses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateWarehouse)
-			warehouses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteWarehouse)
+			warehouses.POST("", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.CreateWarehouse)
+			warehouses.PUT("/:id", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.UpdateWarehouse)
+			warehouses.DELETE("/:id", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.DeleteWarehouse)
 		}
 
 		// Warehouse locations — admin only for write
@@ -430,9 +429,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			warehouseLocations.GET("", h.ListWarehouseLocations)
 			warehouseLocations.GET("/:id", h.GetWarehouseLocation)
 			warehouseLocations.GET("/:id/inventory", h.ListLocationInventoryItems)
-			warehouseLocations.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateWarehouseLocation)
-			warehouseLocations.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateWarehouseLocation)
-			warehouseLocations.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteWarehouseLocation)
+			warehouseLocations.POST("", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.CreateWarehouseLocation)
+			warehouseLocations.PUT("/:id", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.UpdateWarehouseLocation)
+			warehouseLocations.DELETE("/:id", jwtauth.RequireAnyPermission("warehouses:create", "warehouses:edit", "warehouses:delete"), h.DeleteWarehouseLocation)
 		}
 
 		// Inventory items — all roles read; admin write
@@ -440,22 +439,22 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		{
 			inventoryItems.GET("", h.ListInventoryItems)
 			inventoryItems.GET("/:id", h.GetInventoryItem)
-			inventoryItems.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateInventoryItem)
-			inventoryItems.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateInventoryItem)
-			inventoryItems.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteInventoryItem)
+			inventoryItems.POST("", jwtauth.RequireAnyPermission("inventory:create", "inventory:edit"), h.CreateInventoryItem)
+			inventoryItems.PUT("/:id", jwtauth.RequireAnyPermission("inventory:create", "inventory:edit"), h.UpdateInventoryItem)
+			inventoryItems.DELETE("/:id", jwtauth.RequireAnyPermission("inventory:create", "inventory:edit"), h.DeleteInventoryItem)
 		}
 
 		// Inventory summary and operations (GOQA-010)
 		inventoryGroup := branchScoped.Group("/inventory")
 		{
 			inventoryGroup.GET("", h.ListInventoryItems)
-			inventoryGroup.POST("/adjust", jwtauth.RequireRole(domain.RoleAdmin), h.AdjustInventory)
+			inventoryGroup.POST("/adjust", jwtauth.RequirePermission("inventory:manage"), h.AdjustInventory)
 			inventoryGroup.GET("/total-stock", h.GetTotalStock)
 			inventoryGroup.GET("/lens-catalog", h.ListLensCatalog)
-			inventoryGroup.POST("/adjustments", jwtauth.RequireRole(domain.RoleAdmin), h.CreateInventoryAdjustment)
+			inventoryGroup.POST("/adjustments", jwtauth.RequirePermission("inventory:manage"), h.CreateInventoryAdjustment)
 			inventoryGroup.GET("/adjustments", h.ListInventoryAdjustments)
-			inventoryGroup.PATCH("/adjustments/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveInventoryAdjustment)
-			inventoryGroup.PATCH("/adjustments/:id/reject", jwtauth.RequireRole(domain.RoleAdmin), h.RejectInventoryAdjustment)
+			inventoryGroup.PATCH("/adjustments/:id/approve", jwtauth.RequirePermission("inventory:manage"), h.ApproveInventoryAdjustment)
+			inventoryGroup.PATCH("/adjustments/:id/reject", jwtauth.RequirePermission("inventory:manage"), h.RejectInventoryAdjustment)
 			inventoryGroup.GET("/movements", h.ListStockMovements)
 		}
 
@@ -464,11 +463,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		{
 			inventoryTransfers.GET("", h.ListInventoryTransfers)
 			inventoryTransfers.GET("/:id", h.GetInventoryTransfer)
-			inventoryTransfers.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateInventoryTransfer)
-			inventoryTransfers.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateInventoryTransfer)
-			inventoryTransfers.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteInventoryTransfer)
-			inventoryTransfers.POST("/:id/complete", jwtauth.RequireRole(domain.RoleAdmin), h.CompleteInventoryTransfer)
-			inventoryTransfers.POST("/:id/cancel", jwtauth.RequireRole(domain.RoleAdmin), h.CancelInventoryTransfer)
+			inventoryTransfers.POST("", jwtauth.RequirePermission("inventory:manage"), h.CreateInventoryTransfer)
+			inventoryTransfers.PUT("/:id", jwtauth.RequirePermission("inventory:manage"), h.UpdateInventoryTransfer)
+			inventoryTransfers.DELETE("/:id", jwtauth.RequirePermission("inventory:manage"), h.DeleteInventoryTransfer)
+			inventoryTransfers.POST("/:id/complete", jwtauth.RequirePermission("inventory:manage"), h.CompleteInventoryTransfer)
+			inventoryTransfers.POST("/:id/cancel", jwtauth.RequirePermission("inventory:manage"), h.CancelInventoryTransfer)
 		}
 
 		// Discount requests — admin approves; receptionist creates
@@ -477,16 +476,16 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			discountRequests.GET("", h.ListDiscountRequests)
 			discountRequests.GET("/:id", h.GetDiscountRequest)
 			discountRequests.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("discounts:view", "discounts:create", "discounts:edit"),
 				h.CreateDiscountRequest,
 			)
 			discountRequests.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("discounts:view", "discounts:create", "discounts:edit"),
 				h.UpdateDiscountRequest,
 			)
-			discountRequests.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteDiscountRequest)
-			discountRequests.POST("/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveDiscountRequest)
-			discountRequests.POST("/:id/reject", jwtauth.RequireRole(domain.RoleAdmin), h.RejectDiscountRequest)
+			discountRequests.DELETE("/:id", jwtauth.RequireAnyPermission("discounts:delete", "discounts:approve"), h.DeleteDiscountRequest)
+			discountRequests.POST("/:id/approve", jwtauth.RequireAnyPermission("discounts:delete", "discounts:approve"), h.ApproveDiscountRequest)
+			discountRequests.POST("/:id/reject", jwtauth.RequireAnyPermission("discounts:delete", "discounts:approve"), h.RejectDiscountRequest)
 		}
 
 		// Discounts — read: all; best discount lookup (GOQA-011)
@@ -504,24 +503,24 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		{
 			quotes.GET("", h.ListQuotes)
 			quotes.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("quotes:view", "quotes:create", "quotes:edit"),
 				h.CreateQuote,
 			)
 			quotes.GET("/:id", h.GetQuote)
 			quotes.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("quotes:view", "quotes:create", "quotes:edit"),
 				h.UpdateQuote,
 			)
 			quotes.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("quotes:delete"),
 				h.DeleteQuote,
 			)
 			quotes.POST("/:id/status",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("quotes:view", "quotes:create", "quotes:edit"),
 				h.UpdateQuoteStatus,
 			)
 			quotes.POST("/:id/convert",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("quotes:view", "quotes:create", "quotes:edit"),
 				h.ConvertQuote,
 			)
 			quotes.GET("/:id/pdf", h.GetQuotePdf)
@@ -536,40 +535,40 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			sales.GET("/stats/today", h.GetSaleTodayStats)
 			sales.GET("", h.ListSales)
 			sales.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 				h.CreateSale,
 			)
 			sales.GET("/:id", h.GetSale)
 			sales.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 				h.UpdateSale,
 			)
 			sales.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("sales:delete"),
 				h.DeleteSale,
 			)
 			sales.POST("/:id/payments",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 				h.AddSalePayment,
 			)
 			sales.POST("/:id/cancel",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 				h.CancelSale,
 			)
 			sales.GET("/:id/pdf-token", h.GetSalePdfToken)
 			sales.GET("/:id/lens-price-adjustments", h.ListLensPriceAdjustments)
 			sales.POST("/:id/lens-price-adjustments",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("sales:edit"),
 				h.CreateLensPriceAdjustment,
 			)
 		}
 		// These routes use additional param segments — registered directly to avoid wildcard conflicts
 		branchScoped.DELETE("/sales/:id/payments/:paymentId",
-			jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+			jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 			h.RemoveSalePayment,
 		)
 		branchScoped.DELETE("/sales/:id/lens-price-adjustments/:adjId",
-			jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+			jwtauth.RequireAnyPermission("sales:edit"),
 			h.DeleteLensPriceAdjustment,
 		)
 		branchScoped.GET("/sales/:id/lenses/:lensId/adjusted-price", h.GetAdjustedLensPrice)
@@ -580,23 +579,23 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			orders.GET("", h.ListOrders)
 			orders.GET("/:id", h.GetOrder)
 			orders.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("orders:create"),
 				h.CreateOrder,
 			)
 			orders.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("orders:edit"),
 				h.UpdateOrder,
 			)
 			orders.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("orders:delete"),
 				h.DeleteOrder,
 			)
 			orders.POST("/:id/status",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist),
+				jwtauth.RequireAnyPermission("orders:edit"),
 				h.UpdateOrderStatus,
 			)
 			orders.POST("/:id/payment-status",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("orders:edit"),
 				h.UpdateOrderPaymentStatus,
 			)
 		}
@@ -607,15 +606,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			laboratories.GET("", h.ListLaboratories)
 			laboratories.GET("/:id", h.GetLaboratory)
 			laboratories.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("laboratory:create", "laboratory:edit", "laboratory:delete"),
 				h.CreateLaboratory,
 			)
 			laboratories.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("laboratory:create", "laboratory:edit", "laboratory:delete"),
 				h.UpdateLaboratory,
 			)
 			laboratories.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequireAnyPermission("laboratory:create", "laboratory:edit", "laboratory:delete"),
 				h.DeleteLaboratory,
 			)
 		}
@@ -627,24 +626,24 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			labOrders.GET("", h.ListLaboratoryOrders)
 			labOrders.GET("/:id", h.GetLaboratoryOrder)
 			labOrders.POST("",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("laboratory_orders:create", "laboratory_orders:edit"),
 				h.CreateLaboratoryOrder,
 			)
 			labOrders.PUT("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("laboratory_orders:create", "laboratory_orders:edit"),
 				h.UpdateLaboratoryOrder,
 			)
 			labOrders.DELETE("/:id",
-				jwtauth.RequireRole(domain.RoleAdmin),
+				jwtauth.RequirePermission("laboratory_orders:delete"),
 				h.DeleteLaboratoryOrder,
 			)
 			labOrders.POST("/:id/status",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleLaboratory, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("laboratory_orders:edit"),
 				h.UpdateLaboratoryOrderStatus,
 			)
 			labOrders.GET("/:id/evidence", h.GetLaboratoryOrderEvidence)
 			labOrders.POST("/:id/evidence",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("laboratory_orders:edit"),
 				h.UploadLaboratoryOrderEvidence,
 			)
 			labOrders.GET("/:id/pdf-token", h.GetLaboratoryOrderPdfToken)
@@ -654,27 +653,27 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		portfolio := protected.Group("/portfolio")
 		{
 			portfolio.GET("/stats",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.GetPortfolioStats,
 			)
 			portfolio.GET("/orders",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.ListPortfolioOrders,
 			)
 			portfolio.GET("/orders/:id",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.GetPortfolioOrder,
 			)
 			portfolio.POST("/orders/:id/calls",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.RegisterPortfolioCall,
 			)
 			portfolio.GET("/orders/:id/calls",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.GetPortfolioOrderCalls,
 			)
 			portfolio.POST("/orders/:id/close",
-				jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist),
+				jwtauth.RequireAnyPermission("portfolio:view", "portfolio:manage"),
 				h.ClosePortfolioOrder,
 			)
 		}
@@ -682,125 +681,125 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		// Suppliers — read: admin + receptionist; write: admin only
 		suppliers := protected.Group("/suppliers")
 		{
-			suppliers.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListSuppliers)
-			suppliers.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetSupplier)
-			suppliers.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreateSupplier)
-			suppliers.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdateSupplier)
-			suppliers.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteSupplier)
+			suppliers.GET("", jwtauth.RequireAnyPermission("suppliers:view"), h.ListSuppliers)
+			suppliers.GET("/:id", jwtauth.RequireAnyPermission("suppliers:view"), h.GetSupplier)
+			suppliers.POST("", jwtauth.RequireAnyPermission("suppliers:create", "suppliers:edit", "suppliers:delete"), h.CreateSupplier)
+			suppliers.PUT("/:id", jwtauth.RequireAnyPermission("suppliers:create", "suppliers:edit", "suppliers:delete"), h.UpdateSupplier)
+			suppliers.DELETE("/:id", jwtauth.RequireAnyPermission("suppliers:create", "suppliers:edit", "suppliers:delete"), h.DeleteSupplier)
 		}
 
 		// Purchases — admin + receptionist
 		purchases := protected.Group("/purchases")
 		{
-			purchases.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListPurchases)
-			purchases.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetPurchase)
-			purchases.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreatePurchase)
-			purchases.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdatePurchase)
-			purchases.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeletePurchase)
-			purchases.POST("/:id/receive", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ReceivePurchase)
+			purchases.GET("", jwtauth.RequireAnyPermission("purchases:view", "purchases:create", "purchases:edit"), h.ListPurchases)
+			purchases.GET("/:id", jwtauth.RequireAnyPermission("purchases:view", "purchases:create", "purchases:edit"), h.GetPurchase)
+			purchases.POST("", jwtauth.RequireAnyPermission("purchases:view", "purchases:create", "purchases:edit"), h.CreatePurchase)
+			purchases.PUT("/:id", jwtauth.RequireAnyPermission("purchases:view", "purchases:create", "purchases:edit"), h.UpdatePurchase)
+			purchases.DELETE("/:id", jwtauth.RequirePermission("purchases:delete"), h.DeletePurchase)
+			purchases.POST("/:id/receive", jwtauth.RequireAnyPermission("purchases:view", "purchases:create", "purchases:edit"), h.ReceivePurchase)
 		}
 
 		// Expenses — admin + receptionist; delete: admin only
 		expenses := protected.Group("/expenses")
 		{
-			expenses.GET("/stats", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetExpenseStats)
-			expenses.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListExpenses)
-			expenses.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetExpense)
-			expenses.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreateExpense)
-			expenses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdateExpense)
-			expenses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteExpense)
+			expenses.GET("/stats", jwtauth.RequireAnyPermission("expenses:view", "expenses:create", "expenses:edit"), h.GetExpenseStats)
+			expenses.GET("", jwtauth.RequireAnyPermission("expenses:view", "expenses:create", "expenses:edit"), h.ListExpenses)
+			expenses.GET("/:id", jwtauth.RequireAnyPermission("expenses:view", "expenses:create", "expenses:edit"), h.GetExpense)
+			expenses.POST("", jwtauth.RequireAnyPermission("expenses:view", "expenses:create", "expenses:edit"), h.CreateExpense)
+			expenses.PUT("/:id", jwtauth.RequireAnyPermission("expenses:view", "expenses:create", "expenses:edit"), h.UpdateExpense)
+			expenses.DELETE("/:id", jwtauth.RequirePermission("expenses:delete"), h.DeleteExpense)
 		}
 
 		// Supplier Payments — admin + receptionist (stub endpoint)
 		supplierPayments := protected.Group("/supplier-payments")
 		{
-			supplierPayments.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListSupplierPayments)
+			supplierPayments.GET("", jwtauth.RequireAnyPermission("suppliers:view"), h.ListSupplierPayments)
 		}
 
 		// Payrolls — admin only
 		payrolls := protected.Group("/payrolls")
 		{
-			payrolls.GET("/stats", jwtauth.RequireRole(domain.RoleAdmin), h.GetPayrollStats)
-			payrolls.GET("", jwtauth.RequireRole(domain.RoleAdmin), h.ListPayrolls)
-			payrolls.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.GetPayroll)
-			payrolls.POST("", jwtauth.RequireRole(domain.RoleAdmin), h.CreatePayroll)
-			payrolls.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.UpdatePayroll)
-			payrolls.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeletePayroll)
+			payrolls.GET("/stats", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.GetPayrollStats)
+			payrolls.GET("", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.ListPayrolls)
+			payrolls.GET("/:id", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.GetPayroll)
+			payrolls.POST("", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.CreatePayroll)
+			payrolls.PUT("/:id", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.UpdatePayroll)
+			payrolls.DELETE("/:id", jwtauth.RequireAnyPermission("payrolls:view", "payrolls:create", "payrolls:edit", "payrolls:delete"), h.DeletePayroll)
 		}
 
 		// Service Orders — admin + receptionist + specialist
 		serviceOrders := protected.Group("/service-orders")
 		{
-			serviceOrders.GET("/stats", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist, domain.RoleSpecialist), h.GetServiceOrderStats)
-			serviceOrders.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist, domain.RoleSpecialist), h.ListServiceOrders)
-			serviceOrders.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist, domain.RoleSpecialist), h.GetServiceOrder)
-			serviceOrders.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreateServiceOrder)
-			serviceOrders.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdateServiceOrder)
-			serviceOrders.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteServiceOrder)
+			serviceOrders.GET("/stats", jwtauth.RequireAnyPermission("service_orders:view"), h.GetServiceOrderStats)
+			serviceOrders.GET("", jwtauth.RequireAnyPermission("service_orders:view"), h.ListServiceOrders)
+			serviceOrders.GET("/:id", jwtauth.RequireAnyPermission("service_orders:view"), h.GetServiceOrder)
+			serviceOrders.POST("", jwtauth.RequireAnyPermission("service_orders:create", "service_orders:edit"), h.CreateServiceOrder)
+			serviceOrders.PUT("/:id", jwtauth.RequireAnyPermission("service_orders:create", "service_orders:edit"), h.UpdateServiceOrder)
+			serviceOrders.DELETE("/:id", jwtauth.RequirePermission("service_orders:delete"), h.DeleteServiceOrder)
 		}
 
 		// Cash Transfers — admin + receptionist
 		cashTransfers := protected.Group("/cash-transfers")
 		{
-			cashTransfers.GET("/stats", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetCashTransferStats)
-			cashTransfers.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.ListCashTransfers)
-			cashTransfers.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.GetCashTransfer)
-			cashTransfers.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CreateCashTransfer)
-			cashTransfers.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.UpdateCashTransfer)
-			cashTransfers.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteCashTransfer)
-			cashTransfers.POST("/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveCashTransfer)
-			cashTransfers.POST("/:id/cancel", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleReceptionist), h.CancelCashTransfer)
+			cashTransfers.GET("/stats", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.GetCashTransferStats)
+			cashTransfers.GET("", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.ListCashTransfers)
+			cashTransfers.GET("/:id", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.GetCashTransfer)
+			cashTransfers.POST("", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.CreateCashTransfer)
+			cashTransfers.PUT("/:id", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.UpdateCashTransfer)
+			cashTransfers.DELETE("/:id", jwtauth.RequireAnyPermission("cash_transfers:delete", "cash_transfers:approve"), h.DeleteCashTransfer)
+			cashTransfers.POST("/:id/approve", jwtauth.RequireAnyPermission("cash_transfers:delete", "cash_transfers:approve"), h.ApproveCashTransfer)
+			cashTransfers.POST("/:id/cancel", jwtauth.RequireAnyPermission("cash_transfers:view", "cash_transfers:create", "cash_transfers:edit"), h.CancelCashTransfer)
 		}
 
 		// Cash Register Closes — admin + specialist + receptionist
 		cashRegisterCloses := branchScoped.Group("/cash-register-closes")
 		{
-			cashRegisterCloses.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListCashRegisterCloses)
-			cashRegisterCloses.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetCashRegisterClose)
-			cashRegisterCloses.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.CreateCashRegisterClose)
-			cashRegisterCloses.PUT("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.UpdateCashRegisterClose)
-			cashRegisterCloses.POST("/:id/submit", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.SubmitCashRegisterClose)
-			cashRegisterCloses.POST("/:id/approve", jwtauth.RequireRole(domain.RoleAdmin), h.ApproveCashRegisterClose)
-			cashRegisterCloses.POST("/:id/return", jwtauth.RequireRole(domain.RoleAdmin), h.ReturnCashRegisterCloseToDraft)
-			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequireRole(domain.RoleAdmin), h.PutCashRegisterCloseAdminActuals)
-			cashRegisterCloses.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.DeleteCashRegisterClose)
+			cashRegisterCloses.GET("", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.ListCashRegisterCloses)
+			cashRegisterCloses.GET("/:id", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.GetCashRegisterClose)
+			cashRegisterCloses.POST("", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.CreateCashRegisterClose)
+			cashRegisterCloses.PUT("/:id", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.UpdateCashRegisterClose)
+			cashRegisterCloses.POST("/:id/submit", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.SubmitCashRegisterClose)
+			cashRegisterCloses.POST("/:id/approve", jwtauth.RequirePermission("cash_close:approve"), h.ApproveCashRegisterClose)
+			cashRegisterCloses.POST("/:id/return", jwtauth.RequirePermission("cash_close:approve"), h.ReturnCashRegisterCloseToDraft)
+			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequirePermission("cash_close:approve"), h.PutCashRegisterCloseAdminActuals)
+			cashRegisterCloses.DELETE("/:id", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.DeleteCashRegisterClose)
 		}
 
-		branchScoped.GET("/cash-register-closes-advisors-pending", jwtauth.RequireRole(domain.RoleAdmin), h.ListCashRegisterClosesAdvisorsPending)
-		branchScoped.GET("/cash-register-closes-calendar", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesCalendar)
-		branchScoped.GET("/cash-register-closes-consolidated", jwtauth.RequireRole(domain.RoleAdmin), h.GetCashRegisterClosesConsolidated)
+		branchScoped.GET("/cash-register-closes-advisors-pending", jwtauth.RequirePermission("cash_close:view"), h.ListCashRegisterClosesAdvisorsPending)
+		branchScoped.GET("/cash-register-closes-calendar", jwtauth.RequirePermission("cash_close:view"), h.GetCashRegisterClosesCalendar)
+		branchScoped.GET("/cash-register-closes-consolidated", jwtauth.RequirePermission("cash_close:view"), h.GetCashRegisterClosesConsolidated)
 
 		// Dashboard — all authenticated roles
 		dashboard := protected.Group("/dashboard")
 		{
-			dashboard.GET("/summary", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetDashboardSummary)
+			dashboard.GET("/summary", jwtauth.RequirePermission("dashboard:view"), h.GetDashboardSummary)
 		}
 
 		// Admin Notifications — admin only
 		adminNotifications := protected.Group("/admin/notifications")
 		{
-			adminNotifications.GET("/summary", jwtauth.RequireRole(domain.RoleAdmin), h.GetNotificationSummary)
-			adminNotifications.GET("", jwtauth.RequireRole(domain.RoleAdmin), h.ListNotifications)
-			adminNotifications.PATCH("/read-all", jwtauth.RequireRole(domain.RoleAdmin), h.MarkAllNotificationsRead)
-			adminNotifications.PATCH("/:id/read", jwtauth.RequireRole(domain.RoleAdmin), h.MarkNotificationRead)
-			adminNotifications.PATCH("/:id/unread", jwtauth.RequireRole(domain.RoleAdmin), h.MarkNotificationUnread)
-			adminNotifications.PATCH("/:id/archive", jwtauth.RequireRole(domain.RoleAdmin), h.ArchiveNotification)
-			adminNotifications.PATCH("/:id/unarchive", jwtauth.RequireRole(domain.RoleAdmin), h.UnarchiveNotification)
-			adminNotifications.DELETE("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.DeleteNotification)
+			adminNotifications.GET("/summary", jwtauth.RequirePermission("notifications:manage"), h.GetNotificationSummary)
+			adminNotifications.GET("", jwtauth.RequirePermission("notifications:manage"), h.ListNotifications)
+			adminNotifications.PATCH("/read-all", jwtauth.RequirePermission("notifications:manage"), h.MarkAllNotificationsRead)
+			adminNotifications.PATCH("/:id/read", jwtauth.RequirePermission("notifications:manage"), h.MarkNotificationRead)
+			adminNotifications.PATCH("/:id/unread", jwtauth.RequirePermission("notifications:manage"), h.MarkNotificationUnread)
+			adminNotifications.PATCH("/:id/archive", jwtauth.RequirePermission("notifications:manage"), h.ArchiveNotification)
+			adminNotifications.PATCH("/:id/unarchive", jwtauth.RequirePermission("notifications:manage"), h.UnarchiveNotification)
+			adminNotifications.DELETE("/:id", jwtauth.RequirePermission("notifications:manage"), h.DeleteNotification)
 		}
 
 		// Notes — all authenticated roles; polymorphic /:type/:id/notes
 		notes := protected.Group("/:type/:id/notes")
 		{
-			notes.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListNotes)
-			notes.POST("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.CreateNote)
+			notes.GET("", jwtauth.RequireAnyPermission("notes:create", "notes:view"), h.ListNotes)
+			notes.POST("", jwtauth.RequireAnyPermission("notes:create", "notes:view"), h.CreateNote)
 		}
 
 		// Bulk Import — admin only
 		// Single polymorphic endpoint: POST /bulk-import  (form field "type" selects the importer)
 		// Typed convenience routes are kept for backwards compatibility.
 		bulkImportGroup := protected.Group("/bulk-import")
-		bulkImportGroup.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		bulkImportGroup.Use(jwtauth.RequirePermission("bulk_import:manage"))
 		{
 			bulkImportGroup.POST("", h.BulkImport)
 			bulkImportGroup.POST("/patients", h.BulkImportPatients)
@@ -815,14 +814,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		// Daily Activity Reports — all authenticated roles
 		dailyActivity := branchScoped.Group("/daily-activity-reports")
 		{
-			dailyActivity.GET("", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.ListDailyActivityReports)
-			dailyActivity.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin, domain.RoleSpecialist, domain.RoleReceptionist), h.GetDailyActivityReport)
-			dailyActivity.POST("", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.CreateDailyActivityReport)
-			dailyActivity.PUT("/:id", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.UpdateDailyActivityReport)
-			dailyActivity.POST("/:id/close", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.CloseReport)
-			dailyActivity.POST("/:id/reopen", jwtauth.RequireRole(domain.RoleAdmin), h.ReopenReport)
-			dailyActivity.POST("/quick-attention", jwtauth.RequireRole(domain.RoleSpecialist, domain.RoleReceptionist), h.QuickAttentionDailyActivity)
-			dailyActivity.GET("/:id/edit-logs", jwtauth.RequireRole(domain.RoleAdmin), h.GetDailyActivityReportEditLogs)
+			dailyActivity.GET("", jwtauth.RequireAnyPermission("daily_reports:view"), h.ListDailyActivityReports)
+			dailyActivity.GET("/:id", jwtauth.RequireAnyPermission("daily_reports:view"), h.GetDailyActivityReport)
+			dailyActivity.POST("", jwtauth.RequireAnyPermission("daily_reports:create"), h.CreateDailyActivityReport)
+			dailyActivity.PUT("/:id", jwtauth.RequireAnyPermission("daily_reports:create"), h.UpdateDailyActivityReport)
+			dailyActivity.POST("/:id/close", jwtauth.RequireAnyPermission("daily_reports:create"), h.CloseReport)
+			dailyActivity.POST("/:id/reopen", jwtauth.RequirePermission("daily_reports:view"), h.ReopenReport)
+			dailyActivity.POST("/quick-attention", jwtauth.RequireAnyPermission("daily_reports:create"), h.QuickAttentionDailyActivity)
+			dailyActivity.GET("/:id/edit-logs", jwtauth.RequirePermission("daily_reports:view"), h.GetDailyActivityReportEditLogs)
 		}
 	}
 }
