@@ -176,6 +176,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.Optica{},
 		&domain.SuperAdmin{},
 		&domain.OpticaFeature{},
+		&domain.OpticaAllowedPermission{},
 	)
 }
 
