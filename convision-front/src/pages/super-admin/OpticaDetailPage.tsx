@@ -9,6 +9,7 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useToast } from '@/components/ui/use-toast';
 import { superAdminService } from '@/services/superAdmin';
 import OpticaAdminsTab from './OpticaAdminsTab';
+import OpticaPermissionsPanel from './OpticaPermissionsPanel';
 
 const PLAN_LABELS: Record<string, string> = {
   standard: 'Estándar',
@@ -41,7 +42,7 @@ const FEATURE_ORDER = [
   'sidebar.reports', 'sidebar.clinical', 'sidebar.catalog', 'sidebar.discounts',
 ];
 
-type Tab = 'info' | 'modules' | 'admins';
+type Tab = 'info' | 'modules' | 'admins' | 'permissions';
 
 const OpticaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -105,6 +106,7 @@ const OpticaDetailPage: React.FC = () => {
     { key: 'info', label: 'Información' },
     { key: 'modules', label: 'Módulos' },
     { key: 'admins', label: 'Administradores' },
+    { key: 'permissions', label: 'Permisos' },
   ];
 
   return (
@@ -262,6 +264,10 @@ const OpticaDetailPage: React.FC = () => {
 
         {activeTab === 'admins' && (
           <OpticaAdminsTab opticaId={opticaId} opticaName={optica.name} />
+        )}
+
+        {activeTab === 'permissions' && (
+          <OpticaPermissionsPanel opticaId={opticaId} />
         )}
       </div>
     </div>
