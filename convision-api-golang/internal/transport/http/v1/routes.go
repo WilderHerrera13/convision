@@ -73,6 +73,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		superAdmin.POST("/opticas/:id/admins", h.CreateOpticaAdmin)
 		superAdmin.DELETE("/opticas/:id/admins/:userId", h.DeleteOpticaAdmin)
 		superAdmin.GET("/feature-keys", h.ListFeatureKeys)
+		superAdmin.GET("/permissions", h.ListAllPermissionsForSuperAdmin)
 	}
 
 	// Protected routes — require a valid JWT (revocation-checked) + tenant schema scoping
@@ -134,6 +135,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		userRolesGroup := protected.Group("/users/:id/roles")
 		userRolesGroup.Use(jwtauth.RequirePermission("roles_permissions:manage"))
 		{
+			userRolesGroup.GET("", h.GetUserRoles)
 			userRolesGroup.POST("", h.AssignRoleToUser)
 			userRolesGroup.DELETE("/:roleId", h.RemoveRoleFromUser)
 		}
