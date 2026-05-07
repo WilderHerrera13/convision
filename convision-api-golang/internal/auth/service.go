@@ -16,14 +16,15 @@ import (
 )
 
 type Service struct {
-	db            *gorm.DB
-	users         domain.UserRepository
-	revokedTokens domain.RevokedTokenRepository
-	branches      domain.BranchRepository
-	superAdmins   domain.SuperAdminRepository
-	featureCache  *featurecache.Cache
-	roleService   *rolesvc.Service
-	logger        *zap.Logger
+	db             *gorm.DB
+	users          domain.UserRepository
+	revokedTokens  domain.RevokedTokenRepository
+	branches       domain.BranchRepository
+	superAdmins    domain.SuperAdminRepository
+	featureCache   *featurecache.Cache
+	roleService    *rolesvc.Service
+	opticaPermRepo domain.OpticaPermissionRepository
+	logger         *zap.Logger
 }
 
 func NewService(
@@ -34,17 +35,19 @@ func NewService(
 	superAdmins domain.SuperAdminRepository,
 	featureCache *featurecache.Cache,
 	roleService *rolesvc.Service,
+	opticaPermRepo domain.OpticaPermissionRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		db:            db,
-		users:         users,
-		revokedTokens: revokedTokens,
-		branches:      branches,
-		superAdmins:   superAdmins,
-		featureCache:  featureCache,
-		roleService:   roleService,
-		logger:        logger,
+		db:             db,
+		users:          users,
+		revokedTokens:  revokedTokens,
+		branches:       branches,
+		superAdmins:    superAdmins,
+		featureCache:   featureCache,
+		roleService:    roleService,
+		opticaPermRepo: opticaPermRepo,
+		logger:         logger,
 	}
 }
 
@@ -143,12 +146,30 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 		return nil, err
 	}
 	flags, _ := s.featureCache.GetEnabled(ctx.OpticaID)
-	permissions, err := s.roleService.GetUserPermissionKeys(user.ID)
+	permissions, err := s.roleService.GetUserPermissionKeys(tx, user.ID)
 	if err != nil {
 		s.logger.Warn("failed to load user permissions during login",
 			zap.Uint("user_id", user.ID), zap.Error(err))
 		permissions = []string{}
 	}
+	// Apply optica permission ceiling (skip for super admin schema)
+	if ctx.SchemaName != "platform" && s.opticaPermRepo != nil {
+		if hasRestriction, err := s.opticaPermRepo.HasAny(ctx.OpticaID); err == nil && hasRestriction {
+			allowedKeys, _ := s.opticaPermRepo.ListByOpticaID(ctx.OpticaID)
+			allowedSet := make(map[string]struct{}, len(allowedKeys))
+			for _, k := range allowedKeys {
+				allowedSet[k] = struct{}{}
+			}
+			filtered := permissions[:0]
+			for _, p := range permissions {
+				if _, ok := allowedSet[p]; ok {
+					filtered = append(filtered, p)
+				}
+			}
+			permissions = filtered
+		}
+	}
+
 	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, ctx.OpticaID, ctx.SchemaName, flags, permissions)
 	if err != nil {
 		return nil, err
@@ -182,29 +203,48 @@ func (s *Service) Logout(jti string) error {
 	return s.revokedTokens.Revoke(s.db, jti)
 }
 
-func (s *Service) Me(userID uint) (*domain.User, error) {
-	return s.users.GetByID(s.db, userID)
+func (s *Service) Me(db *gorm.DB, userID uint) (*domain.User, error) {
+	return s.users.GetByID(db, userID)
 }
 
-func (s *Service) Refresh(oldJti string, userID uint, opticaID uint, schemaName string) (*LoginOutput, error) {
-	user, err := s.users.GetByID(s.db, userID)
+func (s *Service) Refresh(db *gorm.DB, oldJti string, userID uint, opticaID uint, schemaName string) (*LoginOutput, error) {
+	user, err := s.users.GetByID(db, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.ensureOperatorBranchesForLogin(s.db, user); err != nil {
+	if err := s.ensureOperatorBranchesForLogin(db, user); err != nil {
 		return nil, err
 	}
 
-	if err := s.revokedTokens.Revoke(s.db, oldJti); err != nil {
+	if err := s.revokedTokens.Revoke(db, oldJti); err != nil {
 		return nil, err
 	}
 
 	flags, _ := s.featureCache.GetEnabled(opticaID)
-	permissions, err := s.roleService.GetUserPermissionKeys(user.ID)
+	permissions, err := s.roleService.GetUserPermissionKeys(db, user.ID)
 	if err != nil {
 		permissions = []string{}
 	}
+
+	// Apply optica permission ceiling (skip for super admin schema)
+	if schemaName != "platform" && s.opticaPermRepo != nil {
+		if hasRestriction, err := s.opticaPermRepo.HasAny(opticaID); err == nil && hasRestriction {
+			allowedKeys, _ := s.opticaPermRepo.ListByOpticaID(opticaID)
+			allowedSet := make(map[string]struct{}, len(allowedKeys))
+			for _, k := range allowedKeys {
+				allowedSet[k] = struct{}{}
+			}
+			filtered := permissions[:0]
+			for _, p := range permissions {
+				if _, ok := allowedSet[p]; ok {
+					filtered = append(filtered, p)
+				}
+			}
+			permissions = filtered
+		}
+	}
+
 	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, opticaID, schemaName, flags, permissions)
 	if err != nil {
 		return nil, err
