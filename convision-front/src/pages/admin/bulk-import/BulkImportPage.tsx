@@ -67,6 +67,13 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       </span>
     );
   }
+  if (status === 'updated') {
+    return (
+      <span className="bg-[#eff1ff] text-[#3a71f7] text-[11px] font-semibold px-[10px] py-[3px] rounded-full">
+        Actualizado
+      </span>
+    );
+  }
   if (status === 'skipped') {
     return (
       <span className="bg-[#fff6e3] text-[#b57218] text-[11px] font-semibold px-[10px] py-[3px] rounded-full">
@@ -109,6 +116,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
     : importType === 'scheduled-appointments' ? ['documento', 'cliente', 'fechaconsulta', 'usuario']
     : importType === 'lenses' ? ['codigointerno', 'descripción', 'precio', 'proveedor']
     : importType === 'staff-users' ? ['nombre', 'documento', 'rol', 'sede']
+    : importType === 'inventory' ? ['código', 'descripción', 'cant', 'sede']
     : ['documento', 'nombre', 'apellido', 'correo'];
 
   const searchPlaceholder =
@@ -116,6 +124,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
     : importType === 'scheduled-appointments' ? 'Buscar consulta...'
     : importType === 'lenses' ? 'Buscar lente...'
     : importType === 'staff-users' ? 'Buscar usuario...'
+    : importType === 'inventory' ? 'Buscar producto...'
     : 'Buscar especialista...';
 
   return (
@@ -293,6 +302,33 @@ const STAFF_USERS_CONFIG: TypeConfig = {
   cancelPath: '/admin/bulk-import',
 };
 
+const INVENTORY_CONFIG: TypeConfig = {
+  title: 'Carga Masiva de Inventario',
+  mapChips: [
+    { col: 'Código',        label: 'Código Interno'   },
+    { col: 'Identificador', label: 'Identificador'    },
+    { col: 'Descripción',   label: 'Descripción'      },
+    { col: 'tipoproducto',  label: 'Tipo Producto'    },
+    { col: 'Marca',         label: 'Marca'            },
+    { col: 'Categoria',     label: 'Categoría'        },
+    { col: 'Tipo',          label: 'Tipo de Montura'  },
+    { col: 'Cant',          label: 'Cantidad'         },
+    { col: 'precioventa',   label: 'Precio Venta'     },
+    { col: 'preciocompra',  label: 'Precio Compra'    },
+    { col: 'Sede',          label: 'ID Sede'          },
+  ],
+  asideItems: [
+    { title: 'Columnas requeridas', body: 'Código, Cant y Sede son obligatorios. Las demás columnas son opcionales.' },
+    { title: 'Cantidades acumulativas', body: 'Si el mismo Código aparece varias veces, las cantidades se SUMAN. No se duplica el registro de inventario.' },
+    { title: 'Productos nuevos', body: 'Si el Código no existe en el catálogo, el producto se crea automáticamente con el tipo indicado en "tipoproducto" (MONTURA → montura, otros → accesorio).' },
+    { title: 'Sede y Bodega', body: 'El campo Sede es el ID numérico de la sede. Si la sede no tiene bodega registrada, se crea automáticamente una Bodega Principal.' },
+    { title: 'Kardex automático', body: 'Cada fila escribe un registro en el kardex de bodega: "entry" para stock nuevo, "adjustment_add" para suma de cantidades existentes.' },
+  ],
+  tipBody: 'Los productos nuevos se crearán en el catálogo con tracks_stock=true. Las cantidades se acumulan por sede y bodega. Cada cambio queda registrado en el kardex.',
+  tableHeaders: ['FILA', 'CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD', 'SEDE', 'ESTADO'],
+  cancelPath: '/admin/bulk-import',
+};
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const BulkImportPage: React.FC = () => {
@@ -305,6 +341,7 @@ const BulkImportPage: React.FC = () => {
     : type === 'scheduled-appointments' ? 'scheduled-appointments'
     : type === 'lenses' ? 'lenses'
     : type === 'staff-users' ? 'staff-users'
+    : type === 'inventory' ? 'inventory'
     : 'patients';
 
   const config =
@@ -312,6 +349,7 @@ const BulkImportPage: React.FC = () => {
     : importType === 'scheduled-appointments' ? SCHEDULED_APPOINTMENTS_CONFIG
     : importType === 'lenses' ? LENSES_CONFIG
     : importType === 'staff-users' ? STAFF_USERS_CONFIG
+    : importType === 'inventory' ? INVENTORY_CONFIG
     : PATIENTS_CONFIG;
 
   const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
@@ -387,6 +425,7 @@ const BulkImportPage: React.FC = () => {
         : importType === 'scheduled-appointments' ? await bulkImportService.uploadScheduledAppointments(file)
         : importType === 'lenses' ? await bulkImportService.uploadLenses(file)
         : importType === 'staff-users' ? await bulkImportService.uploadStaffUsers(file)
+        : importType === 'inventory' ? await bulkImportService.uploadInventory(file)
         : await bulkImportService.uploadPatients(file);
       setResult(res);
       await fetchHistory();
