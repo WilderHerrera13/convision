@@ -18,7 +18,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [x] **Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor** - Cierre de caja, reporte de gestión diaria, aprobación admin (2026-04-14)
 - [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
 - [x] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login (completed 2026-04-28)
-- [ ] **Phase 18: Sales-Inventory Stock Deduction** - Connect the sales module to WMS: deduct InventoryItem quantity and write StockMovement on sale creation; revert on cancellation
+- [x] **Phase 18: Sales-Inventory Stock Deduction** - Connect the sales module to WMS: deduct InventoryItem quantity and write StockMovement on sale creation; revert on cancellation (completed 2026-05-07)
 - [x] **Phase 19: RBAC — Roles & Permissions** - Replace single-role authorization with a fine-grained permission system: roles table, permission catalog (85+ keys), JWT permissions claim, RequirePermission middleware, routes migration, frontend AuthContext + usePermission hook, admin RolesManagementPage
 
 ## Phase Details
@@ -169,7 +169,7 @@ Plans:
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
-| 18. Sales-Inventory Stock Deduction | 3/4 | In Progress|  |
+| 18. Sales-Inventory Stock Deduction | 4/4 | Complete   | 2026-05-07 |
 | 19. RBAC — Roles & Permissions | 1/6 | In Progress|  |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
@@ -220,13 +220,13 @@ Plans:
   4. Sales with Product.tracks_stock=false (lens items) complete without touching inventory
   5. A sale with zero available stock still completes (warn, no block) — business sells on backorder
   6. `make build` exits 0 after all changes
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 18-01: Migration 000038 + Branch domain/service/handler — default_warehouse_id
 - [x] 18-02: Sale service wiring — FindBySaleAndProduct, deductStock (Modelo A), revertStock, main.go
 - [x] 18-03: Frontend — branch edit form adds default warehouse selector
-- [ ] 18-04: Verification — make build + structural grep audit
+- [x] 18-04: Verification — make build + structural grep audit
 
 ### Phase 19: RBAC — Roles & Permissions
 **Goal:** Replace the single `role` column authorization with a fine-grained permission system. Introduce `roles`, `permissions`, `role_permissions`, and `user_roles` tables. Migrate JWT claims to include `permissions: []string`. Replace all `RequireRole()` middleware calls in `routes.go` with `RequirePermission()`. Refactor frontend AuthContext to expose `hasPermission()` hook. Build admin UI for role management and user role assignment.
