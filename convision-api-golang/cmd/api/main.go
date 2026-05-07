@@ -167,11 +167,16 @@ func main() {
 	opticaRepo := postgresplatform.NewOpticaRepository(db)
 	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
 	opticaPermRepo := postgresplatform.NewOpticaPermissionRepository(db)
-	_ = opticaPermRepo // temporary — used in 20-02/20-03
+
+	// Load first active optica schema for super admin permissions catalog
+	superAdminPermSchema := ""
+	if opticas, err := opticaRepo.ListAllActive(); err == nil && len(opticas) > 0 {
+		superAdminPermSchema = opticas[0].SchemaName
+	}
 
 	// ---- Services (use-case layer) ----
 	roleService := rolesvc.NewService(db, roleRepo, permissionRepo, userRepo, logger)
-	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, roleService, logger)
+	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, roleService, opticaPermRepo, logger)
 	patientService := patient.NewService(patientRepo, logger)
 	userService := usersvc.NewService(userRepo, logger)
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
@@ -240,7 +245,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----
