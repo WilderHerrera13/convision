@@ -19,6 +19,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
 - [x] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login (completed 2026-04-28)
 - [ ] **Phase 18: Sales-Inventory Stock Deduction** - Connect the sales module to WMS: deduct InventoryItem quantity and write StockMovement on sale creation; revert on cancellation
+- [ ] **Phase 19: RBAC — Roles & Permissions** - Replace single-role authorization with a fine-grained permission system: roles table, permission catalog (85+ keys), JWT permissions claim, RequirePermission middleware, routes migration, frontend AuthContext + usePermission hook, admin RolesManagementPage
 
 ## Phase Details
 
@@ -169,6 +170,7 @@ Plans:
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
 | 18. Sales-Inventory Stock Deduction | 0/2 | Not started | - |
+| 19. RBAC — Roles & Permissions | 1/6 | In Progress|  |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
 
@@ -223,6 +225,20 @@ Plans:
 Plans:
 - [ ] 18-01: Backend — wire itemRepo + movementRepo into sale service; deductStock on Create, revertStock on Cancel
 - [ ] 18-02: Backend verification — integration smoke tests, make build passes
+
+### Phase 19: RBAC — Roles & Permissions
+**Goal:** Replace the single `role` column authorization with a fine-grained permission system. Introduce `roles`, `permissions`, `role_permissions`, and `user_roles` tables. Migrate JWT claims to include `permissions: []string`. Replace all `RequireRole()` middleware calls in `routes.go` with `RequirePermission()`. Refactor frontend AuthContext to expose `hasPermission()` hook. Build admin UI for role management and user role assignment.
+**Depends on:** Phase 14 (multi-branch), Phase 16 (JWT claims structure with optica_id/schema_name)
+**Requirements:** [RBAC-01, RBAC-02, RBAC-03, RBAC-04, RBAC-05, RBAC-06, RBAC-07]
+**Success Criteria** (what must be TRUE):
+  1. `roles`, `permissions`, `role_permissions`, `user_roles` tables exist with correct indexes and FK integrity
+  2. JWT claims include `permissions: []string` with all permission keys for the user's roles
+  3. `routes.go` contains ZERO `RequireRole()` calls — all replaced with `RequirePermission()`
+  4. All 4 system roles seeded with correct permission sets; all existing users assigned their matching system role
+  5. Frontend `AuthContext` exposes `hasPermission()`, `hasAnyPermission()`, `hasAllPermissions()` methods
+  6. Admin `RolesManagementPage` at `/admin/roles` with full CRUD and permission matrix
+  7. `make build && make test && npm run build` all exit 0
+**Plans:** 1/6 plans executed
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
