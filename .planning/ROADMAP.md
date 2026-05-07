@@ -169,7 +169,7 @@ Plans:
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
-| 18. Sales-Inventory Stock Deduction | 1/4 | In Progress|  |
+| 18. Sales-Inventory Stock Deduction | 2/4 | In Progress|  |
 | 19. RBAC — Roles & Permissions | 1/6 | In Progress|  |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
@@ -220,11 +220,11 @@ Plans:
   4. Sales with Product.tracks_stock=false (lens items) complete without touching inventory
   5. A sale with zero available stock still completes (warn, no block) — business sells on backorder
   6. `make build` exits 0 after all changes
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [x] 18-01: Migration 000038 + Branch domain/service/handler — default_warehouse_id
-- [ ] 18-02: Sale service wiring — FindBySaleAndProduct, deductStock (Modelo A), revertStock, main.go
+- [x] 18-02: Sale service wiring — FindBySaleAndProduct, deductStock (Modelo A), revertStock, main.go
 - [ ] 18-03: Frontend — branch edit form adds default warehouse selector
 - [ ] 18-04: Verification — make build + structural grep audit
 
