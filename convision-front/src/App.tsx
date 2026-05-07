@@ -149,12 +149,13 @@ import ManagementReportBulkUpload from '@/pages/admin/ManagementReportBulkUpload
 import ImportTypeSelectPage from '@/pages/admin/bulk-import/ImportTypeSelectPage';
 import BulkImportPage from '@/pages/admin/bulk-import/BulkImportPage';
 
-const ProtectedRoute: React.FC<{ 
-  children: React.ReactNode; 
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
   allowedRoles?: string[];
+  requiredPermission?: string;
   requireAuth?: boolean;
-}> = ({ children, allowedRoles, requireAuth = true }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+}> = ({ children, allowedRoles, requiredPermission, requireAuth = true }) => {
+  const { user, isAuthenticated, isLoading, hasPermission } = useAuth();
 
   if (isLoading) {
     return <LoadingScreen variant="auth" />;
@@ -168,14 +169,19 @@ const ProtectedRoute: React.FC<{
     return <Navigate to="/unauthorized" replace />;
   }
 
+  if (requiredPermission && user && !hasPermission(requiredPermission)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
   return <>{children}</>;
 };
 
 const BranchProtectedRoute: React.FC<{
   children: React.ReactNode;
   allowedRoles?: string[];
-}> = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated, isLoading, branches } = useAuth();
+  requiredPermission?: string;
+}> = ({ children, allowedRoles, requiredPermission }) => {
+  const { user, isAuthenticated, isLoading, branches, hasPermission } = useAuth();
   const { branchId, setBranch } = useBranch();
 
   useEffect(() => {
@@ -194,6 +200,10 @@ const BranchProtectedRoute: React.FC<{
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (requiredPermission && user && !hasPermission(requiredPermission)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

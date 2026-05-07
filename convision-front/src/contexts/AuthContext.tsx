@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, BranchInfo } from '@/services/auth';
 import { User } from '@/types/user';
@@ -34,6 +34,9 @@ interface AuthContextType {
   isAdmin: () => boolean;
   isSpecialist: () => boolean;
   isReceptionist: () => boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (...permissions: string[]) => boolean;
+  hasAllPermissions: (...permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -186,10 +189,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     applyRoleColors(user?.role);
   }, [user?.role]);
 
+  const permissionSet = useMemo(
+    () => new Set(user?.permissions ?? []),
+    [user?.permissions],
+  );
+
+  const hasPermission = useCallback(
+    (permission: string) => permissionSet.has(permission),
+    [permissionSet],
+  );
+
+  const hasAnyPermission = useCallback(
+    (...permissions: string[]) => permissions.some(p => permissionSet.has(p)),
+    [permissionSet],
+  );
+
+  const hasAllPermissions = useCallback(
+    (...permissions: string[]) => permissions.every(p => permissionSet.has(p)),
+    [permissionSet],
+  );
+
   const isAdmin = () => user?.role === 'admin';
   const isSpecialist = () => user?.role === 'specialist';
   const isReceptionist = () => user?.role === 'receptionist';
-
 
   const value = {
     user,
@@ -205,6 +227,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     isSpecialist,
     isReceptionist,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
   };
 
   return (

@@ -28,7 +28,7 @@ export const authService = {
     try {
       const response = await api.post('/api/v1/auth/login', credentials);
       const { access_token, token_type, expires_in, user, branches, feature_flags, require_password_change } = response.data;
-      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [] };
+      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [], permissions: user.permissions ?? [] };
 
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
@@ -77,7 +77,7 @@ export const authService = {
       // Use direct axios call here since we need to process the response before ApiService would return it
       const response = await api.post('/api/v1/auth/refresh');
       const { access_token, token_type, expires_in, user, branches, feature_flags } = response.data;
-      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [] };
+      const userWithFlags: User = { ...user, feature_flags: feature_flags ?? [], permissions: user.permissions ?? [] };
 
       // Update stored auth data
       localStorage.setItem('access_token', access_token);
