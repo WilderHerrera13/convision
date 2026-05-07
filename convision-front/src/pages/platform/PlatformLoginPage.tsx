@@ -39,7 +39,8 @@ const PlatformLoginPage: React.FC = () => {
       localStorage.setItem('auth_user', JSON.stringify({ ...user, feature_flags: [] }));
       localStorage.setItem('auth_branches', JSON.stringify([]));
       localStorage.setItem('require_password_change', 'false');
-      navigate('/super-admin/opticas');
+      // Full reload so AuthContext re-initialises from localStorage with the new super_admin token.
+      window.location.href = '/super-admin/opticas';
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Credenciales incorrectas o problema de conexión.';

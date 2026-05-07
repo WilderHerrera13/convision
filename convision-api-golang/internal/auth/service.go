@@ -105,7 +105,7 @@ func (s *Service) loginSuperAdmin(input LoginInput) (*LoginOutput, error) {
 		Name:  sa.Name,
 		RoleType: domain.RoleSuperAdmin,
 	}
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil, nil)
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil, []string{"super_admin:access"})
 	if err != nil {
 		return nil, err
 	}

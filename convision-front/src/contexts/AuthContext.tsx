@@ -83,13 +83,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(storedUser);
         setBranches(authService.getBranches());
-        
+
+        // Super admin tokens use the platform schema — /api/v1/auth/me is a tenant
+        // endpoint that rejects them with 403. Trust the stored user directly.
+        if (storedUser.role === 'super_admin') {
+          setIsLoading(false);
+          return;
+        }
+
         try {
           const currentUser = await authService.getCurrentUser();
           setUser({ ...currentUser, feature_flags: storedUser.feature_flags ?? [] });
         } catch (verificationError) {
           const errorResponse = verificationError as { response?: { status?: number } };
-          
+
           if (errorResponse?.response?.status === 401 || errorResponse?.response?.status === 403) {
             await authService.logout();
             setUser(null);
