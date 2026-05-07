@@ -169,7 +169,7 @@ Plans:
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
-| 18. Sales-Inventory Stock Deduction | 4/4 | Complete   | 2026-05-07 |
+| 18. Sales-Inventory Stock Deduction | 4/4 | Complete    | 2026-05-07 |
 | 19. RBAC — Roles & Permissions | 1/6 | In Progress|  |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
