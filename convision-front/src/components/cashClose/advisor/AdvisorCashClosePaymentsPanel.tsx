@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
-import { PaymentMethodName } from '@/services/cashRegisterCloseService';
+import { CASH_EQUIVALENT_METHODS, PaymentMethodName } from '@/services/cashRegisterCloseService';
 import CashPaymentMethodRow from '@/components/cashClose/CashPaymentMethodRow';
 import type { PaymentMethodState } from '@/hooks/useCashClose';
 
@@ -34,8 +34,8 @@ const AdvisorCashClosePaymentsPanel: React.FC<Props> = ({
     <Alert className="border-[#c5d3f8] bg-[#eff1ff] text-[#3a71f7]" role="note">
       <Info className="h-4 w-4 shrink-0" aria-hidden />
       <AlertDescription className="text-[13px] font-medium text-[#3a71f7]">
-        El efectivo se toma del arqueo por denominación (panel izquierdo). Aquí registra solo los demás medios
-        de pago.
+        El efectivo, anticipo y pago a Sistecredito son cobros en efectivo — ya están incluidos en el arqueo
+        por denominación (panel izquierdo) y no se suman al total aquí.
       </AlertDescription>
     </Alert>
 
@@ -61,6 +61,7 @@ const AdvisorCashClosePaymentsPanel: React.FC<Props> = ({
                 countedAmount={pm.counted_amount}
                 onChange={handlePaymentChange}
                 readOnly={isReadOnly}
+                isCashEquivalent={CASH_EQUIVALENT_METHODS.has(pm.name)}
               />
             ))}
           <TableRow className="border-t border-[#c5d3f8] bg-[#eff1ff] font-bold hover:bg-[#eff1ff]">

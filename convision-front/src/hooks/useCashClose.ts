@@ -7,6 +7,7 @@ import cashRegisterCloseService, {
   DENOMINATIONS,
   CashClose,
   CreateCashClosePayload,
+  CASH_EQUIVALENT_METHODS,
 } from '@/services/cashRegisterCloseService';
 
 function submitErrorMessage(err: unknown): string {
@@ -105,9 +106,8 @@ export function useCashClose(closeDate: Date) {
   const totalCashCounted = denominations.reduce((s, d) => s + d.denomination * d.quantity, 0);
 
   const nonCashCounted = paymentMethods
-    .filter((m) => m.name !== 'efectivo')
+    .filter((m) => !CASH_EQUIVALENT_METHODS.has(m.name))
     .reduce((s, m) => s + m.counted_amount, 0);
-  /** Efectivo solo por arqueo; el valor en estado `paymentMethods` para efectivo no se edita en UI. */
   const totalCounted = nonCashCounted + totalCashCounted;
 
   const buildPayload = (): CreateCashClosePayload => ({
