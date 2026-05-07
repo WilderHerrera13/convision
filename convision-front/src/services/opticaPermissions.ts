@@ -14,6 +14,8 @@ export const opticaPermissionsService = {
       permission_keys: permissionKeys,
     }),
 
-  getAllPermissions: (): Promise<Permission[]> =>
-    ApiService.get<Permission[]>('/api/v1/super-admin/permissions'),
+  getAllPermissions: async (): Promise<Permission[]> => {
+    const response = await ApiService.get<{ data: Permission[] }>('/api/v1/super-admin/permissions');
+    return response.data;
+  },
 };
