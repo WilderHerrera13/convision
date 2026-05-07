@@ -74,6 +74,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		superAdmin.DELETE("/opticas/:id/admins/:userId", h.DeleteOpticaAdmin)
 		superAdmin.GET("/feature-keys", h.ListFeatureKeys)
 		superAdmin.GET("/permissions", h.ListAllPermissionsForSuperAdmin)
+		// Optica permission scoping
+		superAdmin.GET("/opticas/:id/permissions", h.GetOpticaPermissions)
+		superAdmin.PUT("/opticas/:id/permissions", h.UpdateOpticaPermissions)
 	}
 
 	// Protected routes — require a valid JWT (revocation-checked) + tenant schema scoping
