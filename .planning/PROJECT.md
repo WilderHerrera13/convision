@@ -61,4 +61,4 @@ Clinic staff can complete core operational and sales workflows reliably in one i
 
 ---
 
-*Last updated: 2026-04-28 after Phase 14 completion*
+*Last updated: 2026-05-07 after Phase 18 completion*
