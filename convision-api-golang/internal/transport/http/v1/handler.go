@@ -145,9 +145,11 @@ type Handler struct {
 	bulkImportLog domain.BulkImportLogRepository
 	branchRepo    domain.BranchRepository
 	revokedTokens domain.RevokedTokenRepository
-	optica        *opticasvc.Service
-	featureFlag   *opticasvc.FeatureService
-	role          *rolesvc.Service
+	optica               *opticasvc.Service
+	featureFlag          *opticasvc.FeatureService
+	role                 *rolesvc.Service
+	opticaPermRepo       domain.OpticaPermissionRepository
+	superAdminPermSchema string
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -186,9 +188,11 @@ func NewHandler(
 	bulkImportLogRepo domain.BulkImportLogRepository,
 	revokedTokens    domain.RevokedTokenRepository,
 	branchRepo       domain.BranchRepository,
-	opticaSvc        *opticasvc.Service,
-	featureSvc       *opticasvc.FeatureService,
-	roleSvc          *rolesvc.Service,
+	opticaSvc            *opticasvc.Service,
+	featureSvc           *opticasvc.FeatureService,
+	roleSvc              *rolesvc.Service,
+	opticaPermRepo       domain.OpticaPermissionRepository,
+	superAdminPermSchema string,
 ) *Handler {
 	return &Handler{
 		db:             db,
@@ -225,9 +229,11 @@ func NewHandler(
 		bulkImportLog: bulkImportLogRepo,
 		branchRepo:    branchRepo,
 		revokedTokens: revokedTokens,
-		optica:        opticaSvc,
-		featureFlag:   featureSvc,
-		role:          roleSvc,
+		optica:               opticaSvc,
+		featureFlag:          featureSvc,
+		role:                 roleSvc,
+		opticaPermRepo:       opticaPermRepo,
+		superAdminPermSchema: superAdminPermSchema,
 	}
 }
 
@@ -376,7 +382,7 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	user, err := h.auth.Me(claims.UserID)
+	user, err := h.auth.Me(tenantDBFromCtx(c), claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -396,7 +402,8 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	opticaID := claims.OpticaID
 	schemaName := claims.SchemaName
-	out, err := h.auth.Refresh(claims.ID, claims.UserID, opticaID, schemaName)
+	db := tenantDBFromCtx(c)
+	out, err := h.auth.Refresh(db, claims.ID, claims.UserID, opticaID, schemaName)
 	if err != nil {
 		var noBranch *domain.ErrLoginNoBranches
 		if errors.As(err, &noBranch) {
