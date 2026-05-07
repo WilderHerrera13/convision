@@ -7,16 +7,31 @@ import (
 	"github.com/gin-gonic/gin"
 
 	branchsvc "github.com/convision/api/internal/branch"
+	"github.com/convision/api/internal/domain"
 )
 
 type BranchResource struct {
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Address  string `json:"address"`
-	City     string `json:"city"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	IsActive bool   `json:"is_active"`
+	ID                 uint   `json:"id"`
+	Name               string `json:"name"`
+	Address            string `json:"address"`
+	City               string `json:"city"`
+	Phone              string `json:"phone"`
+	Email              string `json:"email"`
+	IsActive           bool   `json:"is_active"`
+	DefaultWarehouseID *uint  `json:"default_warehouse_id"`
+}
+
+func branchToResource(b *domain.Branch) BranchResource {
+	return BranchResource{
+		ID:                 b.ID,
+		Name:               b.Name,
+		Address:            b.Address,
+		City:               b.City,
+		Phone:              b.Phone,
+		Email:              b.Email,
+		IsActive:           b.IsActive,
+		DefaultWarehouseID: b.DefaultWarehouseID,
+	}
 }
 
 func (h *Handler) ListBranches(c *gin.Context) {
@@ -28,10 +43,7 @@ func (h *Handler) ListBranches(c *gin.Context) {
 	}
 	out := make([]BranchResource, len(branches))
 	for i, b := range branches {
-		out[i] = BranchResource{
-			ID: b.ID, Name: b.Name, Address: b.Address,
-			City: b.City, Phone: b.Phone, Email: b.Email, IsActive: b.IsActive,
-		}
+		out[i] = branchToResource(b)
 	}
 	c.JSON(http.StatusOK, gin.H{"data": out})
 }
@@ -47,10 +59,7 @@ func (h *Handler) GetBranch(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, BranchResource{
-		ID: b.ID, Name: b.Name, Address: b.Address,
-		City: b.City, Phone: b.Phone, Email: b.Email, IsActive: b.IsActive,
-	})
+	c.JSON(http.StatusOK, branchToResource(b))
 }
 
 func (h *Handler) CreateBranch(c *gin.Context) {
@@ -65,10 +74,7 @@ func (h *Handler) CreateBranch(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, BranchResource{
-		ID: b.ID, Name: b.Name, Address: b.Address,
-		City: b.City, Phone: b.Phone, Email: b.Email, IsActive: b.IsActive,
-	})
+	c.JSON(http.StatusCreated, branchToResource(b))
 }
 
 func (h *Handler) UpdateBranch(c *gin.Context) {
@@ -87,10 +93,7 @@ func (h *Handler) UpdateBranch(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, BranchResource{
-		ID: b.ID, Name: b.Name, Address: b.Address,
-		City: b.City, Phone: b.Phone, Email: b.Email, IsActive: b.IsActive,
-	})
+	c.JSON(http.StatusOK, branchToResource(b))
 }
 
 func (h *Handler) AssignUserBranches(c *gin.Context) {
