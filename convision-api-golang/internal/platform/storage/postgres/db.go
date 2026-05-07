@@ -99,6 +99,9 @@ func Migrate(db *gorm.DB) error {
 		&domain.UserBranch{},
 		// Core entities
 		&domain.User{},
+		&domain.RoleModel{},
+		&domain.Permission{},
+		&domain.UserRole{},
 		&domain.Patient{},
 		// Appointments & clinical
 		&domain.Appointment{},
@@ -221,6 +224,9 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.UserBranch{},
 		// Core entities
 		&domain.User{},
+		&domain.RoleModel{},
+		&domain.Permission{},
+		&domain.UserRole{},
 		&domain.Patient{},
 		// Appointments & clinical
 		&domain.Appointment{},
