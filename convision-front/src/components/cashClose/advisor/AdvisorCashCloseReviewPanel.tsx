@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { PaymentMethodName } from '@/services/cashRegisterCloseService';
+import { CASH_EQUIVALENT_METHODS, PaymentMethodName } from '@/services/cashRegisterCloseService';
 import CashPaymentMethodRow from '@/components/cashClose/CashPaymentMethodRow';
 import CashCloseSummary from '@/components/cashClose/CashCloseSummary';
 import type { PaymentMethodState } from '@/hooks/useCashClose';
@@ -65,6 +65,7 @@ const AdvisorCashCloseReviewPanel: React.FC<Props> = ({
                 countedAmount={pm.counted_amount}
                 onChange={() => {}}
                 readOnly
+                isCashEquivalent={CASH_EQUIVALENT_METHODS.has(pm.name)}
               />
             ))}
             <TableRow className="border-t border-[#c5d3f8] bg-[#eff1ff] hover:bg-[#eff1ff]">
