@@ -26,12 +26,13 @@ type CreateInput struct {
 }
 
 type UpdateInput struct {
-	Name     *string `json:"name"`
-	Address  *string `json:"address"`
-	City     *string `json:"city"`
-	Phone    *string `json:"phone"`
-	Email    *string `json:"email"`
-	IsActive *bool   `json:"is_active"`
+	Name               *string `json:"name"`
+	Address            *string `json:"address"`
+	City               *string `json:"city"`
+	Phone              *string `json:"phone"`
+	Email              *string `json:"email"`
+	IsActive           *bool   `json:"is_active"`
+	DefaultWarehouseID *uint   `json:"default_warehouse_id"`
 }
 
 type AssignInput struct {
@@ -118,6 +119,9 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Branc
 	}
 	if input.IsActive != nil {
 		b.IsActive = *input.IsActive
+	}
+	if input.DefaultWarehouseID != nil {
+		b.DefaultWarehouseID = input.DefaultWarehouseID
 	}
 	if err := s.repo.Update(db, b); err != nil {
 		return nil, err
