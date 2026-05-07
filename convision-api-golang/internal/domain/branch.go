@@ -13,8 +13,9 @@ type Branch struct {
 	City         string        `json:"city"        gorm:"type:varchar(100)"`
 	Phone        string        `json:"phone"       gorm:"type:varchar(30)"`
 	Email        string        `json:"email"       gorm:"type:varchar(150)"`
-	IsActive     bool          `json:"is_active"   gorm:"not null;default:true"`
-	CreatedAt    time.Time     `json:"created_at"`
+	IsActive           bool          `json:"is_active"            gorm:"not null;default:true"`
+	DefaultWarehouseID *uint         `json:"default_warehouse_id" gorm:"column:default_warehouse_id"`
+	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 
 	UserBranches []UserBranch `json:"user_branches,omitempty" gorm:"foreignKey:BranchID"`
