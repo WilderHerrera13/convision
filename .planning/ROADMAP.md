@@ -169,7 +169,7 @@ Plans:
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
-| 18. Sales-Inventory Stock Deduction | 0/2 | Not started | - |
+| 18. Sales-Inventory Stock Deduction | 1/4 | In Progress|  |
 | 19. RBAC — Roles & Permissions | 1/6 | In Progress|  |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
@@ -220,11 +220,13 @@ Plans:
   4. Sales with Product.tracks_stock=false (lens items) complete without touching inventory
   5. A sale with zero available stock still completes (warn, no block) — business sells on backorder
   6. `make build` exits 0 after all changes
-**Plans:** 2/2 plans complete
+**Plans:** 1/4 plans executed
 
 Plans:
-- [ ] 18-01: Backend — wire itemRepo + movementRepo into sale service; deductStock on Create, revertStock on Cancel
-- [ ] 18-02: Backend verification — integration smoke tests, make build passes
+- [x] 18-01: Migration 000038 + Branch domain/service/handler — default_warehouse_id
+- [ ] 18-02: Sale service wiring — FindBySaleAndProduct, deductStock (Modelo A), revertStock, main.go
+- [ ] 18-03: Frontend — branch edit form adds default warehouse selector
+- [ ] 18-04: Verification — make build + structural grep audit
 
 ### Phase 19: RBAC — Roles & Permissions
 **Goal:** Replace the single `role` column authorization with a fine-grained permission system. Introduce `roles`, `permissions`, `role_permissions`, and `user_roles` tables. Migrate JWT claims to include `permissions: []string`. Replace all `RequireRole()` middleware calls in `routes.go` with `RequirePermission()`. Refactor frontend AuthContext to expose `hasPermission()` hook. Build admin UI for role management and user role assignment.
@@ -252,6 +254,18 @@ Plans:
   5. Super admin frontend has a per-optica permission matrix panel (accordion by module, checkboxes per action)
   6. `make build && make test && npm run build` all exit 0
 **Plans:** 5/5 plans complete
+
+### Phase 21: Standardize Backend Filter Pattern
+**Goal:** Migrate all Go backend filter parameters from the legacy `s_f`/`s_v` JSON-array pattern and ad-hoc dispersed query params to a single idiomatic Go pattern: typed Filter structs bound with `c.ShouldBindQuery()`. Eliminate `parseApiFilters()`, unify filter definitions in `domain` layer, update all affected handlers and repositories. Result: zero heap allocations from filter parsing, compile-time validation, self-documenting API contracts, and no allowlist boilerplate in repositories.
+**Depends on:** Phase 19 (RBAC), Phase 20 (permission scoping)
+**Requirements:** [FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05]
+**Success Criteria** (what must be TRUE):
+  1. `parseApiFilters()` and all `s_f`/`s_v`/`s_o` query param reads are deleted from the codebase
+  2. Every list endpoint handler uses `c.ShouldBindQuery(&filter)` with a typed struct defined in `internal/domain/`
+  3. Repository allowlist maps (`filterAllowlist`) are removed — the struct fields ARE the allowlist
+  4. All existing filter behavior preserved (same query params, same SQL semantics) — no frontend changes required
+  5. `make build && make test` exit 0
+**Plans:**
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.

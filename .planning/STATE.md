@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 20
+status: Ready to execute
 stopped_at: Phase 6 complete; `/gsd-execute-phase 6` tiene 0 planes incompletos (SUMMARYs presentes)
-last_updated: "2026-05-07T13:10:39.550Z"
-last_activity: 2026-05-07 -- Phase 20 execution started
+last_updated: "2026-05-07T20:06:43.242Z"
+last_activity: 2026-05-07
 progress:
-  total_phases: 14
-  completed_phases: 4
-  total_plans: 43
-  completed_plans: 24
-  percent: 56
+  total_phases: 15
+  completed_phases: 5
+  total_plans: 55
+  completed_plans: 30
+  percent: 55
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Clinic staff can complete core operational and sales workflows reliably in one integrated system
-**Current focus:** Phase 20 — super-admin-optica-permission-scoping
+**Current focus:** Phase 18 — sales-inventory-stock-deduction
 
 ## Current Position
 
-Phase: 20 (super-admin-optica-permission-scoping) — EXECUTING
-Plan: 1 of 5
-Last activity: 2026-05-07 -- Phase 20 execution started
+Phase: 18 (sales-inventory-stock-deduction) — EXECUTING
+Plan: 2 of 4
+Last activity: 2026-05-07
 Next: Phase 20 (TBD)
 
 Progress: [██████████] 100%
