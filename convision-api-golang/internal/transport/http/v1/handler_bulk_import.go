@@ -58,6 +58,12 @@ func (h *Handler) BulkImportStaffUsers(c *gin.Context) {
 	h.processBulkImport(c, bulkimport.ImportTypeStaffUsers)
 }
 
+// BulkImportInventory godoc
+// POST /api/v1/bulk-import/inventory
+func (h *Handler) BulkImportInventory(c *gin.Context) {
+	h.processBulkImport(c, bulkimport.ImportTypeInventory)
+}
+
 // BulkImportHistory godoc
 // GET /api/v1/bulk-import/history?type=&page=&per_page=
 func (h *Handler) BulkImportHistory(c *gin.Context) {

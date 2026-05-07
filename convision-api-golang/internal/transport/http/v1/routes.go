@@ -780,6 +780,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			bulkImportGroup.POST("/scheduled-appointments", h.BulkImportScheduledAppointments)
 			bulkImportGroup.POST("/lenses", h.BulkImportLenses)
 			bulkImportGroup.POST("/staff-users", h.BulkImportStaffUsers)
+			bulkImportGroup.POST("/inventory", h.BulkImportInventory)
 			bulkImportGroup.GET("/history", h.BulkImportHistory)
 		}
 
