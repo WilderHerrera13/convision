@@ -204,7 +204,7 @@ Plans:
   4. El módulo frontend incluye "Inventario" como opción en la pantalla de selección de carga masiva con columnas correctas mostradas en el resultado
 Plans:
 - [x] 17-01: Backend — inventoryImporter, route + handler
-- [ ] 17-02: Frontend — ImportTypeSelectPage + BulkImportPage INVENTORY_CONFIG + bulkImportService
+- [x] 17-02: Frontend — ImportTypeSelectPage + BulkImportPage INVENTORY_CONFIG + bulkImportService
 
 ### Phase 18: Sales-Inventory Stock Deduction
 
@@ -218,7 +218,7 @@ Plans:
   4. Sales with Product.tracks_stock=false (lens items) complete without touching inventory
   5. A sale with zero available stock still completes (warn, no block) — business sells on backorder
   6. `make build` exits 0 after all changes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 18-01: Backend — wire itemRepo + movementRepo into sale service; deductStock on Create, revertStock on Cancel
