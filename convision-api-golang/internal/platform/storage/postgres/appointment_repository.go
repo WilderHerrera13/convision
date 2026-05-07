@@ -76,6 +76,7 @@ func (r *AppointmentRepository) Update(db *gorm.DB, a *domain.Appointment) error
 		"sale_id":                    a.SaleID,
 		"left_eye_annotation_paths":  a.LeftEyeAnnotationPaths,
 		"right_eye_annotation_paths": a.RightEyeAnnotationPaths,
+		"lens_annotation_image":      a.LensAnnotationImage,
 		"lens_annotation_paths":      a.LensAnnotationPaths,
 	}).Error
 }

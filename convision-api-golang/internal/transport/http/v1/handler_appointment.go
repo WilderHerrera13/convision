@@ -418,3 +418,29 @@ func (h *Handler) GetLensAnnotation(c *gin.Context) {
 		"lens_annotation_paths":     parseRawJSON(a.LensAnnotationPaths),
 	})
 }
+
+func (h *Handler) SaveLensAnnotation(c *gin.Context) {
+	db := tenantDBFromCtx(c)
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	var input appointmentsvc.LensAnnotationInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+
+	a, err := h.appointment.SaveLensAnnotation(db, id, input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"lens_annotation_image":     nullableString(a.LensAnnotationImage),
+		"lens_annotation_image_url": nullableString(a.LensAnnotationImage),
+		"lens_annotation_paths":     parseRawJSON(a.LensAnnotationPaths),
+	})
+}

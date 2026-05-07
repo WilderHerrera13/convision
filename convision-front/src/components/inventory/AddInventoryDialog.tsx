@@ -99,7 +99,7 @@ const AddInventoryDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) 
                   <SelectContent>
                     {(stockData?.data ?? []).map((lens: LensWithInventory) => (
                       <SelectItem key={lens.id} value={String(lens.id)}>
-                        {lens.identifier} — {lens.brand?.name ?? 'Sin marca'}
+                        {lens.identifier} — {lens.brand_name ?? 'Sin marca'}
                       </SelectItem>
                     ))}
                   </SelectContent>

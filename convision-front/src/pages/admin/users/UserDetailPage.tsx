@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { userService, type User } from '@/services/userService';
 import UserFormShell from './UserFormShell';
+import UserRolesSection from './UserRolesSection';
 import { branchFormDefaultsFromAssignments, type AdminUserFormInput } from './userSchemas';
 import { roleLabel } from './usersTableColumns';
 
@@ -94,6 +95,7 @@ const UserDetailPage: React.FC = () => {
       viewBranchAssignments={viewBranchAssignments}
       footerNote={`Solo lectura · ${fullName} · ${roleText}`}
       onEdit={() => navigate(`/admin/users/${loaded.id}/edit`)}
+      renderRolesTab={<UserRolesSection userId={userId} readOnly />}
     />
   );
 };

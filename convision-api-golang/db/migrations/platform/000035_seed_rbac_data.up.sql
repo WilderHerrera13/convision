@@ -39,7 +39,6 @@ SELECT 2, id FROM permissions WHERE (module, action) IN (
     ('management_report','view'), ('management_report','create'),
     ('service_orders','view'),
     ('dashboard','view'),
-    ('cash_close','view'), ('cash_close','create'),
     ('daily_reports','view'), ('daily_reports','create'),
     ('notes','view'), ('notes','create'),
     ('catalog','view'),

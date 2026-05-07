@@ -76,3 +76,19 @@ func (m *MockUserRepository) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]
 	}
 	return args.Get(0).([]*domain.User), args.Error(1)
 }
+
+func (m *MockUserRepository) GetRoles(db *gorm.DB, userID uint) ([]*domain.RoleModel, error) {
+	args := m.Called(db, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RoleModel), args.Error(1)
+}
+
+func (m *MockUserRepository) AssignRoles(db *gorm.DB, userID uint, roleIDs []uint) error {
+	return m.Called(db, userID, roleIDs).Error(0)
+}
+
+func (m *MockUserRepository) IncrementTokenVersion(db *gorm.DB, userID uint) error {
+	return m.Called(db, userID).Error(0)
+}

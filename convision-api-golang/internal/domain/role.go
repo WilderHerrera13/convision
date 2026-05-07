@@ -19,7 +19,7 @@ type RoleModel struct {
 	UpdatedAt   time.Time  `json:"updated_at"  gorm:"type:timestamptz;not null;default:now()"`
 	DeletedAt   *time.Time `json:"deleted_at"  gorm:"type:timestamptz;index"`
 
-	Permissions []*Permission `json:"permissions,omitempty" gorm:"many2many:role_permissions;"`
+	Permissions []*Permission `json:"permissions,omitempty" gorm:"many2many:role_permissions;joinForeignKey:RoleID;joinReferences:PermissionID"`
 }
 
 // TableName returns the PostgreSQL table name for RoleModel.
@@ -53,6 +53,14 @@ type RolePermission struct {
 	CreatedAt    time.Time `json:"created_at"    gorm:"type:timestamptz;not null;default:now()"`
 }
 
+// RoleUserSummary is a minimal user projection for the role-users view.
+type RoleUserSummary struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	LastName string `json:"last_name"`
+	Email    string `json:"email"`
+}
+
 // RoleRepository defines persistence operations for RoleModel.
 type RoleRepository interface {
 	GetByID(db *gorm.DB, id uint) (*RoleModel, error)
@@ -62,6 +70,8 @@ type RoleRepository interface {
 	SoftDelete(db *gorm.DB, id uint) error
 	GetPermissions(db *gorm.DB, roleID uint) ([]*Permission, error)
 	GetUserPermissions(db *gorm.DB, userID uint) ([]string, error)
+	GetUserRoles(db *gorm.DB, userID uint) ([]*RoleModel, error)
+	GetRoleUsers(db *gorm.DB, roleID uint) ([]*RoleUserSummary, error)
 }
 
 // PermissionRepository defines persistence operations for Permission (read-only, immutable).

@@ -30,11 +30,11 @@ const AdminDailyReports: React.FC = () => {
 
   const roleByUserId = useMemo(() => {
     const m = new Map<number, string>();
-    users.forEach((u) => m.set(u.id, ROLE_LABELS[u.role] ?? u.role));
+    users.forEach((u) => { const r = u.role_type ?? u.role; m.set(u.id, ROLE_LABELS[r] ?? r); });
     return m;
   }, [users]);
 
-  const receptionists = useMemo(() => users.filter((u) => u.role === 'receptionist'), [users]);
+  const receptionists = useMemo(() => users.filter((u) => (u.role_type ?? u.role) === 'receptionist'), [users]);
 
   useEffect(() => {
     if (users.length === 0 || userId === 'all') return;

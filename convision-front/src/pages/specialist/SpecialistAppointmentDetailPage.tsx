@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
   ChevronRight, Pause, RotateCcw, CheckCircle2, AlertTriangle, X, Check, Play,
-  AlertCircle,
+  AlertCircle, Eye,
 } from 'lucide-react';
 import {
   getAppointmentById,
@@ -229,6 +229,10 @@ export default function SpecialistAppointmentDetailPage() {
             </button>
           )}
           {appt.status === 'in_progress' && (<>
+            <button className="h-9 px-4 border border-[#e5e5e9] rounded-[6px] text-[13px] font-semibold text-[#121215] bg-white hover:bg-[#e5f6ef] hover:border-[#0f8f64] flex items-center gap-1.5 transition-colors"
+              onClick={() => navigate(`/specialist/appointments/${apptId}/lens-explanation`)}>
+              <Eye className="size-3.5 text-[#0f8f64]" />Explicación de Lentes
+            </button>
             <button className="h-9 px-4 border border-[#e5e5e9] rounded-[6px] text-[13px] font-semibold text-[#121215] bg-white hover:bg-[#f5f5f6] flex items-center gap-1.5 disabled:opacity-50"
               onClick={() => pauseMut.mutate()} disabled={pauseMut.isPending}>
               <Pause className="size-3.5" />{pauseMut.isPending ? 'Pausando...' : 'Pausar consulta'}
@@ -239,6 +243,10 @@ export default function SpecialistAppointmentDetailPage() {
             </button>
           </>)}
           {appt.status === 'paused' && (<>
+            <button className="h-9 px-4 border border-[#e5e5e9] rounded-[6px] text-[13px] font-semibold text-[#121215] bg-white hover:bg-[#e5f6ef] hover:border-[#0f8f64] flex items-center gap-1.5 transition-colors"
+              onClick={() => navigate(`/specialist/appointments/${apptId}/lens-explanation`)}>
+              <Eye className="size-3.5 text-[#0f8f64]" />Explicación de Lentes
+            </button>
             <button className="h-9 px-4 bg-[#0f8f64] text-white rounded-[6px] text-[13px] font-semibold hover:bg-[#0a7050] flex items-center gap-1.5 disabled:opacity-50"
               onClick={() => resumeMut.mutate()} disabled={resumeMut.isPending}>
               <RotateCcw className="size-3.5" />{resumeMut.isPending ? 'Reanudando...' : 'Reanudar'}

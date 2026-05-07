@@ -1,5 +1,7 @@
 import type { Appointment } from '@/services/appointmentService';
 import type { ClinicalRecord } from '@/services/clinicalRecordService';
+import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 
 const STEP_LABELS = ['Anamnesis', 'Examen Visual', 'Diagnóstico', 'Prescripción'];
 const STEP_TIPS = [
@@ -23,6 +25,8 @@ interface Props {
 }
 
 export function AppointmentAsidePanel({ appt, record, activeStep }: Props) {
+  const navigate = useNavigate();
+  const apptId = appt.id;
   const patientName = appt.patient?.full_name
     || (appt.patient?.first_name && appt.patient?.last_name
         ? `${appt.patient.first_name} ${appt.patient.last_name}`
@@ -90,6 +94,20 @@ export function AppointmentAsidePanel({ appt, record, activeStep }: Props) {
         </p>
         <p className="text-[12px] text-[#0f8f64] leading-relaxed">{stepTip}</p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigate(`/specialist/appointments/${apptId}/lens-explanation`)}
+        className="w-full flex items-center gap-2 bg-white border border-[#e5e5e9] rounded-[8px] p-4 hover:border-[#0f8f64] hover:bg-[#e5f6ef] transition-colors group"
+      >
+        <div className="w-8 h-8 rounded-full bg-[#f0f0f2] flex items-center justify-center group-hover:bg-[#0f8f64] transition-colors shrink-0">
+          <Eye className="w-4 h-4 text-[#7d7d87] group-hover:text-white" />
+        </div>
+        <div className="text-left">
+          <p className="text-[13px] font-semibold text-[#0f0f12]">Explicación de Lentes</p>
+          <p className="text-[11px] text-[#7d7d87]">Simulador visual para explicar zonas del lente al paciente</p>
+        </div>
+      </button>
     </div>
   );
 }

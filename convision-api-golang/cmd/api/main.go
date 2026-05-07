@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gorm.io/gorm"
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
@@ -193,7 +194,7 @@ func main() {
 	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, db, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
+	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, branchRepo, inventoryItemRepo, stockMovementRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
 	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, saleRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
@@ -206,7 +207,10 @@ func main() {
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, dailyReportEditLogRepo, logger)
-	bulkImportService := bulkimport.NewService(patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, warehouseRepo, inventoryItemRepo, stockMovementRepo, logger)
+	bulkConnFactory := func(schemaName string) (*gorm.DB, func(), error) {
+		return postgresplatform.NewSchemaConnection(db, schemaName)
+	}
+	bulkImportService := bulkimport.NewService(bulkConnFactory, patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, warehouseRepo, inventoryItemRepo, stockMovementRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// Branch service
@@ -259,8 +263,8 @@ func main() {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 

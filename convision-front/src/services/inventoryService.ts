@@ -88,6 +88,31 @@ export interface LensWithInventory extends Lens {
   total_quantity: number;
 }
 
+export interface FrameAttributes {
+  id: number;
+  product_id: number;
+  frame_type: string;
+  material_frame: string;
+  gender: string;
+  lens_width: number;
+  bridge_width: number;
+  temple_length: number;
+  color: string;
+  shape: string;
+}
+
+export interface ContactLensAttributes {
+  id: number;
+  product_id: number;
+  contact_type: string;
+  replacement_schedule: string;
+  base_curve: number;
+  diameter: number;
+  material_contact: string;
+  water_content: number;
+  uv_protection: boolean;
+}
+
 export interface LensCatalogItem {
   id: number;
   internal_code: string;
@@ -101,6 +126,8 @@ export interface LensCatalogItem {
   supplier_id?: number;
   brand?: { id: number; name: string };
   supplier?: { id: number; name: string };
+  frame_attributes?: FrameAttributes;
+  contact_lens_attributes?: ContactLensAttributes;
   lens_attributes?: {
     id: number;
     product_id: number;
@@ -180,17 +207,18 @@ export interface InventoryAdjustment {
 
 class InventoryService {
   // Warehouse methods
-  async getWarehouses(params?: { page?: number, perPage?: number, status?: string }): Promise<PaginatedResponse<Warehouse>> {
+  async getWarehouses(params?: { page?: number, perPage?: number, status?: string, allBranches?: boolean }): Promise<PaginatedResponse<Warehouse>> {
     const searchParams = new URLSearchParams();
-    
+
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
-    
+    if (params?.allBranches) searchParams.append('branch_id', '0');
+
     if (params?.status) {
       searchParams.append('s_f', JSON.stringify(['status']));
       searchParams.append('s_v', JSON.stringify([params.status]));
     }
-    
+
     return await ApiService.get<PaginatedResponse<Warehouse>>(`/api/v1/warehouses?${searchParams.toString()}`);
   }
   
@@ -229,10 +257,9 @@ class InventoryService {
     if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
     
     if (params?.warehouseId) {
-      searchParams.append('s_f', JSON.stringify(['warehouse_id']));
-      searchParams.append('s_v', JSON.stringify([params.warehouseId.toString()]));
+      searchParams.append('warehouse_id', params.warehouseId.toString());
     }
-    
+
     return await ApiService.get<PaginatedResponse<WarehouseLocation>>(`/api/v1/warehouse-locations?${searchParams.toString()}`);
   }
   
@@ -339,8 +366,7 @@ class InventoryService {
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
     if (params?.status) {
-      searchParams.append('s_f', JSON.stringify(['status']));
-      searchParams.append('s_v', JSON.stringify([params.status]));
+      searchParams.append('status', params.status);
     }
 
     return await ApiService.get<PaginatedResponse<InventoryTransfer>>(`/api/v1/inventory-transfers?${searchParams.toString()}`);

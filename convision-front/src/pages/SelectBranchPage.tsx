@@ -69,11 +69,11 @@ const SelectBranchPage: React.FC = () => {
   const handleContinue = () => {
     if (!selectedBranch) return;
     setBranch(selectedBranch.id, selectedBranch.name);
-    if (user?.role === 'admin') {
+    if ((user?.role_type ?? user?.role) === 'admin') {
       navigate('/admin/dashboard');
-    } else if (user?.role === 'specialist') {
+    } else if ((user?.role_type ?? user?.role) === 'specialist') {
       navigate('/specialist/dashboard');
-    } else if (user?.role === 'receptionist') {
+    } else if ((user?.role_type ?? user?.role) === 'receptionist') {
       navigate('/receptionist/dashboard');
     } else {
       navigate('/profile');

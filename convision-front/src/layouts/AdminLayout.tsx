@@ -8,6 +8,7 @@ import {
   CreditCard, TrendingUp, LogOut, Menu, Eye,
   Wrench, Tag, ArrowLeftRight, Banknote, Users2, Building2,
   ClipboardList, BarChart3, FileBarChart2, FlaskConical as LabIcon, Upload, Wallet,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -59,6 +60,7 @@ const adminNav: NavSection[] = [
     label: 'GESTIÓN',
     items: [
       { title: 'Usuarios', path: '/admin/users', icon: Users2 },
+      { title: 'Roles y Permisos', path: '/admin/roles', icon: ShieldCheck },
       { title: 'Proveedores', path: '/admin/suppliers', icon: Building2 },
       { title: 'Laboratorios', path: '/admin/laboratories', icon: FlaskConical },
       { title: 'Informe Gestión Especialista', path: '/admin/specialist-reports', icon: FileBarChart2, featureKey: 'sidebar.reports' },

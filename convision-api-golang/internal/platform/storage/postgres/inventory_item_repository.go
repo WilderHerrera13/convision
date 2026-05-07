@@ -114,15 +114,11 @@ var totalStockProductFilterAllowlist = map[string]bool{
 	"supplier_id": true,
 }
 
-func (r *InventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any) ([]*domain.ProductStockEntry, error) {
-	q := db.Table("inventory_items").
-		Select("inventory_items.product_id, products.description AS product_name, COALESCE(SUM(inventory_items.quantity), 0) AS total_quantity").
-		Joins("JOIN products ON products.id = inventory_items.product_id").
+func applyTotalStockFilters(q *gorm.DB, filters map[string]any) *gorm.DB {
+	q = q.Joins("JOIN products ON products.id = inventory_items.product_id").
+		Joins("LEFT JOIN brands ON brands.id = products.brand_id").
 		Where("inventory_items.status = ?", domain.InventoryItemStatusAvailable).
-		Where("products.tracks_stock = true").
-		Group("inventory_items.product_id, products.description").
-		Order("inventory_items.product_id")
-
+		Where("products.tracks_stock = true")
 	for field, value := range filters {
 		if totalStockItemFilterAllowlist[field] {
 			q = q.Where("inventory_items."+field+" = ?", value)
@@ -136,12 +132,30 @@ func (r *InventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[
 			q = q.Where("products.product_category_id = ?", value)
 		}
 	}
+	return q
+}
 
-	var results []*domain.ProductStockEntry
-	if err := q.Scan(&results).Error; err != nil {
-		return nil, err
+func (r *InventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductStockEntry, int64, error) {
+	var total int64
+	if err := applyTotalStockFilters(db.Table("inventory_items"), filters).
+		Select("COUNT(DISTINCT inventory_items.product_id)").
+		Scan(&total).Error; err != nil {
+		return nil, 0, err
 	}
-	return results, nil
+
+	offset := (page - 1) * perPage
+	results := make([]*domain.ProductStockEntry, 0)
+	err := applyTotalStockFilters(db.Table("inventory_items"), filters).
+		Select("inventory_items.product_id AS id, products.internal_code, products.identifier, brands.name AS brand_name, COALESCE(SUM(inventory_items.quantity), 0) AS total_quantity").
+		Group("inventory_items.product_id, products.internal_code, products.identifier, brands.name").
+		Order("products.internal_code").
+		Limit(perPage).
+		Offset(offset).
+		Scan(&results).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return results, total, nil
 }
 
 func (r *InventoryItemRepository) ExistsByProductAndLocation(db *gorm.DB, productID, locationID, excludeID uint) (bool, error) {

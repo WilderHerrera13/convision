@@ -3,6 +3,7 @@ package postgres
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -93,7 +94,7 @@ func (r *RoleRepository) SoftDelete(db *gorm.DB, id uint) error {
 		if role.IsSystem {
 			return &domain.ErrUnauthorized{Action: "delete system role"}
 		}
-		return tx.Delete(&domain.RoleModel{}, id).Error
+		return tx.Model(&domain.RoleModel{}).Where("id = ?", id).Update("deleted_at", time.Now()).Error
 	})
 }
 
@@ -122,4 +123,31 @@ func (r *RoleRepository) GetUserPermissions(db *gorm.DB, userID uint) ([]string,
 		return nil, err
 	}
 	return keys, nil
+}
+
+func (r *RoleRepository) GetUserRoles(db *gorm.DB, userID uint) ([]*domain.RoleModel, error) {
+	var roles []*domain.RoleModel
+	if err := db.Table("roles").
+		Select("roles.id, roles.name, roles.description, roles.is_system, roles.is_default, roles.created_at, roles.updated_at").
+		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
+		Where("user_roles.user_id = ?", userID).
+		Where("roles.deleted_at IS NULL").
+		Find(&roles).Error; err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (r *RoleRepository) GetRoleUsers(db *gorm.DB, roleID uint) ([]*domain.RoleUserSummary, error) {
+	var users []*domain.RoleUserSummary
+	if err := db.Table("users").
+		Select("users.id, users.name, users.last_name, users.email").
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Where("user_roles.role_id = ?", roleID).
+		Where("users.active = true").
+		Order("users.name ASC").
+		Scan(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }

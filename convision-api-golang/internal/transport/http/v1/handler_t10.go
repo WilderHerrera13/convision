@@ -740,6 +740,10 @@ func (h *Handler) ReopenReport(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
 		return
 	}
+	if claims.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"message": "solo los administradores pueden reabrir un reporte"})
+		return
+	}
 	db := tenantDBFromCtx(c)
 	report, err := h.dailyActivity.Reopen(db, uint(id), uint(claims.UserID))
 	if err != nil {
@@ -756,7 +760,21 @@ func (h *Handler) GetDailyActivityReportEditLogs(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "no autenticado"})
+		return
+	}
 	db := tenantDBFromCtx(c)
+	report, err := h.dailyActivity.GetByID(db, uint(id))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	if claims.Role != "admin" && report.UserID != uint(claims.UserID) {
+		c.JSON(http.StatusForbidden, gin.H{"message": "no tienes permiso para ver este reporte"})
+		return
+	}
 	logs, err := h.dailyActivity.GetEditLogs(db, uint(id))
 	if err != nil {
 		respondError(c, err)

@@ -54,6 +54,11 @@ type AnnotationsInput struct {
 	RightEyeAnnotationPaths json.RawMessage `json:"right_eye_annotation_paths"`
 }
 
+type LensAnnotationInput struct {
+	LensAnnotationImage string          `json:"lens_annotation_image" binding:"required"`
+	LensAnnotationPaths json.RawMessage `json:"lens_annotation_paths"`
+}
+
 // ManagementReportInput holds the fields the specialist captures in the
 // management report ("Informe de gestión") form.
 type ManagementReportInput struct {
@@ -362,5 +367,28 @@ func (s *Service) SaveAnnotations(db *gorm.DB, id uint, input AnnotationsInput) 
 	if err := s.repo.Update(db, a); err != nil {
 		return nil, err
 	}
+	return s.repo.GetByID(db, a.ID)
+}
+
+func (s *Service) SaveLensAnnotation(db *gorm.DB, id uint, input LensAnnotationInput) (*domain.Appointment, error) {
+	a, err := s.repo.GetByID(db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.LensAnnotationImage != "" {
+		a.LensAnnotationImage = input.LensAnnotationImage
+	}
+	if len(input.LensAnnotationPaths) > 0 {
+		a.LensAnnotationPaths = string(input.LensAnnotationPaths)
+	}
+
+	if err := s.repo.Update(db, a); err != nil {
+		return nil, err
+	}
+
+	s.logger.Info("lens annotation saved",
+		zap.Uint("appointment_id", id),
+	)
 	return s.repo.GetByID(db, a.ID)
 }

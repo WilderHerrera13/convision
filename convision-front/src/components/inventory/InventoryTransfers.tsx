@@ -54,7 +54,7 @@ const InventoryTransfers: React.FC = () => {
       id: 'lens',
       header: 'Lente',
       type: 'text',
-      cell: (t) => <span className="text-[13px] text-[#121215]">{t.lens?.identifier ?? `ID ${t.lens_id}`}</span>,
+      cell: (t) => <span className="text-[13px] text-[#121215]">{(t as any).product?.identifier ?? `ID ${(t as any).product_id ?? t.id}`}</span>,
     },
     {
       id: 'source',

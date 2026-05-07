@@ -1036,6 +1036,32 @@ JWT_SECRET=<secreto-largo-aleatorio>
 JWT_EXPIRY_HOURS=24
 ```
 
+### Setup inicial — DB local (primera vez)
+
+Antes del primer `make dev` en una instalación limpia, el schema de tenant debe existir en PostgreSQL:
+
+```sql
+-- Ejecutar una sola vez contra la DB de desarrollo
+CREATE SCHEMA IF NOT EXISTS optica_main;
+
+-- Insertar la optica demo que usa APP_ENV=local
+INSERT INTO platform.opticas (name, slug, schema_name, is_active, created_at, updated_at)
+VALUES ('Óptica Demo', 'optica-demo', 'optica_main', true, NOW(), NOW())
+ON CONFLICT (slug) DO NOTHING;
+```
+
+> **Por qué:** `MigrateTenantSchema` hace `SET search_path = optica_main` pero PostgreSQL requiere que el schema exista *antes* de crear tablas en él. Si el schema no existe, el servidor falla con `ERROR: no schema has been selected to create in (SQLSTATE 3F000)`.
+
+### Nota: renaming de constraints en DBs antiguas
+
+Si la DB fue creada con una versión anterior de GORM (AutoMigrate pre-1.23), las constraints de unicidad tienen nombres con formato antiguo (`opticas_slug_key`) mientras GORM moderno espera `uni_opticas_slug`. AutoMigrate falla silenciosamente o con error de constraint duplicado. Fix:
+
+```sql
+ALTER TABLE platform.opticas RENAME CONSTRAINT opticas_slug_key TO uni_opticas_slug;
+ALTER TABLE platform.opticas RENAME CONSTRAINT opticas_schema_name_key TO uni_opticas_schema_name;
+ALTER TABLE platform.super_admins RENAME CONSTRAINT super_admins_email_key TO uni_super_admins_email;
+```
+
 ---
 
 ## 18. Checklist para una Nueva Feature

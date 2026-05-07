@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Diamond } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import PageLayout from '@/components/layouts/PageLayout';
 import rolesApi, { Role, Permission, CreateRoleInput } from '@/services/roles';
 import { MODULE_ORDER, labelModule, ACTION_LABELS } from '@/lib/permission-labels';
@@ -66,7 +66,7 @@ const RoleFormShell: React.FC<Props> = ({ mode, role, onSubmit, onCancel, isPend
       description: role?.description ?? '',
       permission_ids: role?.permissions?.map((p) => p.id) ?? [],
     });
-  }, [role]);
+  }, [role, form]);
 
   const permIds = form.watch('permission_ids');
   const grouped = groupByModule(permissions);
@@ -186,24 +186,6 @@ const RoleFormShell: React.FC<Props> = ({ mode, role, onSubmit, onCancel, isPend
                       </div>
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-[13px] font-semibold text-[#0f0f12] mb-3">Matriz de permisos</p>
-                    <div className="h-px bg-[#e5e5e9] mb-4" />
-                    {loadingPerms ? (
-                      <div className="flex items-center gap-2 py-6 text-[12px] text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" /> Cargando permisos...
-                      </div>
-                    ) : (
-                      <PermissionMatrix
-                        grouped={grouped}
-                        hasAction={hasAction}
-                        allChecked={allChecked}
-                        toggleAction={toggleAction}
-                        toggleAll={toggleAll}
-                      />
-                    )}
-                  </div>
                 </div>
               )}
 
@@ -230,40 +212,38 @@ const RoleFormShell: React.FC<Props> = ({ mode, role, onSubmit, onCancel, isPend
           </Card>
 
           <div className="w-[332px] shrink-0 flex flex-col gap-4">
-            <Card className="border border-[#ebebee] shadow-sm">
-              <CardContent className="p-5 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <Diamond className="size-3 text-convision-primary fill-convision-primary shrink-0" />
-                  <p className="text-[13px] font-semibold text-[#0f0f12]">¿Qué es un rol?</p>
-                </div>
-                <div className="flex flex-col gap-4">
-                  <InfoItem
-                    title="Agrupa permisos"
-                    description="Define qué puede hacer un usuario en cada módulo"
-                  />
-                  <InfoItem
-                    title="Reutilizable"
-                    description="Asigna el mismo rol a múltiples usuarios"
-                  />
-                  <InfoItem
-                    title="Flexible"
-                    description="Un usuario puede tener uno o varios roles"
-                  />
-                </div>
+            <Card className="overflow-hidden rounded-lg border border-[#ebebee] shadow-sm">
+              <CardHeader className="border-b border-[#e5e5e9] px-4 py-3">
+                <CardTitle className="text-[13px] font-semibold text-[#0f0f12]">
+                  <span className="mr-2 text-[10px] text-convision-primary">◆</span>
+                  ¿Qué es un rol?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-4 pt-4 text-[12px]">
+                <InfoItem
+                  title="Agrupa permisos"
+                  description="Define qué puede hacer un usuario en cada módulo"
+                />
+                <InfoItem
+                  title="Reutilizable"
+                  description="Asigna el mismo rol a múltiples usuarios"
+                />
+                <InfoItem
+                  title="Flexible"
+                  description="Un usuario puede tener uno o varios roles"
+                />
               </CardContent>
             </Card>
 
-            <Card className="border border-[#ebebee] shadow-sm bg-[#f8f8fb]">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Diamond className="size-3 text-convision-primary fill-convision-primary shrink-0" />
-                  <p className="text-[12px] font-semibold text-[#0f0f12]">Consejo: Roles vs Usuarios</p>
-                </div>
-                <p className="text-[11px] text-[#4b4b57] leading-[1.6]">
-                  Los permisos de todos los roles asignados se combinan. Si un usuario tiene "Vendedor" y "Supervisor", tendrá los permisos de ambos.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="rounded-lg border border-blue-200 bg-convision-light p-3.5 text-convision-primary">
+              <p className="text-[13px] font-semibold">
+                <span className="mr-2 text-[10px]">◆</span>
+                Permisos acumulativos
+              </p>
+              <p className="mt-2 text-[12px] font-normal leading-snug">
+                Los permisos de todos los roles asignados a un usuario se combinan. Si tiene "Vendedor" y "Supervisor", tendrá los permisos de ambos.
+              </p>
+            </div>
           </div>
         </div>
       </form>

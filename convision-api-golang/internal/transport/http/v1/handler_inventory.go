@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 
@@ -151,6 +152,7 @@ func (h *Handler) CreateWarehouseLocation(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
+	input.BranchID = branchmw.BranchIDFromCtx(c)
 	loc, err := h.inventory.CreateLocation(input)
 	if err != nil {
 		respondError(c, err)
@@ -192,6 +194,7 @@ func (h *Handler) DeleteWarehouseLocation(c *gin.Context) {
 // ======== Inventory Items ========
 
 func (h *Handler) ListInventoryItems(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 
@@ -225,7 +228,7 @@ func (h *Handler) ListInventoryItems(c *gin.Context) {
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
 	}
-	out, err := h.inventory.ListItems(filters, page, perPage)
+	out, err := h.inventory.ListItems(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -238,7 +241,7 @@ func (h *Handler) GetInventoryItem(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	item, err := h.inventory.GetItem(id)
+	item, err := h.inventory.GetItem(tenantDBFromCtx(c), id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -253,7 +256,7 @@ func (h *Handler) CreateInventoryItem(c *gin.Context) {
 		return
 	}
 	input.BranchID = branchmw.BranchIDFromCtx(c)
-	item, err := h.inventory.CreateItem(input)
+	item, err := h.inventory.CreateItem(tenantDBFromCtx(c), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -271,7 +274,7 @@ func (h *Handler) UpdateInventoryItem(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	item, err := h.inventory.UpdateItem(id, input)
+	item, err := h.inventory.UpdateItem(tenantDBFromCtx(c), id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -284,7 +287,7 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	if err := h.inventory.DeleteItem(id); err != nil {
+	if err := h.inventory.DeleteItem(tenantDBFromCtx(c), id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -292,19 +295,9 @@ func (h *Handler) DeleteInventoryItem(c *gin.Context) {
 }
 
 func (h *Handler) GetTotalStock(c *gin.Context) {
+	db := tenantDBFromCtx(c)
+	page, perPage := parsePagination(c)
 	filters := map[string]any{}
-
-	branchID := branchmw.BranchIDFromCtx(c)
-	if override := resolveBranchOverride(c); override != nil {
-		if *override == 0 {
-			branchID = 0
-		} else {
-			branchID = *override
-		}
-	}
-	if branchID > 0 {
-		filters["branch_id"] = branchID
-	}
 
 	for _, key := range []string{"warehouse_id", "warehouse_location_id", "brand_id", "supplier_id", "category_id"} {
 		if v := c.Query(key); v != "" {
@@ -313,18 +306,21 @@ func (h *Handler) GetTotalStock(c *gin.Context) {
 			}
 		}
 	}
-	out, err := h.inventory.TotalStockPerProduct(filters)
+	out, total, err := h.inventory.TotalStockPerProduct(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	var totalUnits int64
-	for _, e := range out {
-		totalUnits += e.TotalQuantity
+	lastPage := int(math.Ceil(float64(total) / float64(perPage)))
+	if lastPage < 1 {
+		lastPage = 1
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"data":        out,
-		"total_units": totalUnits,
+		"data":         out,
+		"total":        total,
+		"current_page": page,
+		"last_page":    lastPage,
+		"per_page":     perPage,
 	})
 }
 
@@ -334,7 +330,7 @@ func (h *Handler) ListLocationInventoryItems(c *gin.Context) {
 		return
 	}
 	page, perPage := parsePagination(c)
-	out, err := h.inventory.ListItemsByLocation(id, page, perPage)
+	out, err := h.inventory.ListItemsByLocation(tenantDBFromCtx(c), id, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -347,7 +343,7 @@ func (h *Handler) GetProductInventorySummary(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	out, err := h.inventory.GetProductInventorySummary(id)
+	out, err := h.inventory.GetProductInventorySummary(tenantDBFromCtx(c), id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -358,12 +354,13 @@ func (h *Handler) GetProductInventorySummary(c *gin.Context) {
 // ======== Inventory Transfers ========
 
 func (h *Handler) ListInventoryTransfers(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 	if s := c.Query("status"); s != "" {
 		filters["status"] = s
 	}
-	out, err := h.inventory.ListTransfers(filters, page, perPage)
+	out, err := h.inventory.ListTransfers(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -376,7 +373,7 @@ func (h *Handler) GetInventoryTransfer(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	t, err := h.inventory.GetTransfer(id)
+	t, err := h.inventory.GetTransfer(tenantDBFromCtx(c), id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -395,7 +392,7 @@ func (h *Handler) CreateInventoryTransfer(c *gin.Context) {
 		uid := claims.UserID
 		input.TransferredBy = &uid
 	}
-	t, err := h.inventory.CreateTransfer(input)
+	t, err := h.inventory.CreateTransfer(tenantDBFromCtx(c), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -413,7 +410,7 @@ func (h *Handler) UpdateInventoryTransfer(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	t, err := h.inventory.UpdateTransfer(id, input)
+	t, err := h.inventory.UpdateTransfer(tenantDBFromCtx(c), id, input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -426,7 +423,7 @@ func (h *Handler) DeleteInventoryTransfer(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	if err := h.inventory.DeleteTransfer(id); err != nil {
+	if err := h.inventory.DeleteTransfer(tenantDBFromCtx(c), id); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -438,7 +435,7 @@ func (h *Handler) CompleteInventoryTransfer(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	t, err := h.inventory.CompleteTransfer(id)
+	t, err := h.inventory.CompleteTransfer(tenantDBFromCtx(c), id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -451,7 +448,7 @@ func (h *Handler) CancelInventoryTransfer(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	t, err := h.inventory.CancelTransfer(id)
+	t, err := h.inventory.CancelTransfer(tenantDBFromCtx(c), id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -508,7 +505,7 @@ func (h *Handler) AdjustInventory(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
 	}
-	item, err := h.inventory.AdjustStockByItemID(input.InventoryItemID, input.Delta, input.Reason)
+	item, err := h.inventory.AdjustStockByItemID(tenantDBFromCtx(c), input.InventoryItemID, input.Delta, input.Reason)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -530,7 +527,7 @@ func (h *Handler) CreateInventoryAdjustment(c *gin.Context) {
 		return
 	}
 	input.RequestedBy = claims.UserID
-	adj, err := h.inventory.CreateAdjustment(input)
+	adj, err := h.inventory.CreateAdjustment(tenantDBFromCtx(c), input)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -539,12 +536,13 @@ func (h *Handler) CreateInventoryAdjustment(c *gin.Context) {
 }
 
 func (h *Handler) ListInventoryAdjustments(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 	if v := c.Query("status"); v != "" {
 		filters["status"] = v
 	}
-	out, err := h.inventory.ListAdjustments(filters, page, perPage)
+	out, err := h.inventory.ListAdjustments(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -562,7 +560,7 @@ func (h *Handler) ApproveInventoryAdjustment(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 		return
 	}
-	adj, err := h.inventory.ApproveAdjustment(id, claims.UserID)
+	adj, err := h.inventory.ApproveAdjustment(tenantDBFromCtx(c), id, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -584,7 +582,7 @@ func (h *Handler) RejectInventoryAdjustment(c *gin.Context) {
 		Notes string `json:"notes"`
 	}
 	_ = c.ShouldBindJSON(&body)
-	adj, err := h.inventory.RejectAdjustment(id, claims.UserID, body.Notes)
+	adj, err := h.inventory.RejectAdjustment(tenantDBFromCtx(c), id, claims.UserID, body.Notes)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -595,6 +593,7 @@ func (h *Handler) RejectInventoryAdjustment(c *gin.Context) {
 // ======== Stock Movements (Kardex) ========
 
 func (h *Handler) ListStockMovements(c *gin.Context) {
+	db := tenantDBFromCtx(c)
 	page, perPage := parsePagination(c)
 	filters := map[string]any{}
 	if v := c.Query("product_id"); v != "" {
@@ -610,7 +609,7 @@ func (h *Handler) ListStockMovements(c *gin.Context) {
 	if v := c.Query("movement_type"); v != "" {
 		filters["movement_type"] = v
 	}
-	out, err := h.inventory.ListMovements(filters, page, perPage)
+	out, err := h.inventory.ListMovements(db, filters, page, perPage)
 	if err != nil {
 		respondError(c, err)
 		return

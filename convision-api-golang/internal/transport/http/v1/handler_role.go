@@ -94,6 +94,22 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// GetRoleUsers godoc
+// GET /api/v1/roles/:id/users
+func (h *Handler) GetRoleUsers(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "ID de rol inválido"})
+		return
+	}
+	users, err := h.role.GetRoleUsers(tenantDBFromCtx(c), uint(id))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": users})
+}
+
 // ListAllPermissions godoc
 // GET /api/v1/permissions
 // Returns permissions filtered by the optica's allowed scope (when restrictions exist).
@@ -140,6 +156,9 @@ func (h *Handler) AssignRoleToUser(c *gin.Context) {
 		return
 	}
 	input.UserID = uint(userID)
+	if claims, ok := jwtauth.GetClaims(c); ok {
+		input.RequestingUserID = claims.UserID
+	}
 	if err := h.role.AssignRoleToUser(tenantDBFromCtx(c), input); err != nil {
 		respondError(c, err)
 		return
@@ -161,6 +180,9 @@ func (h *Handler) RemoveRoleFromUser(c *gin.Context) {
 		return
 	}
 	input := rolesvc.RemoveInput{UserID: uint(userID), RoleID: uint(roleID)}
+	if claims, ok := jwtauth.GetClaims(c); ok {
+		input.RequestingUserID = claims.UserID
+	}
 	if err := h.role.RemoveRoleFromUser(tenantDBFromCtx(c), input); err != nil {
 		respondError(c, err)
 		return

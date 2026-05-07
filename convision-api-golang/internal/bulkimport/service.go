@@ -3,7 +3,9 @@ package bulkimport
 import (
 	"fmt"
 	"mime/multipart"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -52,16 +54,29 @@ type ImportResult struct {
 	Records    []RecordResult `json:"records"`
 }
 
+// ConnectionFactory creates a *gorm.DB pinned to a single connection with
+// search_path set to schemaName. The cleanup func releases the connection
+// and must always be deferred by the caller.
+type ConnectionFactory func(schemaName string) (*gorm.DB, func(), error)
+
+// workerCount is the number of parallel DB workers used for imports that
+// implement the Preloadable interface.
+const workerCount = 4
+
 // Service processes bulk Excel imports by delegating to the registered Importer
 // for each ImportType. To support a new type: implement Importer and register
 // it in NewService — no other changes are required.
 type Service struct {
-	registry Registry
-	logger   *zap.Logger
+	registry    Registry
+	connFactory ConnectionFactory // nil → parallel processing disabled
+	logger      *zap.Logger
 }
 
 // NewService creates a Service with all built-in importers pre-registered.
+// connFactory enables parallel processing for importers that support it
+// (currently inventory). Pass nil to disable parallel processing.
 func NewService(
+	connFactory ConnectionFactory,
 	patientRepo domain.PatientRepository,
 	userRepo domain.UserRepository,
 	branchRepo domain.BranchRepository,
@@ -80,6 +95,7 @@ func NewService(
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
+		connFactory: connFactory,
 		registry: Registry{
 			ImportTypePatients:              newPatientImporter(patientRepo, logger),
 			ImportTypeDoctors:               newDoctorImporter(userRepo, logger),
@@ -93,8 +109,10 @@ func NewService(
 }
 
 // ProcessExcel parses the uploaded file and processes each row with the
-// Importer registered for importType.
-func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType ImportType) (*ImportResult, error) {
+// Importer registered for importType. schemaName is the tenant PostgreSQL
+// schema; it is used to pin worker connections when parallel processing is
+// enabled (non-empty and not "platform").
+func (s *Service) ProcessExcel(db *gorm.DB, schemaName string, fh *multipart.FileHeader, importType ImportType) (*ImportResult, error) {
 	importer, ok := s.registry[importType]
 	if !ok {
 		return nil, fmt.Errorf("tipo de importación desconocido: %q", importType)
@@ -126,17 +144,36 @@ func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType
 	}
 
 	headers := normalizeHeaders(rows[0])
-	result := &ImportResult{ImportType: importType}
 	dataRows := rows[1:]
-	result.TotalRows = len(dataRows)
 
+	// Pre-map all rows once regardless of which processing path is taken.
+	mappedRows := make([]map[string]string, len(dataRows))
 	for i, row := range dataRows {
+		mappedRows[i] = mapRowToHeaders(headers, row)
+	}
+
+	result := &ImportResult{ImportType: importType, TotalRows: len(mappedRows)}
+
+	// Parallel path: importer must support Preloadable, connFactory must be
+	// configured, and the request must be scoped to a real tenant schema.
+	if s.connFactory != nil && schemaName != "" && schemaName != "platform" {
+		if pl, ok := importer.(Preloadable); ok {
+			return s.processParallel(db, pl, mappedRows, schemaName, importType)
+		}
+	}
+
+	// Sequential path (all importers that don't support parallel).
+	runner := importer
+	if rf, ok := importer.(RunFactory); ok {
+		runner = rf.NewRun()
+	}
+
+	for i, rowData := range mappedRows {
 		rowNum := i + 2
-		rowData := mapRowToHeaders(headers, row)
 
 		sp := fmt.Sprintf("sp_row_%d", rowNum)
 		db.Exec("SAVEPOINT " + sp)
-		rec := importer.ProcessRow(db, rowNum, rowData)
+		rec := runner.ProcessRow(db, rowNum, rowData)
 		if rec.Status == RecordStatusError {
 			db.Exec("ROLLBACK TO SAVEPOINT " + sp)
 		} else {
@@ -158,6 +195,146 @@ func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType
 
 	s.logger.Info("bulk import completed",
 		zap.String("type", string(importType)),
+		zap.Int("total", result.TotalRows),
+		zap.Int("created", result.Created),
+		zap.Int("skipped", result.Skipped),
+		zap.Int("errors", result.Errors),
+	)
+
+	return result, nil
+}
+
+type workerJob struct {
+	rowNum  int
+	rowData map[string]string
+}
+
+type workerResult struct {
+	rowNum int
+	rec    RecordResult
+}
+
+// processParallel runs the import using a pool of goroutine workers. Each
+// worker gets its own PostgreSQL connection (search_path pinned to schemaName)
+// and its own clone of the pre-populated run context. Workers commit their
+// results independently — per-row atomicity replaces per-import atomicity,
+// which is acceptable and preferable for bulk operations.
+func (s *Service) processParallel(
+	tenantDB *gorm.DB,
+	pl Preloadable,
+	mappedRows []map[string]string,
+	schemaName string,
+	importType ImportType,
+) (*ImportResult, error) {
+	// Phase 1: pre-load reference data (brands, warehouses) using the
+	// existing tenant transaction so we avoid redundant per-row SELECTs.
+	baseRun, err := pl.Preload(tenantDB, mappedRows)
+	if err != nil {
+		return nil, fmt.Errorf("preload: %w", err)
+	}
+	wc, ok := baseRun.(WorkerCloner)
+	if !ok {
+		return nil, fmt.Errorf("preloaded importer does not implement WorkerCloner")
+	}
+
+	// Phase 2: distribute rows across workers.
+	jobs := make(chan workerJob, len(mappedRows))
+	results := make(chan workerResult, len(mappedRows))
+
+	var wg sync.WaitGroup
+	for w := 0; w < workerCount; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			workerDB, cleanup, err := s.connFactory(schemaName)
+			if err != nil {
+				s.logger.Error("bulk import worker: connection failed", zap.Error(err))
+				// Remaining jobs will be handled by other workers.
+				return
+			}
+			defer cleanup()
+
+			tx := workerDB.Begin()
+			if tx.Error != nil {
+				s.logger.Error("bulk import worker: begin tx failed", zap.Error(tx.Error))
+				return
+			}
+
+			// Worker-local results: collected before commit so that a commit
+			// failure can mark all rows as errors rather than reporting false success.
+			localResults := make([]workerResult, 0, len(mappedRows)/workerCount+1)
+			workerRun := wc.CloneForWorker()
+
+			for j := range jobs {
+				sp := fmt.Sprintf("sp_row_%d", j.rowNum)
+				tx.Exec("SAVEPOINT " + sp)
+				rec := workerRun.ProcessRow(tx, j.rowNum, j.rowData)
+				if rec.Status == RecordStatusError {
+					tx.Exec("ROLLBACK TO SAVEPOINT " + sp)
+				} else {
+					tx.Exec("RELEASE SAVEPOINT " + sp)
+				}
+				localResults = append(localResults, workerResult{j.rowNum, rec})
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				s.logger.Error("bulk import worker: commit failed", zap.Error(err))
+				for _, r := range localResults {
+					if r.rec.Status != RecordStatusError {
+						r.rec.Status = RecordStatusError
+						r.rec.Reason = "fallo al confirmar transacción del worker"
+					}
+					results <- r
+				}
+				return
+			}
+
+			for _, r := range localResults {
+				results <- r
+			}
+		}()
+	}
+
+	// Feed all jobs, then signal workers to stop.
+	for i, rowData := range mappedRows {
+		jobs <- workerJob{i + 2, rowData}
+	}
+	close(jobs)
+
+	// Close results once all workers finish.
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect and restore row order.
+	collected := make([]workerResult, 0, len(mappedRows))
+	for r := range results {
+		collected = append(collected, r)
+	}
+	sort.Slice(collected, func(i, j int) bool {
+		return collected[i].rowNum < collected[j].rowNum
+	})
+
+	result := &ImportResult{ImportType: importType, TotalRows: len(mappedRows)}
+	for _, r := range collected {
+		result.Records = append(result.Records, r.rec)
+		switch r.rec.Status {
+		case RecordStatusCreated:
+			result.Created++
+		case RecordStatusUpdated:
+			result.Created++
+		case RecordStatusSkipped:
+			result.Skipped++
+		case RecordStatusError:
+			result.Errors++
+		}
+	}
+
+	s.logger.Info("bulk import (parallel) completed",
+		zap.String("type", string(importType)),
+		zap.Int("workers", workerCount),
 		zap.Int("total", result.TotalRows),
 		zap.Int("created", result.Created),
 		zap.Int("skipped", result.Skipped),

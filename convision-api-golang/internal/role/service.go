@@ -51,14 +51,16 @@ type UpdateInput struct {
 
 // AssignInput is the payload for assigning a role to a user.
 type AssignInput struct {
-	UserID uint `json:"user_id"`
-	RoleID uint `json:"role_id" binding:"required"`
+	UserID           uint `json:"user_id"`
+	RoleID           uint `json:"role_id" binding:"required"`
+	RequestingUserID uint `json:"-"`
 }
 
 // RemoveInput is the payload for removing a role from a user.
 type RemoveInput struct {
-	UserID uint `json:"user_id"`
-	RoleID uint `json:"role_id" binding:"required"`
+	UserID           uint `json:"user_id"`
+	RoleID           uint `json:"role_id" binding:"required"`
+	RequestingUserID uint `json:"-"`
 }
 
 // ListOutput is the response for role listing.
@@ -72,12 +74,12 @@ type ListOutput struct {
 // ---------- Methods ----------
 
 // GetByID returns a single role with its permissions.
-func (s *Service) GetByID(id uint) (*domain.RoleModel, error) {
-	return s.roleRepo.GetByID(s.db, id)
+func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.RoleModel, error) {
+	return s.roleRepo.GetByID(db, id)
 }
 
 // List returns a paginated list of roles.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
+func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -85,7 +87,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 		perPage = 15
 	}
 
-	roles, total, err := s.roleRepo.List(s.db, filters, page, perPage)
+	roles, total, err := s.roleRepo.List(db, filters, page, perPage)
 	if err != nil {
 		s.logger.Error("failed to list roles", zap.Error(err))
 		return nil, err
@@ -94,7 +96,7 @@ func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, 
 }
 
 // Create creates a new role with the given permissions.
-func (s *Service) Create(input CreateInput) (*domain.RoleModel, error) {
+func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.RoleModel, error) {
 	role := &domain.RoleModel{
 		Name:        input.Name,
 		Description: input.Description,
@@ -102,7 +104,7 @@ func (s *Service) Create(input CreateInput) (*domain.RoleModel, error) {
 		IsDefault:   false,
 	}
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := s.roleRepo.Create(tx, role); err != nil {
 			return err
 		}
@@ -126,13 +128,13 @@ func (s *Service) Create(input CreateInput) (*domain.RoleModel, error) {
 }
 
 // Update updates a role's name, description, and permission set.
-func (s *Service) Update(id uint, input UpdateInput) (*domain.RoleModel, error) {
-	role, err := s.roleRepo.GetByID(s.db, id)
+func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.RoleModel, error) {
+	role, err := s.roleRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.db.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		role.Name = input.Name
 		role.Description = input.Description
 		if err := s.roleRepo.Update(tx, role); err != nil {
@@ -161,15 +163,15 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.RoleModel, error) 
 }
 
 // Delete soft-deletes a role. System roles cannot be deleted.
-func (s *Service) Delete(id uint) error {
-	role, err := s.roleRepo.GetByID(s.db, id)
+func (s *Service) Delete(db *gorm.DB, id uint) error {
+	role, err := s.roleRepo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
 	if role.IsSystem {
 		return &domain.ErrUnauthorized{Action: "delete system role"}
 	}
-	if err := s.roleRepo.SoftDelete(s.db, id); err != nil {
+	if err := s.roleRepo.SoftDelete(db, id); err != nil {
 		s.logger.Error("failed to delete role", zap.Error(err))
 		return err
 	}
@@ -178,25 +180,41 @@ func (s *Service) Delete(id uint) error {
 }
 
 // GetUserPermissionKeys returns all permission keys for a user across all their roles.
-func (s *Service) GetUserPermissionKeys(userID uint) ([]string, error) {
-	return s.roleRepo.GetUserPermissions(s.db, userID)
+// db must be a tenant-scoped *gorm.DB (search_path already set to the tenant schema).
+func (s *Service) GetUserPermissionKeys(db *gorm.DB, userID uint) ([]string, error) {
+	return s.roleRepo.GetUserPermissions(db, userID)
+}
+
+// GetUserRoles returns all roles assigned to a user.
+func (s *Service) GetUserRoles(db *gorm.DB, userID uint) ([]*domain.RoleModel, error) {
+	return s.roleRepo.GetUserRoles(db, userID)
+}
+
+// GetRoleUsers returns all users assigned to a role.
+func (s *Service) GetRoleUsers(db *gorm.DB, roleID uint) ([]*domain.RoleUserSummary, error) {
+	return s.roleRepo.GetRoleUsers(db, roleID)
 }
 
 // ListAllPermissions returns all predefined permission records.
-func (s *Service) ListAllPermissions() ([]*domain.Permission, error) {
-	return s.permissionRepo.ListAll(s.db)
+func (s *Service) ListAllPermissions(db *gorm.DB) ([]*domain.Permission, error) {
+	return s.permissionRepo.ListAll(db)
 }
 
 // AssignRoleToUser assigns a role to a user and invalidates their existing tokens.
-func (s *Service) AssignRoleToUser(input AssignInput) error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+// Token invalidation is skipped when the requesting user is modifying their own roles
+// to prevent logging out the active session.
+func (s *Service) AssignRoleToUser(db *gorm.DB, input AssignInput) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec(
 			"INSERT INTO user_roles (user_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
 			input.UserID, input.RoleID,
 		).Error; err != nil {
 			return err
 		}
-		return s.userRepo.IncrementTokenVersion(tx, input.UserID)
+		if input.RequestingUserID != input.UserID {
+			return s.userRepo.IncrementTokenVersion(tx, input.UserID)
+		}
+		return nil
 	})
 	if err != nil {
 		s.logger.Error("failed to assign role to user", zap.Error(err))
@@ -207,13 +225,18 @@ func (s *Service) AssignRoleToUser(input AssignInput) error {
 }
 
 // RemoveRoleFromUser removes a role from a user and invalidates their existing tokens.
-func (s *Service) RemoveRoleFromUser(input RemoveInput) error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+// Token invalidation is skipped when the requesting user is modifying their own roles
+// to prevent logging out the active session.
+func (s *Service) RemoveRoleFromUser(db *gorm.DB, input RemoveInput) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ? AND role_id = ?", input.UserID, input.RoleID).
 			Delete(&domain.UserRole{}).Error; err != nil {
 			return err
 		}
-		return s.userRepo.IncrementTokenVersion(tx, input.UserID)
+		if input.RequestingUserID != input.UserID {
+			return s.userRepo.IncrementTokenVersion(tx, input.UserID)
+		}
+		return nil
 	})
 	if err != nil {
 		s.logger.Error("failed to remove role from user", zap.Error(err))

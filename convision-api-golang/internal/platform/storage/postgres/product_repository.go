@@ -295,8 +295,9 @@ func (r *ProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any,
 		q = q.Where("products.status = ?", v)
 	}
 	if v, ok := filters["search"]; ok && v != "" {
-		q = q.Where("products.internal_code ILIKE ? OR products.identifier ILIKE ?",
-			"%"+v.(string)+"%", "%"+v.(string)+"%")
+		q = q.Joins("LEFT JOIN brands b_search ON b_search.id = products.brand_id").
+			Where("products.internal_code ILIKE ? OR products.identifier ILIKE ? OR b_search.name ILIKE ?",
+				"%"+v.(string)+"%", "%"+v.(string)+"%", "%"+v.(string)+"%")
 	}
 
 	prescriptionKeys := []string{"sphere_od", "cylinder_od", "addition_od", "sphere_os", "cylinder_os", "addition_os"}

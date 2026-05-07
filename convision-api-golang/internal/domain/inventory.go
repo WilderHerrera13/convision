@@ -121,9 +121,11 @@ type WarehouseLocationRepository interface {
 
 // ProductStockEntry holds the aggregated stock quantity for a single product.
 type ProductStockEntry struct {
-	ProductID     uint   `json:"product_id"`
-	ProductName   string `json:"product_name"`
-	TotalQuantity int64  `json:"total_quantity"`
+	ID            uint    `json:"id"`
+	InternalCode  string  `json:"internal_code"`
+	Identifier    string  `json:"identifier"`
+	BrandName     *string `json:"brand_name"`
+	TotalQuantity int64   `json:"total_quantity"`
 }
 
 // InventoryItemRepository defines persistence operations for InventoryItem.
@@ -134,9 +136,9 @@ type InventoryItemRepository interface {
 	Delete(db *gorm.DB, id uint) error
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
 	TotalStock(db *gorm.DB) (int64, error)
-	// TotalStockPerProduct returns aggregated stock grouped by product.
-	// Supported filter keys: warehouse_id, warehouse_location_id.
-	TotalStockPerProduct(db *gorm.DB, filters map[string]any) ([]*ProductStockEntry, error)
+	// TotalStockPerProduct returns paginated aggregated stock grouped by product.
+	// Supported filter keys: warehouse_id, warehouse_location_id, brand_id, supplier_id.
+	TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ProductStockEntry, int64, error)
 	// ExistsByProductAndLocation returns true when an InventoryItem already
 	// exists for the given (productID, locationID) pair, optionally excluding
 	// the item with excludeID (use 0 to skip the exclusion).
@@ -205,6 +207,9 @@ type StockMovementRepository interface {
 	Create(db *gorm.DB, m *StockMovement) error
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*StockMovement, int64, error)
 	ListByProduct(db *gorm.DB, productID uint, page, perPage int) ([]*StockMovement, int64, error)
+	// FindBySaleAndProduct returns the most recent exit StockMovement for a given sale and product.
+	// Returns *domain.ErrNotFound if no matching movement exists.
+	FindBySaleAndProduct(db *gorm.DB, saleID, productID uint) (*StockMovement, error)
 }
 
 // AdjustmentStatus enumerates valid statuses for inventory adjustments.

@@ -123,12 +123,12 @@ func (m *MockInventoryItemRepository) TotalStock(db *gorm.DB) (int64, error) {
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *MockInventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any) ([]*domain.ProductStockEntry, error) {
-	args := m.Called(db, filters)
+func (m *MockInventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductStockEntry, int64, error) {
+	args := m.Called(db, filters, page, perPage)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, args.Get(1).(int64), args.Error(2)
 	}
-	return args.Get(0).([]*domain.ProductStockEntry), args.Error(1)
+	return args.Get(0).([]*domain.ProductStockEntry), args.Get(1).(int64), args.Error(2)
 }
 
 func (m *MockInventoryItemRepository) ExistsByProductAndLocation(db *gorm.DB, productID, locationID, excludeID uint) (bool, error) {
@@ -190,6 +190,14 @@ func (m *MockStockMovementRepository) ListByProduct(db *gorm.DB, productID uint,
 		return nil, 0, args.Error(2)
 	}
 	return args.Get(0).([]*domain.StockMovement), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockStockMovementRepository) FindBySaleAndProduct(db *gorm.DB, saleID, productID uint) (*domain.StockMovement, error) {
+	args := m.Called(db, saleID, productID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.StockMovement), args.Error(1)
 }
 
 type MockInventoryAdjustmentRepository struct {

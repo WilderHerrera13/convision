@@ -18,7 +18,7 @@ import { inventoryService, InventoryItem, WarehouseLocation } from '@/services/i
 
 const schema = z.object({
   source_location_id: z.string().min(1, 'Selecciona la ubicación de origen'),
-  lens_id: z.string().min(1, 'Selecciona un lente'),
+  product_id: z.string().min(1, 'Selecciona un lente'),
   destination_location_id: z.string().min(1, 'Selecciona la ubicación de destino'),
   quantity: z.string().min(1, 'Ingresa la cantidad'),
   status: z.enum(['pending', 'completed']),
@@ -38,11 +38,11 @@ const TransferFormDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) 
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { source_location_id: '', lens_id: '', destination_location_id: '', quantity: '1', status: 'pending', notes: '' },
+    defaultValues: { source_location_id: '', product_id: '', destination_location_id: '', quantity: '1', status: 'pending', notes: '' },
   });
 
   const sourceLocationId = form.watch('source_location_id');
-  const selectedLensId = form.watch('lens_id');
+  const selectedLensId = form.watch('product_id');
 
   const { data: locationsData } = useQuery({
     queryKey: ['locations-transfers'],
@@ -53,21 +53,21 @@ const TransferFormDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) 
   useEffect(() => {
     if (!sourceLocationId) { setSourceInventory([]); return; }
     inventoryService.getLocationInventory(Number(sourceLocationId))
-      .then((res) => setSourceInventory(res.data.filter((i) => i.lens)))
+      .then((res) => setSourceInventory(res.data.filter((i) => i.quantity > 0)))
       .catch(() => setSourceInventory([]));
   }, [sourceLocationId]);
 
   useEffect(() => {
-    form.setValue('lens_id', '');
+    form.setValue('product_id', '');
   }, [sourceLocationId, form]);
 
   const availableLenses = sourceInventory.map((i) => ({
-    id: i.lens_id,
-    label: `${i.lens?.identifier ?? `ID ${i.lens_id}`} — ${i.lens?.brand?.name ?? 'Sin marca'} (Disp: ${i.quantity})`,
+    id: (i as any).product_id ?? i.id,
+    label: `${(i as any).product?.identifier ?? `ID ${(i as any).product_id ?? i.id}`} — ${(i as any).product?.brand?.name ?? 'Sin marca'} (Disp: ${i.quantity})`,
     maxQty: i.quantity,
   }));
 
-  const maxQty = sourceInventory.find((i) => i.lens_id.toString() === selectedLensId)?.quantity ?? 0;
+  const maxQty = sourceInventory.find((i) => String((i as any).product_id ?? i.id) === selectedLensId)?.quantity ?? 0;
 
   const handleSubmit = async (data: FormValues) => {
     const qty = parseInt(data.quantity);
@@ -77,7 +77,7 @@ const TransferFormDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) 
     }
     try {
       await inventoryService.createTransfer({
-        lens_id: Number(data.lens_id),
+        product_id: Number(data.product_id),
         source_location_id: Number(data.source_location_id),
         destination_location_id: Number(data.destination_location_id),
         quantity: qty,
@@ -117,11 +117,11 @@ const TransferFormDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) 
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="lens_id" render={({ field }) => (
+            <FormField control={form.control} name="product_id" render={({ field }) => (
               <FormItem>
                 <FormLabel>Lente</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value} disabled={!sourceLocationId || availableLenses.length === 0}>
-                  <FormControl><SelectTrigger><SelectValue placeholder={!sourceLocationId ? 'Primero selecciona un origen' : 'Selecciona un lente'} /></SelectTrigger></FormControl>
+                  <FormControl><SelectTrigger><SelectValue placeholder={!sourceLocationId ? 'Primero selecciona un origen' : availableLenses.length === 0 ? 'Sin stock en esta ubicación' : 'Selecciona un lente'} /></SelectTrigger></FormControl>
                   <SelectContent>
                     {availableLenses.map((l) => (
                       <SelectItem key={l.id} value={String(l.id)}>{l.label}</SelectItem>

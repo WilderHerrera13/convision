@@ -128,6 +128,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			rolesGroup.GET("/:id", h.GetRole)
 			rolesGroup.PUT("/:id", h.UpdateRole)
 			rolesGroup.DELETE("/:id", h.DeleteRole)
+			rolesGroup.GET("/:id/users", h.GetRoleUsers)
 		}
 
 		protected.GET("/permissions",
@@ -230,6 +231,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			appointments.GET("/:id/lens-annotation",
 				jwtauth.RequirePermission("appointments:view"),
 				h.GetLensAnnotation,
+			)
+			appointments.PUT("/:id/lens-annotation",
+				jwtauth.RequireAnyPermission("appointments:create", "appointments:edit", "appointments:delete"),
+				h.SaveLensAnnotation,
 			)
 
 			// Appointment clinical record (specialist-only writes)
@@ -415,6 +420,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			products.GET("/:id/calculate-price", h.CalculateProductPrice)
 			products.GET("/:id/inventory-summary", h.GetProductInventorySummary)
 			products.GET("/:id/inventory", h.GetProductInventorySummary)
+		}
+
+		// Alias for lens inventory lookups: /lenses/:id/inventory → GetProductInventorySummary
+		lenses := protected.Group("/lenses")
+		{
+			lenses.GET("/:id/inventory", h.GetProductInventorySummary)
 		}
 
 		// Warehouses — admin only for write

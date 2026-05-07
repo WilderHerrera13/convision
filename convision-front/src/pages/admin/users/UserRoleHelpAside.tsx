@@ -15,6 +15,7 @@ type Props = {
   email?: string;
   createdAt?: string | null;
   branchAsideSummary?: string;
+  isRolesTab?: boolean;
 };
 
 function roleBadgeVariant(role: User['role']) {
@@ -36,7 +37,61 @@ const UserRoleHelpAside: React.FC<Props> = ({
   email,
   createdAt,
   branchAsideSummary,
+  isRolesTab,
 }) => {
+  if (isRolesTab) {
+    return (
+      <div className="flex w-full flex-col gap-4 lg:w-[332px] lg:shrink-0">
+        <Card className="overflow-hidden rounded-lg border border-[#ebebee] shadow-sm">
+          <CardHeader className="border-b border-[#e5e5e9] px-4 py-3">
+            <CardTitle className="text-[13px] font-semibold text-[#0f0f12]">
+              <span className="mr-2 text-[10px] text-convision-primary">◆</span>
+              Sistema de roles
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4 pt-4 text-[12px]">
+            <div className="flex gap-2">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-convision-primary" />
+              <div>
+                <p className="font-semibold text-[#0f0f12]">Roles acumulativos</p>
+                <p className="text-[11px] text-[#7d7d87]">
+                  Un usuario puede tener múltiples roles activos al mismo tiempo.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-convision-primary" />
+              <div>
+                <p className="font-semibold text-[#0f0f12]">Permisos por unión</p>
+                <p className="text-[11px] text-[#7d7d87]">
+                  Los accesos se suman: si un rol lo permite, el usuario lo tiene.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-convision-primary" />
+              <div>
+                <p className="font-semibold text-[#0f0f12]">Cambio inmediato</p>
+                <p className="text-[11px] text-[#7d7d87]">
+                  Los nuevos permisos aplican sin necesidad de cerrar sesión.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="rounded-lg border border-[#c5d3f8] bg-[#eff1ff] p-3.5 text-[#3a71f7]">
+          <p className="text-[13px] font-semibold">
+            <span className="mr-2 text-[10px]">◆</span>
+            La combinación importa
+          </p>
+          <p className="mt-2 text-[12px] leading-snug">
+            Si un rol otorga un permiso, el usuario lo tendrá aunque otro rol no lo contemple. Los permisos se suman.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === 'create') {
     return (
       <div className="flex w-full flex-col gap-4 lg:w-[332px] lg:shrink-0">

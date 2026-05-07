@@ -301,6 +301,33 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 	)
 }
 
+// NewSchemaConnection creates a *gorm.DB pinned to a single connection from the pool
+// with search_path set to schemaName. The returned cleanup func releases the connection
+// back to the pool — the caller must always defer it.
+func NewSchemaConnection(base *gorm.DB, schemaName string) (*gorm.DB, func(), error) {
+	sqlDB, err := base.DB()
+	if err != nil {
+		return nil, nil, fmt.Errorf("get sql.DB: %w", err)
+	}
+	conn, err := sqlDB.Conn(context.Background())
+	if err != nil {
+		return nil, nil, fmt.Errorf("acquire connection: %w", err)
+	}
+	cleanup := func() { _ = conn.Close() }
+	if _, err := conn.ExecContext(context.Background(), "SET search_path = "+schemaName); err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("set search_path: %w", err)
+	}
+	schemaDB, err := gorm.Open(postgres.New(postgres.Config{Conn: conn}), &gorm.Config{
+		Logger: base.Config.Logger,
+	})
+	if err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("gorm open: %w", err)
+	}
+	return schemaDB, cleanup, nil
+}
+
 // MigrateAllTenantSchemas runs MigrateTenantSchema for every optica that already exists.
 // Call this on startup so new tables added to MigrateTenantSchema are applied to
 // existing tenants, not only to newly-created ones.

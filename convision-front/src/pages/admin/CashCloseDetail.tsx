@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ArrowLeft, CheckCircle, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHasPermission } from '@/hooks/usePermission';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,6 +35,7 @@ const AdminCashCloseDetail: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const canApprove = useHasPermission('cash_close:approve');
   const [close, setClose] = useState<CashCloseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminNotes, setAdminNotes] = useState('');
@@ -115,7 +117,7 @@ const AdminCashCloseDetail: React.FC = () => {
   const userName = close.user ? `${close.user.name} ${close.user.last_name}` : 'Asesor';
   const dateLabel = format(new Date(close.close_date + 'T12:00:00'), 'dd/MM/yyyy');
   const showAdminReconciliation =
-    isAdmin && (close.status === 'submitted' || close.status === 'approved');
+    canApprove && (close.status === 'submitted' || close.status === 'approved');
 
   const submittedLabel = close.updated_at
     ? `Enviado el ${format(new Date(close.updated_at), 'dd/MM/yyyy')} a las ${formatTime12h(close.updated_at)}`
@@ -149,7 +151,7 @@ const AdminCashCloseDetail: React.FC = () => {
 
         <div className="flex-1" />
 
-        {close.status === 'submitted' && isAdmin && (
+        {close.status === 'submitted' && canApprove && (
           <>
             <div className="w-px h-9 bg-[#dcdce0] shrink-0" />
             <Button
@@ -180,7 +182,7 @@ const AdminCashCloseDetail: React.FC = () => {
             <p className="text-sm text-[#3a71f7]">Total declarado por el asesor (medios de pago)</p>
             <p className="text-3xl font-bold text-[#0f0f12]">{formatCOP(close.total_counted ?? 0)}</p>
             <p className="mt-2 text-xs text-muted-foreground">
-              {isAdmin
+              {canApprove
                 ? 'Los totales reales que registres como administrador se comparan con esta declaración en la sección de conciliación (solo visible para administradores).'
                 : 'Total según tu declaración en el cierre. La revisión administrativa, si aplica, se hace por separado.'}
             </p>
@@ -233,7 +235,7 @@ const AdminCashCloseDetail: React.FC = () => {
           </Card>
         )}
 
-        {close.status === 'submitted' && isAdmin && (
+        {close.status === 'submitted' && canApprove && (
           <Card className="border-[#f4c678] bg-[#fff6e3]">
             <CardContent className="pt-5 space-y-3 border-l-4 border-l-[#b57218]">
               <p className="font-semibold text-[#b57218]">⚠ Pendiente de Aprobación</p>

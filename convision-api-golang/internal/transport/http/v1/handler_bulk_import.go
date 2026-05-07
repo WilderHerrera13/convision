@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -93,8 +94,14 @@ func (h *Handler) BulkImportHistory(c *gin.Context) {
 }
 
 func (h *Handler) processBulkImport(c *gin.Context, importType bulkimport.ImportType) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadSize)
 	if err := c.Request.ParseMultipartForm(maxUploadSize); err != nil {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"message": "El archivo supera el límite de 10 MB"})
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"message": "El archivo supera el límite de 10 MB"})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Se requiere el campo 'file' con el archivo Excel"})
+		}
 		return
 	}
 
@@ -116,7 +123,13 @@ func (h *Handler) processBulkImport(c *gin.Context, importType bulkimport.Import
 	}
 
 	db := tenantDBFromCtx(c)
-	result, err := h.bulkImport.ProcessExcel(db, fh, importType)
+
+	var schemaName string
+	if claims, ok := jwtauth.GetClaims(c); ok {
+		schemaName = claims.SchemaName
+	}
+
+	result, err := h.bulkImport.ProcessExcel(db, schemaName, fh, importType)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return

@@ -14,6 +14,7 @@ export interface User {
   identification: string;
   phone: string | null;
   role: 'admin' | 'specialist' | 'receptionist';
+  role_type?: 'admin' | 'specialist' | 'receptionist';
   created_at?: string;
   updated_at?: string;
   branch_assignments?: UserBranchAssignment[];

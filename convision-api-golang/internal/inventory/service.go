@@ -124,13 +124,14 @@ type WarehouseCreateInput struct {
 }
 
 // WarehouseUpdateInput holds validated fields for updating a warehouse.
+// Pointer fields allow partial updates: absent keys keep the existing value.
 type WarehouseUpdateInput struct {
-	Name    string `json:"name"`
-	Code    string `json:"code"`
-	Address string `json:"address"`
-	City    string `json:"city"`
-	Status  string `json:"status"`
-	Notes   string `json:"notes"`
+	Name    *string `json:"name"`
+	Code    *string `json:"code"`
+	Address *string `json:"address"`
+	City    *string `json:"city"`
+	Status  *string `json:"status"`
+	Notes   *string `json:"notes"`
 }
 
 // WarehouseListOutput is the paginated warehouse response.
@@ -186,18 +187,24 @@ func (s *Service) UpdateWarehouse(id uint, input WarehouseUpdateInput) (*domain.
 	if err != nil {
 		return nil, err
 	}
-	if input.Name != "" {
-		w.Name = input.Name
+	if input.Name != nil && *input.Name != "" {
+		w.Name = *input.Name
 	}
-	if input.Code != "" {
-		w.Code = input.Code
+	if input.Code != nil {
+		w.Code = *input.Code
 	}
-	w.Address = input.Address
-	w.City = input.City
-	if input.Status != "" {
-		w.Status = input.Status
+	if input.Address != nil {
+		w.Address = *input.Address
 	}
-	w.Notes = input.Notes
+	if input.City != nil {
+		w.City = *input.City
+	}
+	if input.Status != nil && *input.Status != "" {
+		w.Status = *input.Status
+	}
+	if input.Notes != nil {
+		w.Notes = *input.Notes
+	}
 
 	if err := s.warehouseRepo.Update(s.db, w); err != nil {
 		return nil, err
@@ -209,14 +216,14 @@ func (s *Service) DeleteWarehouse(id uint) error {
 	if _, err := s.warehouseRepo.GetByID(s.db, id); err != nil {
 		return err
 	}
-	items, _, err := s.itemRepo.List(s.db, map[string]any{"warehouse_id": id}, 1, 1)
+	locations, err := s.warehouseRepo.ListLocations(s.db, id)
 	if err != nil {
 		return err
 	}
-	if len(items) > 0 {
+	if len(locations) > 0 {
 		return &domain.ErrValidation{
 			Field:   "warehouse_id",
-			Message: "no se puede eliminar una bodega que tiene inventario activo",
+			Message: "no se puede eliminar una bodega que tiene ubicaciones activas",
 		}
 	}
 	return s.warehouseRepo.Delete(s.db, id)
@@ -230,6 +237,7 @@ func (s *Service) ListWarehouseLocations(warehouseID uint) ([]*domain.WarehouseL
 
 // LocationCreateInput holds validated fields for creating a location.
 type LocationCreateInput struct {
+	BranchID    uint   `json:"branch_id"`
 	WarehouseID uint   `json:"warehouse_id" binding:"required"`
 	Name        string `json:"name"         binding:"required"`
 	Code        string `json:"code"`
@@ -282,6 +290,7 @@ func (s *Service) CreateLocation(input LocationCreateInput) (*domain.WarehouseLo
 		status = "active"
 	}
 	l := &domain.WarehouseLocation{
+		BranchID:    input.BranchID,
 		WarehouseID: input.WarehouseID,
 		Name:        input.Name,
 		Code:        input.Code,
@@ -389,9 +398,9 @@ type TotalStockOutput struct {
 	TotalQuantity int64 `json:"total_quantity"`
 }
 
-func (s *Service) ListItems(filters map[string]any, page, perPage int) (*ItemListOutput, error) {
+func (s *Service) ListItems(db *gorm.DB, filters map[string]any, page, perPage int) (*ItemListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.itemRepo.List(s.db, filters, page, perPage)
+	data, total, err := s.itemRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -404,16 +413,17 @@ func (s *Service) ListItems(filters map[string]any, page, perPage int) (*ItemLis
 	}, nil
 }
 
-func (s *Service) GetItem(id uint) (*domain.InventoryItem, error) {
-	return s.itemRepo.GetByID(s.db, id)
+func (s *Service) GetItem(db *gorm.DB, id uint) (*domain.InventoryItem, error) {
+	return s.itemRepo.GetByID(db, id)
 }
 
-func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, error) {
+func (s *Service) CreateItem(db *gorm.DB, input ItemCreateInput) (*domain.InventoryItem, error) {
 	if input.WarehouseLocationID != nil && *input.WarehouseLocationID != 0 {
+		// Location lives in platform DB — use s.db for this lookup.
 		if err := s.validateLocationBelongsToWarehouse(*input.WarehouseLocationID, input.WarehouseID); err != nil {
 			return nil, err
 		}
-		exists, err := s.itemRepo.ExistsByProductAndLocation(s.db, input.ProductID, *input.WarehouseLocationID, 0)
+		exists, err := s.itemRepo.ExistsByProductAndLocation(db, input.ProductID, *input.WarehouseLocationID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -437,7 +447,7 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		Status:              status,
 		Notes:               input.Notes,
 	}
-	if err := s.itemRepo.Create(s.db, i); err != nil {
+	if err := s.itemRepo.Create(db, i); err != nil {
 		return nil, err
 	}
 	movement := &domain.StockMovement{
@@ -451,14 +461,14 @@ func (s *Service) CreateItem(input ItemCreateInput) (*domain.InventoryItem, erro
 		QuantityAfter:       i.Quantity,
 		Notes:               "stock entry via CreateItem",
 	}
-	if err := s.movementRepo.Create(s.db, movement); err != nil {
+	if err := s.movementRepo.Create(db, movement); err != nil {
 		s.logger.Warn("failed to write stock movement for CreateItem", zap.Error(err))
 	}
-	return s.itemRepo.GetByID(s.db, i.ID)
+	return s.itemRepo.GetByID(db, i.ID)
 }
 
-func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryItem, error) {
-	i, err := s.itemRepo.GetByID(s.db, id)
+func (s *Service) UpdateItem(db *gorm.DB, id uint, input ItemUpdateInput) (*domain.InventoryItem, error) {
+	i, err := s.itemRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -476,6 +486,7 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		if input.WarehouseID != 0 {
 			warehouseID = input.WarehouseID
 		}
+		// Location lives in platform DB — use s.db for this lookup.
 		if err := s.validateLocationBelongsToWarehouse(*newLocationID, warehouseID); err != nil {
 			return nil, err
 		}
@@ -483,7 +494,7 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		if input.ProductID != 0 {
 			productID = input.ProductID
 		}
-		exists, err := s.itemRepo.ExistsByProductAndLocation(s.db, productID, *newLocationID, id)
+		exists, err := s.itemRepo.ExistsByProductAndLocation(db, productID, *newLocationID, id)
 		if err != nil {
 			return nil, err
 		}
@@ -510,14 +521,14 @@ func (s *Service) UpdateItem(id uint, input ItemUpdateInput) (*domain.InventoryI
 		i.Notes = *input.Notes
 	}
 
-	if err := s.itemRepo.Update(s.db, i); err != nil {
+	if err := s.itemRepo.Update(db, i); err != nil {
 		return nil, err
 	}
-	return s.itemRepo.GetByID(s.db, id)
+	return s.itemRepo.GetByID(db, id)
 }
 
-func (s *Service) DeleteItem(id uint) error {
-	item, err := s.itemRepo.GetByID(s.db, id)
+func (s *Service) DeleteItem(db *gorm.DB, id uint) error {
+	item, err := s.itemRepo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
@@ -527,31 +538,32 @@ func (s *Service) DeleteItem(id uint) error {
 			Message: "no se puede eliminar un ítem con stock activo",
 		}
 	}
-	return s.itemRepo.Delete(s.db, id)
+	return s.itemRepo.Delete(db, id)
 }
 
-func (s *Service) TotalStock() (*TotalStockOutput, error) {
-	total, err := s.itemRepo.TotalStock(s.db)
+func (s *Service) TotalStock(db *gorm.DB) (*TotalStockOutput, error) {
+	total, err := s.itemRepo.TotalStock(db)
 	if err != nil {
 		return nil, err
 	}
 	return &TotalStockOutput{TotalQuantity: total}, nil
 }
 
-// TotalStockPerProduct returns available stock aggregated by product.
-// Supported filters: warehouse_id, warehouse_location_id.
-func (s *Service) TotalStockPerProduct(filters map[string]any) ([]*domain.ProductStockEntry, error) {
-	return s.itemRepo.TotalStockPerProduct(s.db, filters)
+// TotalStockPerProduct returns paginated available stock aggregated by product.
+// Supported filters: warehouse_id, warehouse_location_id, brand_id, supplier_id.
+func (s *Service) TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductStockEntry, int64, error) {
+	return s.itemRepo.TotalStockPerProduct(db, filters, page, perPage)
 }
 
 // ListItemsByLocation returns paginated inventory items for a given location.
-func (s *Service) ListItemsByLocation(locationID uint, page, perPage int) (*ItemListOutput, error) {
+func (s *Service) ListItemsByLocation(db *gorm.DB, locationID uint, page, perPage int) (*ItemListOutput, error) {
+	// Location lives in platform DB — use s.db to verify it exists.
 	if _, err := s.locationRepo.GetByID(s.db, locationID); err != nil {
 		return nil, err
 	}
 	page, perPage = clampPage(page, perPage)
 	filters := map[string]any{"warehouse_location_id": locationID}
-	data, total, err := s.itemRepo.List(s.db, filters, page, perPage)
+	data, total, err := s.itemRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -572,8 +584,8 @@ type ProductInventorySummary struct {
 }
 
 // GetProductInventorySummary returns all inventory items for a product.
-func (s *Service) GetProductInventorySummary(productID uint) (*ProductInventorySummary, error) {
-	data, total, err := s.itemRepo.List(s.db, map[string]any{"product_id": productID}, 1, 1000)
+func (s *Service) GetProductInventorySummary(db *gorm.DB, productID uint) (*ProductInventorySummary, error) {
+	data, total, err := s.itemRepo.List(db, map[string]any{"product_id": productID}, 1, 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -611,9 +623,9 @@ type TransferListOutput struct {
 	Total       int64                       `json:"total"`
 }
 
-func (s *Service) ListTransfers(filters map[string]any, page, perPage int) (*TransferListOutput, error) {
+func (s *Service) ListTransfers(db *gorm.DB, filters map[string]any, page, perPage int) (*TransferListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.transferRepo.List(s.db, filters, page, perPage)
+	data, total, err := s.transferRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -626,11 +638,11 @@ func (s *Service) ListTransfers(filters map[string]any, page, perPage int) (*Tra
 	}, nil
 }
 
-func (s *Service) GetTransfer(id uint) (*domain.InventoryTransfer, error) {
-	return s.transferRepo.GetByID(s.db, id)
+func (s *Service) GetTransfer(db *gorm.DB, id uint) (*domain.InventoryTransfer, error) {
+	return s.transferRepo.GetByID(db, id)
 }
 
-func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTransfer, error) {
+func (s *Service) CreateTransfer(db *gorm.DB, input TransferCreateInput) (*domain.InventoryTransfer, error) {
 	if input.SourceLocationID == input.DestinationLocationID {
 		return nil, &domain.ErrValidation{
 			Field:   "destination_location_id",
@@ -639,7 +651,7 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 	}
 
 	var created *domain.InventoryTransfer
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		// Lock the source item row to prevent concurrent transfers from over-committing stock.
 		var srcItem domain.InventoryItem
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -675,13 +687,13 @@ func (s *Service) CreateTransfer(input TransferCreateInput) (*domain.InventoryTr
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(s.db, created.ID)
+	return s.transferRepo.GetByID(db, created.ID)
 }
 
 // CompleteTransfer atomically moves stock from source to destination and marks the transfer completed.
-func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
+func (s *Service) CompleteTransfer(db *gorm.DB, id uint) (*domain.InventoryTransfer, error) {
 	var result *domain.InventoryTransfer
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var t domain.InventoryTransfer
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -725,8 +737,9 @@ func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
 			return dstErr
 		}
 		if errors.Is(dstErr, gorm.ErrRecordNotFound) {
+			// WarehouseLocation lives in platform DB — use s.db, not the tenant tx.
 			var dstLoc domain.WarehouseLocation
-			if err := tx.First(&dstLoc, t.DestinationLocationID).Error; err != nil {
+			if err := s.db.First(&dstLoc, t.DestinationLocationID).Error; err != nil {
 				return &domain.ErrNotFound{Resource: "destination_warehouse_location"}
 			}
 			dst = domain.InventoryItem{
@@ -795,12 +808,12 @@ func (s *Service) CompleteTransfer(id uint) (*domain.InventoryTransfer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(s.db, result.ID)
+	return s.transferRepo.GetByID(db, result.ID)
 }
 
 // CancelTransfer sets the transfer status to cancelled, preventing any further state changes.
-func (s *Service) CancelTransfer(id uint) (*domain.InventoryTransfer, error) {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+func (s *Service) CancelTransfer(db *gorm.DB, id uint) (*domain.InventoryTransfer, error) {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var t domain.InventoryTransfer
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -823,7 +836,7 @@ func (s *Service) CancelTransfer(id uint) (*domain.InventoryTransfer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(s.db, id)
+	return s.transferRepo.GetByID(db, id)
 }
 
 // ======== Inventory Adjustments ========
@@ -866,11 +879,11 @@ var validAdjustmentReasons = map[domain.AdjustmentReason]bool{
 	domain.AdjustmentReasonSupplierDefect:  true,
 }
 
-func (s *Service) CreateAdjustment(input AdjustmentCreateInput) (*domain.InventoryAdjustment, error) {
+func (s *Service) CreateAdjustment(db *gorm.DB, input AdjustmentCreateInput) (*domain.InventoryAdjustment, error) {
 	if !validAdjustmentReasons[input.AdjustmentReason] {
 		return nil, &domain.ErrValidation{Field: "adjustment_reason", Message: "motivo de ajuste inválido"}
 	}
-	item, err := s.itemRepo.GetByID(s.db, input.InventoryItemID)
+	item, err := s.itemRepo.GetByID(db, input.InventoryItemID)
 	if err != nil {
 		return nil, err
 	}
@@ -889,15 +902,15 @@ func (s *Service) CreateAdjustment(input AdjustmentCreateInput) (*domain.Invento
 		Notes:            input.Notes,
 		EvidenceURL:      input.EvidenceURL,
 	}
-	if err := s.adjustmentRepo.Create(s.db, adj); err != nil {
+	if err := s.adjustmentRepo.Create(db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(s.db, adj.ID)
+	return s.adjustmentRepo.GetByID(db, adj.ID)
 }
 
-func (s *Service) ApproveAdjustment(id uint, approvedBy uint) (*domain.InventoryAdjustment, error) {
+func (s *Service) ApproveAdjustment(db *gorm.DB, id uint, approvedBy uint) (*domain.InventoryAdjustment, error) {
 	var result *domain.InventoryAdjustment
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var adj domain.InventoryAdjustment
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&adj, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -953,11 +966,11 @@ func (s *Service) ApproveAdjustment(id uint, approvedBy uint) (*domain.Inventory
 	if err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(s.db, result.ID)
+	return s.adjustmentRepo.GetByID(db, result.ID)
 }
 
-func (s *Service) RejectAdjustment(id uint, approvedBy uint, notes string) (*domain.InventoryAdjustment, error) {
-	adj, err := s.adjustmentRepo.GetByID(s.db, id)
+func (s *Service) RejectAdjustment(db *gorm.DB, id uint, approvedBy uint, notes string) (*domain.InventoryAdjustment, error) {
+	adj, err := s.adjustmentRepo.GetByID(db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -971,15 +984,15 @@ func (s *Service) RejectAdjustment(id uint, approvedBy uint, notes string) (*dom
 	if notes != "" {
 		adj.Notes = notes
 	}
-	if err := s.adjustmentRepo.Update(s.db, adj); err != nil {
+	if err := s.adjustmentRepo.Update(db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjustmentRepo.GetByID(s.db, adj.ID)
+	return s.adjustmentRepo.GetByID(db, adj.ID)
 }
 
-func (s *Service) ListAdjustments(filters map[string]any, page, perPage int) (*AdjustmentListOutput, error) {
+func (s *Service) ListAdjustments(db *gorm.DB, filters map[string]any, page, perPage int) (*AdjustmentListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.adjustmentRepo.List(s.db, filters, page, perPage)
+	data, total, err := s.adjustmentRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -992,9 +1005,9 @@ func (s *Service) ListAdjustments(filters map[string]any, page, perPage int) (*A
 	}, nil
 }
 
-func (s *Service) ListMovements(filters map[string]any, page, perPage int) (*MovementListOutput, error) {
+func (s *Service) ListMovements(db *gorm.DB, filters map[string]any, page, perPage int) (*MovementListOutput, error) {
 	page, perPage = clampPage(page, perPage)
-	data, total, err := s.movementRepo.List(s.db, filters, page, perPage)
+	data, total, err := s.movementRepo.List(db, filters, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -1017,14 +1030,14 @@ var allowedTransitions = map[domain.InventoryTransferStatus]map[domain.Inventory
 	domain.InventoryTransferStatusCancelled: {},
 }
 
-func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.InventoryTransfer, error) {
+func (s *Service) UpdateTransfer(db *gorm.DB, id uint, input TransferUpdateInput) (*domain.InventoryTransfer, error) {
 	// Status-change paths delegate to CompleteTransfer/CancelTransfer which own their own transactions.
 	// The notes-only path wraps GetByID+Update in a transaction with FOR UPDATE to avoid stale updates.
 	if input.Status != "" {
 		if _, err := validateTransferStatus(input.Status); err != nil {
 			return nil, err
 		}
-		t, err := s.transferRepo.GetByID(s.db, id)
+		t, err := s.transferRepo.GetByID(db, id)
 		if err != nil {
 			return nil, err
 		}
@@ -1042,15 +1055,15 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 			}
 		}
 		if next == domain.InventoryTransferStatusCompleted {
-			return s.CompleteTransfer(id)
+			return s.CompleteTransfer(db, id)
 		}
 		if next == domain.InventoryTransferStatusCancelled {
-			return s.CancelTransfer(id)
+			return s.CancelTransfer(db, id)
 		}
 	}
 
 	var result *domain.InventoryTransfer
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var t domain.InventoryTransfer
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&t, id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1074,11 +1087,11 @@ func (s *Service) UpdateTransfer(id uint, input TransferUpdateInput) (*domain.In
 	if err != nil {
 		return nil, err
 	}
-	return s.transferRepo.GetByID(s.db, result.ID)
+	return s.transferRepo.GetByID(db, result.ID)
 }
 
-func (s *Service) DeleteTransfer(id uint) error {
-	t, err := s.transferRepo.GetByID(s.db, id)
+func (s *Service) DeleteTransfer(db *gorm.DB, id uint) error {
+	t, err := s.transferRepo.GetByID(db, id)
 	if err != nil {
 		return err
 	}
@@ -1088,16 +1101,16 @@ func (s *Service) DeleteTransfer(id uint) error {
 			Message: "solo se pueden eliminar transferencias en estado pendiente",
 		}
 	}
-	return s.transferRepo.Delete(s.db, id)
+	return s.transferRepo.Delete(db, id)
 }
 
 // AdjustStockByItemID adjusts the quantity of a specific InventoryItem using a
-// signed delta inside a DB transaction with row-level locking (BUG-5, BUG-6).
+// signed delta inside a DB transaction with row-level locking.
 // Deprecated: prefer CreateAdjustment / ApproveAdjustment for managed approval flow.
-func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*domain.InventoryItem, error) {
+func (s *Service) AdjustStockByItemID(db *gorm.DB, itemID uint, delta int, reason string) (*domain.InventoryItem, error) {
 	s.logger.Info("stock adjusted", zap.Uint("item_id", itemID), zap.Int("delta", delta), zap.String("reason", reason))
 	var result *domain.InventoryItem
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var item domain.InventoryItem
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&item, itemID).Error; err != nil {
@@ -1142,5 +1155,5 @@ func (s *Service) AdjustStockByItemID(itemID uint, delta int, reason string) (*d
 	if err != nil {
 		return nil, err
 	}
-	return s.itemRepo.GetByID(s.db, result.ID)
+	return s.itemRepo.GetByID(db, result.ID)
 }

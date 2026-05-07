@@ -9,13 +9,11 @@ import { DataTableColumnDef } from '@/components/ui/data-table';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import { EmptyState } from '@/components/ui/empty-state';
 import AddInventoryDialog from './AddInventoryDialog';
-import LensInventoryDetailDialog from './LensInventoryDetailDialog';
-
 interface LensWithInventory {
   id: number;
   internal_code: string;
   identifier: string;
-  brand?: { name: string };
+  brand_name?: string;
   total_quantity: number;
 }
 
@@ -24,11 +22,10 @@ const InventoryStock: React.FC = () => {
   const navigate = useNavigate();
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [detailLensId, setDetailLensId] = useState<number | null>(null);
 
   const { data: warehousesData } = useQuery({
-    queryKey: ['warehouses-select'],
-    queryFn: () => inventoryService.getWarehouses({ perPage: 100, status: 'active' }),
+    queryKey: ['warehouses-select-all'],
+    queryFn: () => inventoryService.getWarehouses({ perPage: 100, status: 'active', allBranches: true }),
   });
 
   const lensCatalogColumns: DataTableColumnDef<LensCatalogItem>[] = [
@@ -95,7 +92,7 @@ const InventoryStock: React.FC = () => {
     },
     {
       id: 'identifier',
-      header: 'Lente',
+      header: 'Descripción',
       type: 'text',
       cell: (item) => <span className="text-[13px] text-[#121215]">{item.identifier}</span>,
     },
@@ -103,7 +100,7 @@ const InventoryStock: React.FC = () => {
       id: 'brand',
       header: 'Marca',
       type: 'text',
-      cell: (item) => <span className="text-[13px] text-[#7d7d87]">{item.brand?.name ?? '—'}</span>,
+      cell: (item) => <span className="text-[13px] text-[#7d7d87]">{item.brand_name ?? '—'}</span>,
     },
     {
       id: 'total_quantity',
@@ -124,8 +121,8 @@ const InventoryStock: React.FC = () => {
       cell: (item) => (
         <button
           className="flex items-center justify-center size-8 rounded-[6px] bg-[#eff1ff] border border-[#3a71f7]/30 text-[#3a71f7] hover:opacity-80 transition-colors"
-          onClick={(e) => { e.stopPropagation(); setDetailLensId(item.id); }}
-          title="Ver detalle de stock"
+          onClick={(e) => { e.stopPropagation(); navigate(`/admin/inventory/stock/${item.id}`); }}
+          title="Ver detalle"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -196,6 +193,7 @@ const InventoryStock: React.FC = () => {
             })
           }
           extraFilters={{ warehouseId: warehouseFilter }}
+          onRowClick={(item) => navigate(`/admin/inventory/stock/${item.id}`)}
           enableSearch={false}
           showPageSizeSelect={false}
           toolbarLeading={
@@ -228,11 +226,6 @@ const InventoryStock: React.FC = () => {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['inventory-stock'] })}
       />
 
-      <LensInventoryDetailDialog
-        lensId={detailLensId}
-        open={detailLensId !== null}
-        onOpenChange={(open) => !open && setDetailLensId(null)}
-      />
     </>
   );
 };

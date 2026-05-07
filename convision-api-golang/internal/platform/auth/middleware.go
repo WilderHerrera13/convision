@@ -49,9 +49,12 @@ func Authenticate(revokedRepo domain.RevokedTokenRepository, db ...*gorm.DB) gin
 			}
 		}
 
-		if globalDB != nil {
+		if globalDB != nil && claims.SchemaName != "" && claims.SchemaName != "platform" {
+			// Qualify the table with the tenant schema so globalDB (search_path=public)
+			// doesn't query an empty public.users.
+			table := claims.SchemaName + ".users"
 			var tokenVer int
-			if err := globalDB.Table("users").
+			if err := globalDB.Table(table).
 				Select("token_version").
 				Where("id = ?", claims.UserID).
 				Scan(&tokenVer).Error; err != nil {

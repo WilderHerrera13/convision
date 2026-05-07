@@ -18,6 +18,7 @@ import PrescriptionCreate from '@/pages/specialist/PrescriptionCreate';
 import ClinicalHistoryNewConsultationPage from '@/pages/specialist/ClinicalHistoryNewConsultationPage';
 import PrescriptionPreviewPage from '@/pages/specialist/PrescriptionPreviewPage';
 import ClinicalHistoryFollowUpPage from '@/pages/specialist/ClinicalHistoryFollowUpPage';
+import LensExplanationPage from '@/pages/specialist/LensExplanationPage';
 import ManagementReport from '@/pages/specialist/ManagementReport';
 import ManagementReportDetail from '@/pages/specialist/ManagementReportDetail';
 import QualityReview from '@/pages/specialist/QualityReview';
@@ -58,8 +59,14 @@ import UserCreatePage from "./pages/admin/users/UserCreatePage";
 import UserEditPage from "./pages/admin/users/UserEditPage";
 import UserDetailPage from "./pages/admin/users/UserDetailPage";
 import AdminUsersOutlet from "./pages/admin/users/AdminUsersOutlet";
+import RolesManagementPage from "./pages/admin/RolesManagementPage";
+import AdminRolesOutlet from "./pages/admin/roles/AdminRolesOutlet";
+import RoleCreatePage from "./pages/admin/roles/RoleCreatePage";
+import RoleEditPage from "./pages/admin/roles/RoleEditPage";
+import RoleAssignUsersPage from "./pages/admin/roles/RoleAssignUsersPage";
 import Inventory from "./pages/admin/Inventory";
 import LensCatalogDetailPage from "./pages/admin/inventory/LensCatalogDetailPage";
+import StockItemDetailPage from "./pages/admin/inventory/StockItemDetailPage";
 import Patients from "./pages/admin/Patients";
 import Suppliers from "./pages/admin/Suppliers";
 import AdminSuppliersOutlet from "./pages/admin/suppliers/AdminSuppliersOutlet";
@@ -384,6 +391,16 @@ const router = createBrowserRouter([
             ],
           },
           {
+            path: "roles",
+            element: <AdminRolesOutlet />,
+            children: [
+              { index: true, element: <RolesManagementPage /> },
+              { path: "new", element: <RoleCreatePage /> },
+              { path: ":id/edit", element: <RoleEditPage /> },
+              { path: ":id/users", element: <RoleAssignUsersPage /> },
+            ],
+          },
+          {
             path: "patients",
             element: <Patients />,
           },
@@ -474,6 +491,10 @@ const router = createBrowserRouter([
           {
             path: "inventory/lens-catalog/:id",
             element: <LensCatalogDetailPage />,
+          },
+          {
+            path: "inventory/stock/:id",
+            element: <StockItemDetailPage />,
           },
           {
             path: "profile",
@@ -714,6 +735,10 @@ const router = createBrowserRouter([
           {
             path: "appointments/:id/follow-up",
             element: <ClinicalHistoryFollowUpPage />,
+          },
+          {
+            path: "appointments/:id/lens-explanation",
+            element: <LensExplanationPage />,
           },
           {
             path: "management-report",

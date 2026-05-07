@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { userService, type User } from '@/services/userService';
 import { branchService } from '@/services/branchService';
 import UserFormShell from './UserFormShell';
+import UserRolesSection from './UserRolesSection';
 import {
   branchFormDefaultsFromAssignments,
   editUserFormSchema,
@@ -132,6 +133,7 @@ const UserEditPage: React.FC = () => {
       submitLabel="Guardar cambios"
       asideUser={loaded as User}
       footerNote={`Editando: ${fullName} · ${roleLabel}`}
+      renderRolesTab={<UserRolesSection userId={userId} />}
     />
   );
 };
