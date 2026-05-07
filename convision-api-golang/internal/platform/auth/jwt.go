@@ -21,12 +21,14 @@ type Claims struct {
 	OpticaID     uint        `json:"optica_id"`
 	SchemaName   string      `json:"schema_name"`
 	FeatureFlags []string    `json:"feature_flags"`
+	Permissions  []string    `json:"permissions"`
+	TokenVersion int         `json:"token_version"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken creates a signed JWT for the given user.
 // Returns the token string, the jti (JWT ID for revocation), and the TTL in seconds.
-func GenerateToken(user *domain.User, opticaID uint, schemaName string, featureFlags []string) (tokenString string, jti string, expiresIn int64, err error) {
+func GenerateToken(user *domain.User, opticaID uint, schemaName string, featureFlags []string, permissions []string) (tokenString string, jti string, expiresIn int64, err error) {
 	ttlHours, _ := strconv.Atoi(os.Getenv("JWT_TTL_HOURS"))
 	if ttlHours == 0 {
 		ttlHours = 24
@@ -38,6 +40,9 @@ func GenerateToken(user *domain.User, opticaID uint, schemaName string, featureF
 	if featureFlags == nil {
 		featureFlags = []string{}
 	}
+	if permissions == nil {
+		permissions = []string{}
+	}
 
 	claims := Claims{
 		UserID:       user.ID,
@@ -46,6 +51,8 @@ func GenerateToken(user *domain.User, opticaID uint, schemaName string, featureF
 		OpticaID:     opticaID,
 		SchemaName:   schemaName,
 		FeatureFlags: featureFlags,
+		Permissions:  permissions,
+		TokenVersion: user.TokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
 			Subject:   strconv.Itoa(int(user.ID)),
