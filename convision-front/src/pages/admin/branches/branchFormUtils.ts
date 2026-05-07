@@ -9,6 +9,7 @@ export function branchFormToPayload(values: BranchFormInput): BranchPayload {
     phone: values.phone ?? '',
     email: values.email ?? '',
     is_active: values.is_active,
+    default_warehouse_id: values.default_warehouse_id ?? null,
   };
 }
 
@@ -20,5 +21,6 @@ export function branchToFormValues(branch: Branch): BranchFormInput {
     phone: branch.phone ?? '',
     email: branch.email ?? '',
     is_active: branch.is_active,
+    default_warehouse_id: branch.default_warehouse_id ?? null,
   };
 }
