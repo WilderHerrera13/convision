@@ -19,7 +19,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
 - [x] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login (completed 2026-04-28)
 - [ ] **Phase 18: Sales-Inventory Stock Deduction** - Connect the sales module to WMS: deduct InventoryItem quantity and write StockMovement on sale creation; revert on cancellation
-- [ ] **Phase 19: RBAC — Roles & Permissions** - Replace single-role authorization with a fine-grained permission system: roles table, permission catalog (85+ keys), JWT permissions claim, RequirePermission middleware, routes migration, frontend AuthContext + usePermission hook, admin RolesManagementPage
+- [x] **Phase 19: RBAC — Roles & Permissions** - Replace single-role authorization with a fine-grained permission system: roles table, permission catalog (85+ keys), JWT permissions claim, RequirePermission middleware, routes migration, frontend AuthContext + usePermission hook, admin RolesManagementPage
 
 ## Phase Details
 
@@ -239,6 +239,19 @@ Plans:
   6. Admin `RolesManagementPage` at `/admin/roles` with full CRUD and permission matrix
   7. `make build && make test && npm run build` all exit 0
 **Plans:** 1/6 plans executed
+
+### Phase 20: Super-Admin Optica Permission Scoping
+**Goal:** Allow the super admin to define which RBAC permission modules each optica's admin can access. Introduces a `platform.optica_allowed_permissions` table that acts as a permission ceiling per tenant. At login, a user's JWT permissions become the intersection of their role permissions and the optica's allowed permissions. Admins can only assign roles/permissions within their optica's allowed scope. Super admin UI gains a per-optica permission matrix panel.
+**Depends on:** Phase 16 (multi-tenancy platform schema), Phase 19 (RBAC roles & permissions)
+**Requirements:** [SCOPE-01, SCOPE-02, SCOPE-03, SCOPE-04, SCOPE-05, SCOPE-06]
+**Success Criteria** (what must be TRUE):
+  1. `platform.optica_allowed_permissions (optica_id, permission_key)` table exists in platform schema with correct indexes
+  2. At login, JWT `permissions` claim = intersection(user role permissions, optica allowed permissions); if optica has no restrictions all permissions pass through
+  3. `GET /api/v1/permissions` returns only permissions within the optica's allowed scope (filtered for admin UI)
+  4. Super admin endpoints `GET/PUT /api/v1/super-admin/opticas/:id/permissions` exist and are protected
+  5. Super admin frontend has a per-optica permission matrix panel (accordion by module, checkboxes per action)
+  6. `make build && make test && npm run build` all exit 0
+**Plans:** 4/5 plans executed
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
