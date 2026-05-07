@@ -31,6 +31,7 @@ const (
 	RecordStatusCreated RecordStatus = "created"
 	RecordStatusSkipped RecordStatus = "skipped"
 	RecordStatusError   RecordStatus = "error"
+	RecordStatusUpdated RecordStatus = "updated"
 )
 
 // RecordResult holds the processing result for a single Excel row.
@@ -73,6 +74,9 @@ func NewService(
 	treatmentRepo domain.TreatmentRepository,
 	photochromicRepo domain.PhotochromicRepository,
 	supplierRepo domain.SupplierRepository,
+	warehouseRepo domain.WarehouseRepository,
+	itemRepo domain.InventoryItemRepository,
+	movementRepo domain.StockMovementRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
@@ -82,6 +86,7 @@ func NewService(
 			ImportTypeStaffUsers:            newStaffUserImporter(userRepo, branchRepo, logger),
 			ImportTypeScheduledAppointments: newScheduledAppointmentsImporter(patientRepo, userRepo, appointmentRepo, logger),
 			ImportTypeLenses:                newLensImporter(productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
+			ImportTypeInventory:             newInventoryImporter(productRepo, brandRepo, warehouseRepo, itemRepo, movementRepo, logger),
 		},
 		logger: logger,
 	}
@@ -142,6 +147,8 @@ func (s *Service) ProcessExcel(db *gorm.DB, fh *multipart.FileHeader, importType
 		switch rec.Status {
 		case RecordStatusCreated:
 			result.Created++
+		case RecordStatusUpdated:
+			result.Created++ // counts as successfully processed
 		case RecordStatusSkipped:
 			result.Skipped++
 		case RecordStatusError:
