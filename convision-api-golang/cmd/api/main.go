@@ -71,6 +71,9 @@ func main() {
 		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
 			logger.Fatal("failed to ensure local dev users", zap.Error(err))
 		}
+		if err := postgresplatform.EnsureLocalDevAppointments(db, logger); err != nil {
+			logger.Fatal("failed to ensure local dev appointments", zap.Error(err))
+		}
 	} else if bootstrapDefaultUsersEnabled() {
 		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
 			logger.Fatal("failed to ensure bootstrap users", zap.Error(err))
@@ -190,7 +193,7 @@ func main() {
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, dailyReportEditLogRepo, logger)
-	bulkImportService := bulkimport.NewService(patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger)
+	bulkImportService := bulkimport.NewService(patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, warehouseRepo, inventoryItemRepo, stockMovementRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// Branch service
