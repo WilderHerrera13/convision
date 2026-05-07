@@ -31,6 +31,13 @@ var allowedPaymentMethods = map[string]struct{}{
 	"pago_sistecredito": {},
 }
 
+// cashSubsetMethods are received as physical cash and already counted inside the efectivo
+// denomination total. They must not be added again to total_counted to avoid double-counting.
+var cashSubsetMethods = map[string]struct{}{
+	"anticipo":          {},
+	"pago_sistecredito": {},
+}
+
 var allowedDenominations = map[int]struct{}{
 	100000: {},
 	50000:  {},
@@ -1045,7 +1052,9 @@ func validateAndMapPayments(rows []PaymentMethodInput, required bool) ([]domain.
 		if row.CountedAmount < 0 {
 			return nil, 0, &domain.ErrValidation{Field: "payment_methods.counted_amount", Message: "debe ser mayor o igual a 0"}
 		}
-		total += row.CountedAmount
+		if _, isCashEquiv := cashSubsetMethods[name]; !isCashEquiv {
+			total += row.CountedAmount
+		}
 		mapped = append(mapped, domain.CashRegisterClosePayment{
 			PaymentMethodName: name,
 			CountedAmount:     row.CountedAmount,
