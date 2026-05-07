@@ -8,6 +8,7 @@ export interface Branch {
   phone: string;
   email: string;
   is_active: boolean;
+  default_warehouse_id?: number | null;
 }
 
 export interface BranchPayload {
@@ -17,6 +18,7 @@ export interface BranchPayload {
   phone: string;
   email: string;
   is_active: boolean;
+  default_warehouse_id?: number | null;
 }
 
 export interface UserBranchAssignment {
