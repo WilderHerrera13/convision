@@ -160,7 +160,7 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 			for _, k := range allowedKeys {
 				allowedSet[k] = struct{}{}
 			}
-			filtered := permissions[:0]
+			filtered := make([]string, 0, len(permissions))
 			for _, p := range permissions {
 				if _, ok := allowedSet[p]; ok {
 					filtered = append(filtered, p)
@@ -235,7 +235,7 @@ func (s *Service) Refresh(db *gorm.DB, oldJti string, userID uint, opticaID uint
 			for _, k := range allowedKeys {
 				allowedSet[k] = struct{}{}
 			}
-			filtered := permissions[:0]
+			filtered := make([]string, 0, len(permissions))
 			for _, p := range permissions {
 				if _, ok := allowedSet[p]; ok {
 					filtered = append(filtered, p)

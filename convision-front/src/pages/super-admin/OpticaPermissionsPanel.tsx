@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { opticaPermissionsService } from '@/services/opticaPermissions';
 import type { Permission } from '@/services/roles';
+import { MODULE_ORDER, labelModule, labelAction } from '@/lib/permission-labels';
 
 interface Props {
   opticaId: number;
@@ -61,7 +62,7 @@ const OpticaPermissionsPanel: React.FC<Props> = ({ opticaId }) => {
   const toggleKey = (key: string) => {
     setSelectedKeys(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
       return next;
     });
   };
@@ -116,58 +117,67 @@ const OpticaPermissionsPanel: React.FC<Props> = ({ opticaId }) => {
 
           <div className="p-6">
             <Accordion type="multiple" className="w-full">
-              {[...moduleMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([module, perms]) => {
-                const moduleKeys = perms.map(p => `${p.module}:${p.action}`);
-                const checkedCount = moduleKeys.filter(k => selectedKeys.has(k)).length;
-                return (
-                  <AccordionItem key={module} value={module}>
-                    <AccordionTrigger className="text-[13px] font-medium capitalize hover:no-underline">
-                      <span className="flex-1 text-left capitalize">{module.replace(/_/g, ' ')}</span>
-                      <span className="mr-2 text-[11px] text-[#7d7d87]">
-                        {checkedCount}/{moduleKeys.length}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="flex gap-2 mb-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-[28px] text-[11px] border-[#e5e5e9]"
-                          onClick={() => selectAllModule(module)}
-                        >
-                          Seleccionar todo
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-[28px] text-[11px] border-[#e5e5e9]"
-                          onClick={() => clearModule(module)}
-                        >
-                          Limpiar
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {perms.map(p => {
-                          const key = `${p.module}:${p.action}`;
-                          return (
-                            <label key={key} className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={selectedKeys.has(key)}
-                                onCheckedChange={() => toggleKey(key)}
-                              />
-                              <span className="text-[12px] capitalize text-[#121215]">
-                                {p.action.replace(/_/g, ' ')}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
+              {[...moduleMap.entries()]
+                .sort(([a], [b]) => {
+                  const ia = MODULE_ORDER.indexOf(a);
+                  const ib = MODULE_ORDER.indexOf(b);
+                  if (ia !== -1 && ib !== -1) return ia - ib;
+                  if (ia !== -1) return -1;
+                  if (ib !== -1) return 1;
+                  return a.localeCompare(b);
+                })
+                .map(([module, perms]) => {
+                  const moduleKeys = perms.map(p => `${p.module}:${p.action}`);
+                  const checkedCount = moduleKeys.filter(k => selectedKeys.has(k)).length;
+                  return (
+                    <AccordionItem key={module} value={module}>
+                      <AccordionTrigger className="text-[13px] font-medium hover:no-underline">
+                        <span className="flex-1 text-left">{labelModule(module)}</span>
+                        <span className="mr-2 text-[11px] text-[#7d7d87]">
+                          {checkedCount}/{moduleKeys.length}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex gap-2 mb-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-[28px] text-[11px] border-[#e5e5e9]"
+                            onClick={() => selectAllModule(module)}
+                          >
+                            Seleccionar todo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-[28px] text-[11px] border-[#e5e5e9]"
+                            onClick={() => clearModule(module)}
+                          >
+                            Limpiar
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {perms.map(p => {
+                            const key = `${p.module}:${p.action}`;
+                            return (
+                              <label key={key} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={selectedKeys.has(key)}
+                                  onCheckedChange={() => toggleKey(key)}
+                                />
+                                <span className="text-[12px] text-[#121215]">
+                                  {labelAction(p.action)}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
             </Accordion>
           </div>
         </div>
