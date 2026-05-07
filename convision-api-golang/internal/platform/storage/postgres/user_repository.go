@@ -11,7 +11,7 @@ import (
 )
 
 // userCols lists all columns fetched for user records (explicit, no SELECT *).
-const userCols = "id, name, last_name, email, identification, phone, password_hash, role, active, must_change_password, created_at, updated_at"
+const userCols = "id, name, last_name, email, identification, phone, password_hash, role_type, active, must_change_password, token_version, created_at, updated_at"
 
 // allowedUserFilters maps allowed column names to their match type:
 // "LIKE" for partial text match, "=" for exact match.
@@ -21,7 +21,7 @@ var allowedUserFilters = map[string]string{
 	"email":          "LIKE",
 	"identification": "LIKE",
 	"phone":          "LIKE",
-	"role":           "=",
+	"role_type":      "=",
 }
 
 // UserRepository is the PostgreSQL-backed implementation of domain.UserRepository.
@@ -98,7 +98,7 @@ func (r *UserRepository) Update(db *gorm.DB, u *domain.User) error {
 		"identification": u.Identification,
 		"phone":          u.Phone,
 		"password_hash":  u.Password,
-		"role":           u.Role,
+		"role_type":      u.RoleType,
 		"active":         u.Active,
 	}).Error
 	if err != nil {
@@ -152,7 +152,7 @@ func (r *UserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*
 	var users []*domain.User
 	err := db.Model(&domain.User{}).Select(userCols).
 		Joins("JOIN user_branches ON user_branches.user_id = users.id").
-		Where("users.role = ? AND users.active = true AND user_branches.branch_id = ?",
+		Where("users.role_type = ? AND users.active = true AND user_branches.branch_id = ?",
 			string(domain.RoleSpecialist), branchID).
 		Distinct().
 		Find(&users).Error
@@ -165,9 +165,9 @@ func (r *UserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*
 func (r *UserRepository) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
 	var users []*domain.User
 	err := db.Model(&domain.User{}).
-		Select("users.id, users.name, users.last_name, users.email, users.identification, users.phone, users.password_hash, users.role, users.active, users.must_change_password, users.created_at, users.updated_at").
+		Select("users.id, users.name, users.last_name, users.email, users.identification, users.phone, users.password_hash, users.role_type, users.active, users.must_change_password, users.token_version, users.created_at, users.updated_at").
 		Joins("JOIN user_branches ON user_branches.user_id = users.id").
-		Where("users.role IN (?, ?) AND users.active = true AND user_branches.branch_id = ?",
+		Where("users.role_type IN (?, ?) AND users.active = true AND user_branches.branch_id = ?",
 			string(domain.RoleSpecialist), string(domain.RoleReceptionist), branchID).
 		Distinct().
 		Order("users.name ASC").
@@ -176,4 +176,40 @@ func (r *UserRepository) GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*dom
 		return nil, err
 	}
 	return users, nil
+}
+
+func (r *UserRepository) GetRoles(db *gorm.DB, userID uint) ([]*domain.RoleModel, error) {
+	var roles []*domain.RoleModel
+	err := db.
+		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
+		Where("user_roles.user_id = ?", userID).
+		Where("roles.deleted_at IS NULL").
+		Find(&roles).Error
+	if err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (r *UserRepository) AssignRoles(db *gorm.DB, userID uint, roleIDs []uint) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", userID).Delete(&domain.UserRole{}).Error; err != nil {
+			return err
+		}
+		for _, roleID := range roleIDs {
+			ur := domain.UserRole{UserID: userID, RoleID: roleID}
+			if err := tx.Create(&ur).Error; err != nil {
+				var pgErr *pq.Error
+				if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+					continue
+				}
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *UserRepository) IncrementTokenVersion(db *gorm.DB, userID uint) error {
+	return db.Exec("UPDATE users SET token_version = token_version + 1 WHERE id = ?", userID).Error
 }
