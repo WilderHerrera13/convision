@@ -112,12 +112,13 @@ func (r *branchRepository) Create(db *gorm.DB, b *domain.Branch) error {
 
 func (r *branchRepository) Update(db *gorm.DB, b *domain.Branch) error {
 	return db.Model(b).Updates(map[string]any{
-		"name":      b.Name,
-		"address":   b.Address,
-		"city":      b.City,
-		"phone":     b.Phone,
-		"email":     b.Email,
-		"is_active": b.IsActive,
+		"name":                 b.Name,
+		"address":              b.Address,
+		"city":                 b.City,
+		"phone":                b.Phone,
+		"email":                b.Email,
+		"is_active":            b.IsActive,
+		"default_warehouse_id": b.DefaultWarehouseID,
 	}).Error
 }
 

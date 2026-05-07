@@ -1,6 +1,7 @@
 package sale
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,6 +20,9 @@ type Service struct {
 	labOrderRepo    domain.LaboratoryOrderRepository
 	labRepo         domain.LaboratoryRepository
 	appointmentRepo domain.AppointmentRepository
+	branchRepo      domain.BranchRepository
+	itemRepo        domain.InventoryItemRepository
+	movementRepo    domain.StockMovementRepository
 	logger          *zap.Logger
 }
 
@@ -31,6 +35,9 @@ func NewService(
 	labOrderRepo domain.LaboratoryOrderRepository,
 	labRepo domain.LaboratoryRepository,
 	appointmentRepo domain.AppointmentRepository,
+	branchRepo domain.BranchRepository,
+	itemRepo domain.InventoryItemRepository,
+	movementRepo domain.StockMovementRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
@@ -41,6 +48,9 @@ func NewService(
 		labOrderRepo:    labOrderRepo,
 		labRepo:         labRepo,
 		appointmentRepo: appointmentRepo,
+		branchRepo:      branchRepo,
+		itemRepo:        itemRepo,
+		movementRepo:    movementRepo,
 		logger:          logger,
 	}
 }
@@ -271,6 +281,8 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 
 	s.logger.Info("sale created", zap.Uint("id", sale.ID), zap.String("sale_number", sale.SaleNumber))
 
+	s.deductStock(context.Background(), sale.ID, sale.BranchID, sale.Items, userID)
+
 	s.createLabOrderIfNeeded(sale, input.Items, input.LaboratoryID, userID)
 	s.updateOrderPaymentStatus(sale)
 	s.updateAppointmentBilling(sale)
@@ -412,6 +424,12 @@ func (s *Service) Cancel(id uint) (*domain.Sale, error) {
 	if err != nil {
 		return nil, err
 	}
+	if sale.Status == domain.SaleStatusCancelled {
+		return sale, nil
+	}
+
+	s.revertStock(context.Background(), sale.ID, sale.BranchID, sale.Items)
+
 	sale.Status = domain.SaleStatusCancelled
 	if err := s.saleRepo.Update(s.db, sale); err != nil {
 		return nil, err
@@ -435,6 +453,207 @@ func (s *Service) GetLensPriceAdjustments(saleID uint) ([]*domain.SaleLensPriceA
 		return nil, err
 	}
 	return s.adjRepo.GetBySaleID(s.db, saleID)
+}
+
+// deductStock reduces InventoryItem.Quantity for each SaleItem where Product.TracksStock=true
+// and records a StockMovement of type "exit". Uses branch.DefaultWarehouseID (Modelo A).
+// Best-effort: logs warnings, never blocks the sale.
+func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, items []domain.SaleItem, userID uint) {
+	branch, err := s.branchRepo.GetByID(s.db, branchID)
+	if err != nil {
+		s.logger.Warn("deductStock: branch not found, skipping all deductions",
+			zap.Uint("branch_id", branchID),
+			zap.Uint("sale_id", saleID),
+			zap.Error(err),
+		)
+		return
+	}
+	if branch.DefaultWarehouseID == nil {
+		s.logger.Warn("deductStock: branch has no default_warehouse_id configured, skipping all deductions",
+			zap.Uint("branch_id", branchID),
+			zap.Uint("sale_id", saleID),
+		)
+		return
+	}
+	warehouseID := *branch.DefaultWarehouseID
+
+	for _, item := range items {
+		if item.ProductID == nil {
+			continue
+		}
+
+		product, err := s.productRepo.GetByID(s.db, *item.ProductID)
+		if err != nil {
+			s.logger.Warn("deductStock: product not found",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("sale_id", saleID),
+				zap.Error(err),
+			)
+			continue
+		}
+		if !product.TracksStock {
+			continue
+		}
+
+		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
+			"product_id":   *item.ProductID,
+			"warehouse_id": warehouseID,
+		}, 1, 1)
+		if err != nil || len(invItems) == 0 {
+			s.logger.Warn("deductStock: no inventory item found in default warehouse, skipping",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("warehouse_id", warehouseID),
+				zap.Uint("sale_id", saleID),
+			)
+			continue
+		}
+
+		invItem := *invItems[0]
+		requested := item.Quantity
+		available := invItem.Quantity
+
+		var deducted int
+		switch {
+		case available <= 0:
+			s.logger.Warn("deductStock: zero stock in default warehouse, sale proceeds without deduction",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("warehouse_id", warehouseID),
+				zap.Int("requested", requested),
+				zap.Uint("sale_id", saleID),
+			)
+			continue
+		case available < requested:
+			s.logger.Warn("deductStock: insufficient stock in default warehouse, deducting available only",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("warehouse_id", warehouseID),
+				zap.Int("available", available),
+				zap.Int("requested", requested),
+				zap.Uint("sale_id", saleID),
+			)
+			deducted = available
+		default:
+			deducted = requested
+		}
+
+		productID := *item.ProductID
+		quantityBefore := invItem.Quantity
+		quantityAfter := quantityBefore - deducted
+		refType := domain.ReferenceTypeSale
+		saleIDCopy := saleID
+		userIDCopy := userID
+
+		txErr := s.db.Transaction(func(tx *gorm.DB) error {
+			invItem.Quantity = quantityAfter
+			if err := s.itemRepo.Update(tx, &invItem); err != nil {
+				return err
+			}
+			movement := &domain.StockMovement{
+				ProductID:      productID,
+				WarehouseID:    warehouseID,
+				MovementType:   domain.MovementTypeExit,
+				ReferenceType:  &refType,
+				ReferenceID:    &saleIDCopy,
+				QuantityBefore: quantityBefore,
+				QuantityDelta:  -deducted,
+				QuantityAfter:  quantityAfter,
+				PerformedBy:    &userIDCopy,
+				Notes:          "",
+			}
+			return s.movementRepo.Create(tx, movement)
+		})
+		if txErr != nil {
+			s.logger.Warn("deductStock: failed to record stock deduction in kardex",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("sale_id", saleID),
+				zap.Error(txErr),
+			)
+		}
+	}
+}
+
+// revertStock restores InventoryItem.Quantity for each SaleItem where Product.TracksStock=true
+// by looking up the original exit movement and writing an adjustment_add movement. Best-effort.
+func (s *Service) revertStock(ctx context.Context, saleID uint, branchID uint, items []domain.SaleItem) {
+	for _, item := range items {
+		if item.ProductID == nil {
+			continue
+		}
+
+		product, err := s.productRepo.GetByID(s.db, *item.ProductID)
+		if err != nil {
+			s.logger.Warn("revertStock: product not found",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("sale_id", saleID),
+				zap.Error(err),
+			)
+			continue
+		}
+		if !product.TracksStock {
+			continue
+		}
+
+		origMovement, err := s.movementRepo.FindBySaleAndProduct(s.db, saleID, *item.ProductID)
+		if err != nil {
+			s.logger.Warn("revertStock: no original exit movement found, skipping",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("sale_id", saleID),
+			)
+			continue
+		}
+
+		restoredQty := -origMovement.QuantityDelta
+		if restoredQty <= 0 {
+			continue
+		}
+
+		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
+			"product_id":   *item.ProductID,
+			"warehouse_id": origMovement.WarehouseID,
+		}, 1, 1)
+		if err != nil || len(invItems) == 0 {
+			s.logger.Warn("revertStock: inventory item not found in original warehouse, cannot restore",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("warehouse_id", origMovement.WarehouseID),
+				zap.Uint("sale_id", saleID),
+			)
+			continue
+		}
+
+		invItem := *invItems[0]
+		productID := *item.ProductID
+		quantityBefore := invItem.Quantity
+		quantityAfter := quantityBefore + restoredQty
+		warehouseID := invItem.WarehouseID
+		refType := domain.ReferenceTypeSale
+		saleIDCopy := saleID
+		restoredCopy := restoredQty
+
+		txErr := s.db.Transaction(func(tx *gorm.DB) error {
+			invItem.Quantity = quantityAfter
+			if err := s.itemRepo.Update(tx, &invItem); err != nil {
+				return err
+			}
+			movement := &domain.StockMovement{
+				ProductID:      productID,
+				WarehouseID:    warehouseID,
+				MovementType:   domain.MovementTypeAdjustmentAdd,
+				ReferenceType:  &refType,
+				ReferenceID:    &saleIDCopy,
+				QuantityBefore: quantityBefore,
+				QuantityDelta:  restoredCopy,
+				QuantityAfter:  quantityAfter,
+				Notes:          "stock reversal due to sale cancellation",
+			}
+			return s.movementRepo.Create(tx, movement)
+		})
+		if txErr != nil {
+			s.logger.Warn("revertStock: failed to record stock reversal",
+				zap.Uint("product_id", *item.ProductID),
+				zap.Uint("sale_id", saleID),
+				zap.Error(txErr),
+			)
+		}
+	}
 }
 
 // CreateLensPriceAdjustment creates a lens price adjustment for a sale item.
