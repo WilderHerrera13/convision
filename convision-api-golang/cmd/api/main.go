@@ -15,6 +15,7 @@ import (
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
 	branchsvc "github.com/convision/api/internal/branch"
+	rolesvc "github.com/convision/api/internal/role"
 	"github.com/convision/api/internal/bulkimport"
 	cashsvc "github.com/convision/api/internal/cash"
 	cashclosesvc "github.com/convision/api/internal/cashclose"
@@ -157,13 +158,18 @@ func main() {
 	// Branch repo
 	branchRepo := postgresplatform.NewBranchRepository()
 
+	// RBAC repos
+	roleRepo := postgresplatform.NewRoleRepository()
+	permissionRepo := postgresplatform.NewPermissionRepository()
+
 	// Platform repositories (multi-tenancy)
 	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
 	opticaRepo := postgresplatform.NewOpticaRepository(db)
 	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
 
 	// ---- Services (use-case layer) ----
-	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, logger)
+	roleService := rolesvc.NewService(db, roleRepo, permissionRepo, userRepo, logger)
+	authService := authsvc.NewService(db, userRepo, revokedTokenRepo, branchRepo, superAdminRepo, featureCache, roleService, logger)
 	patientService := patient.NewService(patientRepo, logger)
 	userService := usersvc.NewService(userRepo, logger)
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
@@ -177,7 +183,7 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
+	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, db, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
@@ -232,7 +238,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----

@@ -46,6 +46,13 @@ type UserRole struct {
 	CreatedAt time.Time `json:"created_at" gorm:"type:timestamptz;not null;default:now()"`
 }
 
+// RolePermission is the join table linking roles to permissions.
+type RolePermission struct {
+	RoleID       uint      `json:"role_id"       gorm:"primaryKey"`
+	PermissionID uint      `json:"permission_id" gorm:"primaryKey"`
+	CreatedAt    time.Time `json:"created_at"    gorm:"type:timestamptz;not null;default:now()"`
+}
+
 // RoleRepository defines persistence operations for RoleModel.
 type RoleRepository interface {
 	GetByID(db *gorm.DB, id uint) (*RoleModel, error)

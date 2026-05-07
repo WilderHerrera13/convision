@@ -12,6 +12,7 @@ import (
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	"github.com/convision/api/internal/platform/featurecache"
+	rolesvc "github.com/convision/api/internal/role"
 )
 
 type Service struct {
@@ -21,6 +22,7 @@ type Service struct {
 	branches      domain.BranchRepository
 	superAdmins   domain.SuperAdminRepository
 	featureCache  *featurecache.Cache
+	roleService   *rolesvc.Service
 	logger        *zap.Logger
 }
 
@@ -31,6 +33,7 @@ func NewService(
 	branches domain.BranchRepository,
 	superAdmins domain.SuperAdminRepository,
 	featureCache *featurecache.Cache,
+	roleService *rolesvc.Service,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
@@ -40,6 +43,7 @@ func NewService(
 		branches:      branches,
 		superAdmins:   superAdmins,
 		featureCache:  featureCache,
+		roleService:   roleService,
 		logger:        logger,
 	}
 }
@@ -56,14 +60,15 @@ type LoginContext struct {
 }
 
 type LoginOutput struct {
-	AccessToken            string       `json:"access_token"`
-	TokenType              string       `json:"token_type"`
-	ExpiresIn              int64        `json:"expires_in"`
-	JTI                    string       `json:"-"`
-	User                   *domain.User `json:"-"`
-	Branches               []BranchInfo `json:"branches"`
-	FeatureFlags           []string     `json:"feature_flags"`
-	RequirePasswordChange  bool         `json:"require_password_change"`
+	AccessToken           string       `json:"access_token"`
+	TokenType             string       `json:"token_type"`
+	ExpiresIn             int64        `json:"expires_in"`
+	JTI                   string       `json:"-"`
+	User                  *domain.User `json:"-"`
+	Branches              []BranchInfo `json:"branches"`
+	FeatureFlags          []string     `json:"feature_flags"`
+	Permissions           []string     `json:"-"`
+	RequirePasswordChange bool         `json:"require_password_change"`
 }
 
 type BranchInfo struct {
@@ -97,7 +102,7 @@ func (s *Service) loginSuperAdmin(input LoginInput) (*LoginOutput, error) {
 		Name:  sa.Name,
 		RoleType: domain.RoleSuperAdmin,
 	}
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil)
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +143,13 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 		return nil, err
 	}
 	flags, _ := s.featureCache.GetEnabled(ctx.OpticaID)
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, ctx.OpticaID, ctx.SchemaName, flags)
+	permissions, err := s.roleService.GetUserPermissionKeys(user.ID)
+	if err != nil {
+		s.logger.Warn("failed to load user permissions during login",
+			zap.Uint("user_id", user.ID), zap.Error(err))
+		permissions = []string{}
+	}
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, ctx.OpticaID, ctx.SchemaName, flags, permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +162,7 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 		User:                  user,
 		Branches:              s.loadBranches(tx, user),
 		FeatureFlags:          flags,
+		Permissions:           permissions,
 		RequirePasswordChange: user.MustChangePassword,
 	}, nil
 }
@@ -189,7 +201,11 @@ func (s *Service) Refresh(oldJti string, userID uint, opticaID uint, schemaName 
 	}
 
 	flags, _ := s.featureCache.GetEnabled(opticaID)
-	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, opticaID, schemaName, flags)
+	permissions, err := s.roleService.GetUserPermissionKeys(user.ID)
+	if err != nil {
+		permissions = []string{}
+	}
+	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, opticaID, schemaName, flags, permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +219,7 @@ func (s *Service) Refresh(oldJti string, userID uint, opticaID uint, schemaName 
 		User:         user,
 		Branches:     s.loadBranches(s.db, user),
 		FeatureFlags: flags,
+		Permissions:  permissions,
 	}, nil
 }
 

@@ -32,6 +32,7 @@ import (
 	"github.com/convision/api/internal/patient"
 	payrollsvc "github.com/convision/api/internal/payroll"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	rolesvc "github.com/convision/api/internal/role"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	"github.com/convision/api/internal/product"
@@ -61,7 +62,9 @@ type UserResource struct {
 	Email              string                         `json:"email"`
 	Identification     string                         `json:"identification"`
 	Phone              string                         `json:"phone"`
+	RoleType           string                         `json:"role_type"`
 	Role               string                         `json:"role"`
+	Permissions        []string                       `json:"permissions,omitempty"`
 	Active             bool                           `json:"active"`
 	MustChangePassword bool                           `json:"must_change_password"`
 	CreatedAt          string                         `json:"created_at"`
@@ -77,6 +80,7 @@ func toUserResource(u *domain.User) UserResource {
 		Email:              u.Email,
 		Identification:     u.Identification,
 		Phone:              u.Phone,
+		RoleType:           string(u.RoleType),
 		Role:               string(u.RoleType),
 		Active:             u.Active,
 		MustChangePassword: u.MustChangePassword,
@@ -143,6 +147,7 @@ type Handler struct {
 	revokedTokens domain.RevokedTokenRepository
 	optica        *opticasvc.Service
 	featureFlag   *opticasvc.FeatureService
+	role          *rolesvc.Service
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -183,6 +188,7 @@ func NewHandler(
 	branchRepo       domain.BranchRepository,
 	opticaSvc        *opticasvc.Service,
 	featureSvc       *opticasvc.FeatureService,
+	roleSvc          *rolesvc.Service,
 ) *Handler {
 	return &Handler{
 		db:             db,
@@ -221,6 +227,7 @@ func NewHandler(
 		revokedTokens: revokedTokens,
 		optica:        opticaSvc,
 		featureFlag:   featureSvc,
+		role:          roleSvc,
 	}
 }
 
@@ -268,7 +275,9 @@ func (h *Handler) Login(c *gin.Context) {
 			"role":  string(out.User.RoleType),
 		}
 	} else {
-		response["user"] = toUserResource(out.User)
+		userResource := toUserResource(out.User)
+		userResource.Permissions = out.Permissions
+		response["user"] = userResource
 		response["branches"] = out.Branches
 		response["feature_flags"] = out.FeatureFlags
 	}

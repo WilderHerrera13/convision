@@ -116,6 +116,34 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			users.DELETE("/:id", h.DeleteUser)
 		}
 
+		// Roles & Permissions — admin only (requires roles_permissions:manage)
+		rolesGroup := protected.Group("/roles")
+		rolesGroup.Use(jwtauth.RequirePermission("roles_permissions:manage"))
+		{
+			rolesGroup.GET("", h.ListRoles)
+			rolesGroup.POST("", h.CreateRole)
+			rolesGroup.GET("/:id", h.GetRole)
+			rolesGroup.PUT("/:id", h.UpdateRole)
+			rolesGroup.DELETE("/:id", h.DeleteRole)
+		}
+
+		protected.GET("/permissions",
+			jwtauth.RequirePermission("roles_permissions:manage"),
+			h.ListAllPermissions,
+		)
+
+		userRolesGroup := protected.Group("/users/:id/roles")
+		userRolesGroup.Use(jwtauth.RequirePermission("roles_permissions:manage"))
+		{
+			userRolesGroup.POST("", h.AssignRoleToUser)
+			userRolesGroup.DELETE("/:roleId", h.RemoveRoleFromUser)
+		}
+
+		protected.GET("/users/:id/permissions",
+			jwtauth.RequirePermission("roles_permissions:manage"),
+			h.GetUserPermissions,
+		)
+
 		// Specialists list — all authenticated roles (needed for appointment creation)
 		protected.GET("/specialists", h.ListSpecialists)
 

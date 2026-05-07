@@ -49,6 +49,21 @@ func Authenticate(revokedRepo domain.RevokedTokenRepository, db ...*gorm.DB) gin
 			}
 		}
 
+		if globalDB != nil {
+			var tokenVer int
+			if err := globalDB.Table("users").
+				Select("token_version").
+				Where("id = ?", claims.UserID).
+				Scan(&tokenVer).Error; err != nil {
+				c.AbortWithStatusJSON(401, gin.H{"message": "token validation error"})
+				return
+			}
+			if tokenVer != claims.TokenVersion {
+				c.AbortWithStatusJSON(401, gin.H{"message": "token has been invalidated"})
+				return
+			}
+		}
+
 		c.Set(claimsKey, claims)
 		c.Next()
 	}
@@ -86,4 +101,68 @@ func RequireRole(roles ...domain.Role) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// RequirePermission returns a middleware that enforces a single permission key ("module:action").
+func RequirePermission(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := GetClaims(c)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"message": "unauthenticated"})
+			return
+		}
+		perms := buildPermissionSet(claims.Permissions)
+		if _, permitted := perms[permission]; !permitted {
+			c.AbortWithStatusJSON(403, gin.H{"message": "forbidden: insufficient permissions"})
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireAnyPermission returns a middleware that passes if the token holds at least one of the given permissions.
+func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := GetClaims(c)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"message": "unauthenticated"})
+			return
+		}
+		perms := buildPermissionSet(claims.Permissions)
+		for _, p := range permissions {
+			if _, permitted := perms[p]; permitted {
+				c.Next()
+				return
+			}
+		}
+		c.AbortWithStatusJSON(403, gin.H{"message": "forbidden: insufficient permissions"})
+	}
+}
+
+// RequireAllPermissions returns a middleware that passes only if the token holds every listed permission.
+func RequireAllPermissions(permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := GetClaims(c)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"message": "unauthenticated"})
+			return
+		}
+		perms := buildPermissionSet(claims.Permissions)
+		for _, p := range permissions {
+			if _, permitted := perms[p]; !permitted {
+				c.AbortWithStatusJSON(403, gin.H{"message": "forbidden: insufficient permissions"})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
+// buildPermissionSet converts a permissions slice into an O(1) lookup map.
+func buildPermissionSet(perms []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(perms))
+	for _, p := range perms {
+		set[p] = struct{}{}
+	}
+	return set
 }
