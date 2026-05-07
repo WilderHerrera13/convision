@@ -135,7 +135,7 @@ func (h *Handler) GetSpecialistReportDetail(c *gin.Context) {
 			"id":        specialist.ID,
 			"name":      specialist.Name,
 			"last_name": specialist.LastName,
-			"role":      specialist.Role,
+			"role":      specialist.RoleType,
 		},
 		"kpis": gin.H{
 			"effective":          kpis.Effective,

@@ -479,7 +479,7 @@ func (h *Handler) GetCashRegisterClosesCalendar(c *gin.Context) {
 				"id":        advisor.ID,
 				"name":      advisor.Name,
 				"last_name": advisor.LastName,
-				"role":      advisor.Role,
+				"role":      advisor.RoleType,
 			},
 			"date_from": out.DateFrom,
 			"date_to":   out.DateTo,

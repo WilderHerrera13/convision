@@ -122,7 +122,7 @@ func (i *staffUserImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]
 		LastName:           lastName,
 		Email:              identification,
 		Identification:     identification,
-		Role:               role,
+		RoleType:           role,
 		Active:             true,
 		Password:           string(hashed),
 		MustChangePassword: true,

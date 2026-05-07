@@ -182,7 +182,7 @@ func (i *scheduledAppointmentsImporter) findOrCreateUserByIdentification(
 		Identification: identification,
 		Email:          strings.ToLower(identification + "@placeholder.convision"),
 		Password:       defaultTempPassword(),
-		Role:           role,
+		RoleType:       role,
 		Active:         true,
 		Phone:          "",
 	}

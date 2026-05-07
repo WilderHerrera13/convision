@@ -77,7 +77,7 @@ func toUserResource(u *domain.User) UserResource {
 		Email:              u.Email,
 		Identification:     u.Identification,
 		Phone:              u.Phone,
-		Role:               string(u.Role),
+		Role:               string(u.RoleType),
 		Active:             u.Active,
 		MustChangePassword: u.MustChangePassword,
 		CreatedAt:          u.CreatedAt.UTC().Format(timeFormat) + "Z",
@@ -260,12 +260,12 @@ func (h *Handler) Login(c *gin.Context) {
 		"expires_in":              out.ExpiresIn,
 		"require_password_change": out.RequirePasswordChange,
 	}
-	if out.User.Role == domain.RoleSuperAdmin {
+	if out.User.RoleType == domain.RoleSuperAdmin {
 		response["user"] = gin.H{
 			"id":    out.User.ID,
 			"name":  out.User.Name,
 			"email": out.User.Email,
-			"role":  string(out.User.Role),
+			"role":  string(out.User.RoleType),
 		}
 	} else {
 		response["user"] = toUserResource(out.User)
@@ -305,7 +305,7 @@ func (h *Handler) PlatformLogin(c *gin.Context) {
 			"id":    out.User.ID,
 			"name":  out.User.Name,
 			"email": out.User.Email,
-			"role":  string(out.User.Role),
+			"role":  string(out.User.RoleType),
 		},
 	})
 }
@@ -404,12 +404,12 @@ func (h *Handler) Refresh(c *gin.Context) {
 		"expires_in":              out.ExpiresIn,
 		"require_password_change": out.RequirePasswordChange,
 	}
-	if out.User.Role == domain.RoleSuperAdmin {
+	if out.User.RoleType == domain.RoleSuperAdmin {
 		response["user"] = gin.H{
 			"id":    out.User.ID,
 			"name":  out.User.Name,
 			"email": out.User.Email,
-			"role":  string(out.User.Role),
+			"role":  string(out.User.RoleType),
 		}
 	} else {
 		response["user"] = toUserResource(out.User)
@@ -486,7 +486,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 	}
 
 	res := toUserResource(u)
-	if u.Role == domain.RoleSpecialist || u.Role == domain.RoleReceptionist {
+	if u.RoleType == domain.RoleSpecialist || u.RoleType == domain.RoleReceptionist {
 		assigns, err := h.branch.ListAssignmentsForUser(db, id)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})

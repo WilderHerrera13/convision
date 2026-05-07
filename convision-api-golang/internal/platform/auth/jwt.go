@@ -42,7 +42,7 @@ func GenerateToken(user *domain.User, opticaID uint, schemaName string, featureF
 	claims := Claims{
 		UserID:       user.ID,
 		Email:        user.Email,
-		Role:         user.Role,
+		Role:         user.RoleType,
 		OpticaID:     opticaID,
 		SchemaName:   schemaName,
 		FeatureFlags: featureFlags,

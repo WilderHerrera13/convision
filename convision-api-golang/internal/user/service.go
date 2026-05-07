@@ -122,7 +122,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.User, error) {
 		Identification: input.Identification,
 		Phone:          input.Phone,
 		Password:       string(hash),
-		Role:           input.Role,
+		RoleType:       input.Role,
 		Active:         true,
 	}
 
@@ -130,7 +130,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.User, error) {
 		return nil, err
 	}
 
-	s.logger.Info("user created", zap.Uint("user_id", u.ID), zap.String("role", string(u.Role)))
+	s.logger.Info("user created", zap.Uint("user_id", u.ID), zap.String("role", string(u.RoleType)))
 	return u, nil
 }
 
@@ -157,7 +157,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.User,
 		u.Phone = *input.Phone
 	}
 	if input.Role != nil {
-		u.Role = *input.Role
+		u.RoleType = *input.Role
 	}
 	if input.Password != nil {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)

@@ -82,7 +82,7 @@ func EnsureLocalDevUsers(db *gorm.DB, logger *zap.Logger) error {
 			Identification: seed.Identification,
 			Phone:          seed.Phone,
 			Password:       string(hash),
-			Role:           seed.Role,
+			RoleType:       seed.Role,
 			Active:         true,
 		}
 		if err := db.Create(&user).Error; err != nil {

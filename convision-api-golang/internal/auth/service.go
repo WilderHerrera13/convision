@@ -95,7 +95,7 @@ func (s *Service) loginSuperAdmin(input LoginInput) (*LoginOutput, error) {
 		ID:    sa.ID,
 		Email: sa.Email,
 		Name:  sa.Name,
-		Role:  domain.RoleSuperAdmin,
+		RoleType: domain.RoleSuperAdmin,
 	}
 	tokenStr, jti, expiresIn, err := jwtauth.GenerateToken(user, 0, "platform", nil)
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *Service) loginTenantUser(input LoginInput, ctx LoginContext) (*LoginOut
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Info("user logged in", zap.Uint("user_id", user.ID), zap.String("role", string(user.Role)))
+	s.logger.Info("user logged in", zap.Uint("user_id", user.ID), zap.String("role", string(user.RoleType)))
 	return &LoginOutput{
 		AccessToken:           tokenStr,
 		TokenType:             "bearer",
@@ -207,7 +207,7 @@ func (s *Service) Refresh(oldJti string, userID uint, opticaID uint, schemaName 
 }
 
 func (s *Service) ensureOperatorBranchesForLogin(db *gorm.DB, user *domain.User) error {
-	if user.Role != domain.RoleSpecialist && user.Role != domain.RoleReceptionist {
+	if user.RoleType != domain.RoleSpecialist && user.RoleType != domain.RoleReceptionist {
 		return nil
 	}
 	branches, err := s.branches.ListForUser(db, user.ID)
@@ -216,14 +216,14 @@ func (s *Service) ensureOperatorBranchesForLogin(db *gorm.DB, user *domain.User)
 		return errors.New("invalid credentials")
 	}
 	if len(branches) == 0 {
-		s.logger.Warn("login denied: no active branches for role", zap.Uint("user_id", user.ID), zap.String("role", string(user.Role)))
+		s.logger.Warn("login denied: no active branches for role", zap.Uint("user_id", user.ID), zap.String("role", string(user.RoleType)))
 		return &domain.ErrLoginNoBranches{}
 	}
 	return nil
 }
 
 func (s *Service) loadBranches(db *gorm.DB, user *domain.User) []BranchInfo {
-	if user.Role == domain.RoleAdmin {
+	if user.RoleType == domain.RoleAdmin {
 		rawBranches, err := s.branches.ListAll(db)
 		if err != nil {
 			s.logger.Warn("could not load branches for admin", zap.Uint("user_id", user.ID), zap.Error(err))

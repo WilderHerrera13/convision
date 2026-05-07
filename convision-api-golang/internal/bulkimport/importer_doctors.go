@@ -66,7 +66,7 @@ func (i *doctorImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]str
 		Email:          email,
 		Identification: identification,
 		Phone:          strings.TrimSpace(data["telefono"]),
-		Role:           domain.RoleSpecialist,
+		RoleType:       domain.RoleSpecialist,
 		Active:         true,
 		Password:       defaultTempPassword(),
 	}
