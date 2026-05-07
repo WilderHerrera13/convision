@@ -193,7 +193,7 @@ Plans:
 - [ ] 15-04: High-Impact Pages — NewLaboratoryOrder multi-column responsive, finance forms container padding
 - [ ] 15-05: Polish & Testing — Dialog max-width on mobile, EntityTable toolbar wrap, padding audit, build verification, Playwright viewport tests
 
-### Phase 17: Bulk Inventory Upload with Kardex Integration
+### Phase 17: Bulk Inventory Upload with Kardex Integration ✅ COMPLETE (2026-05-06)
 **Goal:** Agregar opción "Inventario" al módulo de carga masiva. El Excel de entrada define productos (monturas/accesorios) con cantidades por sede. Por cada fila: crear o reutilizar el Product (frame/accessory), crear o reutilizar el InventoryItem del warehouse de esa sede, sumando cantidades. Cada cambio de cantidad escribe un StockMovement en el kardex.
 **Depends on:** Phase 13 (WMS models), Phase 14 (branches/warehouses)
 **Requirements:** [INV-BULK-01, INV-BULK-02, INV-BULK-03]
