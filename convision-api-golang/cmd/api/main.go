@@ -166,6 +166,8 @@ func main() {
 	superAdminRepo := postgresplatform.NewSuperAdminRepository(db)
 	opticaRepo := postgresplatform.NewOpticaRepository(db)
 	opticaFeatureRepo := postgresplatform.NewOpticaFeatureRepository(db)
+	opticaPermRepo := postgresplatform.NewOpticaPermissionRepository(db)
+	_ = opticaPermRepo // temporary — used in 20-02/20-03
 
 	// ---- Services (use-case layer) ----
 	roleService := rolesvc.NewService(db, roleRepo, permissionRepo, userRepo, logger)
@@ -183,7 +185,7 @@ func main() {
 	locationService := locationsvc.NewService(locationRepo, patientLookupRepo, logger)
 	productService := productsvc.NewService(productRepo, discountRepo, logger)
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
-	inventoryService := inventorysvc.NewService(warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
+	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, db, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
 	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, logger)
