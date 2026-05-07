@@ -26,11 +26,14 @@ type User struct {
 	Identification     string    `json:"identification"       gorm:"column:identification"`
 	Phone              string    `json:"phone"                gorm:"column:phone"`
 	Password           string    `json:"-"                    gorm:"column:password_hash;not null"`
-	Role               Role      `json:"role"                 gorm:"type:varchar(20);not null;default:'receptionist'"`
-	Active             bool      `json:"active"               gorm:"not null;default:true"`
-	MustChangePassword bool      `json:"must_change_password" gorm:"column:must_change_password;not null;default:false"`
+	RoleType           Role      `json:"role_type"             gorm:"column:role_type;type:varchar(30);not null;default:'receptionist'"`
+	TokenVersion       int       `json:"token_version"         gorm:"not null;default:1"`
+	Active             bool      `json:"active"                gorm:"not null;default:true"`
+	MustChangePassword bool      `json:"must_change_password"  gorm:"column:must_change_password;not null;default:false"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+
+	Roles []RoleModel `json:"roles,omitempty" gorm:"many2many:user_roles;"`
 }
 
 // UserRepository defines persistence operations for User.
@@ -45,4 +48,7 @@ type UserRepository interface {
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*User, int64, error)
 	GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 	GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
+	GetRoles(db *gorm.DB, userID uint) ([]*RoleModel, error)
+	AssignRoles(db *gorm.DB, userID uint, roleIDs []uint) error
+	IncrementTokenVersion(db *gorm.DB, userID uint) error
 }
