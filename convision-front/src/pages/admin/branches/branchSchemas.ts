@@ -7,6 +7,7 @@ export const branchFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Correo inválido').or(z.literal('')),
   is_active: z.boolean(),
+  default_warehouse_id: z.number().nullable().optional(),
 });
 
 export type BranchFormInput = z.infer<typeof branchFormSchema>;
@@ -18,4 +19,5 @@ export const emptyBranchFormValues: BranchFormInput = {
   phone: '',
   email: '',
   is_active: true,
+  default_warehouse_id: null,
 };
