@@ -18,6 +18,7 @@ This roadmap stabilizes and hardens the existing brownfield clinic system before
 - [x] **Phase 6: Cash Register Close Module — Cierre de Caja diario por asesor** - Cierre de caja, reporte de gestión diaria, aprobación admin (2026-04-14)
 - [ ] **Phase 13: Unified Product-Inventory WMS Foundation** - Modelo unificado de productos (product_type + tracks_stock), Kardex (stock_movements), ajustes con aprobación, catálogo de lentes visible en inventario, unificación lens-as-product en backend
 - [x] **Phase 14: Multi-Branch / Clinic Support** - First-class branch (sede) support: branches table, user-branch assignments, X-Branch-ID middleware, scoped appointments/sales/cash/inventory, global users/patients/catalog, branch-selector UI after login (completed 2026-04-28)
+- [ ] **Phase 18: Sales-Inventory Stock Deduction** - Connect the sales module to WMS: deduct InventoryItem quantity and write StockMovement on sale creation; revert on cancellation
 
 ## Phase Details
 
@@ -167,6 +168,7 @@ Plans:
 | 14. Multi-Branch / Clinic Support | 5/5 | Complete | 2026-04-28 |
 | 15. Mobile & Responsive Design | 0/5 | Planned | - |
 | 16. Multi-Tenancy & Super Admin | 9/9 | Complete    | 2026-05-02 |
+| 18. Sales-Inventory Stock Deduction | 0/2 | Not started | - |
 
 ### Phase 15: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
 
@@ -190,6 +192,37 @@ Plans:
 - [ ] 15-03: High-Impact Pages — AppointmentFormPage step indicator + date layout, NewSale parent flex container stack on mobile
 - [ ] 15-04: High-Impact Pages — NewLaboratoryOrder multi-column responsive, finance forms container padding
 - [ ] 15-05: Polish & Testing — Dialog max-width on mobile, EntityTable toolbar wrap, padding audit, build verification, Playwright viewport tests
+
+### Phase 17: Bulk Inventory Upload with Kardex Integration
+**Goal:** Agregar opción "Inventario" al módulo de carga masiva. El Excel de entrada define productos (monturas/accesorios) con cantidades por sede. Por cada fila: crear o reutilizar el Product (frame/accessory), crear o reutilizar el InventoryItem del warehouse de esa sede, sumando cantidades. Cada cambio de cantidad escribe un StockMovement en el kardex.
+**Depends on:** Phase 13 (WMS models), Phase 14 (branches/warehouses)
+**Requirements:** [INV-BULK-01, INV-BULK-02, INV-BULK-03]
+**Success Criteria** (what must be TRUE):
+  1. `POST /api/v1/bulk-import/inventory` acepta un Excel con columnas: Código, Identificador, Descripción, tipoproducto, Marca, Categoria, Tipo, Cant, precioventa, preciocompra, Sede
+  2. Si el mismo producto aparece varias veces en el archivo, las cantidades se suman (no se duplica el InventoryItem)
+  3. Cada carga escribe un `stock_movements` con MovementType `entry` (ítem nuevo) o `adjustment_add` (ítem existente)
+  4. El módulo frontend incluye "Inventario" como opción en la pantalla de selección de carga masiva con columnas correctas mostradas en el resultado
+Plans:
+- [x] 17-01: Backend — inventoryImporter, route + handler
+- [ ] 17-02: Frontend — ImportTypeSelectPage + BulkImportPage INVENTORY_CONFIG + bulkImportService
+
+### Phase 18: Sales-Inventory Stock Deduction
+
+**Goal:** Connect the sales module to the WMS inventory system so that creating a sale deducts stock from InventoryItem and records a StockMovement in the kardex; cancelling a sale restores stock.
+**Depends on:** Phase 13 (WMS models — InventoryItem + StockMovement), Phase 17 (bulk inventory upload — warehouses populated)
+**Requirements:** [SALE-STOCK-01, SALE-STOCK-02, SALE-STOCK-03, SALE-STOCK-04]
+**Success Criteria** (what must be TRUE):
+  1. Creating a sale with items where Product.tracks_stock=true decrements InventoryItem.quantity by SaleItem.quantity
+  2. A StockMovement of type "exit" with reference_type="sale" and reference_id=saleID is created per stock-tracked item
+  3. Cancelling a sale with stock-tracked items increments InventoryItem.quantity back and writes a StockMovement of type "adjustment_add"
+  4. Sales with Product.tracks_stock=false (lens items) complete without touching inventory
+  5. A sale with zero available stock still completes (warn, no block) — business sells on backorder
+  6. `make build` exits 0 after all changes
+**Plans:** 1/2 plans executed
+
+Plans:
+- [ ] 18-01: Backend — wire itemRepo + movementRepo into sale service; deductStock on Create, revertStock on Cancel
+- [ ] 18-02: Backend verification — integration smoke tests, make build passes
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
