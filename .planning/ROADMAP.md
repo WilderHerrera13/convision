@@ -251,7 +251,7 @@ Plans:
   4. Super admin endpoints `GET/PUT /api/v1/super-admin/opticas/:id/permissions` exist and are protected
   5. Super admin frontend has a per-optica permission matrix panel (accordion by module, checkboxes per action)
   6. `make build && make test && npm run build` all exit 0
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
