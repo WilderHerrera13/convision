@@ -815,6 +815,87 @@ q := r.db.Model(&domain.Appointment{}).
 
 Esto evita duplicar cláusulas `Where` en `List`, `ListByPatient`, `Count`, etc.
 
+### Filter Structs (typed ShouldBindQuery pattern)
+
+Every domain that exposes a List endpoint with querystring filters MUST define a
+`XxxFilter` struct in `internal/domain/<entity>.go`. This is the canonical pattern:
+
+#### Rules
+
+1. Filter struct lives in `internal/domain/<entity>.go`, alongside the entity and Repository interface.
+2. Every Filter struct embeds `domain.Pagination`.
+3. `BranchID *uint` is NEVER a `form:` tag field — it is injected by middleware after `ShouldBindQuery` returns.
+4. Repository interface `List` method accepts the typed Filter struct: `List(db *gorm.DB, f domain.XxxFilter) ([]*Xxx, int64, error)`.
+5. Service calls `f.Clamp()` before calling the repository.
+6. Handler uses `c.ShouldBindQuery(&f)` — never `c.Query()` loops for list filters.
+
+#### Canonical example — RoleFilter
+
+```go
+// internal/domain/role.go
+type RoleFilter struct {
+    Pagination
+    Name string `form:"name"`
+}
+
+// Repository interface
+type RoleRepository interface {
+    List(db *gorm.DB, f RoleFilter) ([]*Role, int64, error)
+    // ... other methods
+}
+```
+
+#### Handler pattern
+
+```go
+func (h *Handler) ListRoles(c *gin.Context) {
+    var f domain.RoleFilter
+    if err := c.ShouldBindQuery(&f); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+        return
+    }
+    out, err := h.role.List(f)
+    if err != nil {
+        respondError(c, err)
+        return
+    }
+    c.JSON(http.StatusOK, out)
+}
+```
+
+#### BranchID injection pattern
+
+```go
+var f domain.WarehouseFilter
+if err := c.ShouldBindQuery(&f); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+    return
+}
+branchID := branchmw.BranchIDFromCtx(c)
+if branchID > 0 {
+    f.BranchID = &branchID
+}
+```
+
+#### OR-mode search (replaces s_f/s_v/s_o=or)
+
+Use a single `Search string \`form:"search"\`` field. The repository applies
+`OR ILIKE` across all relevant text columns internally:
+
+```go
+if f.Search != "" {
+    like := "%" + f.Search + "%"
+    q = q.Where("first_name ILIKE ? OR last_name ILIKE ? OR identification ILIKE ?", like, like, like)
+}
+```
+
+#### Anti-patterns prohibited
+
+- NEVER use `parseApiFilters()` — it is deleted in Phase 21.
+- NEVER use `filterAllowlist` maps — replaced by typed struct fields.
+- NEVER accept `map[string]any` in Repository List interfaces — all interfaces use typed Filter structs.
+- NEVER read `s_f`, `s_v`, or `s_o` query params in transport layer.
+
 ---
 
 ## 14. Optimización de Memoria
