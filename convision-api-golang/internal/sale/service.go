@@ -9,21 +9,24 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles sale use-cases.
 type Service struct {
-	db              *gorm.DB
-	saleRepo        domain.SaleRepository
-	adjRepo         domain.SaleLensPriceAdjustmentRepository
-	productRepo     domain.ProductRepository
-	labOrderRepo    domain.LaboratoryOrderRepository
-	labRepo         domain.LaboratoryRepository
-	appointmentRepo domain.AppointmentRepository
-	branchRepo      domain.BranchRepository
-	itemRepo        domain.InventoryItemRepository
-	movementRepo    domain.StockMovementRepository
-	logger          *zap.Logger
+	db               *gorm.DB
+	saleRepo         domain.SaleRepository
+	adjRepo          domain.SaleLensPriceAdjustmentRepository
+	productRepo      domain.ProductRepository
+	labOrderRepo     domain.LaboratoryOrderRepository
+	labRepo          domain.LaboratoryRepository
+	appointmentRepo  domain.AppointmentRepository
+	branchRepo       domain.BranchRepository
+	itemRepo         domain.InventoryItemRepository
+	movementRepo     domain.StockMovementRepository
+	prescriptionRepo domain.PrescriptionRepository
+	userRepo         domain.UserRepository
+	logger           *zap.Logger
 }
 
 // NewService creates a new sale Service.
@@ -38,20 +41,24 @@ func NewService(
 	branchRepo domain.BranchRepository,
 	itemRepo domain.InventoryItemRepository,
 	movementRepo domain.StockMovementRepository,
+	prescriptionRepo domain.PrescriptionRepository,
+	userRepo domain.UserRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		db:              db,
-		saleRepo:        saleRepo,
-		adjRepo:         adjRepo,
-		productRepo:     productRepo,
-		labOrderRepo:    labOrderRepo,
-		labRepo:         labRepo,
-		appointmentRepo: appointmentRepo,
-		branchRepo:      branchRepo,
-		itemRepo:        itemRepo,
-		movementRepo:    movementRepo,
-		logger:          logger,
+		db:               db,
+		saleRepo:         saleRepo,
+		adjRepo:          adjRepo,
+		productRepo:      productRepo,
+		labOrderRepo:     labOrderRepo,
+		labRepo:          labRepo,
+		appointmentRepo:  appointmentRepo,
+		branchRepo:       branchRepo,
+		itemRepo:         itemRepo,
+		movementRepo:     movementRepo,
+		prescriptionRepo: prescriptionRepo,
+		userRepo:         userRepo,
+		logger:           logger,
 	}
 }
 
@@ -198,7 +205,7 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 		pmID := p.PaymentMethodID
 		pd := now
 		if p.PaymentDate != "" {
-			if t, err := time.Parse("2006-01-02", p.PaymentDate); err == nil {
+			if t, err := clock.ParseDate(p.PaymentDate); err == nil {
 				pd = t
 			}
 		}
@@ -347,7 +354,7 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 	now := time.Now()
 	pd := now
 	if input.PaymentDate != "" {
-		if t, err := time.Parse("2006-01-02", input.PaymentDate); err == nil {
+		if t, err := clock.ParseDate(input.PaymentDate); err == nil {
 			pd = t
 		}
 	}
@@ -456,26 +463,23 @@ func (s *Service) GetLensPriceAdjustments(saleID uint) ([]*domain.SaleLensPriceA
 }
 
 // deductStock reduces InventoryItem.Quantity for each SaleItem where Product.TracksStock=true
-// and records a StockMovement of type "exit". Uses branch.DefaultWarehouseID (Modelo A).
+// and records a StockMovement of type "exit". Resolution order for the source warehouse:
+//  1. branch.DefaultWarehouseID (Modelo A — preferred when configured).
+//  2. Any InventoryItem belonging to the sale's branch (fallback so a missing
+//     default_warehouse_id setting does not silently drop deductions).
+//
 // Best-effort: logs warnings, never blocks the sale.
 func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, items []domain.SaleItem, userID uint) {
-	branch, err := s.branchRepo.GetByID(s.db, branchID)
-	if err != nil {
-		s.logger.Warn("deductStock: branch not found, skipping all deductions",
+	var defaultWarehouseID *uint
+	if branch, err := s.branchRepo.GetByID(s.db, branchID); err != nil {
+		s.logger.Warn("deductStock: branch not found, falling back to branch_id filter",
 			zap.Uint("branch_id", branchID),
 			zap.Uint("sale_id", saleID),
 			zap.Error(err),
 		)
-		return
+	} else {
+		defaultWarehouseID = branch.DefaultWarehouseID
 	}
-	if branch.DefaultWarehouseID == nil {
-		s.logger.Warn("deductStock: branch has no default_warehouse_id configured, skipping all deductions",
-			zap.Uint("branch_id", branchID),
-			zap.Uint("sale_id", saleID),
-		)
-		return
-	}
-	warehouseID := *branch.DefaultWarehouseID
 
 	for _, item := range items {
 		if item.ProductID == nil {
@@ -495,37 +499,33 @@ func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, i
 			continue
 		}
 
-		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
-			"product_id":   *item.ProductID,
-			"warehouse_id": warehouseID,
-		}, 1, 1)
-		if err != nil || len(invItems) == 0 {
-			s.logger.Warn("deductStock: no inventory item found in default warehouse, skipping",
+		invItem, sourceWarehouseID, found := s.findStockSource(*item.ProductID, branchID, defaultWarehouseID)
+		if !found {
+			s.logger.Warn("deductStock: no inventory item found in branch, skipping",
 				zap.Uint("product_id", *item.ProductID),
-				zap.Uint("warehouse_id", warehouseID),
+				zap.Uint("branch_id", branchID),
 				zap.Uint("sale_id", saleID),
 			)
 			continue
 		}
 
-		invItem := *invItems[0]
 		requested := item.Quantity
 		available := invItem.Quantity
 
 		var deducted int
 		switch {
 		case available <= 0:
-			s.logger.Warn("deductStock: zero stock in default warehouse, sale proceeds without deduction",
+			s.logger.Warn("deductStock: zero stock, sale proceeds without deduction",
 				zap.Uint("product_id", *item.ProductID),
-				zap.Uint("warehouse_id", warehouseID),
+				zap.Uint("warehouse_id", sourceWarehouseID),
 				zap.Int("requested", requested),
 				zap.Uint("sale_id", saleID),
 			)
 			continue
 		case available < requested:
-			s.logger.Warn("deductStock: insufficient stock in default warehouse, deducting available only",
+			s.logger.Warn("deductStock: insufficient stock, deducting available only",
 				zap.Uint("product_id", *item.ProductID),
-				zap.Uint("warehouse_id", warehouseID),
+				zap.Uint("warehouse_id", sourceWarehouseID),
 				zap.Int("available", available),
 				zap.Int("requested", requested),
 				zap.Uint("sale_id", saleID),
@@ -549,7 +549,7 @@ func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, i
 			}
 			movement := &domain.StockMovement{
 				ProductID:      productID,
-				WarehouseID:    warehouseID,
+				WarehouseID:    sourceWarehouseID,
 				MovementType:   domain.MovementTypeExit,
 				ReferenceType:  &refType,
 				ReferenceID:    &saleIDCopy,
@@ -569,6 +569,31 @@ func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, i
 			)
 		}
 	}
+}
+
+// findStockSource resolves which InventoryItem to deduct stock from for a sale line.
+// It first tries the branch's default warehouse (when configured); if no item is found
+// there, it falls back to any InventoryItem in the same branch. Returns the picked
+// item, its warehouse_id, and a boolean indicating whether a source was found.
+func (s *Service) findStockSource(productID, branchID uint, defaultWarehouseID *uint) (domain.InventoryItem, uint, bool) {
+	if defaultWarehouseID != nil {
+		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
+			"product_id":   productID,
+			"warehouse_id": *defaultWarehouseID,
+		}, 1, 1)
+		if err == nil && len(invItems) > 0 {
+			return *invItems[0], *defaultWarehouseID, true
+		}
+	}
+
+	invItems, _, err := s.itemRepo.List(s.db, map[string]any{
+		"product_id": productID,
+		"branch_id":  branchID,
+	}, 1, 1)
+	if err != nil || len(invItems) == 0 {
+		return domain.InventoryItem{}, 0, false
+	}
+	return *invItems[0], invItems[0].WarehouseID, true
 }
 
 // revertStock restores InventoryItem.Quantity for each SaleItem where Product.TracksStock=true
@@ -745,10 +770,19 @@ func (s *Service) GeneratePdfToken(id uint) (map[string]any, error) {
 
 func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, labID *uint, userID uint) {
 	hasLens := false
-	for _, it := range items {
+	var lensItem *ItemInput
+	var frameItem *ItemInput
+	for i := range items {
+		it := &items[i]
 		if it.LensID != nil || it.ProductType == "lens" {
 			hasLens = true
-			break
+			if lensItem == nil {
+				lensItem = it
+			}
+		} else if it.ProductType == "frame" {
+			if frameItem == nil {
+				frameItem = it
+			}
 		}
 	}
 	if !hasLens {
@@ -762,13 +796,12 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 
 	resolvedLabID := labID
 	if resolvedLabID == nil {
-		lab, err := s.labRepo.GetFirstActive(s.db)
-		if err != nil {
-			s.logger.Warn("no active laboratory found, skipping lab order creation",
+		if lab, err := s.labRepo.GetFirstActive(s.db); err == nil {
+			resolvedLabID = &lab.ID
+		} else {
+			s.logger.Warn("no active laboratory configured; lab order will be created unassigned",
 				zap.Uint("sale_id", sale.ID))
-			return
 		}
-		resolvedLabID = &lab.ID
 	}
 
 	lo := &domain.LaboratoryOrder{
@@ -779,6 +812,64 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 		Priority:     "normal",
 		CreatedBy:    &userID,
 	}
+
+	now := time.Now()
+	lo.SaleDate = &now
+
+	if s.branchRepo != nil && sale.BranchID > 0 {
+		if br, err := s.branchRepo.GetByID(s.db, sale.BranchID); err == nil && br != nil {
+			if br.City != "" {
+				lo.Branch = fmt.Sprintf("%s — %s", br.Name, br.City)
+			} else {
+				lo.Branch = br.Name
+			}
+		}
+	}
+
+	if s.userRepo != nil {
+		if seller, err := s.userRepo.GetByID(s.db, userID); err == nil && seller != nil {
+			lo.SellerName = seller.Name
+		}
+	}
+
+	if lensItem != nil {
+		desc := lensItem.Description
+		if desc == "" {
+			desc = lensItem.Name
+		}
+		lo.LensOD = desc
+		lo.LensOI = desc
+	}
+	if frameItem != nil {
+		fs := &domain.FrameSpecs{Name: frameItem.Description}
+		if fs.Name == "" {
+			fs.Name = frameItem.Name
+		}
+		lo.FrameSpecs = fs
+	}
+
+	if sale.AppointmentID != nil && s.prescriptionRepo != nil {
+		if rx, err := s.prescriptionRepo.GetByAppointmentID(s.db, *sale.AppointmentID); err == nil && rx != nil {
+			lo.RxOD = &domain.RxEye{
+				Sphere:   rx.RightSphere,
+				Cylinder: rx.RightCylinder,
+				Axis:     rx.RightAxis,
+				Addition: rx.RightAddition,
+				DP:       rx.RightDistanceP,
+			}
+			lo.RxOI = &domain.RxEye{
+				Sphere:   rx.LeftSphere,
+				Cylinder: rx.LeftCylinder,
+				Axis:     rx.LeftAxis,
+				Addition: rx.LeftAddition,
+				DP:       rx.LeftDistanceP,
+			}
+			if rx.Recommendation != "" {
+				lo.SpecialInstructions = rx.Recommendation
+			}
+		}
+	}
+
 	if err := s.labOrderRepo.Create(s.db, lo); err != nil {
 		s.logger.Warn("failed to create lab order from sale",
 			zap.Uint("sale_id", sale.ID),
@@ -788,7 +879,7 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 	_ = s.labOrderRepo.AddStatusEntry(s.db, &domain.LaboratoryOrderStatusEntry{
 		LaboratoryOrderID: lo.ID,
 		Status:            string(domain.LaboratoryOrderStatusPending),
-		Notes:             "Order created automatically from sale",
+		Notes:             "Orden creada automáticamente desde la venta",
 		UserID:            &userID,
 	})
 	s.logger.Info("lab order created from sale",
