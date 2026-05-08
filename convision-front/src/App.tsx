@@ -251,6 +251,8 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       return <Navigate to="/specialist/dashboard" replace />;
     } else if (user.role === 'receptionist') {
       return <Navigate to="/receptionist/dashboard" replace />;
+    } else if (user.role === 'laboratory') {
+      return <Navigate to="/laboratory/lab-orders" replace />;
     }
     return <Navigate to="/unauthorized" replace />;
   }
@@ -282,6 +284,8 @@ const HomePage: React.FC = () => {
     return <Navigate to="/specialist/dashboard" replace />;
   } else if (user?.role === 'receptionist') {
     return <Navigate to="/receptionist/dashboard" replace />;
+  } else if (user?.role === 'laboratory') {
+    return <Navigate to="/laboratory/lab-orders" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -946,6 +950,64 @@ const router = createBrowserRouter([
           {
             path: "daily-report-history/:id",
             element: <DailyReportDetailPage />,
+          },
+          {
+            path: "profile",
+            element: <Profile />,
+          },
+        ],
+      },
+      {
+        path: "/laboratory",
+        element: (
+          <BranchProtectedRoute allowedRoles={['laboratory', 'admin']}>
+            <AdminLayout />
+          </BranchProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/laboratory/lab-orders" replace />,
+          },
+          {
+            path: "dashboard",
+            element: <Navigate to="/laboratory/lab-orders" replace />,
+          },
+          {
+            path: "lab-orders",
+            element: <LaboratoryOrders />,
+          },
+          {
+            path: "lab-orders/new",
+            element: <NewLaboratoryOrder />,
+          },
+          {
+            path: "lab-orders/:id",
+            element: <LaboratoryOrderDetail />,
+          },
+          {
+            path: "lab-orders/:id/notify-client",
+            element: <AdminNotifyClient />,
+          },
+          {
+            path: "lab-orders/:id/confirm-shipment",
+            element: <ConfirmShipment basePath="/laboratory/lab-orders" />,
+          },
+          {
+            path: "lab-orders/:id/confirm-reception",
+            element: <ConfirmReception basePath="/laboratory/lab-orders" />,
+          },
+          {
+            path: "lab-orders/:id/assign-drawer",
+            element: <AssignDrawer basePath="/laboratory/lab-orders" />,
+          },
+          {
+            path: "lab-orders/:id/confirm-delivery",
+            element: <ConfirmDelivery basePath="/laboratory/lab-orders" />,
+          },
+          {
+            path: "laboratory-status",
+            element: <LaboratoryStatus />,
           },
           {
             path: "profile",

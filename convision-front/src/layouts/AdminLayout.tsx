@@ -117,6 +117,17 @@ const specialistNav: NavSection[] = [
   },
 ];
 
+const laboratoryNav: NavSection[] = [
+  { label: null, items: [{ title: 'Dashboard', path: '/laboratory/lab-orders', icon: LayoutDashboard }] },
+  {
+    label: 'LABORATORIO',
+    items: [
+      { title: 'Órdenes de Laboratorio', path: '/laboratory/lab-orders', icon: LabIcon },
+      { title: 'Estado de Laboratorios', path: '/laboratory/laboratory-status', icon: FlaskConical },
+    ],
+  },
+];
+
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 }
@@ -125,12 +136,14 @@ const roleLabels: Record<string, { badge: string; title: string }> = {
   admin: { badge: 'Admin', title: 'Administrador' },
   specialist: { badge: 'Especialista', title: 'Especialista' },
   receptionist: { badge: 'Recepción', title: 'Recepcionista' },
+  laboratory: { badge: 'Laboratorio', title: 'Laboratorio' },
 };
 
 const roleColors: Record<string, { primary: string; dark: string; light: string }> = {
   admin:        { primary: '#3a71f8', dark: '#2558d4', light: '#eff1ff' },
   specialist:   { primary: '#0f8f64', dark: '#0a6e4d', light: '#e5f8ef' },
   receptionist: { primary: '#8753ef', dark: '#6a3cc4', light: '#f1ebff' },
+  laboratory:   { primary: '#b57218', dark: '#8a560f', light: '#fdf3e3' },
 };
 
 const AdminLayout: React.FC = () => {
@@ -195,6 +208,7 @@ const AdminLayout: React.FC = () => {
   let navSections = filterNavSections(adminNav);
   if (user?.role === 'receptionist') navSections = receptionistNav;
   else if (user?.role === 'specialist') navSections = specialistNav;
+  else if (user?.role === 'laboratory') navSections = laboratoryNav;
 
   const roleInfo = roleLabels[user?.role ?? 'admin'] ?? { badge: 'Admin', title: 'Administrador' };
   const initials = user?.name ? getInitials(user.name) : 'US';
