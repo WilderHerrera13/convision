@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type { PrescriptionInput, VisualExamInput } from '@/services/clinicalRecordService';
-
-const TREATMENTS = [
-  { key: 'antirreflejo', label: 'Antirreflejo' },
-  { key: 'fotocromatico', label: 'Fotocromático' },
-  { key: 'filtro_luz_azul', label: 'Filtro luz azul' },
-  { key: 'endurecido', label: 'Endurecido' },
-  { key: 'hidrofobico', label: 'Hidrofóbico' },
-];
+import {
+  TREATMENTS,
+  LENS_TYPES,
+  LENS_MATERIALS,
+  LENS_USES,
+} from '@/lib/prescriptionLabels';
 
 interface Props {
   defaultValues?: Partial<PrescriptionInput>;
@@ -79,14 +77,15 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onBack,
     await onSave({ ...sanitize(data), treatments: activeTreatments });
   };
 
-  const handleSignClick = handleSubmit(async (formData) => {
+  const handleSignClick = async () => {
+    const formData = watch();
     try {
       await onSave({ ...sanitize(formData), treatments: activeTreatments });
-      onSign();
     } catch {
-      // error already surfaced by parent's onSave
+      void 0;
     }
-  });
+    onSign();
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="px-8 py-6 space-y-6">
@@ -156,29 +155,27 @@ export function PrescriptionTab({ defaultValues, visualExamData, onSave, onBack,
             <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Tipo de lente</label>
             <select {...register('lens_type')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
-              <option value="monofocal">Monofocal</option>
-              <option value="bifocal">Bifocal</option>
-              <option value="progresivo">Progresivo</option>
-              <option value="ocupacional">Ocupacional</option>
+              {LENS_TYPES.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Material</label>
             <select {...register('lens_material')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
-              <option value="policarbonato">Policarbonato</option>
-              <option value="cr39">CR-39</option>
-              <option value="trivex">Trivex</option>
-              <option value="alto_indice">Alto índice</option>
+              {LENS_MATERIALS.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Uso indicado</label>
             <select {...register('lens_use')} className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white">
               <option value="">Seleccionar</option>
-              <option value="permanente">Permanente</option>
-              <option value="lectura">Lectura</option>
-              <option value="intermitente">Intermitente</option>
+              {LENS_USES.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
             </select>
           </div>
         </div>

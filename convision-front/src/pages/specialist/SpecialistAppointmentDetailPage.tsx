@@ -11,7 +11,6 @@ import {
   takeAppointment,
   pauseAppointment,
   resumeAppointment,
-  completeAppointment,
   type Appointment,
 } from '../../services/appointmentService';
 import { AppointmentClinicalForm } from '@/components/clinical/AppointmentClinicalForm';
@@ -148,14 +147,7 @@ export default function SpecialistAppointmentDetailPage() {
     },
   });
 
-  const completeMut = useMutation({
-    mutationFn: () => completeAppointment(apptId),
-    onSuccess: () => { toast({ title: 'Cita completada' }); navigate('/specialist/appointments'); },
-    onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } }).response?.data?.message;
-      toast({ variant: 'destructive', title: 'Error', description: msg ?? 'No se pudo completar.' });
-    },
-  });
+  const goToSign = () => navigate(`/specialist/appointments/${apptId}/prescription-preview`);
 
   const handlePauseAndTake = async () => {
     setConflict(p => ({ ...p, open: false }));
@@ -238,8 +230,8 @@ export default function SpecialistAppointmentDetailPage() {
               <Pause className="size-3.5" />{pauseMut.isPending ? 'Pausando...' : 'Pausar consulta'}
             </button>
             <button className="h-9 px-5 bg-[#0f8f64] text-white rounded-[6px] text-[13px] font-semibold hover:bg-[#0a7050] flex items-center gap-1.5 disabled:opacity-50"
-              onClick={() => completeMut.mutate()} disabled={completeMut.isPending}>
-              <CheckCircle2 className="size-3.5" />{completeMut.isPending ? 'Completando...' : 'Completar consulta'}
+              type="button" onClick={goToSign}>
+              <CheckCircle2 className="size-3.5" />Firmar y completar
             </button>
           </>)}
           {appt.status === 'paused' && (<>
@@ -252,8 +244,8 @@ export default function SpecialistAppointmentDetailPage() {
               <RotateCcw className="size-3.5" />{resumeMut.isPending ? 'Reanudando...' : 'Reanudar'}
             </button>
             <button className="h-9 px-4 border border-[#e5e5e9] rounded-[6px] text-[13px] font-semibold text-[#121215] bg-white hover:bg-[#f5f5f6] disabled:opacity-50"
-              onClick={() => completeMut.mutate()} disabled={completeMut.isPending}>
-              {completeMut.isPending ? 'Completando...' : 'Completar'}
+              type="button" onClick={goToSign}>
+              Firmar y completar
             </button>
           </>)}
         </div>
