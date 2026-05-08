@@ -146,26 +146,30 @@ const AdminCashCloses: React.FC = () => {
 
   const mergedAdvisors = useMemo((): AdvisorPendingGroup[] => {
     const byId = new Map(advisorGroups.map((g) => [g.user_id, g]));
-    const rows = advisors.map((u) => {
-      const hit = byId.get(u.id);
-      if (hit) {
-        return hit;
-      }
-      const lastName = (u as { last_name?: string | null }).last_name ?? '';
-      return {
-        user_id: u.id,
-        user_name: `${u.name} ${lastName}`.trim(),
-        pending_count: 0,
-        close_dates: [],
-        total_today: 0,
-        total_yesterday: null,
-        accumulated_variance: null,
-        latest_status: 'approved' as const,
-        closes: [],
-      };
-    });
+    const branchActive = branchFilter !== 'all';
+    const rows = advisors
+      .filter((u) => {
+        if (branchActive) return byId.has(u.id);
+        return true;
+      })
+      .map((u) => {
+        const hit = byId.get(u.id);
+        if (hit) return hit;
+        const lastName = (u as { last_name?: string | null }).last_name ?? '';
+        return {
+          user_id: u.id,
+          user_name: `${u.name} ${lastName}`.trim(),
+          pending_count: 0,
+          close_dates: [],
+          total_latest: 0,
+          total_yesterday: null,
+          accumulated_variance: null,
+          latest_status: 'approved' as const,
+          closes: [],
+        };
+      });
     return [...rows].sort((a, b) => a.user_name.localeCompare(b.user_name, 'es'));
-  }, [advisors, advisorGroups]);
+  }, [advisors, advisorGroups, branchFilter]);
 
   const filteredAdvisors = useMemo(() => {
     let rows = mergedAdvisors;
@@ -212,7 +216,7 @@ const AdminCashCloses: React.FC = () => {
         .reduce((acc, g) => acc + Number(g.accumulated_variance), 0);
       const hasAnyVariance = filteredAdvisors.some((g) => g.accumulated_variance != null);
       const totalAdvisorSum = filteredAdvisors.reduce(
-        (acc, g) => acc + (g.pending_count > 0 ? Number(g.total_today) : 0),
+        (acc, g) => acc + (g.pending_count > 0 ? Number(g.total_latest) : 0),
         0,
       );
       return {

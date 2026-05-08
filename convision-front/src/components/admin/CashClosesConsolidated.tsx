@@ -202,7 +202,7 @@ const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
           }
           sub={
             data && data.kpis.net_variance !== 0
-              ? `${data.kpis.variance_pct.toFixed(3)}% sobre declarado conciliado`
+              ? `${data.kpis.variance_pct_reconciled.toFixed(3)}% sobre conciliados`
               : '—'
           }
           accentColor={

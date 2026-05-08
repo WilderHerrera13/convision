@@ -415,7 +415,7 @@ type AdvisorPendingRow struct {
 	UserName            string             `json:"user_name"`
 	PendingCount        int                `json:"pending_count"`
 	CloseDates          []string           `json:"close_dates"`
-	TotalToday          float64            `json:"total_today"`
+	TotalLatest         float64            `json:"total_latest"`
 	TotalYesterday      *float64           `json:"total_yesterday"`
 	AccumulatedVariance *float64           `json:"accumulated_variance"`
 	LatestStatus        string             `json:"latest_status"`
@@ -512,7 +512,7 @@ func (s *Service) AdvisorsPending(db *gorm.DB, branchID uint) (*AdvisorsPendingO
 			UserName:            userName,
 			PendingCount:        len(userCloses),
 			CloseDates:          closeDates,
-			TotalToday:          latest.TotalCounted,
+			TotalLatest:         latest.TotalCounted,
 			TotalYesterday:      totalYesterday,
 			AccumulatedVariance: accumulatedVariance,
 			LatestStatus:        string(latest.Status),
@@ -588,13 +588,13 @@ type CalendarOutput struct {
 // -------------------------------------------------------------------
 
 type ConsolidatedKPIs struct {
-	TotalCloses    int     `json:"total_closes"`
-	TotalDeclared  float64 `json:"total_declared"`
-	TotalCounted   float64 `json:"total_counted"`
-	NetVariance    float64 `json:"net_variance"`
-	VariancePct    float64 `json:"variance_pct"`
-	AdvisorsCount  int     `json:"advisors_count"`
-	DaysInPeriod   int     `json:"days_in_period"`
+	TotalCloses         int     `json:"total_closes"`
+	TotalDeclared       float64 `json:"total_declared"`
+	TotalCounted        float64 `json:"total_counted"`
+	NetVariance         float64 `json:"net_variance"`
+	VariancePctRecon    float64 `json:"variance_pct_reconciled"`
+	AdvisorsCount       int     `json:"advisors_count"`
+	DaysInPeriod        int     `json:"days_in_period"`
 }
 
 type ConsolidatedBreakdown struct {
@@ -866,13 +866,13 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchNameMap map[uin
 		DateFrom: fromStr,
 		DateTo:   toStr,
 		KPIs: ConsolidatedKPIs{
-			TotalCloses:   len(closes),
-			TotalDeclared: round2(totalDeclared),
-			TotalCounted:  round2(totalsCounted),
-			NetVariance:   round2(netVariance),
-			VariancePct:   pct,
-			AdvisorsCount: len(advisors),
-			DaysInPeriod:  daysInPeriod,
+			TotalCloses:      len(closes),
+			TotalDeclared:    round2(totalDeclared),
+			TotalCounted:     round2(totalsCounted),
+			NetVariance:      round2(netVariance),
+			VariancePctRecon: pct,
+			AdvisorsCount:    len(advisors),
+			DaysInPeriod:     daysInPeriod,
 		},
 		Breakdown: ConsolidatedBreakdown{
 			ApprovedCount:     approvedCount,

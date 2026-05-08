@@ -90,13 +90,13 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.User, error) {
 
 // GetSpecialists returns all active users with the specialist role (no pagination cap).
 func (s *Service) GetSpecialists(db *gorm.DB) ([]*domain.User, error) {
-	users, _, err := s.repo.List(db, map[string]any{"role": string(domain.RoleSpecialist)}, 1, 200)
+	users, _, err := s.repo.List(db, map[string]any{"role_type": string(domain.RoleSpecialist)}, 1, 200)
 	return users, err
 }
 
 // GetAdmins returns all users with the admin role (no pagination cap).
 func (s *Service) GetAdmins(db *gorm.DB) ([]*domain.User, error) {
-	users, _, err := s.repo.List(db, map[string]any{"role": string(domain.RoleAdmin)}, 1, 200)
+	users, _, err := s.repo.List(db, map[string]any{"role_type": string(domain.RoleAdmin)}, 1, 200)
 	return users, err
 }
 

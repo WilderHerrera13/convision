@@ -33,7 +33,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 }) => {
   const [open, setOpen] = React.useState(false);
 
-  const dateValue = value ? (typeof value === 'string' ? new Date(value) : value) : undefined;
+  const dateValue = React.useMemo(() => {
+    if (!value) return undefined;
+    if (typeof value !== 'string') return value;
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (dateOnly) {
+      return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+    }
+    return new Date(value);
+  }, [value]);
 
   const handleSelect = (date: Date | undefined) => {
     onChange(date);

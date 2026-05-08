@@ -111,10 +111,10 @@ const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
       <div className="grid grid-cols-4 gap-0 px-4 pb-3">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-[#7d7d87] font-semibold mb-1">
-            Total hoy
+            Último cierre
           </p>
           <p className="text-[13px] font-bold text-[#3a71f7]">
-            {isClear ? '—' : formatCOP(advisor.total_today)}
+            {isClear ? '—' : formatCOP(advisor.total_latest)}
           </p>
         </div>
         <div>

@@ -70,6 +70,13 @@ func (s *Service) GetByAppointmentID(db *gorm.DB, appointmentID uint) (*domain.C
 	return s.repo.GetByAppointmentID(db, appointmentID)
 }
 
+// GetLatestSignedForPatient returns the most recent signed clinical record
+// for a patient, with diagnosis and prescription preloaded. Used by the sales
+// flow so the asesor can see the doctor's recommendation before quoting lenses.
+func (s *Service) GetLatestSignedForPatient(db *gorm.DB, patientID uint) (*domain.ClinicalRecord, error) {
+	return s.repo.GetLatestSignedByPatientID(db, patientID)
+}
+
 // Create creates a new clinical record linked to an appointment.
 func (s *Service) Create(db *gorm.DB, in CreateRecordInput) (*domain.ClinicalRecord, error) {
 	if in.RecordType == "" {

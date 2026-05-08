@@ -1,12 +1,12 @@
-import { format, parseISO, isToday, isTomorrow } from 'date-fns';
+import { format, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseLocalDatetime } from '@/lib/utils';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import type { Appointment } from '@/services/appointmentsService';
 
 function toLocalDate(dateStr: string): Date {
-  return parseISO(dateStr);
+  return parseLocalDatetime(dateStr) ?? new Date(dateStr);
 }
 
 function formatAppointmentDate(dateStr: string) {
@@ -71,7 +71,7 @@ export function buildAppointmentColumns({ onView, onEdit, onDelete }: ColActions
       header: 'Motivo',
       type: 'text',
       cell: (row) => (
-        <span className="text-[13px] text-[#7d7d87]">{row.reason || '—'}</span>
+        <span className="text-[13px] text-[#7d7d87]">{row.reason || row.notes || '—'}</span>
       ),
     },
     {

@@ -260,6 +260,7 @@ type ClinicalPrescription struct {
 // ClinicalRecordRepository defines persistence operations for ClinicalRecord.
 type ClinicalRecordRepository interface {
 	GetByAppointmentID(db *gorm.DB, appointmentID uint) (*ClinicalRecord, error)
+	GetLatestSignedByPatientID(db *gorm.DB, patientID uint) (*ClinicalRecord, error)
 	Create(db *gorm.DB, r *ClinicalRecord) error
 	UpsertAnamnesis(db *gorm.DB, clinicalRecordID uint, branchID uint, a *Anamnesis) error
 	UpsertVisualExam(db *gorm.DB, clinicalRecordID uint, branchID uint, v *VisualExam) error

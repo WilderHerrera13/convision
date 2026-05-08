@@ -173,6 +173,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			patients.GET("/:id/prescriptions", h.ListPatientPrescriptions)
 			patients.GET("/:id/clinical-history", h.GetPatientClinicalHistory)
 			patients.GET("/:id/records", h.ListClinicalRecords)
+			patients.GET("/:id/latest-clinical-record", h.GetPatientLatestClinicalRecord)
 		}
 
 		// Prescriptions — all authenticated roles can read; admin and specialist can write

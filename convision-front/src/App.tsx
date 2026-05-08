@@ -907,6 +907,10 @@ const router = createBrowserRouter([
             element: <CashRegisterHistory />,
           },
           {
+            path: "cash-closes-history",
+            element: <Navigate to="/receptionist/cash-close-history" replace />,
+          },
+          {
             path: "cash-close-detail/:id",
             element: <AdminCashCloseDetail />,
           },

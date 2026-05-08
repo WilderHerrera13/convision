@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import NewSaleTopbar from '@/components/sales/NewSaleTopbar';
 import ClientSearch from '@/components/sales/ClientSearch';
 import RecommendedProducts from '@/components/sales/RecommendedProducts';
+import PrescriptionRecommendationPanel from '@/components/sales/PrescriptionRecommendationPanel';
 import ProductList from '@/components/sales/ProductList';
 import PurchaseSummary from '@/components/sales/PurchaseSummary';
 import PaymentForm from '@/components/sales/PaymentForm';
@@ -45,6 +46,10 @@ const NewSale: React.FC = () => {
               onSelectPatient={sale.setSelectedPatient}
               onClearPatient={() => sale.setSelectedPatient(null)}
             />
+
+            {sale.selectedPatient && (
+              <PrescriptionRecommendationPanel patientId={sale.selectedPatient.id} />
+            )}
 
             <div className="bg-[#f7f7f8] border-b border-t border-[#e5e5e9] h-[40px] flex items-center px-4">
               <span className="text-[13px] font-semibold text-[#121212]">Información del Documento</span>

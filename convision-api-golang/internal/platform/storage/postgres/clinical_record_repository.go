@@ -34,6 +34,23 @@ func (r *ClinicalRecordRepository) GetByAppointmentID(db *gorm.DB, appointmentID
 	return &rec, nil
 }
 
+func (r *ClinicalRecordRepository) GetLatestSignedByPatientID(db *gorm.DB, patientID uint) (*domain.ClinicalRecord, error) {
+	var rec domain.ClinicalRecord
+	err := db.
+		Preload("Diagnosis").
+		Preload("ClinicalPrescription").
+		Where("patient_id = ? AND status = ? AND deleted_at IS NULL", patientID, "signed").
+		Order("updated_at DESC").
+		First(&rec).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &domain.ErrNotFound{Resource: "clinical_record"}
+		}
+		return nil, err
+	}
+	return &rec, nil
+}
+
 func (r *ClinicalRecordRepository) Create(db *gorm.DB, rec *domain.ClinicalRecord) error {
 	return db.Create(rec).Error
 }

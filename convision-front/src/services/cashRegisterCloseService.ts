@@ -68,7 +68,7 @@ export interface AdvisorPendingGroup {
   user_name: string;
   pending_count: number;
   close_dates: string[];
-  total_today: number;
+  total_latest: number;
   total_yesterday: number | null;
   accumulated_variance: number | null;
   latest_status: 'draft' | 'submitted' | 'approved';
@@ -128,7 +128,7 @@ export interface ConsolidatedKPIs {
   total_declared: number;
   total_counted: number;
   net_variance: number;
-  variance_pct: number;
+  variance_pct_reconciled: number;
   advisors_count: number;
   days_in_period: number;
 }

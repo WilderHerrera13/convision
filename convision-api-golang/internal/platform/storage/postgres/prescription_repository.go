@@ -69,16 +69,6 @@ func (r *PrescriptionRepository) List(db *gorm.DB, filters map[string]any, page,
 	var prescriptions []*domain.Prescription
 	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Select("prescriptions.id, prescriptions.appointment_id, prescriptions.date, prescriptions.document, "+
-			"prescriptions.patient_name, prescriptions.right_sphere, prescriptions.right_cylinder, "+
-			"prescriptions.right_axis, prescriptions.right_addition, prescriptions.right_height, "+
-			"prescriptions.right_distance_p, prescriptions.right_visual_acuity_far, prescriptions.right_visual_acuity_near, "+
-			"prescriptions.left_sphere, prescriptions.left_cylinder, prescriptions.left_axis, "+
-			"prescriptions.left_addition, prescriptions.left_height, prescriptions.left_distance_p, "+
-			"prescriptions.left_visual_acuity_far, prescriptions.left_visual_acuity_near, "+
-			"prescriptions.correction_type, prescriptions.usage_type, prescriptions.recommendation, "+
-			"prescriptions.professional, prescriptions.observation, prescriptions.attachment, "+
-			"prescriptions.annotation_paths, prescriptions.created_at, prescriptions.updated_at").
 		Order("prescriptions.created_at DESC").
 		Limit(perPage).Offset(offset).
 		Find(&prescriptions).Error
@@ -86,31 +76,17 @@ func (r *PrescriptionRepository) List(db *gorm.DB, filters map[string]any, page,
 }
 
 func (r *PrescriptionRepository) ListByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.Prescription, int64, error) {
-	// Build base query for counting
-	q := db.Model(&domain.Prescription{}).
-		Joins("JOIN appointments ON appointments.id = prescriptions.appointment_id").
-		Where("appointments.patient_id = ?", patientID)
+	apptSubquery := db.Table("appointments").Select("id").Where("patient_id = ?", patientID)
+	q := db.Model(&domain.Prescription{}).Where("appointment_id IN (?)", apptSubquery)
 
-	// Count total BEFORE applying select/preload
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Now apply relations and select for fetch
 	var prescriptions []*domain.Prescription
 	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Select("prescriptions.id, prescriptions.appointment_id, prescriptions.date, prescriptions.document, "+
-			"prescriptions.patient_name, prescriptions.right_sphere, prescriptions.right_cylinder, "+
-			"prescriptions.right_axis, prescriptions.right_addition, prescriptions.right_height, "+
-			"prescriptions.right_distance_p, prescriptions.right_visual_acuity_far, prescriptions.right_visual_acuity_near, "+
-			"prescriptions.left_sphere, prescriptions.left_cylinder, prescriptions.left_axis, "+
-			"prescriptions.left_addition, prescriptions.left_height, prescriptions.left_distance_p, "+
-			"prescriptions.left_visual_acuity_far, prescriptions.left_visual_acuity_near, "+
-			"prescriptions.correction_type, prescriptions.usage_type, prescriptions.recommendation, "+
-			"prescriptions.professional, prescriptions.observation, prescriptions.attachment, "+
-			"prescriptions.annotation_paths, prescriptions.created_at, prescriptions.updated_at").
 		Order("prescriptions.created_at DESC").
 		Limit(perPage).Offset(offset).
 		Find(&prescriptions).Error

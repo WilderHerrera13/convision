@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
-import { format, subDays, addDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ArrowLeft, Download } from 'lucide-react';
@@ -108,16 +108,16 @@ const AdminCashCloseCalendar: React.FC = () => {
   const [dateFrom, setDateFrom] = useState<Date>(() => {
     if (focusDate) {
       const d = new Date(`${focusDate}T12:00:00`);
-      if (!Number.isNaN(d.getTime())) return subDays(d, 6);
+      if (!Number.isNaN(d.getTime())) return subDays(d, 13);
     }
-    return subDays(today, 7);
+    return subDays(today, 13);
   });
   const [dateTo, setDateTo] = useState<Date>(() => {
     if (focusDate) {
       const d = new Date(`${focusDate}T12:00:00`);
-      if (!Number.isNaN(d.getTime())) return addDays(d, 6);
+      if (!Number.isNaN(d.getTime())) return d;
     }
-    return addDays(today, 6);
+    return today;
   });
 
   const queryParams = useMemo(
@@ -187,8 +187,8 @@ const AdminCashCloseCalendar: React.FC = () => {
 
   const handleGoToday = () => {
     const freshToday = new Date();
-    setDateFrom(subDays(freshToday, 7));
-    setDateTo(addDays(freshToday, 6));
+    setDateFrom(subDays(freshToday, 13));
+    setDateTo(freshToday);
     setTimeout(() => scrollTargetIntoView(), 50);
   };
 

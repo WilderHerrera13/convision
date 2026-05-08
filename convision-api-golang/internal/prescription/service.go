@@ -135,6 +135,14 @@ func (s *Service) ListByPatient(db *gorm.DB, patientID uint, page, perPage int) 
 
 // Create creates a new prescription.
 func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Prescription, error) {
+	if input.RightSphere == "" && input.LeftSphere == "" &&
+		input.RightCylinder == "" && input.LeftCylinder == "" &&
+		input.RightAddition == "" && input.LeftAddition == "" {
+		return nil, &domain.ErrValidation{
+			Field:   "right_sphere",
+			Message: "se requiere al menos un valor óptico (right_sphere, left_sphere, right_cylinder, etc.)",
+		}
+	}
 	p := &domain.Prescription{
 		AppointmentID:         input.AppointmentID,
 		Document:              input.Document,

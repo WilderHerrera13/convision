@@ -28,6 +28,26 @@ func (h *Handler) GetAppointmentClinicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, rec)
 }
 
+// GetPatientLatestClinicalRecord godoc
+// GET /api/v1/patients/:id/latest-clinical-record
+// Returns the most recent signed clinical record for a patient (with diagnosis
+// and prescription preloaded). Used by the sales flow so the asesor can see
+// the doctor's recommendation before quoting lenses.
+func (h *Handler) GetPatientLatestClinicalRecord(c *gin.Context) {
+	db := tenantDBFromCtx(c)
+	patientID, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	rec, err := h.clinicalRecord.GetLatestSignedForPatient(db, patientID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, rec)
+}
+
 // CreateAppointmentClinicalRecord godoc
 // POST /api/v1/appointments/:id/clinical-record
 func (h *Handler) CreateAppointmentClinicalRecord(c *gin.Context) {
