@@ -316,10 +316,12 @@ func (r *inventoryImportRun) resolveOrCreateWarehouse(db *gorm.DB, rowNum int, b
 		return w, nil
 	}
 
-	warehouses, _, err := r.warehouseRepo.List(db, map[string]any{
-		"branch_id": branchID,
-		"status":    "active",
-	}, 1, 1)
+	bid := branchID
+	warehouses, _, err := r.warehouseRepo.List(db, domain.WarehouseFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 1},
+		BranchID:   &bid,
+		Status:     "active",
+	})
 	if err == nil && len(warehouses) > 0 {
 		r.warehouseCache[branchID] = warehouses[0]
 		return warehouses[0], nil
@@ -341,10 +343,12 @@ func (r *inventoryImportRun) resolveOrCreateWarehouse(db *gorm.DB, rowNum int, b
 		db.Exec("ROLLBACK TO SAVEPOINT " + sp)
 		db.Exec("RELEASE SAVEPOINT " + sp)
 		if isUniqueViolation(createErr) {
-			warehouses2, _, err2 := r.warehouseRepo.List(db, map[string]any{
-				"branch_id": branchID,
-				"status":    "active",
-			}, 1, 1)
+			bid2 := branchID
+			warehouses2, _, err2 := r.warehouseRepo.List(db, domain.WarehouseFilter{
+				Pagination: domain.Pagination{Page: 1, PerPage: 1},
+				BranchID:   &bid2,
+				Status:     "active",
+			})
 			if err2 == nil && len(warehouses2) > 0 {
 				r.warehouseCache[branchID] = warehouses2[0]
 				return warehouses2[0], nil
@@ -364,11 +368,15 @@ func (r *inventoryImportRun) resolveOrCreateWarehouse(db *gorm.DB, rowNum int, b
 }
 
 func (r *inventoryImportRun) upsertInventoryItem(db *gorm.DB, rowNum int, productID, warehouseID, branchID uint, quantity int) (bool, error) {
-	items, _, err := r.itemRepo.List(db, map[string]any{
-		"product_id":   productID,
-		"warehouse_id": warehouseID,
-		"branch_id":    branchID,
-	}, 1, 1)
+	pid := productID
+	whid := warehouseID
+	bid := branchID
+	items, _, err := r.itemRepo.List(db, domain.InventoryItemFilter{
+		Pagination:  domain.Pagination{Page: 1, PerPage: 1},
+		BranchID:    &bid,
+		ProductID:   &pid,
+		WarehouseID: &whid,
+	})
 	if err != nil {
 		return false, fmt.Errorf("buscar inventory item: %w", err)
 	}

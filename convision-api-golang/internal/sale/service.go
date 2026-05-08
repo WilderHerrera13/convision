@@ -577,19 +577,24 @@ func (s *Service) deductStock(ctx context.Context, saleID uint, branchID uint, i
 // item, its warehouse_id, and a boolean indicating whether a source was found.
 func (s *Service) findStockSource(productID, branchID uint, defaultWarehouseID *uint) (domain.InventoryItem, uint, bool) {
 	if defaultWarehouseID != nil {
-		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
-			"product_id":   productID,
-			"warehouse_id": *defaultWarehouseID,
-		}, 1, 1)
+		pid := productID
+		invItems, _, err := s.itemRepo.List(s.db, domain.InventoryItemFilter{
+			Pagination:  domain.Pagination{Page: 1, PerPage: 1},
+			ProductID:   &pid,
+			WarehouseID: defaultWarehouseID,
+		})
 		if err == nil && len(invItems) > 0 {
 			return *invItems[0], *defaultWarehouseID, true
 		}
 	}
 
-	invItems, _, err := s.itemRepo.List(s.db, map[string]any{
-		"product_id": productID,
-		"branch_id":  branchID,
-	}, 1, 1)
+	pid := productID
+	bid := branchID
+	invItems, _, err := s.itemRepo.List(s.db, domain.InventoryItemFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 1},
+		ProductID:  &pid,
+		BranchID:   &bid,
+	})
 	if err != nil || len(invItems) == 0 {
 		return domain.InventoryItem{}, 0, false
 	}
@@ -631,10 +636,13 @@ func (s *Service) revertStock(ctx context.Context, saleID uint, branchID uint, i
 			continue
 		}
 
-		invItems, _, err := s.itemRepo.List(s.db, map[string]any{
-			"product_id":   *item.ProductID,
-			"warehouse_id": origMovement.WarehouseID,
-		}, 1, 1)
+		pid := *item.ProductID
+		whid := origMovement.WarehouseID
+		invItems, _, err := s.itemRepo.List(s.db, domain.InventoryItemFilter{
+			Pagination:  domain.Pagination{Page: 1, PerPage: 1},
+			ProductID:   &pid,
+			WarehouseID: &whid,
+		})
 		if err != nil || len(invItems) == 0 {
 			s.logger.Warn("revertStock: inventory item not found in original warehouse, cannot restore",
 				zap.Uint("product_id", *item.ProductID),

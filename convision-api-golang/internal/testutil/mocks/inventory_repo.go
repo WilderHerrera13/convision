@@ -38,8 +38,8 @@ func (m *MockWarehouseRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockWarehouseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Warehouse, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockWarehouseRepository) List(db *gorm.DB, f domain.WarehouseFilter) ([]*domain.Warehouse, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -78,8 +78,8 @@ func (m *MockWarehouseLocationRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockWarehouseLocationRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.WarehouseLocation, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockWarehouseLocationRepository) List(db *gorm.DB, f domain.WarehouseLocationFilter) ([]*domain.WarehouseLocation, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -110,8 +110,8 @@ func (m *MockInventoryItemRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockInventoryItemRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryItem, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockInventoryItemRepository) List(db *gorm.DB, f domain.InventoryItemFilter) ([]*domain.InventoryItem, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -123,8 +123,8 @@ func (m *MockInventoryItemRepository) TotalStock(db *gorm.DB) (int64, error) {
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *MockInventoryItemRepository) TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductStockEntry, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockInventoryItemRepository) TotalStockPerProduct(db *gorm.DB, f domain.TotalStockFilter) ([]*domain.ProductStockEntry, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, args.Get(1).(int64), args.Error(2)
 	}
@@ -160,8 +160,8 @@ func (m *MockInventoryTransferRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockInventoryTransferRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryTransfer, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockInventoryTransferRepository) List(db *gorm.DB, f domain.InventoryTransferFilter) ([]*domain.InventoryTransfer, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -176,8 +176,8 @@ func (m *MockStockMovementRepository) Create(db *gorm.DB, mv *domain.StockMoveme
 	return m.Called(db, mv).Error(0)
 }
 
-func (m *MockStockMovementRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.StockMovement, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockStockMovementRepository) List(db *gorm.DB, f domain.StockMovementFilter) ([]*domain.StockMovement, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -220,8 +220,8 @@ func (m *MockInventoryAdjustmentRepository) Update(db *gorm.DB, a *domain.Invent
 	return m.Called(db, a).Error(0)
 }
 
-func (m *MockInventoryAdjustmentRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryAdjustment, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockInventoryAdjustmentRepository) List(db *gorm.DB, f domain.InventoryAdjustmentFilter) ([]*domain.InventoryAdjustment, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

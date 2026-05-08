@@ -100,16 +100,6 @@ func calcLastPage(total int64, perPage int) int {
 	return lp
 }
 
-func clampPage(page, perPage int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	return page, perPage
-}
-
 // ======== Warehouse ========
 
 // WarehouseCreateInput holds validated fields for creating a warehouse.
@@ -143,17 +133,17 @@ type WarehouseListOutput struct {
 	Total       int64               `json:"total"`
 }
 
-func (s *Service) ListWarehouses(filters map[string]any, page, perPage int) (*WarehouseListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.warehouseRepo.List(s.db, filters, page, perPage)
+func (s *Service) ListWarehouses(f domain.WarehouseFilter) (*WarehouseListOutput, error) {
+	f.Clamp()
+	data, total, err := s.warehouseRepo.List(s.db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &WarehouseListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -265,17 +255,17 @@ type LocationListOutput struct {
 	Total       int64                       `json:"total"`
 }
 
-func (s *Service) ListLocations(filters map[string]any, page, perPage int) (*LocationListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.locationRepo.List(s.db, filters, page, perPage)
+func (s *Service) ListLocations(f domain.WarehouseLocationFilter) (*LocationListOutput, error) {
+	f.Clamp()
+	data, total, err := s.locationRepo.List(s.db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &LocationListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -333,7 +323,11 @@ func (s *Service) DeleteLocation(id uint) error {
 	if _, err := s.locationRepo.GetByID(s.db, id); err != nil {
 		return err
 	}
-	items, _, err := s.itemRepo.List(s.db, map[string]any{"warehouse_location_id": id}, 1, 1)
+	locID := id
+	items, _, err := s.itemRepo.List(s.db, domain.InventoryItemFilter{
+		Pagination:          domain.Pagination{Page: 1, PerPage: 1},
+		WarehouseLocationID: &locID,
+	})
 	if err != nil {
 		return err
 	}
@@ -398,17 +392,17 @@ type TotalStockOutput struct {
 	TotalQuantity int64 `json:"total_quantity"`
 }
 
-func (s *Service) ListItems(db *gorm.DB, filters map[string]any, page, perPage int) (*ItemListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.itemRepo.List(db, filters, page, perPage)
+func (s *Service) ListItems(db *gorm.DB, f domain.InventoryItemFilter) (*ItemListOutput, error) {
+	f.Clamp()
+	data, total, err := s.itemRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ItemListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -550,9 +544,10 @@ func (s *Service) TotalStock(db *gorm.DB) (*TotalStockOutput, error) {
 }
 
 // TotalStockPerProduct returns paginated available stock aggregated by product.
-// Supported filters: warehouse_id, warehouse_location_id, brand_id, supplier_id.
-func (s *Service) TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductStockEntry, int64, error) {
-	return s.itemRepo.TotalStockPerProduct(db, filters, page, perPage)
+// Supported filters: warehouse_id, warehouse_location_id, brand_id, supplier_id, category_id.
+func (s *Service) TotalStockPerProduct(db *gorm.DB, f domain.TotalStockFilter) ([]*domain.ProductStockEntry, int64, error) {
+	f.Clamp()
+	return s.itemRepo.TotalStockPerProduct(db, f)
 }
 
 // ListItemsByLocation returns paginated inventory items for a given location.
@@ -561,17 +556,21 @@ func (s *Service) ListItemsByLocation(db *gorm.DB, locationID uint, page, perPag
 	if _, err := s.locationRepo.GetByID(s.db, locationID); err != nil {
 		return nil, err
 	}
-	page, perPage = clampPage(page, perPage)
-	filters := map[string]any{"warehouse_location_id": locationID}
-	data, total, err := s.itemRepo.List(db, filters, page, perPage)
+	locID := locationID
+	f := domain.InventoryItemFilter{
+		Pagination:          domain.Pagination{Page: page, PerPage: perPage},
+		WarehouseLocationID: &locID,
+	}
+	f.Clamp()
+	data, total, err := s.itemRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ItemListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -585,7 +584,11 @@ type ProductInventorySummary struct {
 
 // GetProductInventorySummary returns all inventory items for a product.
 func (s *Service) GetProductInventorySummary(db *gorm.DB, productID uint) (*ProductInventorySummary, error) {
-	data, total, err := s.itemRepo.List(db, map[string]any{"product_id": productID}, 1, 1000)
+	pid := productID
+	data, total, err := s.itemRepo.List(db, domain.InventoryItemFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 200},
+		ProductID:  &pid,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -623,17 +626,17 @@ type TransferListOutput struct {
 	Total       int64                       `json:"total"`
 }
 
-func (s *Service) ListTransfers(db *gorm.DB, filters map[string]any, page, perPage int) (*TransferListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.transferRepo.List(db, filters, page, perPage)
+func (s *Service) ListTransfers(db *gorm.DB, f domain.InventoryTransferFilter) (*TransferListOutput, error) {
+	f.Clamp()
+	data, total, err := s.transferRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &TransferListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -990,32 +993,32 @@ func (s *Service) RejectAdjustment(db *gorm.DB, id uint, approvedBy uint, notes 
 	return s.adjustmentRepo.GetByID(db, adj.ID)
 }
 
-func (s *Service) ListAdjustments(db *gorm.DB, filters map[string]any, page, perPage int) (*AdjustmentListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.adjustmentRepo.List(db, filters, page, perPage)
+func (s *Service) ListAdjustments(db *gorm.DB, f domain.InventoryAdjustmentFilter) (*AdjustmentListOutput, error) {
+	f.Clamp()
+	data, total, err := s.adjustmentRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &AdjustmentListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
 
-func (s *Service) ListMovements(db *gorm.DB, filters map[string]any, page, perPage int) (*MovementListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.movementRepo.List(db, filters, page, perPage)
+func (s *Service) ListMovements(db *gorm.DB, f domain.StockMovementFilter) (*MovementListOutput, error) {
+	f.Clamp()
+	data, total, err := s.movementRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &MovementListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
