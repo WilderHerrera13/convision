@@ -15,14 +15,15 @@ var laboratoryFilterAllowlist = map[string]bool{
 }
 
 var laboratoryOrderFilterAllowlist = map[string]bool{
-	"patient_id":    true,
-	"laboratory_id": true,
-	"status":        true,
-	"priority":      true,
-	"created_by":    true,
-	"order_id":      true,
-	"sale_id":       true,
-	"branch":        true,
+	"patient_id":             true,
+	"laboratory_id":          true,
+	"status":                 true,
+	"priority":               true,
+	"created_by":             true,
+	"order_id":               true,
+	"sale_id":                true,
+	"branch":                 true,
+	"assigned_specialist_id": true,
 }
 
 // LaboratoryRepository is the PostgreSQL-backed implementation of domain.LaboratoryRepository.
@@ -117,6 +118,7 @@ func (r *LaboratoryOrderRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Laboratory").
 		Preload("Patient").
 		Preload("CreatedByUser").
+		Preload("AssignedSpecialist").
 		Preload("StatusHistory", func(db *gorm.DB) *gorm.DB {
 			return db.Order("laboratory_order_statuses.id ASC")
 		}).
@@ -181,6 +183,7 @@ func (r *LaboratoryOrderRepository) Update(db *gorm.DB, o *domain.LaboratoryOrde
 		"completion_date":           o.CompletionDate,
 		"notes":                     o.Notes,
 		"drawer_number":             o.DrawerNumber,
+		"assigned_specialist_id":    o.AssignedSpecialistID,
 	}).Error
 }
 
@@ -209,11 +212,7 @@ func (r *LaboratoryOrderRepository) List(db *gorm.DB, filters map[string]any, pa
 	}
 
 	if assignedUID, ok := filters["_assigned_uid"].(string); ok && assignedUID != "" {
-		uidTag := fmt.Sprintf("%%[uid:%s]%%", assignedUID)
-		q = q.Where(
-			"laboratory_orders.id IN (SELECT laboratory_order_id FROM laboratory_order_statuses WHERE status = 'in_quality' AND notes LIKE ?)",
-			uidTag,
-		)
+		q = q.Where("laboratory_orders.assigned_specialist_id = ?", assignedUID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -250,6 +249,11 @@ func (r *LaboratoryOrderRepository) Stats(db *gorm.DB) (map[string]int64, error)
 	}
 
 	result := map[string]int64{}
+	var total int64
+	if err := db.Model(&domain.LaboratoryOrder{}).Count(&total).Error; err != nil {
+		return nil, err
+	}
+	result["total"] = total
 	for _, s := range statuses {
 		var count int64
 		db.Model(&domain.LaboratoryOrder{}).Where("status = ?", s).Count(&count)

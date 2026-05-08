@@ -16,6 +16,10 @@ export interface LaboratoryOrder {
   created_at: string;
   updated_at: string;
   drawer_number?: string | null;
+  branch?: string;
+  seller_name?: string;
+  sale_date?: string | null;
+  special_instructions?: string;
   laboratory?: {
     id: number;
     name: string;
@@ -61,11 +65,21 @@ export interface LaboratoryOrder {
   sale?: {
     id: number;
     sale_number: string;
+    total?: number;
+    amount_paid?: number;
+    balance?: number;
+    payment_status?: string;
   };
   createdBy?: {
     id: number;
     name: string;
   };
+  assigned_specialist_id?: number | null;
+  assigned_specialist?: {
+    id: number;
+    name: string;
+    last_name?: string;
+  } | null;
   statusHistory?: Array<{
     id: number;
     status: string;
@@ -271,6 +285,8 @@ const laboratoryOrderService = {
       order?: { items?: Array<{ id: number; lens?: Record<string, unknown> }> };
       sale?: Record<string, unknown>;
       created_by_user?: { id: number; name: string } | null;
+      assigned_specialist_id?: number | null;
+      assigned_specialist?: { id: number; name: string; last_name?: string } | null;
       status_history?: RawStatusHistory[];
       drawer_number?: string | null;
       pdf_token?: string;
@@ -298,6 +314,8 @@ const laboratoryOrderService = {
       order: raw.order,
       sale: raw.sale,
       createdBy: raw.created_by_user ?? undefined,
+      assigned_specialist_id: raw.assigned_specialist_id ?? null,
+      assigned_specialist: raw.assigned_specialist ?? null,
       statusHistory: raw.status_history as any,
       drawer_number: raw.drawer_number ?? null,
       pdf_token: raw.pdf_token,
@@ -327,6 +345,15 @@ const laboratoryOrderService = {
    */
   async updateLaboratoryOrderStatus(id: number, data: UpdateLaboratoryOrderStatusRequest) {
     const response = await api.post(`/api/v1/laboratory-orders/${id}/status`, data);
+    return response.data;
+  },
+
+  /**
+   * Assign a specialist to the QA review of a laboratory order. The backend
+   * sets `assigned_specialist_id` and may transition the order into in_quality.
+   */
+  async assignSpecialist(id: number, data: { specialist_id: number; notes?: string }) {
+    const response = await api.post(`/api/v1/laboratory-orders/${id}/assign`, data);
     return response.data;
   },
 

@@ -23,6 +23,7 @@ interface DeliveryPaymentTabProps {
   state: PaymentFormState;
   onChange: (patch: Partial<PaymentFormState>) => void;
   errors: Partial<Record<keyof PaymentFormState, string>>;
+  pendingBalance?: number;
 }
 
 const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
@@ -30,7 +31,10 @@ const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
   state,
   onChange,
   errors,
+  pendingBalance = 0,
 }) => {
+  const requirePayment = pendingBalance > 0;
+  const formattedBalance = pendingBalance.toLocaleString('es-CO');
   const patientName = order.patient
     ? `${order.patient.first_name} ${order.patient.last_name}`
     : '—';
@@ -65,27 +69,37 @@ const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
         </CardContent>
       </Card>
 
-      <div className="rounded-lg border border-[#b57218] bg-[#fff6e3] px-4 py-3 space-y-0.5">
-        <p className="text-xs text-[#b57218] font-medium">Saldo pendiente de pago:</p>
-        <p className="text-xl font-bold text-[#7a4a0b]">$0</p>
-        <p className="text-xs text-[#b57218]">Sin saldo pendiente registrado para esta orden</p>
-      </div>
+      {requirePayment ? (
+        <div className="rounded-lg border border-[#b57218] bg-[#fff6e3] px-4 py-3 space-y-0.5">
+          <p className="text-xs text-[#b57218] font-medium">Saldo pendiente de pago:</p>
+          <p className="text-xl font-bold text-[#7a4a0b]">${formattedBalance}</p>
+          <p className="text-xs text-[#b57218]">Cobro requerido antes de confirmar la entrega</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-[#0f8f64] bg-[#e5f6ef] px-4 py-3 space-y-0.5">
+          <p className="text-xs text-[#0f8f64] font-medium">Saldo pendiente de pago:</p>
+          <p className="text-xl font-bold text-[#0a7050]">$0</p>
+          <p className="text-xs text-[#0f8f64]">La venta original ya fue pagada en su totalidad. Registrar pago es opcional.</p>
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-gray-700">Registrar pago</CardTitle>
+          <CardTitle className="text-sm font-semibold text-gray-700">
+            {requirePayment ? 'Registrar pago' : 'Registrar pago (opcional)'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
-              Forma de pago <span className="text-red-500">*</span>
+              Forma de pago {requirePayment && <span className="text-red-500">*</span>}
             </label>
             <Select
               value={state.paymentMethod}
               onValueChange={(v) => onChange({ paymentMethod: v })}
             >
               <SelectTrigger className="w-full max-w-[350px]">
-                <SelectValue placeholder="Seleccione forma de pago" />
+                <SelectValue placeholder={requirePayment ? 'Seleccione forma de pago' : 'No aplica'} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Efectivo">Efectivo</SelectItem>
@@ -101,14 +115,14 @@ const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
-              Valor recibido <span className="text-red-500">*</span>
+              Valor recibido {requirePayment && <span className="text-red-500">*</span>}
             </label>
             <div className="relative w-full max-w-[350px]">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">$</span>
               <Input
                 type="text"
                 inputMode="numeric"
-                placeholder="0"
+                placeholder={requirePayment ? formattedBalance : '0'}
                 className="pl-7"
                 value={
                   state.amount
@@ -133,23 +147,27 @@ const DeliveryPaymentTab: React.FC<DeliveryPaymentTabProps> = ({
                 className="mt-0.5"
               />
               <label htmlFor="pay_check1" className="text-sm cursor-pointer leading-snug">
-                Confirmo que verifiqué la identidad del cliente y el pago fue recibido.
+                Confirmo que verifiqué la identidad del cliente {requirePayment && 'y el pago fue recibido'}.
               </label>
             </div>
             {errors.check1 && <p className="text-xs text-red-500 ml-6">{errors.check1}</p>}
 
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="pay_check2"
-                checked={state.check2}
-                onCheckedChange={(v) => onChange({ check2: Boolean(v) })}
-                className="mt-0.5"
-              />
-              <label htmlFor="pay_check2" className="text-sm cursor-pointer leading-snug">
-                El pago cubre el saldo total. La orden puede ser cerrada.
-              </label>
-            </div>
-            {errors.check2 && <p className="text-xs text-red-500 ml-6">{errors.check2}</p>}
+            {requirePayment && (
+              <>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="pay_check2"
+                    checked={state.check2}
+                    onCheckedChange={(v) => onChange({ check2: Boolean(v) })}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="pay_check2" className="text-sm cursor-pointer leading-snug">
+                    El pago cubre el saldo total. La orden puede ser cerrada.
+                  </label>
+                </div>
+                {errors.check2 && <p className="text-xs text-red-500 ml-6">{errors.check2}</p>}
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

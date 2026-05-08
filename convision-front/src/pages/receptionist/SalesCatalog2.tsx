@@ -659,7 +659,7 @@ const SalesCatalog: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <ShoppingBag className="h-6 w-6 text-blue-600" />
-              Catálogo de Lentes
+              Catálogo de productos
             </h1>
             {saleData?.patientName && (
               <p className="text-sm text-slate-600">

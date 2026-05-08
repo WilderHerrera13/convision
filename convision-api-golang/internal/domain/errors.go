@@ -38,6 +38,21 @@ func (e *ErrValidation) Error() string {
 	return "validation failed on " + e.Field + ": " + e.Message
 }
 
+// ErrAppointmentInProgress signals that the calling specialist already has
+// another active appointment, blocking Take/Resume on a different one. The
+// active appointment's ID is exposed so the API can offer a one-click jump.
+type ErrAppointmentInProgress struct {
+	ActiveAppointmentID uint
+	Message             string
+}
+
+func (e *ErrAppointmentInProgress) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return "specialist already has an active appointment"
+}
+
 type ErrLoginNoBranches struct{}
 
 func (e *ErrLoginNoBranches) Error() string {

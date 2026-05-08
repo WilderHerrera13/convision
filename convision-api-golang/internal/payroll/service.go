@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles payroll use-cases.
@@ -137,14 +138,14 @@ func calculatePayroll(p *domain.Payroll) {
 // Create creates a new payroll record.
 func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.Payroll, error) {
 	var start, end, payDate *time.Time
-	if t, err := time.Parse("2006-01-02", input.PayPeriodStart); err == nil {
+	if t, err := clock.ParseDate(input.PayPeriodStart); err == nil {
 		start = &t
 	}
-	if t, err := time.Parse("2006-01-02", input.PayPeriodEnd); err == nil {
+	if t, err := clock.ParseDate(input.PayPeriodEnd); err == nil {
 		end = &t
 	}
 	if input.PaymentDate != "" {
-		if t, err := time.Parse("2006-01-02", input.PaymentDate); err == nil {
+		if t, err := clock.ParseDate(input.PaymentDate); err == nil {
 			payDate = &t
 		}
 	}

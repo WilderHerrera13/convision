@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
+	"github.com/convision/api/internal/platform/clock"
 	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
 )
 
@@ -46,6 +46,51 @@ type AppointmentResource struct {
 	ReportNotes                *string          `json:"report_notes"`
 }
 
+// toPrescriptionPayload returns a flat JSON-serializable shape with the
+// prescription summary required by the receptionist (lens type, material,
+// treatments, optical values) so the advisor can prepare the sale without
+// hitting the clinical-record endpoint.
+func toPrescriptionPayload(p *domain.Prescription) interface{} {
+	if p == nil {
+		return nil
+	}
+	out := gin.H{
+		"id":                       p.ID,
+		"appointment_id":           p.AppointmentID,
+		"correction_type":          p.CorrectionType,
+		"usage_type":               p.UsageType,
+		"recommendation":           p.Recommendation,
+		"observation":              p.Observation,
+		"professional":             p.Professional,
+		"document":                 p.Document,
+		"patient_name":             p.PatientName,
+		"right_sphere":             p.RightSphere,
+		"right_cylinder":           p.RightCylinder,
+		"right_axis":               p.RightAxis,
+		"right_addition":           p.RightAddition,
+		"right_height":             p.RightHeight,
+		"right_distance_p":         p.RightDistanceP,
+		"right_visual_acuity_far":  p.RightVisualAcuityFar,
+		"right_visual_acuity_near": p.RightVisualAcuityNear,
+		"left_sphere":              p.LeftSphere,
+		"left_cylinder":            p.LeftCylinder,
+		"left_axis":                p.LeftAxis,
+		"left_addition":            p.LeftAddition,
+		"left_height":              p.LeftHeight,
+		"left_distance_p":          p.LeftDistanceP,
+		"left_visual_acuity_far":   p.LeftVisualAcuityFar,
+		"left_visual_acuity_near":  p.LeftVisualAcuityNear,
+		"created_at":               p.CreatedAt.UTC().Format(timeFormat) + "Z",
+	}
+	if p.Date != nil {
+		s := p.Date.UTC().Format(timeFormat) + "Z"
+		out["date"] = s
+	} else {
+		out["date"] = nil
+	}
+	return out
+}
+
 func parseRawJSON(s string) json.RawMessage {
 	if s == "" {
 		return json.RawMessage("null")
@@ -77,7 +122,7 @@ func toAppointmentResource(a *domain.Appointment) AppointmentResource {
 		IsBilled:                a.IsBilled,
 		SaleID:                  a.SaleID,
 		Billing:                 nil,
-		Prescription:            nil,
+		Prescription:            toPrescriptionPayload(a.Prescription),
 		LeftEyeAnnotationPaths:  parseRawJSON(a.LeftEyeAnnotationPaths),
 		RightEyeAnnotationPaths: parseRawJSON(a.RightEyeAnnotationPaths),
 		LensAnnotationPaths:     parseRawJSON(a.LensAnnotationPaths),
@@ -219,6 +264,36 @@ func (h *Handler) GetAppointment(c *gin.Context) {
 	c.JSON(http.StatusOK, toAppointmentResource(a))
 }
 
+// validateSpecialistOnBranch ensures the specialist has at least one branch
+// assignment, and (when branchID > 0) that one of those branches is the target
+// branch — preventing the creation of appointments that the specialist could
+// never attend (QA-009 in the 2026-05-07 audit).
+func (h *Handler) validateSpecialistOnBranch(c *gin.Context, specialistID uint, branchID uint) bool {
+	if specialistID == 0 {
+		return true
+	}
+	db := tenantDBFromCtx(c)
+	assigns, err := h.branch.ListAssignmentsForUser(db, specialistID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return false
+	}
+	if len(assigns) == 0 {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "el especialista no tiene sedes asignadas"})
+		return false
+	}
+	if branchID == 0 {
+		return true
+	}
+	for _, a := range assigns {
+		if a.BranchID == branchID {
+			return true
+		}
+	}
+	c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "el especialista no atiende en esta sede"})
+	return false
+}
+
 // CreateAppointment godoc
 // POST /api/v1/appointments
 func (h *Handler) CreateAppointment(c *gin.Context) {
@@ -236,6 +311,16 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 	}
 
 	input.BranchID = branchmw.BranchIDFromCtx(c)
+
+	if input.SpecialistID == nil && input.DoctorID != nil {
+		input.SpecialistID = input.DoctorID
+	}
+
+	if input.SpecialistID != nil && *input.SpecialistID > 0 {
+		if !h.validateSpecialistOnBranch(c, *input.SpecialistID, input.BranchID) {
+			return
+		}
+	}
 
 	a, err := h.appointment.Create(db, input, claims.UserID)
 	if err != nil {
@@ -258,6 +343,17 @@ func (h *Handler) UpdateAppointment(c *gin.Context) {
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
 		return
+	}
+
+	if input.SpecialistID != nil && *input.SpecialistID > 0 {
+		existing, gerr := h.appointment.GetByID(db, id)
+		if gerr != nil {
+			respondError(c, gerr)
+			return
+		}
+		if !h.validateSpecialistOnBranch(c, *input.SpecialistID, existing.BranchID) {
+			return
+		}
 	}
 
 	a, err := h.appointment.Update(db, id, input)
@@ -382,7 +478,7 @@ func (h *Handler) GetAppointmentAvailableSlots(c *gin.Context) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", dateStr)
+	date, err := clock.ParseDate(dateStr)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "date must be in YYYY-MM-DD format"})
 		return

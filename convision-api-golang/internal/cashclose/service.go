@@ -57,6 +57,22 @@ func NewService(repo domain.CashRegisterCloseRepository, logger *zap.Logger) *Se
 	return &Service{repo: repo, logger: logger}
 }
 
+// isCashCloseAdvisorRole reports whether the user is allowed to appear in the
+// admin "asesores comerciales" listings. Only roles that actually create cash
+// register closes (admin, receptionist) qualify; specialists and laboratory
+// users are excluded even when historical drafts exist (QA-CCA-V3-001).
+func isCashCloseAdvisorRole(u *domain.User) bool {
+	if u == nil {
+		return false
+	}
+	switch u.RoleType {
+	case domain.RoleAdmin, domain.RoleReceptionist:
+		return true
+	default:
+		return false
+	}
+}
+
 // ListOutput wraps a paginated cash register close response.
 type ListOutput struct {
 	Data        []*domain.CashRegisterClose `json:"data"`
@@ -156,6 +172,10 @@ func (s *Service) GetByID(db *gorm.DB, id uint, role domain.Role, userID uint) (
 }
 
 func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.CashRegisterClose, error) {
+	if input.BranchID == 0 {
+		return nil, &domain.ErrValidation{Field: "branch_id", Message: "es requerido"}
+	}
+
 	closeDate, err := parseAndValidateCloseDate(input.CloseDate)
 	if err != nil {
 		return nil, err
@@ -173,21 +193,20 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.C
 
 	notes := sanitizeOptionalText(input.AdvisorNotes, 2000)
 
-	// UPSERT logic: check for an existing close for this (user_id, close_date).
-	existing, lookupErr := s.repo.GetByUserAndDate(db, userID, input.CloseDate)
+	// UPSERT logic: an advisor may close cash in different branches on the same day, so the
+	// natural key is (user_id, branch_id, close_date). See migration 000040 and QA-CCA-V2-002.
+	existing, lookupErr := s.repo.GetByUserBranchAndDate(db, userID, input.BranchID, input.CloseDate)
 	if lookupErr == nil {
-		// A record already exists for this user+date.
 		switch existing.Status {
 		case domain.CashRegisterCloseStatusSubmitted, domain.CashRegisterCloseStatusApproved:
-			return nil, &domain.ErrConflict{Resource: "cash_register_close", Field: "Ya existe un cierre para esta fecha en estado " + string(existing.Status) + ". No se puede crear otro."}
+			return nil, &domain.ErrConflict{Resource: "cash_register_close", Field: "Ya existe un cierre para esta fecha y sede en estado " + string(existing.Status) + ". No se puede crear otro."}
 		default:
-			// Status is draft — update the existing draft in place and return it.
 			existing.TotalCounted = totalCounted
 			existing.AdvisorNotes = notes
 			if err := s.repo.Update(db, existing, &payments, &denoms); err != nil {
 				return nil, err
 			}
-			s.logger.Info("cash register close draft reused (upsert)", zap.Uint("id", existing.ID), zap.Uint("user_id", userID))
+			s.logger.Info("cash register close draft reused (upsert)", zap.Uint("id", existing.ID), zap.Uint("user_id", userID), zap.Uint("branch_id", input.BranchID))
 			return s.repo.GetByID(db, existing.ID)
 		}
 	}
@@ -440,9 +459,14 @@ func (s *Service) AdvisorsPending(db *gorm.DB, branchID uint) (*AdvisorsPendingO
 	}
 
 	// Group by user_id preserving insertion order (already sorted by close_date DESC).
+	// Only roles that operate cash close (admin, receptionist) appear here — specialists
+	// and laboratory users are excluded by design (RBAC decision Opción B; QA-CCA-V3-001).
 	order := []uint{}
 	byUser := map[uint][]*domain.CashRegisterClose{}
 	for _, c := range closes {
+		if !isCashCloseAdvisorRole(c.User) {
+			continue
+		}
 		if _, exists := byUser[c.UserID]; !exists {
 			order = append(order, c.UserID)
 		}
@@ -715,6 +739,16 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchNameMap map[uin
 	if err != nil {
 		return nil, err
 	}
+
+	// Filter out closes from non-advisor roles (specialists, laboratory) so the
+	// consolidated view only reflects "asesores comerciales" — see QA-CCA-V3-001.
+	advisorCloses := make([]*domain.CashRegisterClose, 0, len(closes))
+	for _, c := range closes {
+		if isCashCloseAdvisorRole(c.User) {
+			advisorCloses = append(advisorCloses, c)
+		}
+	}
+	closes = advisorCloses
 
 	type advisorAgg struct {
 		userID       uint

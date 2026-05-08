@@ -3,6 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { DigitalSignatureModal } from './DigitalSignatureModal';
 import type { PrescriptionInput, DiagnosisInput } from '@/services/clinicalRecordService';
+import {
+  formatTreatmentList,
+  lensTypeLabel,
+  lensMaterialLabel,
+  lensUseLabel,
+} from '@/lib/prescriptionLabels';
 
 interface ClinicInfo {
   name: string;
@@ -139,12 +145,16 @@ export function PrescriptionPreviewModal({
               <div>
                 <p className="text-xs text-[#7d7d87] uppercase font-semibold mb-1">Tipo de lente</p>
                 <p className="text-sm">
-                  {[prescription.lens_type, prescription.lens_material, prescription.lens_use].filter(Boolean).join(' · ') || '—'}
+                  {[
+                    lensTypeLabel(prescription.lens_type),
+                    lensMaterialLabel(prescription.lens_material),
+                    lensUseLabel(prescription.lens_use),
+                  ].filter(Boolean).join(' · ') || '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-[#7d7d87] uppercase font-semibold mb-1">Tratamientos</p>
-                <p className="text-sm">{(prescription.treatments || []).join(', ') || 'Sin tratamientos'}</p>
+                <p className="text-sm">{formatTreatmentList(prescription.treatments) || 'Sin tratamientos'}</p>
               </div>
             </div>
 

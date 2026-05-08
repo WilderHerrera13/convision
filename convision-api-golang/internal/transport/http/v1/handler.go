@@ -444,28 +444,39 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
 
+	role := c.Query("role")
+	if role == "" {
+		role = c.Query("role_type")
+	}
+
+	var branchID uint
 	if rawBranch := c.Query("branch_id"); rawBranch != "" && rawBranch != "0" && rawBranch != "all" {
 		if n, err := strconv.ParseUint(rawBranch, 10, 64); err == nil && n > 0 {
-			users, err := h.user.GetAdvisorsByBranch(db, uint(n))
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
-				return
-			}
-			resources := toUserResources(users)
-			c.JSON(http.StatusOK, gin.H{
-				"data": resources,
-				"meta": gin.H{
-					"current_page": 1,
-					"last_page":    1,
-					"per_page":     len(resources),
-					"total":        len(resources),
-				},
-			})
-			return
+			branchID = uint(n)
 		}
 	}
 
-	out, err := h.user.List(db, page, perPage)
+	// Legacy contract: branch_id without role kept the old "advisors only" behavior.
+	if branchID > 0 && role == "" {
+		users, err := h.user.GetAdvisorsByBranch(db, branchID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
+			return
+		}
+		resources := toUserResources(users)
+		c.JSON(http.StatusOK, gin.H{
+			"data": resources,
+			"meta": gin.H{
+				"current_page": 1,
+				"last_page":    1,
+				"per_page":     len(resources),
+				"total":        len(resources),
+			},
+		})
+		return
+	}
+
+	out, err := h.user.List(db, page, perPage, role, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
@@ -897,6 +908,16 @@ func respondError(c *gin.Context, err error) {
 	var validation *domain.ErrValidation
 	if errors.As(err, &validation) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": validation.Error()})
+		return
+	}
+
+	var inProgress *domain.ErrAppointmentInProgress
+	if errors.As(err, &inProgress) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message":                inProgress.Error(),
+			"error_type":             "appointment_in_progress",
+			"current_appointment_id": inProgress.ActiveAppointmentID,
+		})
 		return
 	}
 

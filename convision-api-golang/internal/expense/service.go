@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles expense use-cases.
@@ -114,7 +115,7 @@ func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (
 func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.Expense, error) {
 	var expenseDate *time.Time
 	if input.ExpenseDate != "" {
-		t, err := time.Parse("2006-01-02", input.ExpenseDate)
+		t, err := clock.ParseDate(input.ExpenseDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "expense_date", Message: "invalid date format, use YYYY-MM-DD"}
 		}
@@ -175,7 +176,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Expen
 		e.Description = input.Description
 	}
 	if input.ExpenseDate != "" {
-		t, err := time.Parse("2006-01-02", input.ExpenseDate)
+		t, err := clock.ParseDate(input.ExpenseDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "expense_date", Message: "invalid date format"}
 		}

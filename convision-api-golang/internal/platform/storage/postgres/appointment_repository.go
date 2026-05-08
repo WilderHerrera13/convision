@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // appointmentFilterAllowlist prevents SQL injection via column name injection.
@@ -34,7 +35,8 @@ func (r *AppointmentRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Patient").
 		Preload("Specialist").
 		Preload("Receptionist").
-		Preload("TakenBy")
+		Preload("TakenBy").
+		Preload("Prescription")
 }
 
 func (r *AppointmentRepository) GetByID(db *gorm.DB, id uint) (*domain.Appointment, error) {
@@ -240,10 +242,15 @@ func (r *AppointmentRepository) HasConflictForSpecialist(
 	return count > 0, nil
 }
 
-// GetBookedTimesForSpecialist returns HH:MM strings of all booked (non-cancelled)
-// appointments for a given specialist on the given calendar day (UTC).
+// GetBookedTimesForSpecialist returns HH:MM strings (clinic timezone) of all
+// booked (non-cancelled) appointments for a given specialist on the given
+// calendar day. Day boundaries are computed in the clinic timezone so an
+// appointment at 21:00 Bogotá lands in the same calendar bucket the receptionist
+// picked, not in the next UTC day.
 func (r *AppointmentRepository) GetBookedTimesForSpecialist(db *gorm.DB, specialistID uint, date time.Time) ([]string, error) {
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	loc := clock.Location()
+	d := date.In(loc)
+	dayStart := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, loc)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
 	var appointments []*domain.Appointment
@@ -261,7 +268,7 @@ func (r *AppointmentRepository) GetBookedTimesForSpecialist(db *gorm.DB, special
 	times := make([]string, 0, len(appointments))
 	for _, a := range appointments {
 		if a.ScheduledAt != nil {
-			times = append(times, a.ScheduledAt.Format("15:04"))
+			times = append(times, a.ScheduledAt.In(loc).Format("15:04"))
 		}
 	}
 	return times, nil

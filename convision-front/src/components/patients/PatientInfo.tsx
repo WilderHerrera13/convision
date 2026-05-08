@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { Person } from '@mui/icons-material';
 import { patientService } from '@/services/patientService';
+import { formatDate } from '@/lib/utils';
 
 interface PatientInfoProps {
   patient: {
@@ -108,7 +109,7 @@ const PatientInfo: React.FC<PatientInfoProps> = ({ patient }) => {
               </Typography>
               <Typography variant="body2">
                 <strong>Fecha Nacimiento:</strong> {patient.birth_date 
-                  ? `${new Date(patient.birth_date).toLocaleDateString()} (${calculateAge(patient.birth_date)} años)`
+                  ? `${formatDate(patient.birth_date)} (${calculateAge(patient.birth_date)} años)`
                   : 'No registrada'}
               </Typography>
             </Box>

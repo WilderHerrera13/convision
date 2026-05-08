@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,8 +33,10 @@ import {
   Minus,
   Plus,
   Share2,
+  Stethoscope,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 import { lensService } from '@/services/lensService';
 import { formatCurrency } from '@/lib/utils';
 import { discountService } from '@/services/discountService';
@@ -46,8 +48,18 @@ interface LensWithDiscount extends Lens {
   discount_percentage?: number;
 }
 
+interface PrescriptionForRecommendation {
+  id?: number;
+  lens_type?: string | null;
+  lens_material?: string | null;
+  lens_use?: string | null;
+  treatments?: string[] | null;
+}
+
 interface SaleData {
   appointmentId?: number;
+  prescriptionId?: number;
+  prescription?: PrescriptionForRecommendation | null;
   patientId?: number;
   patientName?: string;
   selectedLenses?: Lens[];
@@ -349,9 +361,31 @@ function LensCard({ lens, inCart, qty, onQtyChange, onAdd, onRemove, onClick }: 
   );
 }
 
+const TREATMENT_LABEL_MAP: Record<string, string> = {
+  antirreflejo: 'Antirreflejo',
+  antireflejo: 'Antirreflejo',
+  fotocromatico: 'Fotocromático',
+  fotocromático: 'Fotocromático',
+  filtro_azul: 'Filtro luz azul',
+  filtro_luz_azul: 'Filtro luz azul',
+  blue_filter: 'Filtro luz azul',
+  luz_azul: 'Filtro luz azul',
+  polarizado: 'Polarizado',
+  uv: 'Filtro UV',
+  filtro_uv: 'Filtro UV',
+};
+
+function humanizeTreatmentLabel(value: string): string {
+  const key = value.toLowerCase();
+  return TREATMENT_LABEL_MAP[key] ?? value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 const SalesCatalog: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const appointmentIdFromQuery = searchParams.get('appointment_id');
   const { user } = useAuth();
+  const { branchName: activeBranchName } = useBranch();
 
   const [lenses, setLenses] = useState<LensWithDiscount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -390,8 +424,22 @@ const SalesCatalog: React.FC = () => {
 
   useEffect(() => {
     const data = sessionStorage.getItem('pendingSale');
+    let parsed: SaleData | null = null;
     if (data) {
-      const parsed = JSON.parse(data);
+      try {
+        parsed = JSON.parse(data) as SaleData;
+      } catch {
+        parsed = null;
+      }
+    }
+    if (appointmentIdFromQuery) {
+      const queryAppointmentId = Number(appointmentIdFromQuery);
+      if (Number.isFinite(queryAppointmentId) && queryAppointmentId > 0) {
+        parsed = { ...(parsed ?? {}), appointmentId: queryAppointmentId };
+        sessionStorage.setItem('pendingSale', JSON.stringify(parsed));
+      }
+    }
+    if (parsed) {
       setSaleData(parsed);
       if (parsed.selectedLenses) setSelectedLenses(parsed.selectedLenses);
     }
@@ -399,7 +447,7 @@ const SalesCatalog: React.FC = () => {
     return () => {
       if (searchDebounceTimer.current) clearTimeout(searchDebounceTimer.current);
     };
-  }, []);
+  }, [appointmentIdFromQuery]);
 
   const loadFilterOptions = async () => {
     try {
@@ -477,14 +525,20 @@ const SalesCatalog: React.FC = () => {
   };
 
   const addToCart = (lens: Lens) => {
+    const typeName = lens.type?.name?.toLowerCase() ?? '';
+    const isFrame =
+      typeName.includes('armazón') ||
+      typeName.includes('armazon') ||
+      typeName.includes('monturas') ||
+      typeName.includes('marco');
     if (selectedLenses.some((l) => l.id === lens.id)) {
-      toast({ title: 'Este lente ya está en el carrito', variant: 'destructive' });
+      toast({ title: isFrame ? 'Esta montura ya está en el carrito' : 'Este lente ya está en el carrito', variant: 'destructive' });
       return;
     }
     const updated = [...selectedLenses, lens];
     setSelectedLenses(updated);
     updateSession(updated);
-    toast({ title: 'Lente agregado al carrito' });
+    toast({ title: isFrame ? 'Montura agregada al carrito' : 'Lente agregado al carrito' });
   };
 
   const removeFromCart = (id: number) => {
@@ -555,12 +609,57 @@ const SalesCatalog: React.FC = () => {
     setFilterDrawerOpen(false);
   };
 
+  const normalizeForMatch = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[_\s-]/g, '')
+      .toLowerCase();
+
+  const findOption = (opts: FilterOption[], slug?: string | null) => {
+    if (!slug) return null;
+    const target = normalizeForMatch(slug);
+    return opts.find((o) => normalizeForMatch(o.name) === target) ?? null;
+  };
+
+  const prescription = saleData?.prescription ?? null;
+  const recommendedClass = prescription?.lens_type ? findOption(lensClasses, prescription.lens_type) : null;
+  const recommendedMaterial = prescription?.lens_material ? findOption(materials, prescription.lens_material) : null;
+  const recommendedTreatment =
+    prescription?.treatments && prescription.treatments.length > 0
+      ? findOption(treatments, prescription.treatments[0])
+      : null;
+  const hasRecommendation = Boolean(recommendedClass || recommendedMaterial || recommendedTreatment);
+
+  const applyPrescriptionFilters = () => {
+    if (recommendedClass) setSelectedLensClass(recommendedClass);
+    if (recommendedMaterial) setSelectedMaterial(recommendedMaterial);
+    if (recommendedTreatment) setSelectedTreatment(recommendedTreatment);
+    setCurrentPage(1);
+  };
+
+  const recommendationApplied =
+    (!recommendedClass || selectedLensClass?.id === recommendedClass.id) &&
+    (!recommendedMaterial || selectedMaterial?.id === recommendedMaterial.id) &&
+    (!recommendedTreatment || selectedTreatment?.id === recommendedTreatment.id);
+
+  const autoAppliedRecRef = useRef(false);
+  useEffect(() => {
+    if (autoAppliedRecRef.current) return;
+    if (!hasRecommendation) return;
+    if (filtersLoading) return;
+    applyPrescriptionFilters();
+    autoAppliedRecRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRecommendation, filtersLoading]);
+
   const cartTotal = selectedLenses.reduce(
     (acc, l) => acc + parseFloat(l.price?.toString() ?? '0'),
     0
   );
 
   const branchName =
+    activeBranchName ??
     (user as unknown as { branch?: { name?: string } })?.branch?.name ??
     (user as unknown as { branch_name?: string })?.branch_name ??
     'Sede Principal';
@@ -605,10 +704,10 @@ const SalesCatalog: React.FC = () => {
         <div className="flex flex-col gap-[2px] min-w-0">
           <span className="text-[11px] text-[#7d7d87] leading-none truncate">
             Ventas / Nueva Venta ·{' '}
-            <span className="text-[#0f0f12]">Catálogo de Lentes</span>
+            <span className="text-[#0f0f12]">Catálogo de productos</span>
           </span>
           <span className="text-[17px] font-semibold text-[#0f0f12] leading-none">
-            Catálogo de Lentes
+            Catálogo de productos
           </span>
         </div>
 
@@ -617,6 +716,24 @@ const SalesCatalog: React.FC = () => {
             Cliente:{' '}
             <span className="font-semibold text-[#0f0f12]">{saleData.patientName}</span>
           </span>
+        )}
+
+        {hasRecommendation && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#fff7ed] border border-[#fed7aa] text-[12px] text-[#9a3412] shrink-0">
+            <span className="font-semibold">Fórmula:</span>
+            <span>
+              {[recommendedClass?.name, recommendedMaterial?.name, recommendedTreatment?.name]
+                .filter(Boolean)
+                .join(' · ') || '—'}
+            </span>
+            <button
+              type="button"
+              onClick={recommendationApplied ? resetFilters : applyPrescriptionFilters}
+              className="ml-1 text-[11px] font-semibold underline underline-offset-2 hover:text-[#7c2d12]"
+            >
+              {recommendationApplied ? 'Mostrar todos' : 'Aplicar recomendación'}
+            </button>
+          </div>
         )}
 
         <div className="ml-auto flex items-center gap-3 shrink-0">
@@ -638,6 +755,24 @@ const SalesCatalog: React.FC = () => {
           )}
         </div>
       </div>
+
+      {!saleData?.patientId && (
+        <div className="bg-[#fff7ed] border-b border-[#fed7aa] px-6 py-2.5 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2 text-[12px] text-[#9a3412]">
+            <span className="font-semibold">Selecciona un cliente</span>
+            <span className="text-[#b45309]">
+              para asociar la venta. Sin cliente no podrás finalizar la compra.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/receptionist/sales/new')}
+            className="text-[12px] font-semibold text-[#9a3412] underline underline-offset-2 hover:text-[#7c2d12] shrink-0"
+          >
+            Volver a Nueva Venta
+          </button>
+        </div>
+      )}
 
       {/* ── Body: catalog + cart ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -723,7 +858,7 @@ const SalesCatalog: React.FC = () => {
           {/* Category pill */}
           <div className="px-6 pt-4 pb-2 shrink-0">
             <span className="inline-flex items-center px-3 py-[5px] rounded-[6px] bg-[#f1edff] text-[#8753ef] text-[12px] font-semibold">
-              Catálogo de Lentes
+              Catálogo de productos
             </span>
           </div>
 

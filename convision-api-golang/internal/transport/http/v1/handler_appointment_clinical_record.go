@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
+	appointmentsvc "github.com/convision/api/internal/appointment"
 	clinicalrecordsvc "github.com/convision/api/internal/clinicalrecord"
 	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
@@ -222,8 +224,22 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 		return
 	}
 
-	if err := h.clinicalRecord.SignRecord(db, rec.ID, body.ProfessionalTp); err != nil {
-		respondError(c, err)
+	txErr := db.Transaction(func(tx *gorm.DB) error {
+		if err := h.clinicalRecord.SignRecord(tx, rec.ID, body.ProfessionalTp); err != nil {
+			return err
+		}
+		// Once the prescription is signed the consultation is finished, so the
+		// appointment moves to "completed" and surfaces in the receptionist
+		// sales queue. Wrapped in the same tx so a failed status update rolls
+		// back the signature.
+		statusInput := appointmentsvc.UpdateInput{Status: string(domain.AppointmentStatusCompleted)}
+		if _, err := h.appointment.Update(tx, apptID, statusInput); err != nil {
+			return err
+		}
+		return nil
+	})
+	if txErr != nil {
+		respondError(c, txErr)
 		return
 	}
 

@@ -23,6 +23,8 @@ func productResponse(p *domain.Product) gin.H {
 		"cost":                    p.Cost,
 		"price":                   p.Price,
 		"sale_price":              p.Price,
+		"product_type":            p.ProductType,
+		"tracks_stock":            p.TracksStock,
 		"product_category_id":     p.ProductCategoryID,
 		"category_id":             p.ProductCategoryID,
 		"brand_id":                p.BrandID,
@@ -80,6 +82,17 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	if v := c.Query("supplier_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			filters["supplier_id"] = uint(id)
+		}
+	}
+	if v := c.Query("product_type"); v != "" {
+		filters["product_type"] = v
+	}
+	if v := c.Query("tracks_stock"); v != "" {
+		switch v {
+		case "1", "true", "TRUE", "True":
+			filters["tracks_stock"] = true
+		case "0", "false", "FALSE", "False":
+			filters["tracks_stock"] = false
 		}
 	}
 

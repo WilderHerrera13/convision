@@ -473,8 +473,14 @@ const QualityReviewDetail: React.FC = () => {
       const action = variables.status === 'quality_approved' ? 'approved' : 'returned';
       navigate(`/specialist/laboratory-orders?action=${action}`);
     },
-    onError: () => {
-      toast({ title: 'Error al actualizar el estado', variant: 'destructive' });
+    onError: (err: unknown) => {
+      const description =
+        typeof err === 'object' && err !== null && 'response' in err
+          ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? undefined)
+          : undefined;
+      toast({ title: 'Error al actualizar el estado', description, variant: 'destructive' });
+      setShowApproveModal(false);
+      setShowReturnModal(false);
     },
   });
 

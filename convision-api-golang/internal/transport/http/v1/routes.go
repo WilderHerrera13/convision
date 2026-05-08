@@ -93,14 +93,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			auth.POST("/refresh", h.Refresh)
 		}
 
-		// Branches — admin only for management (no branch context required)
+		// Branches — list/get are readable by any authenticated user so the
+		// frontend can resolve branch names for chips, filters and switchers.
+		// Mutations are still admin-only (branches:manage).
+		branchesPublic := protected.Group("/branches")
+		{
+			branchesPublic.GET("", h.ListBranches)
+			branchesPublic.GET("/:id", h.GetBranch)
+		}
+
 		branchesAdmin := protected.Group("/branches")
 		branchesAdmin.Use(jwtauth.RequirePermission("branches:manage"))
 		{
-			branchesAdmin.GET("", h.ListBranches)
 			branchesAdmin.POST("/users/:id/assign", h.AssignUserBranches)
 			branchesAdmin.POST("", h.CreateBranch)
-			branchesAdmin.GET("/:id", h.GetBranch)
 			branchesAdmin.PUT("/:id", h.UpdateBranch)
 		}
 
@@ -657,6 +663,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			labOrders.POST("/:id/status",
 				jwtauth.RequireAnyPermission("laboratory_orders:edit"),
 				h.UpdateLaboratoryOrderStatus,
+			)
+			labOrders.POST("/:id/assign",
+				jwtauth.RequireAnyPermission("laboratory_orders:assign", "laboratory_orders:manage"),
+				h.AssignLaboratoryOrderSpecialist,
 			)
 			labOrders.GET("/:id/evidence", h.GetLaboratoryOrderEvidence)
 			labOrders.POST("/:id/evidence",

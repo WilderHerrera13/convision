@@ -81,9 +81,9 @@ type CashCountDenomination struct {
 // CashRegisterCloseRepository defines persistence operations for cash register closes.
 type CashRegisterCloseRepository interface {
 	GetByID(db *gorm.DB, id uint) (*CashRegisterClose, error)
-	// GetByUserAndDate returns the single close for (userID, date). Returns ErrNotFound if none exist.
+	// GetByUserBranchAndDate returns the single close for (userID, branchID, date). Returns ErrNotFound if none exist.
 	// Prioritizes submitted/approved over draft when multiple exist (historical duplicates).
-	GetByUserAndDate(db *gorm.DB, userID uint, date string) (*CashRegisterClose, error)
+	GetByUserBranchAndDate(db *gorm.DB, userID uint, branchID uint, date string) (*CashRegisterClose, error)
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*CashRegisterClose, int64, error)
 	// ListByStatuses returns all closes whose status is in the given list, ordered by close_date DESC.
 	// Intended for the advisors-pending aggregation (no pagination needed — result is grouped per user).

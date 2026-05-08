@@ -174,20 +174,51 @@ const AppointmentDetail: React.FC = () => {
   const [filteredLenses, setFilteredLenses] = useState<Lens[]>([]);
   const [priceAdjustmentModalOpen, setPriceAdjustmentModalOpen] = useState(false);
   const [selectedLensForAdjustment, setSelectedLensForAdjustment] = useState<Lens | null>(null);
+  const [clinicalPrescription, setClinicalPrescription] = useState<{
+    id: number;
+    lens_type?: string | null;
+    lens_material?: string | null;
+    lens_use?: string | null;
+    treatments?: string[] | null;
+  } | null>(null);
 
   useEffect(() => {
     fetchAppointment();
   }, [id]);
+
+  useEffect(() => {
+    if (user?.role === 'receptionist' && availableLenses.length === 0) {
+      loadAvailableLenses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role]);
 
   const fetchAppointment = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await ApiService.get(`/api/v1/appointments/${id}`);
-      const appointmentData = (res && typeof res === 'object' && 'data' in res) 
-        ? (res as { data: Appointment }).data 
+      const appointmentData = (res && typeof res === 'object' && 'data' in res)
+        ? (res as { data: Appointment }).data
         : res as Appointment;
       setAppointment(appointmentData);
+
+      const patientId = appointmentData?.patient?.id;
+      if (patientId) {
+        try {
+          const recRes = await ApiService.get(`/api/v1/patients/${patientId}/latest-clinical-record`);
+          const rec = (recRes && typeof recRes === 'object' && 'data' in recRes
+            ? (recRes as { data: { appointment_id?: number; prescription?: typeof clinicalPrescription } }).data
+            : (recRes as { appointment_id?: number; prescription?: typeof clinicalPrescription }));
+          if (rec?.appointment_id === appointmentData.id && rec.prescription?.id) {
+            setClinicalPrescription(rec.prescription);
+          } else {
+            setClinicalPrescription(null);
+          }
+        } catch {
+          setClinicalPrescription(null);
+        }
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -348,7 +379,10 @@ const AppointmentDetail: React.FC = () => {
     }
   };
 
-  // Lens management functions
+  // Lens management functions. The backend currently ignores the
+  // `category.slug = lens` server-side filter, so we keep only products that
+  // expose proper lens attributes (type/material/treatment) — frames slip in
+  // otherwise and the asesor sees an empty "Tipo/Material/Tratamiento" row.
   const loadAvailableLenses = async () => {
     setLensLoading(true);
     try {
@@ -356,10 +390,18 @@ const AppointmentDetail: React.FC = () => {
         page: 1,
         perPage: 50
       });
-      
+
       if (response && response.data) {
-        setAvailableLenses(response.data);
-        setFilteredLenses(response.data);
+        const all = response.data;
+        const onlyLenses = all.filter((lens) =>
+          Boolean(lens.type?.name) ||
+          Boolean(lens.material?.name) ||
+          Boolean(lens.treatment?.name) ||
+          Boolean(lens.lens_class?.name),
+        );
+        const usable = onlyLenses.length > 0 ? onlyLenses : all;
+        setAvailableLenses(usable);
+        setFilteredLenses(usable);
       }
     } catch (error) {
       console.error('Error loading lenses:', error);
@@ -418,27 +460,34 @@ const AppointmentDetail: React.FC = () => {
   };
 
   const handleStartSaleWithLenses = () => {
-    if (appointment?.patient && selectedLenses.length > 0) {
-      // Store selected lenses and any price adjustments in session storage
-      const saleData = {
-        patientId: appointment.patient.id,
-        patientName: `${appointment.patient.first_name} ${appointment.patient.last_name}`,
-        appointmentId: appointment.id,
-        selectedLenses: selectedLenses
-      };
-      
-      sessionStorage.setItem('pendingSale', JSON.stringify(saleData));
-      
-      navigate('/receptionist/sales/catalog', {
-        state: saleData
-      });
-    } else {
+    if (!appointment?.patient) {
       toast({
-        title: 'Selecciona lentes',
-        description: 'Debes seleccionar al menos un lente antes de iniciar la venta',
+        title: 'Sin paciente',
+        description: 'La cita no tiene paciente asociado.',
         variant: 'destructive',
       });
+      return;
     }
+    const saleData = {
+      patientId: appointment.patient.id,
+      patientName: `${appointment.patient.first_name} ${appointment.patient.last_name}`,
+      appointmentId: appointment.id,
+      prescriptionId: clinicalPrescription?.id ?? appointment.prescription?.id,
+      prescription: clinicalPrescription
+        ? {
+            id: clinicalPrescription.id,
+            lens_type: clinicalPrescription.lens_type ?? null,
+            lens_material: clinicalPrescription.lens_material ?? null,
+            lens_use: clinicalPrescription.lens_use ?? null,
+            treatments: clinicalPrescription.treatments ?? [],
+          }
+        : appointment.prescription ?? null,
+      selectedLenses,
+    };
+
+    sessionStorage.setItem('pendingSale', JSON.stringify(saleData));
+
+    navigate('/receptionist/sales/catalog', { state: saleData });
   };
 
   if (loading) {
@@ -669,18 +718,18 @@ const AppointmentDetail: React.FC = () => {
               </Button>
             )}
 
-            {user?.role === 'receptionist' && appointment?.status === 'completed' && (
+            {user?.role === 'receptionist' && (appointment?.prescription || clinicalPrescription) && (
               <div className="flex gap-2 ml-2">
                 <Button variant="outline" onClick={handleLensSelectionOpen}>
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Seleccionar Lentes
                 </Button>
-                {selectedLenses.length > 0 && (
-                  <Button variant="default" onClick={handleStartSaleWithLenses}>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Iniciar Venta ({selectedLenses.length})
-                  </Button>
-                )}
+                <Button variant="default" onClick={handleStartSaleWithLenses}>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  {selectedLenses.length > 0
+                    ? `Iniciar Venta (${selectedLenses.length})`
+                    : 'Iniciar Venta'}
+                </Button>
               </div>
             )}
           </div>
@@ -883,6 +932,37 @@ const AppointmentDetail: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-4 flex-1 overflow-hidden">
+            {appointment?.prescription && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
+                <div className="font-semibold mb-1 flex items-center gap-1">
+                  <Stethoscope className="h-3 w-3" /> Receta del especialista
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">
+                  {appointment.prescription.correction_type && (
+                    <div><span className="text-amber-700">Tipo:</span> {appointment.prescription.correction_type}</div>
+                  )}
+                  {appointment.prescription.usage_type && (
+                    <div><span className="text-amber-700">Uso:</span> {appointment.prescription.usage_type}</div>
+                  )}
+                  {appointment.prescription.right_sphere && (
+                    <div><span className="text-amber-700">OD esf:</span> {appointment.prescription.right_sphere}</div>
+                  )}
+                  {appointment.prescription.left_sphere && (
+                    <div><span className="text-amber-700">OI esf:</span> {appointment.prescription.left_sphere}</div>
+                  )}
+                  {appointment.prescription.right_addition && (
+                    <div><span className="text-amber-700">OD add:</span> {appointment.prescription.right_addition}</div>
+                  )}
+                  {appointment.prescription.left_addition && (
+                    <div><span className="text-amber-700">OI add:</span> {appointment.prescription.left_addition}</div>
+                  )}
+                </div>
+                {appointment.prescription.recommendation && (
+                  <div className="mt-2"><span className="text-amber-700">Recomendación:</span> {appointment.prescription.recommendation}</div>
+                )}
+              </div>
+            )}
+
             {/* Search bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />

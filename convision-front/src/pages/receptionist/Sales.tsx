@@ -104,9 +104,11 @@ const ReceptionistSales: React.FC = () => {
   });
 
   const stats = todayStats ?? EMPTY_STATS;
+  const totalRevenueNum = Number(stats.total_revenue) || 0;
+  const pendingBalanceNum = Number(stats.pending_balance) || 0;
   const pendingPercent =
-    stats.total_revenue > 0
-      ? ((stats.pending_balance / stats.total_revenue) * 100).toFixed(1)
+    totalRevenueNum > 0
+      ? ((pendingBalanceNum / totalRevenueNum) * 100).toFixed(1)
       : '0.0';
   const paid = stats.payment_status_breakdown?.paid ?? 0;
   const partial = stats.payment_status_breakdown?.partial ?? 0;
@@ -245,12 +247,12 @@ const ReceptionistSales: React.FC = () => {
           />
           <MetricCard
             label="Ingresos Hoy"
-            value={`$ ${formatCurrency(stats.total_revenue ?? 0)}`}
-            subtext={`Cobrado: $ ${formatCurrency(stats.collected_amount ?? 0)}`}
+            value={formatCurrency(stats.total_revenue ?? 0)}
+            subtext={`Cobrado: ${formatCurrency(stats.collected_amount ?? 0)}`}
           />
           <MetricCard
             label="Por Cobrar Hoy"
-            value={`$ ${formatCurrency(stats.pending_balance ?? 0)}`}
+            value={formatCurrency(stats.pending_balance ?? 0)}
             subtext={`${pendingPercent}% del total`}
           />
           <MetricCard

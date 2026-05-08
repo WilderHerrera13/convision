@@ -46,6 +46,7 @@ type UserRepository interface {
 	UpdatePassword(db *gorm.DB, userID uint, hashedPassword string) error
 	Delete(db *gorm.DB, id uint) error
 	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*User, int64, error)
+	ListByBranch(db *gorm.DB, branchID uint, role string, page, perPage int) ([]*User, int64, error)
 	GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 	GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 	GetRoles(db *gorm.DB, userID uint) ([]*RoleModel, error)

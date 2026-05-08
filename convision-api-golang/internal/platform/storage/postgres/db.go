@@ -74,13 +74,66 @@ $ren$;
 `).Error
 }
 
+// ensureCashRegisterCloseUniqueIndex creates the (user_id, branch_id, close_date::date) partial
+// unique index that GORM AutoMigrate cannot express. Mirrors migration 000040 so duplicates are
+// detected during local QA before staging/prod deploys (see DEVELOPMENT_GUIDE.md §10).
+func ensureCashRegisterCloseUniqueIndex(db *gorm.DB) error {
+	return db.Exec(`
+DO $cci$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'cash_register_closes'
+    ) THEN
+        WITH ranked AS (
+            SELECT
+                id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY user_id, branch_id, ((close_date AT TIME ZONE 'UTC')::date)
+                    ORDER BY
+                        CASE status
+                            WHEN 'approved'  THEN 1
+                            WHEN 'submitted' THEN 2
+                            ELSE                  3
+                        END,
+                        created_at DESC
+                ) AS rn
+            FROM cash_register_closes
+            WHERE status IN ('submitted', 'approved')
+              AND close_date IS NOT NULL
+        )
+        UPDATE cash_register_closes
+        SET status = 'draft', updated_at = NOW()
+        WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+
+        IF EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'uq_cash_register_closes_user_date_active'
+        ) THEN
+            EXECUTE 'DROP INDEX uq_cash_register_closes_user_date_active';
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'uq_cash_register_closes_user_branch_date_active'
+        ) THEN
+            EXECUTE 'CREATE UNIQUE INDEX uq_cash_register_closes_user_branch_date_active '
+                 || 'ON cash_register_closes (user_id, branch_id, ((close_date AT TIME ZONE ''UTC'')::date)) '
+                 || 'WHERE status IN (''submitted'', ''approved'')';
+        END IF;
+    END IF;
+END
+$cci$;
+`).Error
+}
+
 // Migrate runs auto-migration for all registered domain models.
 // This is safe for development; use a proper migration tool in production.
 func Migrate(db *gorm.DB) error {
 	if err := renameLegacyUserPasswordColumnIfNeeded(db); err != nil {
 		return err
 	}
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		// Lookup / reference tables
 		&domain.Country{},
 		&domain.Department{},
@@ -177,7 +230,10 @@ func Migrate(db *gorm.DB) error {
 		&domain.SuperAdmin{},
 		&domain.OpticaFeature{},
 		&domain.OpticaAllowedPermission{},
-	)
+	); err != nil {
+		return err
+	}
+	return ensureCashRegisterCloseUniqueIndex(db)
 }
 
 // MigrateTenantSchema creates all tenant-level tables inside the given PostgreSQL schema.
@@ -206,7 +262,7 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		return fmt.Errorf("gorm open: %w", err)
 	}
 
-	return tenantDB.AutoMigrate(
+	if err := tenantDB.AutoMigrate(
 		// Lookup / reference tables
 		&domain.Country{},
 		&domain.Department{},
@@ -298,7 +354,10 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.BulkImportLog{},
 		// RevokedToken and platform models (Optica, SuperAdmin, OpticaFeature) live
 		// in the platform schema and must NOT be migrated into tenant schemas.
-	)
+	); err != nil {
+		return err
+	}
+	return ensureCashRegisterCloseUniqueIndex(tenantDB)
 }
 
 // NewSchemaConnection creates a *gorm.DB pinned to a single connection from the pool

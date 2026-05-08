@@ -53,15 +53,18 @@ const AdminLabOrderSidebar: React.FC<AdminLabOrderSidebarProps> = ({ order, onSt
   const handleSendToQuality = async () => {
     setLoading(true);
     const specialist = specialists.find((u) => String(u.id) === selectedSpecialistId);
-    const specialistName = specialist ? `${specialist.name} ${specialist.last_name ?? ''}`.trim() : '';
-    const notes = specialistName ? `Médico asignado: ${specialistName} [uid:${specialist!.id}]` : '';
+    if (!specialist) {
+      toast({ title: 'Error', description: 'Selecciona un especialista para continuar.', variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
     try {
-      await laboratoryOrderService.updateLaboratoryOrderStatus(order.id, { status: 'in_quality', notes });
+      await laboratoryOrderService.assignSpecialist(order.id, { specialist_id: specialist.id });
       toast({ title: 'Enviado a calidad', description: 'La orden fue enviada al especialista para revisión.' });
       setConfirmQuality(false);
       onStatusUpdate();
     } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No se pudo asignar el especialista.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -186,13 +189,17 @@ const AdminLabOrderSidebar: React.FC<AdminLabOrderSidebarProps> = ({ order, onSt
     }
 
     if (status === 'in_quality') {
+      const fromFK = order.assigned_specialist
+        ? `${order.assigned_specialist.name} ${order.assigned_specialist.last_name ?? ''}`.trim()
+        : null;
       const qualityEntry = order.statusHistory
         ?.slice()
         .reverse()
         .find((e) => e.status === 'in_quality' && e.notes?.startsWith('Médico asignado:'));
-      const assignedSpecialist = qualityEntry?.notes
-        ? qualityEntry.notes.replace(/\s*\[uid:\d+\]\s*$/, '').replace(/^Médico asignado:\s*/i, '')
+      const fromNotes = qualityEntry?.notes
+        ? qualityEntry.notes.replace(/\s*\[uid:\d+\]\s*$/, '').replace(/^Médico asignado:\s*/i, '').trim()
         : null;
+      const assignedSpecialist = fromFK || fromNotes;
 
       return (
         <>
@@ -336,7 +343,7 @@ const AdminLabOrderSidebar: React.FC<AdminLabOrderSidebarProps> = ({ order, onSt
             </div>
             <div>
               <p className="text-[11px] text-[#7d7d87]">Sede</p>
-              <p className="text-[13px] font-medium text-[#121215] mt-0.5">Sede Principal</p>
+              <p className="text-[13px] font-medium text-[#121215] mt-0.5">{order.branch?.trim() || '—'}</p>
             </div>
           </div>
         </CardContent>

@@ -35,6 +35,7 @@ type ViewMode = 'consolidated' | 'all' | 'by_advisor';
 interface PeriodStats {
   totalCount: number;
   pendingCount: number;
+  pendingAdvisorsCount: number;
   accumulatedVariance: number | null;
   periodLabel: string;
   totalAdvisorSum: number;
@@ -130,19 +131,19 @@ const AdminCashCloses: React.FC = () => {
     queryFn: () => userService.getAll(branchFilter !== 'all' ? branchFilter : undefined),
   });
 
-  const advisors = useMemo(
-    () => users.filter((u) => u.role === 'receptionist' || u.role === 'specialist'),
-    [users],
-  );
-
   const { data: advisorGroups = [], isLoading: isLoadingAdvisors } = useQuery<AdvisorPendingGroup[]>({
     queryKey: ['advisors-pending-closes', branchFilter],
     queryFn: () =>
       cashRegisterCloseService.listAdvisorsWithPending({
         branch_id: branchFilter !== 'all' ? branchFilter : '0',
       }),
-    enabled: viewMode === 'by_advisor',
+    enabled: viewMode !== 'consolidated',
   });
+
+  const advisors = useMemo(
+    () => users.filter((u) => u.role === 'receptionist'),
+    [users],
+  );
 
   const mergedAdvisors = useMemo((): AdvisorPendingGroup[] => {
     const byId = new Map(advisorGroups.map((g) => [g.user_id, g]));
@@ -209,6 +210,7 @@ const AdminCashCloses: React.FC = () => {
       (r) => r.status === 'submitted' || r.status === 'draft',
     ).length;
     const pendingFromAdvisors = filteredAdvisors.reduce((acc, g) => acc + g.pending_count, 0);
+    const pendingAdvisorsCount = filteredAdvisors.filter((g) => g.pending_count > 0).length;
 
     if (viewMode === 'by_advisor') {
       const variance = filteredAdvisors
@@ -222,6 +224,7 @@ const AdminCashCloses: React.FC = () => {
       return {
         totalCount: filteredAdvisors.length,
         pendingCount: pendingFromAdvisors,
+        pendingAdvisorsCount,
         accumulatedVariance: hasAnyVariance ? variance : null,
         periodLabel: label,
         totalAdvisorSum,
@@ -239,6 +242,7 @@ const AdminCashCloses: React.FC = () => {
     return {
       totalCount: tableData.length,
       pendingCount: pendingFromTable,
+      pendingAdvisorsCount,
       accumulatedVariance: hasAnyVariance ? variance : null,
       periodLabel: label,
       totalAdvisorSum,
@@ -458,7 +462,11 @@ const AdminCashCloses: React.FC = () => {
           <StatCard
             label="Pendientes de Revisión"
             value={<span className="text-[#b57218]">{stats.pendingCount}</span>}
-            sub="Requieren aprobación"
+            sub={
+              viewMode === 'by_advisor'
+                ? `${stats.pendingAdvisorsCount} ${stats.pendingAdvisorsCount === 1 ? 'asesor' : 'asesores'} con días pendientes`
+                : 'Cierres en borrador o enviados'
+            }
             accentColor="#b57218"
             bgColor="#fff6e3"
             borderColor="#f4c678"

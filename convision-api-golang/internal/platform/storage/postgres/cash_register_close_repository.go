@@ -31,7 +31,7 @@ func (r *CashRegisterCloseRepository) GetByID(db *gorm.DB, id uint) (*domain.Cas
 	err := db.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id, name, last_name, role")
+			return tx.Select("id, name, last_name, role_type")
 		}).
 		Preload("Payments", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, cash_register_close_id, payment_method_name, counted_amount, created_at, updated_at")
@@ -46,14 +46,14 @@ func (r *CashRegisterCloseRepository) GetByID(db *gorm.DB, id uint) (*domain.Cas
 	return &item, err
 }
 
-// GetByUserAndDate returns the single authoritative close for (userID, date).
+// GetByUserBranchAndDate returns the single authoritative close for (userID, branchID, date).
 // When duplicates exist it prioritises: approved > submitted > draft (most recently created).
-// Returns ErrNotFound if the user has no close for that date.
-func (r *CashRegisterCloseRepository) GetByUserAndDate(db *gorm.DB, userID uint, date string) (*domain.CashRegisterClose, error) {
+// Returns ErrNotFound if the user has no close for that branch/date.
+func (r *CashRegisterCloseRepository) GetByUserBranchAndDate(db *gorm.DB, userID uint, branchID uint, date string) (*domain.CashRegisterClose, error) {
 	var records []*domain.CashRegisterClose
 	err := db.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
-		Where("user_id = ? AND DATE(close_date) = ?", userID, date).
+		Where("user_id = ? AND branch_id = ? AND DATE(close_date) = ?", userID, branchID, date).
 		Order(`
 			CASE status
 				WHEN 'approved'  THEN 1
@@ -106,7 +106,7 @@ func (r *CashRegisterCloseRepository) List(db *gorm.DB, filters map[string]any, 
 	err := q.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id, name, last_name, role")
+			return tx.Select("id, name, last_name, role_type")
 		}).
 		Order("close_date DESC NULLS LAST, created_at DESC").
 		Offset(offset).
@@ -128,7 +128,7 @@ func (r *CashRegisterCloseRepository) ListByStatuses(db *gorm.DB, statuses []dom
 	}
 	err := q.
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id, name, last_name, role")
+			return tx.Select("id, name, last_name, role_type")
 		}).
 		Order("close_date DESC NULLS LAST, created_at DESC").
 		Find(&records).Error
@@ -148,10 +148,10 @@ func (r *CashRegisterCloseRepository) ListByUserAndDateRange(db *gorm.DB, userID
 	}
 	q = q.
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id, name, last_name, role")
+			return tx.Select("id, name, last_name, role_type")
 		}).
 		Preload("ApprovedByUser", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id, name, last_name, role")
+			return tx.Select("id, name, last_name, role_type")
 		}).
 		Preload("Payments", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, cash_register_close_id, payment_method_name, counted_amount, created_at, updated_at")

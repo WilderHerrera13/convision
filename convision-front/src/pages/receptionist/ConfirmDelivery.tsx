@@ -54,14 +54,20 @@ const ConfirmDelivery: React.FC<ConfirmDeliveryProps> = ({ basePath = '/receptio
       .finally(() => setLoading(false));
   }, [id]);
 
+  const pendingBalance = Math.max(0, Number(order?.sale?.balance ?? 0));
+  const requirePayment = pendingBalance > 0;
+
   const handleConfirm = async () => {
     if (!id) return;
     const pErr: Partial<Record<keyof PaymentFormState, string>> = {};
     const dErr: Partial<Record<keyof DeliveryFormState, string>> = {};
-    if (!payment.paymentMethod) pErr.paymentMethod = 'Seleccione forma de pago';
-    if (!payment.amount.trim()) pErr.amount = 'Ingrese el valor recibido';
-    if (!payment.check1) pErr.check1 = 'Confirmacion requerida';
-    if (!payment.check2) pErr.check2 = 'Confirmacion requerida';
+    if (requirePayment) {
+      if (!payment.paymentMethod) pErr.paymentMethod = 'Seleccione forma de pago';
+      const amountNumber = Number((payment.amount || '').replace(/\D/g, ''));
+      if (!payment.amount.trim() || amountNumber <= 0) pErr.amount = 'Ingrese el valor recibido';
+      if (!payment.check1) pErr.check1 = 'Confirmacion requerida';
+      if (!payment.check2) pErr.check2 = 'Confirmacion requerida';
+    }
     if (!delivery.recipient) dErr.recipient = 'Seleccione quien retira';
     if (!delivery.documentType) dErr.documentType = 'Seleccione tipo de documento';
     if (!delivery.documentNumber.trim()) dErr.documentNumber = 'Ingrese numero de documento';
@@ -81,14 +87,18 @@ const ConfirmDelivery: React.FC<ConfirmDeliveryProps> = ({ basePath = '/receptio
     }
     setSubmitting(true);
     try {
-      const notes = [
-        `Pago: ${payment.paymentMethod}`,
-        `Valor: ${payment.amount}`,
-        `Retira: ${delivery.recipient === 'titular' ? 'Titular' : 'Otra persona'}`,
-        `Doc: ${delivery.documentType} ${delivery.documentNumber}`,
-        `Condicion: ${delivery.productCondition}`,
-        `Fecha entrega: ${new Date().toLocaleString('es-CO')}`,
-      ].join(' | ');
+      const notesParts = [];
+      if (requirePayment) {
+        notesParts.push(`Pago: ${payment.paymentMethod}`);
+        notesParts.push(`Valor: ${payment.amount}`);
+      } else {
+        notesParts.push('Sin saldo pendiente al momento de la entrega');
+      }
+      notesParts.push(`Retira: ${delivery.recipient === 'titular' ? 'Titular' : 'Otra persona'}`);
+      notesParts.push(`Doc: ${delivery.documentType} ${delivery.documentNumber}`);
+      notesParts.push(`Condicion: ${delivery.productCondition}`);
+      notesParts.push(`Fecha entrega: ${new Date().toLocaleString('es-CO')}`);
+      const notes = notesParts.join(' | ');
       await laboratoryOrderService.updateLaboratoryOrderStatus(Number(id), {
         status: 'delivered',
         notes,
@@ -156,6 +166,7 @@ const ConfirmDelivery: React.FC<ConfirmDeliveryProps> = ({ basePath = '/receptio
                   state={payment}
                   onChange={(p) => setPayment((prev) => ({ ...prev, ...p }))}
                   errors={paymentErrors}
+                  pendingBalance={pendingBalance}
                 />
               </TabsContent>
               <TabsContent value="delivery">

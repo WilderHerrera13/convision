@@ -1,12 +1,12 @@
 package clinicalrecord
 
 import (
-	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // AnamnesisInput is the DTO for creating or updating an Anamnesis.
@@ -210,7 +210,7 @@ func (s *Service) UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID u
 		Cups:                  in.Cups,
 	}
 	if in.NextControlDate != "" {
-		t, err := time.Parse("2006-01-02", in.NextControlDate)
+		t, err := clock.ParseDate(in.NextControlDate)
 		if err == nil {
 			d.NextControlDate = &t
 		}

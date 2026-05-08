@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,9 @@ export function DigitalSignatureModal({ open, onClose, onConfirm, isSigning, def
             <Lock className="h-4 w-4 shrink-0" />
             <span>Firmar fórmula óptica</span>
           </DialogTitle>
+          <DialogDescription>
+            Confirma tu tarjeta profesional para registrar la firma digital y completar la cita.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

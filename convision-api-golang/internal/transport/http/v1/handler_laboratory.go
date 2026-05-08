@@ -354,6 +354,36 @@ func (h *Handler) GetLaboratoryOrderPdfToken(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// AssignLaboratoryOrderSpecialist godoc
+// POST /api/v1/laboratory-orders/:id/assign
+func (h *Handler) AssignLaboratoryOrderSpecialist(c *gin.Context) {
+	db := tenantDBFromCtx(c)
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	var input labsvc.AssignSpecialistInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	o, err := h.laboratory.AssignSpecialist(db, id, input, claims.UserID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, o)
+}
+
 // UpdateLaboratoryOrderStatus godoc
 // POST /api/v1/laboratory-orders/:id/status
 func (h *Handler) UpdateLaboratoryOrderStatus(c *gin.Context) {

@@ -97,8 +97,35 @@ func EnsureLocalDevUsers(db *gorm.DB, logger *zap.Logger) error {
 	return nil
 }
 
+// EnsureLocalDevLaboratories seeds at least one active laboratory for local
+// environments so the lab order flow is exercisable end-to-end without manual
+// data setup.
+func EnsureLocalDevLaboratories(db *gorm.DB, logger *zap.Logger) error {
+	var n int64
+	if err := db.Model(&domain.Laboratory{}).Count(&n).Error; err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	lab := domain.Laboratory{
+		Name:          "Lab Convision",
+		ContactPerson: "Coordinador de Laboratorio",
+		Email:         "laboratorio@convision.com",
+		Phone:         "6018000000",
+		Address:       "Bogotá D.C.",
+		Status:        "active",
+		Notes:         "Laboratorio creado automáticamente para entornos de desarrollo.",
+	}
+	if err := db.Create(&lab).Error; err != nil {
+		return err
+	}
+	logger.Info("created local dev laboratory", zap.Uint("laboratory_id", lab.ID))
+	return nil
+}
+
 func ensureDevUserBranchAssignmentIfNeeded(db *gorm.DB, userID uint, role domain.Role, branchID uint) error {
-	if role != domain.RoleSpecialist && role != domain.RoleReceptionist {
+	if role != domain.RoleSpecialist && role != domain.RoleReceptionist && role != domain.RoleLaboratory {
 		return nil
 	}
 	var n int64

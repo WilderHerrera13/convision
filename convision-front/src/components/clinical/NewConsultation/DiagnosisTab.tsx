@@ -65,6 +65,9 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
   const pd = watch('primary_description') ?? '';
   const dt = watch('diagnosis_type');
   const optical = watch('optical_correction_plan');
+  const setForm = (name: 'primary_code' | 'primary_description' | 'optical_correction_plan' | 'related_1_code' | 'related_1_desc' | 'related_2_code' | 'related_2_desc' | 'related_3_code' | 'related_3_desc', value: string) => {
+    setValue(name, value, { shouldDirty: true, shouldValidate: true, shouldTouch: true });
+  };
   const r1c = watch('related_1_code') ?? '';
   const r1d = watch('related_1_desc') ?? '';
   const r2c = watch('related_2_code') ?? '';
@@ -88,18 +91,25 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
         <Cie10Field
           label="Diagnóstico principal CIE-10 *"
           code={pc} desc={pd}
-          onCodeChange={v => setValue('primary_code', v)}
-          onDescChange={v => setValue('primary_description', v)}
+          onCodeChange={v => setForm('primary_code', v)}
+          onDescChange={v => setForm('primary_description', v)}
         />
-        <input type="hidden" {...register('primary_code', { required: true })} />
-        <input type="hidden" {...register('primary_description', { required: true })} />
+        <input type="hidden" {...register('primary_code', { required: true })} value={pc} readOnly />
+        <input type="hidden" {...register('primary_description', { required: true })} value={pd} readOnly />
 
         <div className="mt-3">
           <p className="text-[11px] font-medium text-[#121215] mb-2">Tipo de diagnóstico *</p>
           <div className="flex gap-6">
             {DIAG_TYPES.map(t => (
               <label key={t.value} className="flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" value={t.value} {...register('diagnosis_type', { valueAsNumber: true })} className="accent-[#0f8f64]" />
+                <input
+                  type="radio"
+                  name="diagnosis_type"
+                  value={t.value}
+                  checked={Number(dt) === t.value}
+                  onChange={() => setValue('diagnosis_type', t.value, { shouldDirty: true, shouldValidate: true, shouldTouch: true })}
+                  className="accent-[#0f8f64]"
+                />
                 <span className="text-[12px] text-[#121215]">{t.label}</span>
               </label>
             ))}
@@ -113,7 +123,7 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
               const active = pc === f.code;
               return (
                 <button key={f.code} type="button"
-                  onClick={() => { setValue('primary_code', f.code); setValue('primary_description', f.desc); }}
+                  onClick={() => { setForm('primary_code', f.code); setForm('primary_description', f.desc); }}
                   className={`text-[11px] px-3 py-1 rounded-full border transition-colors ${active ? 'bg-[#e5f6ef] border-[#0f8f64] text-[#0f8f64] font-semibold' : 'bg-[#f5f5f6] border-[#e0e0e4] text-[#7d7d87] hover:border-[#0f8f64] hover:text-[#0f8f64]'}`}>
                   {f.code} · {f.desc}
                 </button>
@@ -128,9 +138,9 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
         <p className="text-[13px] font-semibold text-[#121215] mb-1">Diagnósticos relacionados (hasta 3, opcionales)</p>
         <hr className="border-[#e5e5e9] mb-3" />
         <div className="grid grid-cols-2 gap-3">
-          <Cie10Field label="Relacionado 1 (CIE-10)" code={r1c} desc={r1d} onCodeChange={v => setValue('related_1_code', v)} onDescChange={v => setValue('related_1_desc', v)} />
-          <Cie10Field label="Relacionado 2 (CIE-10)" code={r2c} desc={r2d} onCodeChange={v => setValue('related_2_code', v)} onDescChange={v => setValue('related_2_desc', v)} />
-          <Cie10Field label="Relacionado 3 (CIE-10)" code={r3c} desc={r3d} onCodeChange={v => setValue('related_3_code', v)} onDescChange={v => setValue('related_3_desc', v)} />
+          <Cie10Field label="Relacionado 1 (CIE-10)" code={r1c} desc={r1d} onCodeChange={v => setForm('related_1_code', v)} onDescChange={v => setForm('related_1_desc', v)} />
+          <Cie10Field label="Relacionado 2 (CIE-10)" code={r2c} desc={r2d} onCodeChange={v => setForm('related_2_code', v)} onDescChange={v => setForm('related_2_desc', v)} />
+          <Cie10Field label="Relacionado 3 (CIE-10)" code={r3c} desc={r3d} onCodeChange={v => setForm('related_3_code', v)} onDescChange={v => setForm('related_3_desc', v)} />
         </div>
         <input type="hidden" {...register('related_1_code')} />
         <input type="hidden" {...register('related_1_desc')} />
@@ -180,14 +190,14 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
               const active = optical === opt;
               return (
                 <button key={opt} type="button"
-                  onClick={() => setValue('optical_correction_plan', active ? '' : opt)}
+                  onClick={() => setForm('optical_correction_plan', active ? '' : opt)}
                   className={`text-[11px] px-3 py-1 rounded-full border transition-colors ${active ? 'bg-[#e5f6ef] border-[#0f8f64] text-[#0f8f64] font-semibold' : 'bg-[#f5f5f6] border-[#e0e0e4] text-[#7d7d87] hover:border-[#0f8f64] hover:text-[#0f8f64]'}`}>
                   {opt}
                 </button>
               );
             })}
           </div>
-          <input type="hidden" {...register('optical_correction_plan')} />
+          <input type="hidden" {...register('optical_correction_plan')} value={optical ?? ''} readOnly />
         </div>
 
         <div className="mb-4">

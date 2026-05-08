@@ -21,8 +21,8 @@ func (m *MockCashRegisterCloseRepository) GetByID(db *gorm.DB, id uint) (*domain
 	return args.Get(0).(*domain.CashRegisterClose), args.Error(1)
 }
 
-func (m *MockCashRegisterCloseRepository) GetByUserAndDate(db *gorm.DB, userID uint, date string) (*domain.CashRegisterClose, error) {
-	args := m.Called(db, userID, date)
+func (m *MockCashRegisterCloseRepository) GetByUserBranchAndDate(db *gorm.DB, userID uint, branchID uint, date string) (*domain.CashRegisterClose, error) {
+	args := m.Called(db, userID, branchID, date)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

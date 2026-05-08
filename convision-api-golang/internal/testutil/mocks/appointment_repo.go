@@ -88,3 +88,11 @@ func (m *MockAppointmentRepository) GetBookedTimesForSpecialist(db *gorm.DB, spe
 	}
 	return args.Get(0).([]string), args.Error(1)
 }
+
+func (m *MockAppointmentRepository) GetActiveBySpecialist(db *gorm.DB, specialistID uint) (*domain.Appointment, error) {
+	args := m.Called(db, specialistID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Appointment), args.Error(1)
+}

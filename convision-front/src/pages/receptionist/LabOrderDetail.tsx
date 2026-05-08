@@ -272,21 +272,31 @@ const CurrentStateCard: React.FC<CurrentStateCardProps> = ({ order, onUpdate }) 
             {order.status === 'in_quality' ? (
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold text-[#7d7d87] uppercase tracking-wide">Médico a cargo de la revisión</span>
-                {latestEntry?.notes ? (
-                  <div className="inline-flex items-center gap-3 bg-[#f0faf5] border border-[#a6d9bd] rounded-lg px-4 py-3 self-start">
-                    <div className="size-8 rounded-full bg-[#0f8f64] flex items-center justify-center shrink-0">
-                      <Stethoscope className="size-4 text-white" />
+                {(() => {
+                  const fromFK = order.assigned_specialist
+                    ? `${order.assigned_specialist.name} ${order.assigned_specialist.last_name ?? ''}`.trim()
+                    : null;
+                  const fromNotes = latestEntry?.notes
+                    ? latestEntry.notes
+                        .replace(/^Médico asignado:\s*/i, '')
+                        .replace(/\s*\[uid:\d+\]\s*$/, '')
+                        .trim()
+                    : null;
+                  const display = fromFK || fromNotes;
+                  return display ? (
+                    <div className="inline-flex items-center gap-3 bg-[#f0faf5] border border-[#a6d9bd] rounded-lg px-4 py-3 self-start">
+                      <div className="size-8 rounded-full bg-[#0f8f64] flex items-center justify-center shrink-0">
+                        <Stethoscope className="size-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-semibold text-[#121215]">{display}</p>
+                        <p className="text-[11px] text-[#7d7d87]">Especialista asignado</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[13px] font-semibold text-[#121215]">
-                        {latestEntry.notes.replace(/^Médico asignado:\s*/i, '')}
-                      </p>
-                      <p className="text-[11px] text-[#7d7d87]">Especialista asignado</p>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-[13px] text-[#b4b5bc] italic">Sin médico asignado</span>
-                )}
+                  ) : (
+                    <span className="text-[13px] text-[#b4b5bc] italic">Sin médico asignado</span>
+                  );
+                })()}
               </div>
             ) : latestEntry?.notes ? (
               <div className="flex flex-col gap-1">

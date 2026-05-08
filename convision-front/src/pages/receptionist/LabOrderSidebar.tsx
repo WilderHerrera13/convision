@@ -65,15 +65,18 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
   const handleSendToQuality = async () => {
     setSendingToQuality(true);
     const specialist = specialists.find((u) => String(u.id) === selectedSpecialistId);
-    const specialistName = specialist ? `${specialist.name} ${specialist.last_name ?? ''}`.trim() : '';
-    const notes = specialistName ? `Médico asignado: ${specialistName} [uid:${specialist!.id}]` : '';
+    if (!specialist) {
+      toast({ title: 'Error', description: 'Selecciona un especialista para continuar.', variant: 'destructive' });
+      setSendingToQuality(false);
+      return;
+    }
     try {
-      await laboratoryOrderService.updateLaboratoryOrderStatus(id, { status: 'in_quality', notes });
+      await laboratoryOrderService.assignSpecialist(id, { specialist_id: specialist.id });
       toast({ title: 'Enviado a calidad', description: 'La orden fue enviada al especialista para revisión.' });
       setConfirmQuality(false);
       onStatusUpdate();
     } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No se pudo asignar el especialista.', variant: 'destructive' });
     } finally {
       setSendingToQuality(false);
     }
@@ -187,13 +190,18 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
       );
     }
     if (status === 'in_quality') {
-      const qualityEntry = order.statusHistory
-        ?.slice()
-        .reverse()
-        .find((e) => e.status === 'in_quality' && e.notes?.startsWith('Médico asignado:'));
-      const assignedSpecialist = qualityEntry?.notes
-        ? qualityEntry.notes.replace(/\s*\[uid:\d+\]\s*$/, '').replace(/^Médico asignado:\s*/i, '')
-        : null;
+      const assignedSpecialistName = order.assigned_specialist
+        ? `${order.assigned_specialist.name} ${order.assigned_specialist.last_name ?? ''}`.trim()
+        : (() => {
+            const qualityEntry = order.statusHistory
+              ?.slice()
+              .reverse()
+              .find((e) => e.status === 'in_quality' && e.notes?.startsWith('Médico asignado:'));
+            return qualityEntry?.notes
+              ? qualityEntry.notes.replace(/\s*\[uid:\d+\]\s*$/, '').replace(/^Médico asignado:\s*/i, '')
+              : null;
+          })();
+      const assignedSpecialist = assignedSpecialistName;
 
       if (isReceptionistUser) {
         return (
@@ -353,7 +361,7 @@ const LabOrderSidebar: React.FC<LabOrderSidebarProps> = ({ order, onStatusUpdate
             </div>
             <div>
               <p className="text-[11px] text-[#7d7d87]">Sede</p>
-              <p className="text-[13px] font-medium text-[#121215] mt-0.5">Sede Principal</p>
+              <p className="text-[13px] font-medium text-[#121215] mt-0.5">{order.branch?.trim() || '—'}</p>
             </div>
           </div>
         </CardContent>

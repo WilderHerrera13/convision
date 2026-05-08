@@ -68,7 +68,10 @@ const patientSchema = z.object({
   birth_date: z.string().min(1, 'La fecha de nacimiento es requerida'),
   phone: z.string().min(7, 'El teléfono debe tener al menos 7 dígitos'),
   email: z.string().email('Ingresa un correo electrónico válido'),
-  gender: z.enum(['male', 'female', 'other']),
+  gender: z.enum(['male', 'female', 'other'], {
+    required_error: 'El género es requerido',
+    invalid_type_error: 'Selecciona un género válido',
+  }),
   status: z.boolean().default(true),
   address: z.string().optional(),
   country_id: z.string().optional(),
@@ -259,11 +262,16 @@ const NewPatient: React.FC = () => {
   const onSubmit = async (data: PatientFormValues) => {
     setIsSubmitting(true);
     try {
+      const idTypeRaw = data.identification_type ?? '';
+      const idTypeNumeric = idTypeRaw ? Number(idTypeRaw) : NaN;
+      const idTypeMatch = idTypeRaw
+        ? identificationTypes.find((t) => String(t.id) === idTypeRaw)
+        : undefined;
+
       const payload: Record<string, unknown> = {
         first_name: data.first_name,
         last_name: data.last_name,
         identification: data.identification,
-        identification_type_id: data.identification_type ? Number(data.identification_type) : undefined,
         birth_date: data.birth_date,
         phone: data.phone,
         email: data.email,
@@ -286,6 +294,15 @@ const NewPatient: React.FC = () => {
         notes: data.notes || undefined,
       };
 
+      if (Number.isFinite(idTypeNumeric) && idTypeNumeric > 0) {
+        payload.identification_type_id = idTypeNumeric;
+      }
+      if (idTypeMatch?.code) {
+        payload.identification_type = idTypeMatch.code;
+      } else if (idTypeRaw && !Number.isFinite(idTypeNumeric)) {
+        payload.identification_type = idTypeRaw;
+      }
+
       const response = await api.post('/api/v1/patients', payload);
       const newPatient = response.data?.data ?? response.data;
 
@@ -301,16 +318,74 @@ const NewPatient: React.FC = () => {
         navigate(patientsListPath);
       }
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { message?: string } } };
+      const apiErr = err as {
+        response?: {
+          data?: {
+            message?: string;
+            errors?: Record<string, string[] | string>;
+          };
+        };
+      };
+      const fieldErrors = apiErr?.response?.data?.errors;
+      let description = apiErr?.response?.data?.message || 'No se pudo crear el paciente.';
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        const flat = Object.entries(fieldErrors)
+          .map(([field, msgs]) => {
+            const list = Array.isArray(msgs) ? msgs : [String(msgs)];
+            return `${field}: ${list.join(', ')}`;
+          })
+          .join(' · ');
+        if (flat) description = flat;
+      }
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: apiErr?.response?.data?.message || 'No se pudo crear el paciente.',
+        title: 'Error al guardar',
+        description,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const onSubmitError = (formErrors: Record<string, { message?: string }>) => {
+    const fields = Object.keys(formErrors) as (keyof PatientFormValues)[];
+    if (fields.length === 0) return;
+
+    const stepIndex = STEPS.findIndex((step) =>
+      STEP_REQUIRED_FIELDS[step.key].some((f) => fields.includes(f)),
+    );
+    if (stepIndex >= 0 && stepIndex !== currentStep) {
+      setCurrentStep(stepIndex);
+    }
+
+    const firstFieldKey = fields[0];
+    const firstFieldMsg =
+      formErrors[firstFieldKey as string]?.message ?? 'Hay campos obligatorios sin completar.';
+    const summary =
+      fields.length > 1
+        ? `Hay ${fields.length} campos sin completar. ${firstFieldMsg}`
+        : firstFieldMsg;
+
+    toast({
+      variant: 'destructive',
+      title: 'Faltan datos',
+      description: summary,
+    });
+
+    requestAnimationFrame(() => {
+      const target = document.getElementById(firstFieldKey as string);
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof (target as HTMLElement).focus === 'function') {
+          (target as HTMLElement).focus({ preventScroll: true });
+        }
+      }
+    });
+  };
+
+  const errorFields = Object.keys(errors) as (keyof PatientFormValues)[];
+  const stepHasErrors = (key: StepKey) =>
+    STEP_REQUIRED_FIELDS[key].some((f) => errorFields.includes(f));
 
   const progressFraction = ((currentStep + 1) / STEPS.length) * 100;
 
@@ -333,7 +408,7 @@ const NewPatient: React.FC = () => {
             Cancelar
           </Button>
           <Button
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSubmit(onSubmit, onSubmitError)}
             disabled={isSubmitting}
             className="h-9 px-4 text-[13px] bg-convision-primary hover:bg-convision-dark text-white"
           >
@@ -350,23 +425,34 @@ const NewPatient: React.FC = () => {
           <div className="flex-1 min-w-0 bg-white rounded-xl border border-[#e5e5e9] shadow-sm overflow-hidden">
             {/* Tab bar */}
             <div className="flex border-b border-[#e5e5e9]">
-              {STEPS.map((step, idx) => (
-                <button
-                  key={step.key}
-                  onClick={() => goToStep(idx)}
-                  className={cn(
-                    'relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-medium transition-colors border-r border-[#e5e5e9] last:border-r-0',
-                    currentStep === idx
-                      ? 'text-convision-primary bg-white'
-                      : 'text-[#7d7d87] hover:text-[#121215] bg-[#f7f7f9]'
-                  )}
-                >
-                  {step.label}
-                  {currentStep === idx && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-convision-primary rounded-t" />
-                  )}
-                </button>
-              ))}
+              {STEPS.map((step, idx) => {
+                const hasErrors = stepHasErrors(step.key);
+                return (
+                  <button
+                    key={step.key}
+                    onClick={() => goToStep(idx)}
+                    className={cn(
+                      'relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-medium transition-colors border-r border-[#e5e5e9] last:border-r-0',
+                      currentStep === idx
+                        ? 'text-convision-primary bg-white'
+                        : 'text-[#7d7d87] hover:text-[#121215] bg-[#f7f7f9]',
+                      hasErrors && currentStep !== idx && 'text-red-600'
+                    )}
+                  >
+                    {step.label}
+                    {hasErrors && (
+                      <span
+                        aria-label="Hay campos sin completar"
+                        title="Hay campos sin completar"
+                        className="inline-block size-1.5 rounded-full bg-red-500"
+                      />
+                    )}
+                    {currentStep === idx && (
+                      <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-convision-primary rounded-t" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Form body */}
@@ -491,12 +577,18 @@ const NewPatient: React.FC = () => {
                       <DatePicker
                         value={birthDate}
                         onChange={(date) => {
-                          if (date) setValue('birth_date', date.toISOString().split('T')[0]);
-                          else setValue('birth_date', '');
+                          if (date) {
+                            const yyyy = date.getFullYear();
+                            const mm = String(date.getMonth() + 1).padStart(2, '0');
+                            const dd = String(date.getDate()).padStart(2, '0');
+                            setValue('birth_date', `${yyyy}-${mm}-${dd}`);
+                          } else setValue('birth_date', '');
                         }}
                         placeholder="DD/MM/AAAA"
                         error={errors.birth_date?.message}
                         useInputTrigger
+                        withYearNavigation
+                        maxDate={new Date()}
                       />
                     </div>
 
@@ -528,7 +620,7 @@ const NewPatient: React.FC = () => {
                     {errors.email && <p className="text-[12px] text-red-500">{errors.email.message}</p>}
                   </div>
 
-                  <div className="space-y-2">
+                  <div id="gender" className="space-y-2 scroll-mt-24">
                     <Label className="text-[13px]">
                       Género <span className="text-red-500">*</span>
                     </Label>
@@ -967,7 +1059,7 @@ const NewPatient: React.FC = () => {
               </Button>
             ) : (
               <Button
-                onClick={handleSubmit(onSubmit)}
+                onClick={handleSubmit(onSubmit, onSubmitError)}
                 disabled={isSubmitting}
                 className="h-9 px-5 text-[13px] bg-convision-primary hover:bg-convision-dark text-white"
               >

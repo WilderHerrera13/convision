@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 import { getAppointmentById } from '@/services/appointmentService';
 import {
   createClinicalRecord,
@@ -34,14 +35,24 @@ const TIP_TEXTS = [
 export default function ClinicalHistoryNewConsultationPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const apptId = parseInt(id || '0');
+  const tabStorageKey = `clinical-record-step:${apptId}`;
 
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    const stored = sessionStorage.getItem(tabStorageKey);
+    const parsed = stored ? parseInt(stored, 10) : 0;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 3 ? parsed : 0;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab]);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(tabStorageKey, String(activeTab));
+    }
+  }, [activeTab, tabStorageKey]);
   const [stepsCompleted, setStepsCompleted] = useState([false, false, false, false]);
   const [isSaving, setIsSaving] = useState(false);
   const [savedVisualExam, setSavedVisualExam] = useState<VisualExamInput | undefined>();
@@ -85,10 +96,11 @@ export default function ClinicalHistoryNewConsultationPage() {
       const res = await upsertAnamnesis(apptId, data);
       setRecord(res.data);
       markCompleted(0);
-    } catch {
-      // navigation still advances regardless of save outcome
-    } finally {
+      toast({ title: 'Anamnesis guardada' });
       setActiveTab(1);
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la anamnesis.' });
+    } finally {
       setIsSaving(false);
     }
   };
@@ -100,10 +112,11 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedVisualExam(data);
       markCompleted(1);
-    } catch {
-      // navigation still advances regardless of save outcome
-    } finally {
+      toast({ title: 'Examen visual guardado' });
       setActiveTab(2);
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el examen visual.' });
+    } finally {
       setIsSaving(false);
     }
   };
@@ -115,10 +128,11 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedDiagnosis(data);
       markCompleted(2);
-    } catch {
-      // navigation still advances regardless of save outcome
-    } finally {
+      toast({ title: 'Diagnóstico guardado' });
       setActiveTab(3);
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar el diagnóstico.' });
+    } finally {
       setIsSaving(false);
     }
   };
@@ -130,7 +144,12 @@ export default function ClinicalHistoryNewConsultationPage() {
       setRecord(res.data);
       setSavedPrescription(data);
       markCompleted(3);
-    } finally { setIsSaving(false); }
+      toast({ title: 'Fórmula óptica guardada' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la fórmula óptica.' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSign = () => navigate(`/specialist/appointments/${apptId}/prescription-preview`);

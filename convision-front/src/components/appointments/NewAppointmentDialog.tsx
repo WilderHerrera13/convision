@@ -169,6 +169,17 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
     queryFn: () => appointmentsService.getSpecialists(selectedBranchId ? Number(selectedBranchId) : undefined),
   });
 
+  const selectedDateStr = useMemo(() => format(selectedDate, 'yyyy-MM-dd'), [selectedDate]);
+  const { data: bookedSlots = [] } = useQuery({
+    queryKey: ['booked-slots', selectedSpecialist?.id, selectedDateStr],
+    queryFn: () =>
+      selectedSpecialist
+        ? appointmentsService.getBookedSlots(selectedSpecialist.id, selectedDateStr)
+        : Promise.resolve([]),
+    enabled: Boolean(selectedSpecialist) && step === 2,
+  });
+  const bookedSet = useMemo(() => new Set(bookedSlots.map(padTime)), [bookedSlots]);
+
   const { data: patientOptions = [], isLoading: loadingPatients, refetch: refetchPatients } = useQuery({
     queryKey: ['patient-search', patientSearch],
     queryFn: () => patientSearch.length >= 3 ? appointmentsService.searchPatients(patientSearch) : Promise.resolve([]),
@@ -589,23 +600,26 @@ export default function NewAppointmentDialog({ open, onOpenChange }: Props) {
                     <p className="text-[11px] text-[#7d7d87] mb-2 font-medium uppercase tracking-wide">Horarios sugeridos</p>
                     <div className="flex flex-wrap gap-1.5">
                       {TIME_SLOTS.map(slot => {
-                        const isPast = isTimeInPast(selectedDate, padTime(slot));
+                        const padded = padTime(slot);
+                        const isPast = isTimeInPast(selectedDate, padded);
+                        const isBooked = bookedSet.has(padded);
+                        const disabled = isPast || isBooked;
                         return (
                         <button
                           key={slot}
                           type="button"
-                          disabled={isPast}
-                          onClick={() => !isPast && setSelectedTime(padTime(slot))}
+                          disabled={disabled}
+                          title={isBooked ? 'Horario ya reservado para este especialista' : undefined}
+                          onClick={() => !disabled && setSelectedTime(padded)}
                           className={cn(
                             'px-2.5 py-1 text-[12px] font-medium rounded-md border transition-colors',
-                            isPast
-                              ? 'bg-[#f5f5f6] border-[#e5e5e9] text-[#c0c0c5] cursor-not-allowed line-through'
-                              : selectedTime === padTime(slot)
-                                ? 'bg-convision-primary border-convision-primary text-white'
-                                : 'bg-white border-[#e5e5e9] text-[#59687a] hover:border-convision-primary hover:text-convision-primary',
+                            isPast && 'bg-[#f5f5f6] border-[#e5e5e9] text-[#c0c0c5] cursor-not-allowed line-through',
+                            isBooked && !isPast && 'bg-red-50 border-red-300 text-red-600 cursor-not-allowed line-through',
+                            !disabled && selectedTime === padded && 'bg-convision-primary border-convision-primary text-white',
+                            !disabled && selectedTime !== padded && 'bg-white border-[#e5e5e9] text-[#59687a] hover:border-convision-primary hover:text-convision-primary',
                           )}
                         >
-                          {formatTimeFrom24hClock(padTime(slot))}
+                          {formatTimeFrom24hClock(padded)}
                         </button>
                         );
                       })}

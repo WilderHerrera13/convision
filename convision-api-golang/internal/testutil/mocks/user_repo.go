@@ -61,6 +61,14 @@ func (m *MockUserRepository) List(db *gorm.DB, filters map[string]any, page, per
 	return args.Get(0).([]*domain.User), args.Get(1).(int64), args.Error(2)
 }
 
+func (m *MockUserRepository) ListByBranch(db *gorm.DB, branchID uint, role string, page, perPage int) ([]*domain.User, int64, error) {
+	args := m.Called(db, branchID, role, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.User), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockUserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
 	args := m.Called(db, branchID)
 	if args.Get(0) == nil {

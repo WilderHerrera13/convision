@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { toast } from '@/components/ui/use-toast';
 import { patientService } from '@/services/patientService';
+import { appointmentsService } from '@/services/appointmentsService';
 import { saleService, PaymentMethod } from '@/services/saleService';
+import api from '@/lib/axios';
 import { translatePaymentMethods } from '@/lib/translations';
 import { discountService, Discount } from '@/services/discountService';
 import { sessionPriceAdjustmentService } from '@/services/sessionPriceAdjustmentService';
@@ -48,7 +50,6 @@ interface SaleApiResponse {
   sale_number: string;
   patient_id: number;
   laboratoryOrders?: unknown[];
-  pdf_url?: string;
   guest_pdf_url?: string;
 }
 
@@ -121,10 +122,20 @@ export function useNewSale() {
 
   const appointmentId: number | undefined = (() => {
     const params = new URLSearchParams(location.search);
-    const v = params.get('appointment_id');
+    const v = params.get('appointment_id') ?? params.get('appointmentId');
     if (v) return parseInt(v, 10) || undefined;
     const state = location.state as { appointmentId?: number } | null;
-    return state?.appointmentId ?? undefined;
+    if (state?.appointmentId) return state.appointmentId;
+    try {
+      const stored = sessionStorage.getItem('pendingSale');
+      if (stored) {
+        const parsed = JSON.parse(stored) as { appointmentId?: number };
+        if (parsed?.appointmentId) return Number(parsed.appointmentId) || undefined;
+      }
+    } catch {
+      // ignore corrupt sessionStorage payload
+    }
+    return undefined;
   })();
 
   const recalcTotals = (items: SaleItem[]) => {
@@ -182,6 +193,31 @@ export function useNewSale() {
       setIsSummaryLoading(false);
     }
   };
+
+  // Pre-load patient + selected lenses from the appointment when the page is
+  // opened via /receptionist/sales/new?appointmentId=X without sessionStorage.
+  // QA-004: previously the asesor had to re-search the client by hand and
+  // the lenses chosen in the prior dialog were lost.
+  useEffect(() => {
+    if (!appointmentId) return;
+    if (sessionStorage.getItem('pendingSale')) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setIsSummaryLoading(true);
+        const appt = await appointmentsService.getAppointmentById(appointmentId);
+        if (!appt || cancelled) return;
+        if (appt.patient?.id) {
+          await fetchPatientData(appt.patient.id);
+        }
+      } catch (e) {
+        console.error('Error preloading appointment for sale:', e);
+      } finally {
+        if (!cancelled) setIsSummaryLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [appointmentId]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('pendingSale');
@@ -402,13 +438,17 @@ export function useNewSale() {
 
       const result = await saleService.createSale(saleData);
       const saleObj = (result as any).sale ?? result;
+      const pdfToken: string | undefined = (result as any).pdf_token ?? saleObj.pdf_token;
+      const guestPdfFromApi: string | undefined = (result as any).guest_pdf_url ?? saleObj.guest_pdf_url;
+      const guestPdfBuilt = saleObj.id && pdfToken
+        ? `${api.defaults.baseURL ?? ''}/api/v1/guest/sales/${saleObj.id}/pdf?token=${pdfToken}`
+        : undefined;
       const saleResult: SaleApiResponse = {
         id: saleObj.id,
         sale_number: saleObj.sale_number,
         patient_id: saleObj.patient_id,
         laboratoryOrders: saleObj.laboratory_orders ?? saleObj.laboratoryOrders,
-        pdf_url: (result as any).pdf_url ?? saleObj.pdf_url,
-        guest_pdf_url: (result as any).guest_pdf_url ?? saleObj.guest_pdf_url,
+        guest_pdf_url: guestPdfFromApi ?? guestPdfBuilt,
       };
       if (!saleResult?.id) throw new Error('Invalid response structure from server');
 
@@ -417,8 +457,15 @@ export function useNewSale() {
       if (hasLab) { const c = saleResult.laboratoryOrders!.length; desc += ` Se ${c === 1 ? 'ha creado' : 'han creado'} ${c} orden${c === 1 ? '' : 'es'} de laboratorio automáticamente.`; }
       toast({ title: 'Venta completada', description: desc, duration: hasLab ? 8000 : 5000 });
 
-      if (saleResult.guest_pdf_url) window.open(saleResult.guest_pdf_url, '_blank');
-      else if (saleResult.pdf_url) window.open(saleResult.pdf_url, '_blank');
+      if (saleResult.guest_pdf_url) {
+        window.open(saleResult.guest_pdf_url, '_blank');
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'PDF no disponible',
+          description: 'La venta se registró pero no se pudo generar el enlace al recibo. Descárgalo desde el detalle.',
+        });
+      }
 
       sessionStorage.removeItem('pendingSale');
       navigate('/receptionist/sales');

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles service order use-cases.
@@ -125,7 +126,7 @@ func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (
 func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.ServiceOrder, error) {
 	var deadline *time.Time
 	if input.Deadline != "" {
-		if t, err := time.Parse("2006-01-02", input.Deadline); err == nil {
+		if t, err := clock.ParseDate(input.Deadline); err == nil {
 			deadline = &t
 		}
 	}

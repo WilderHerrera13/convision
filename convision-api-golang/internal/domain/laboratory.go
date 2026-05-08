@@ -126,6 +126,7 @@ type LaboratoryOrder struct {
 	Notes                   string                     `json:"notes"                     gorm:"type:text"`
 	DrawerNumber            *string                    `json:"drawer_number"             gorm:"type:varchar(20)"`
 	CreatedBy               *uint                      `json:"created_by"                gorm:"column:created_by"`
+	AssignedSpecialistID    *uint                      `json:"assigned_specialist_id"    gorm:"column:assigned_specialist_id"`
 	CreatedAt               time.Time                  `json:"created_at"`
 	UpdatedAt               time.Time                  `json:"updated_at"`
 
@@ -146,11 +147,12 @@ type LaboratoryOrder struct {
 	PdfToken string `json:"pdf_token" gorm:"type:varchar(255)"`
 
 	// Associations
-	Laboratory    *Laboratory                  `json:"laboratory,omitempty"      gorm:"foreignKey:LaboratoryID"`
-	Patient       *Patient                     `json:"patient,omitempty"         gorm:"foreignKey:PatientID"`
-	CreatedByUser *User                        `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedBy"`
-	StatusHistory []LaboratoryOrderStatusEntry `json:"status_history,omitempty"  gorm:"foreignKey:LaboratoryOrderID"`
-	Sale          *Sale                        `json:"sale,omitempty"            gorm:"foreignKey:SaleID"`
+	Laboratory          *Laboratory                  `json:"laboratory,omitempty"           gorm:"foreignKey:LaboratoryID"`
+	Patient             *Patient                     `json:"patient,omitempty"              gorm:"foreignKey:PatientID"`
+	CreatedByUser       *User                        `json:"created_by_user,omitempty"      gorm:"foreignKey:CreatedBy"`
+	AssignedSpecialist  *User                        `json:"assigned_specialist,omitempty"  gorm:"foreignKey:AssignedSpecialistID"`
+	StatusHistory       []LaboratoryOrderStatusEntry `json:"status_history,omitempty"       gorm:"foreignKey:LaboratoryOrderID"`
+	Sale                *Sale                        `json:"sale,omitempty"                 gorm:"foreignKey:SaleID"`
 }
 
 // LaboratoryOrderStatusEntry represents a status change event in a laboratory order.

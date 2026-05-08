@@ -653,12 +653,17 @@ const AppointmentFormPage: React.FC = () => {
                               const isBooked = isSlotBooked(slot);
                               const isDisabled = isPast || isBooked;
                               const isSelected = selectedTime === normalized;
+                              const slotTitle = isBooked
+                                ? 'Horario ocupado para este especialista'
+                                : isPast
+                                  ? 'Horario ya pasado para hoy'
+                                  : undefined;
                               return (
                                 <button
                                   key={slot}
                                   type="button"
                                   disabled={isDisabled}
-                                  title={isBooked ? 'Horario ocupado para este especialista' : undefined}
+                                  title={slotTitle}
                                   onClick={() => !isDisabled && setSelectedTime(normalized)}
                                   className={cn(
                                     'px-2.5 py-1 text-[12px] font-medium rounded-md border transition-colors',
@@ -676,12 +681,31 @@ const AppointmentFormPage: React.FC = () => {
                               );
                             })}
                           </div>
-                          {bookedSlots.length > 0 && (
-                            <p className="text-[11px] text-[#7d7d87] mt-2">
-                              <span className="inline-block w-2.5 h-2.5 bg-red-200 border border-red-300 rounded-sm mr-1 align-middle" />
-                              Horarios en rojo ya están ocupados para {selectedSpecialist?.name}
-                            </p>
-                          )}
+                          {(() => {
+                            const allDisabled = TIME_SLOTS.every(slot => isTimeInPast(selectedDate, padTime(slot)) || isSlotBooked(slot));
+                            const hasPast = TIME_SLOTS.some(slot => isTimeInPast(selectedDate, padTime(slot)));
+                            return (
+                              <div className="space-y-1 mt-2">
+                                {bookedSlots.length > 0 && (
+                                  <p className="text-[11px] text-[#7d7d87]">
+                                    <span className="inline-block w-2.5 h-2.5 bg-red-200 border border-red-300 rounded-sm mr-1 align-middle" />
+                                    Horarios en rojo ya están ocupados para {selectedSpecialist?.name}
+                                  </p>
+                                )}
+                                {hasPast && (
+                                  <p className="text-[11px] text-[#7d7d87]">
+                                    <span className="inline-block w-2.5 h-2.5 bg-[#f5f5f6] border border-[#e5e5e9] rounded-sm mr-1 align-middle" />
+                                    Horarios en gris ya pasaron para hoy
+                                  </p>
+                                )}
+                                {allDisabled && (
+                                  <p className="text-[11px] text-[#b57218] font-medium">
+                                    No hay horarios disponibles para esta fecha. Selecciona otro día.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         {selectedTime && selectedDate && !isTimeInPast(selectedDate, selectedTime) && !bookedSlots.includes(selectedTime) && (
                           <div className="bg-convision-light border border-convision-primary/30 rounded-lg px-3 py-2.5 text-[12px] text-[#1e3a6e]">

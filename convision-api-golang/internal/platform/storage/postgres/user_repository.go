@@ -148,6 +148,32 @@ func (r *UserRepository) List(db *gorm.DB, filters map[string]any, page, perPage
 	return users, total, nil
 }
 
+func (r *UserRepository) ListByBranch(db *gorm.DB, branchID uint, role string, page, perPage int) ([]*domain.User, int64, error) {
+	q := db.Model(&domain.User{}).
+		Joins("JOIN user_branches ON user_branches.user_id = users.id").
+		Where("users.active = true AND user_branches.branch_id = ?", branchID).
+		Distinct()
+	if role != "" {
+		q = q.Where("users.role_type = ?", role)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var users []*domain.User
+	offset := (page - 1) * perPage
+	prefixedCols := "users.id, users.name, users.last_name, users.email, users.identification, users.phone, users.password_hash, users.role_type, users.active, users.must_change_password, users.token_version, users.created_at, users.updated_at"
+	if err := q.Select(prefixedCols).
+		Order("users.name ASC").
+		Offset(offset).Limit(perPage).
+		Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
 func (r *UserRepository) GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*domain.User, error) {
 	var users []*domain.User
 	err := db.Model(&domain.User{}).Select(userCols).

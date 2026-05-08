@@ -55,17 +55,20 @@ const SpecialistDashboard: React.FC = () => {
       try {
         setLoadingSummary(true);
         const appointmentsResponse = await appointmentsService.getAppointments({ perPage: 200 });
-        const appointments = (appointmentsResponse.data || []) as AppointmentRich[];
+        const allAppointments = (appointmentsResponse.data || []) as AppointmentRich[];
         const uid = user?.id;
 
-        const inProgress = appointments.find(
-          (app) =>
-            app.status === 'in_progress' &&
-            (app.taken_by?.id === uid || app.taken_by_id === uid),
-        );
-        const paused = appointments.filter(
-          (app) => app.status === 'paused' && (app.taken_by?.id === uid || app.taken_by_id === uid),
-        );
+        const isMine = (app: AppointmentRich) =>
+          uid != null &&
+          (app.specialist_id === uid ||
+            app.specialist?.id === uid ||
+            app.taken_by_id === uid ||
+            app.taken_by?.id === uid);
+
+        const appointments = allAppointments.filter(isMine);
+
+        const inProgress = appointments.find((app) => app.status === 'in_progress');
+        const paused = appointments.filter((app) => app.status === 'paused');
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -95,7 +98,7 @@ const SpecialistDashboard: React.FC = () => {
         setStats({
           todayCompleted,
           weekScheduled: weekApps.length,
-          totalPatients: new Set(appointments.map((app) => app.patient.id)).size,
+          totalPatients: new Set(appointments.map((app) => app.patient?.id).filter(Boolean) as number[]).size,
           pendingPrescriptions,
         });
       } catch (error) {

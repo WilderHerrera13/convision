@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles purchase use-cases.
@@ -106,7 +107,7 @@ func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (
 func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.Purchase, error) {
 	var purchaseDate *time.Time
 	if input.PurchaseDate != "" {
-		t, err := time.Parse("2006-01-02", input.PurchaseDate)
+		t, err := clock.ParseDate(input.PurchaseDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "purchase_date", Message: "invalid date format, use YYYY-MM-DD"}
 		}
@@ -115,7 +116,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) 
 
 	var paymentDueDate *time.Time
 	if input.PaymentDueDate != "" {
-		t, err := time.Parse("2006-01-02", input.PaymentDueDate)
+		t, err := clock.ParseDate(input.PaymentDueDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "payment_due_date", Message: "invalid date format, use YYYY-MM-DD"}
 		}
@@ -176,7 +177,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Purch
 		p.SupplierID = *input.SupplierID
 	}
 	if input.PurchaseDate != "" {
-		t, err := time.Parse("2006-01-02", input.PurchaseDate)
+		t, err := clock.ParseDate(input.PurchaseDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "purchase_date", Message: "invalid date format"}
 		}
@@ -207,7 +208,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Purch
 		p.Notes = input.Notes
 	}
 	if input.PaymentDueDate != "" {
-		t, err := time.Parse("2006-01-02", input.PaymentDueDate)
+		t, err := clock.ParseDate(input.PaymentDueDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "payment_due_date", Message: "invalid date format"}
 		}

@@ -69,7 +69,7 @@ func (r *PrescriptionRepository) List(db *gorm.DB, filters map[string]any, page,
 	var prescriptions []*domain.Prescription
 	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Order("prescriptions.created_at DESC").
+		Order("appointment_prescriptions.created_at DESC").
 		Limit(perPage).Offset(offset).
 		Find(&prescriptions).Error
 	return prescriptions, total, err
@@ -87,7 +87,7 @@ func (r *PrescriptionRepository) ListByPatientID(db *gorm.DB, patientID uint, pa
 	var prescriptions []*domain.Prescription
 	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Order("prescriptions.created_at DESC").
+		Order("appointment_prescriptions.created_at DESC").
 		Limit(perPage).Offset(offset).
 		Find(&prescriptions).Error
 	return prescriptions, total, err

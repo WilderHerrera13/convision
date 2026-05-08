@@ -2,12 +2,12 @@ package clinic
 
 import (
 	"math"
-	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles clinical history use-cases.
@@ -472,7 +472,7 @@ func (s *Service) CreateEvolution(db *gorm.DB, input CreateEvolutionInput) (*dom
 	}
 
 	if input.EvolutionDate != "" {
-		t, err := time.Parse("2006-01-02", input.EvolutionDate)
+		t, err := clock.ParseDate(input.EvolutionDate)
 		if err == nil {
 			e.EvolutionDate = &t
 		}
@@ -498,7 +498,7 @@ func (s *Service) UpdateEvolution(db *gorm.DB, id uint, input UpdateEvolutionInp
 		e.AppointmentID = input.AppointmentID
 	}
 	if input.EvolutionDate != "" {
-		t, parseErr := time.Parse("2006-01-02", input.EvolutionDate)
+		t, parseErr := clock.ParseDate(input.EvolutionDate)
 		if parseErr == nil {
 			e.EvolutionDate = &t
 		}

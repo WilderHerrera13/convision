@@ -1,12 +1,27 @@
 package postgres
 
 import (
+	"encoding/json"
 	"errors"
 
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
+
+// jsonbValue serialises a StringSlice into the canonical JSON text form expected
+// by Postgres jsonb. Done explicitly so map-based Updates() never falls through
+// the driver.Valuer path (which GORM has been known to skip for slice types).
+func jsonbValue(s domain.StringSlice) string {
+	if s == nil {
+		return "[]"
+	}
+	b, err := json.Marshal([]string(s))
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
+}
 
 // ClinicalRecordRepository is the PostgreSQL-backed implementation of domain.ClinicalRecordRepository.
 type ClinicalRecordRepository struct{}
@@ -191,7 +206,7 @@ func (r *ClinicalRecordRepository) UpsertPrescription(db *gorm.DB, clinicalRecor
 		"lens_material":   p.LensMaterial,
 		"lens_use":        p.LensUse,
 		"mounting_height": p.MountingHeight,
-		"treatments":      p.Treatments,
+		"treatments":      jsonbValue(p.Treatments),
 		"validity_months": p.ValidityMonths,
 		"professional_tp": p.ProfessionalTp,
 	}).Error
@@ -231,7 +246,7 @@ func (r *ClinicalRecordRepository) UpsertAnamnesis(db *gorm.DB, clinicalRecordID
 		"onset":                        a.Onset,
 		"duration":                     a.Duration,
 		"character":                    a.Character,
-		"associated_symptoms":          a.AssociatedSymptoms,
+		"associated_symptoms":          jsonbValue(a.AssociatedSymptoms),
 		"has_diabetes":                 a.HasDiabetes,
 		"diabetes_diagnosis_year":      a.DiabetesDiagnosisYear,
 		"diabetes_hba1c":               a.DiabetesHba1c,

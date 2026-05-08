@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -172,9 +172,14 @@ interface NewLaboratoryOrderProps {
 }
 
 const NewLaboratoryOrder: React.FC<NewLaboratoryOrderProps> = ({
-  redirectTo = '/admin/laboratory-orders',
+  redirectTo,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fallbackRedirect = location.pathname.startsWith('/laboratory/')
+    ? '/laboratory/lab-orders'
+    : '/admin/laboratory-orders';
+  const effectiveRedirect = redirectTo ?? fallbackRedirect;
   const { user, isReceptionist } = useAuth();
   const isRecepcionista = isReceptionist();
   const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
@@ -334,7 +339,7 @@ const NewLaboratoryOrder: React.FC<NewLaboratoryOrderProps> = ({
       };
       await laboratoryOrderService.createLaboratoryOrder(orderData);
       toast({ title: 'Orden creada', description: 'La orden de laboratorio ha sido creada exitosamente.' });
-      navigate(redirectTo);
+      navigate(effectiveRedirect);
     } catch {
       toast({ title: 'Error', description: 'No se pudo crear la orden de laboratorio.', variant: 'destructive' });
     } finally {
@@ -360,7 +365,7 @@ const NewLaboratoryOrder: React.FC<NewLaboratoryOrderProps> = ({
             type="button"
             variant="outline"
             className="h-9 px-5 text-[13px] font-semibold border-[#e5e5e9] text-[#121215]"
-            onClick={() => navigate(redirectTo)}
+            onClick={() => navigate(effectiveRedirect)}
           >
             Cancelar
           </Button>

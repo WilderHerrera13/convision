@@ -48,6 +48,7 @@ const Profile: React.FC = () => {
       case 'admin': return 'Administrador';
       case 'specialist': return 'Especialista';
       case 'receptionist': return 'Recepcionista';
+      case 'laboratory': return 'Laboratorio';
       default: return 'Usuario';
     }
   };

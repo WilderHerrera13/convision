@@ -10,12 +10,14 @@ const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
   specialist: 'Especialista',
   receptionist: 'Recepcionista',
+  laboratory: 'Laboratorio',
 };
 
 const ROLE_ACCENT: Record<string, { primary: string; light: string; borderLight: string }> = {
   admin: { primary: '#195fa5', light: '#e6effa', borderLight: '#c5d8f0' },
   specialist: { primary: '#0f8f64', light: '#e5f6ef', borderLight: '#c4ecda' },
   receptionist: { primary: '#8753ef', light: '#f1edff', borderLight: '#ddd5ff' },
+  laboratory: { primary: '#b57218', light: '#fdf3e3', borderLight: '#f1d9a3' },
 };
 
 function getInitials(name: string): string {
@@ -160,6 +162,7 @@ const SelectBranchPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSelect(0)}
+                      onPointerUp={() => handleSelect(0)}
                       className={`relative flex items-center gap-3 w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                         selectedId === 0
                           ? 'border-2'

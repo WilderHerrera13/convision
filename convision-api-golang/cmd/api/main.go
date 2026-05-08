@@ -76,6 +76,12 @@ func main() {
 		if err := postgresplatform.EnsureLocalDevAppointments(db, logger); err != nil {
 			logger.Fatal("failed to ensure local dev appointments", zap.Error(err))
 		}
+		if err := postgresplatform.EnsureLocalDevCatalog(db, logger); err != nil {
+			logger.Fatal("failed to ensure local dev catalog", zap.Error(err))
+		}
+		if err := postgresplatform.EnsureLocalDevLaboratories(db, logger); err != nil {
+			logger.Fatal("failed to ensure local dev laboratories", zap.Error(err))
+		}
 	} else if bootstrapDefaultUsersEnabled() {
 		if err := postgresplatform.EnsureLocalDevUsers(db, logger); err != nil {
 			logger.Fatal("failed to ensure bootstrap users", zap.Error(err))
@@ -194,9 +200,9 @@ func main() {
 	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, db, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, branchRepo, inventoryItemRepo, stockMovementRepo, logger)
+	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, branchRepo, inventoryItemRepo, stockMovementRepo, prescriptionRepo, userRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
-	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, saleRepo, logger)
+	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, saleRepo, branchRepo, userRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
 	purchaseService := purchasesvc.NewService(purchaseRepo, logger)
 	expenseService := expensesvc.NewService(expenseRepo, logger)

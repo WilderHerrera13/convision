@@ -18,6 +18,10 @@ export interface DatePickerProps {
   maxDate?: Date;
   error?: string;
   useInputTrigger?: boolean;
+  /** Activa selectores de mes/año en el caption. Útil para fecha de nacimiento. */
+  withYearNavigation?: boolean;
+  fromYear?: number;
+  toYear?: number;
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({
@@ -30,6 +34,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   maxDate,
   error,
   useInputTrigger = false,
+  withYearNavigation = false,
+  fromYear,
+  toYear,
 }) => {
   const [open, setOpen] = React.useState(false);
 
@@ -80,8 +87,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <Calendar
               mode="single"
               selected={dateValue}
+              defaultMonth={dateValue}
               onSelect={handleSelect}
               initialFocus
+              {...(withYearNavigation
+                ? {
+                    captionLayout: 'dropdown-buttons' as const,
+                    fromYear: fromYear ?? 1920,
+                    toYear: toYear ?? new Date().getFullYear(),
+                  }
+                : {})}
               disabled={
                 minDate || maxDate
                   ? (date) => {

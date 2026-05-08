@@ -24,6 +24,11 @@ function Calendar({
         month: "space-y-4 bg-white rounded-xl shadow p-4 border border-slate-100",
         caption: "flex justify-center pt-1 relative items-center mb-2",
         caption_label: "text-base font-semibold text-slate-700",
+        caption_dropdowns: "flex justify-center gap-2",
+        dropdown: "bg-white border border-slate-200 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary",
+        dropdown_year: "text-sm",
+        dropdown_month: "text-sm",
+        vhidden: "sr-only",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "ghost" }),

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles appointment-related use-cases.
@@ -27,12 +28,14 @@ type CreateInput struct {
 	BranchID          uint   `json:"branch_id"`
 	PatientID         uint   `json:"patient_id"          binding:"required"`
 	SpecialistID      *uint  `json:"specialist_id"`
+	DoctorID          *uint  `json:"doctor_id"`
 	ScheduledAt       string `json:"scheduled_at"`
 	Date              string `json:"date"`
 	Time              string `json:"time"`
 	Notes             string `json:"notes"`
 	Reason            string `json:"reason"`
 	AppointmentTypeID *uint  `json:"appointment_type_id"`
+	ConsultationType  string `json:"consultation_type"   binding:"omitempty,oneof=effective formula_sale ineffective follow_up warranty_follow_up"`
 }
 
 // UpdateInput holds validated fields for updating an appointment.
@@ -75,24 +78,17 @@ type ListOutput struct {
 	LastPage    int                   `json:"last_page"`
 }
 
+// parseScheduledAt interprets the front-end's naive datetime payload in the
+// clinic timezone. Offset-aware strings (RFC 3339) are honoured as sent.
 func parseScheduledAt(scheduledAt, date, timeStr string) *time.Time {
 	if scheduledAt != "" {
-		for _, layout := range []string{
-			"2006-01-02 15:04:05",
-			"2006-01-02 15:04",
-			"2006-01-02T15:04:05Z07:00",
-			time.RFC3339,
-		} {
-			if t, err := time.Parse(layout, scheduledAt); err == nil {
-				return &t
-			}
+		if t, err := clock.ParseDateTime(scheduledAt); err == nil {
+			return &t
 		}
 	}
 	if date != "" && timeStr != "" {
-		for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02 15:04"} {
-			if t, err := time.Parse(layout, date+" "+timeStr); err == nil {
-				return &t
-			}
+		if t, err := clock.CombineDateTime(date, timeStr); err == nil {
+			return &t
 		}
 	}
 	return nil
@@ -135,6 +131,9 @@ const defaultAppointmentDurationMins = 30
 
 // Create adds a new appointment after checking for specialist scheduling conflicts.
 func (s *Service) Create(db *gorm.DB, input CreateInput, receptionistID uint) (*domain.Appointment, error) {
+	if input.SpecialistID == nil && input.DoctorID != nil {
+		input.SpecialistID = input.DoctorID
+	}
 	scheduledAt := parseScheduledAt(input.ScheduledAt, input.Date, input.Time)
 
 	if scheduledAt != nil && input.SpecialistID != nil {
@@ -160,6 +159,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, receptionistID uint) (*
 		Reason:            input.Reason,
 		Status:            domain.AppointmentStatusScheduled,
 		AppointmentTypeID: input.AppointmentTypeID,
+		ConsultationType:  input.ConsultationType,
 	}
 
 	if err := s.repo.Create(db, a); err != nil {
@@ -196,8 +196,8 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Appoi
 		a.Status = domain.AppointmentStatus(input.Status)
 	}
 
-	if a.ScheduledAt != nil && a.SpecialistID != nil &&
-		input.Status == "" || (input.Status != "cancelled" && input.Status != "completed") {
+	skipConflictCheck := input.Status == "cancelled" || input.Status == "completed"
+	if a.ScheduledAt != nil && a.SpecialistID != nil && !skipConflictCheck {
 		conflict, cerr := s.repo.HasConflictForSpecialist(db, *a.SpecialistID, *a.ScheduledAt, id, defaultAppointmentDurationMins)
 		if cerr != nil {
 			return nil, cerr
@@ -230,10 +230,25 @@ func (s *Service) Delete(db *gorm.DB, id uint) error {
 }
 
 // Take sets appointment to in_progress and assigns taken_by.
+// Enforces "one active appointment per specialist": if the specialist already has
+// another appointment in progress, returns ErrValidation. Re-taking the same
+// appointment is a no-op.
 func (s *Service) Take(db *gorm.DB, id uint, specialistID uint) (*domain.Appointment, error) {
 	a, err := s.repo.GetByID(db, id)
 	if err != nil {
 		return nil, err
+	}
+
+	active, err := s.repo.GetActiveBySpecialist(db, specialistID)
+	if err != nil {
+		if _, ok := err.(*domain.ErrNotFound); !ok {
+			return nil, err
+		}
+	} else if active != nil && active.ID != id {
+		return nil, &domain.ErrAppointmentInProgress{
+			ActiveAppointmentID: active.ID,
+			Message:             "Ya tienes una cita en curso. Pausa o finaliza la cita en curso antes de tomar otra.",
+		}
 	}
 
 	a.Status = domain.AppointmentStatusInProgress

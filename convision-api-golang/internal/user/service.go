@@ -52,8 +52,9 @@ type ListOutput struct {
 	Total       int64          `json:"total"`
 }
 
-// List returns a paginated list of users.
-func (s *Service) List(db *gorm.DB, page, perPage int) (*ListOutput, error) {
+// List returns a paginated list of users, optionally filtered by role_type.
+// branchID > 0 restricts results to users with a matching user_branches row.
+func (s *Service) List(db *gorm.DB, page, perPage int, role string, branchID uint) (*ListOutput, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -61,7 +62,19 @@ func (s *Service) List(db *gorm.DB, page, perPage int) (*ListOutput, error) {
 		perPage = 15
 	}
 
-	users, total, err := s.repo.List(db, nil, page, perPage)
+	filters := map[string]any{}
+	if role != "" {
+		filters["role_type"] = role
+	}
+
+	var users []*domain.User
+	var total int64
+	var err error
+	if branchID > 0 {
+		users, total, err = s.repo.ListByBranch(db, branchID, role, page, perPage)
+	} else {
+		users, total, err = s.repo.List(db, filters, page, perPage)
+	}
 	if err != nil {
 		return nil, err
 	}

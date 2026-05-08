@@ -2,12 +2,12 @@ package prescription
 
 import (
 	"math"
-	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles prescription use-cases.
@@ -172,7 +172,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Prescription, 
 	}
 
 	if input.Date != "" {
-		t, err := time.Parse("2006-01-02", input.Date)
+		t, err := clock.ParseDate(input.Date)
 		if err == nil {
 			p.Date = &t
 		}
@@ -203,7 +203,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Presc
 		p.PatientName = input.PatientName
 	}
 	if input.Date != "" {
-		t, err := time.Parse("2006-01-02", input.Date)
+		t, err := clock.ParseDate(input.Date)
 		if err == nil {
 			p.Date = &t
 		}

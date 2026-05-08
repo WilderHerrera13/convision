@@ -45,12 +45,23 @@ const LENS_USE_LABELS: Record<string, string> = {
 
 const TREATMENT_LABELS: Record<string, string> = {
   antirreflejo: 'Antirreflejo',
+  antireflejo: 'Antirreflejo',
   fotocromatico: 'Fotocromático',
-  filtro_azul: 'Filtro azul',
-  blue_filter: 'Filtro azul',
+  fotocromático: 'Fotocromático',
+  filtro_azul: 'Filtro luz azul',
+  filtro_luz_azul: 'Filtro luz azul',
+  blue_filter: 'Filtro luz azul',
+  luz_azul: 'Filtro luz azul',
   polarizado: 'Polarizado',
   uv: 'Filtro UV',
+  filtro_uv: 'Filtro UV',
 };
+
+function humanizeTreatment(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function labelize(map: Record<string, string>, value?: string) {
   if (!value) return '';
@@ -89,19 +100,19 @@ const PrescriptionRecommendationPanel: React.FC<Props> = ({ patientId }) => {
       </div>
     );
   }
-  if (error || !data) {
-    return (
-      <div className="px-4 pt-3 pb-1">
-        <div className="bg-[#fff7ed] border border-[#fed7aa] rounded-[6px] px-3 py-2.5 text-[11px] text-[#9a3412]">
-          Este paciente no tiene una fórmula firmada por el médico aún.
-        </div>
-      </div>
-    );
+  if (error || !data || (!data.prescription && !data.diagnosis)) {
+    return null;
   }
 
   const diagnosis = data.diagnosis;
   const rx = data.prescription;
-  const treatments = (rx?.treatments ?? []).map((t) => labelize(TREATMENT_LABELS, t)).filter(Boolean);
+  const treatments = (rx?.treatments ?? [])
+    .map((t) => {
+      if (!t) return '';
+      const key = t.toLowerCase();
+      return TREATMENT_LABELS[key] ?? humanizeTreatment(key);
+    })
+    .filter(Boolean);
 
   return (
     <div className="px-4 pt-3 pb-1">

@@ -20,12 +20,13 @@ func newCashCloseSvc(repo *mocks.MockCashRegisterCloseRepository) *cashclose.Ser
 
 func TestCreate_NewClose_Success(t *testing.T) {
 	repo := &mocks.MockCashRegisterCloseRepository{}
-	repo.On("GetByUserAndDate", mock.Anything, uint(1), "2026-04-24").Return(nil, &domain.ErrNotFound{Resource: "cash_register_close"})
+	repo.On("GetByUserBranchAndDate", mock.Anything, uint(1), uint(7), "2026-04-24").Return(nil, &domain.ErrNotFound{Resource: "cash_register_close"})
 	repo.On("Create", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	repo.On("GetByID", mock.Anything, uint(0)).Return(&domain.CashRegisterClose{ID: 0, Status: domain.CashRegisterCloseStatusDraft}, nil)
 
 	svc := newCashCloseSvc(repo)
 	c, err := svc.Create(nil, cashclose.CreateInput{
+		BranchID:       7,
 		CloseDate:      "2026-04-24",
 		PaymentMethods: []cashclose.PaymentMethodInput{{Name: "efectivo", CountedAmount: 500.0}},
 	}, 1)
@@ -38,11 +39,12 @@ func TestCreate_NewClose_Success(t *testing.T) {
 func TestCreate_DraftUpsert(t *testing.T) {
 	repo := &mocks.MockCashRegisterCloseRepository{}
 	existing := &domain.CashRegisterClose{ID: 5, UserID: 1, Status: domain.CashRegisterCloseStatusDraft}
-	repo.On("GetByUserAndDate", mock.Anything, uint(1), "2026-04-24").Return(existing, nil)
+	repo.On("GetByUserBranchAndDate", mock.Anything, uint(1), uint(7), "2026-04-24").Return(existing, nil)
 	repo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	repo.On("GetByID", mock.Anything, uint(5)).Return(&domain.CashRegisterClose{ID: 5, Status: domain.CashRegisterCloseStatusDraft}, nil)
 
 	c, err := newCashCloseSvc(repo).Create(nil, cashclose.CreateInput{
+		BranchID:       7,
 		CloseDate:      "2026-04-24",
 		PaymentMethods: []cashclose.PaymentMethodInput{{Name: "efectivo", CountedAmount: 300.0}},
 	}, 1)
@@ -55,9 +57,10 @@ func TestCreate_DraftUpsert(t *testing.T) {
 func TestCreate_ConflictWithSubmitted(t *testing.T) {
 	repo := &mocks.MockCashRegisterCloseRepository{}
 	existing := &domain.CashRegisterClose{ID: 5, UserID: 1, Status: domain.CashRegisterCloseStatusSubmitted}
-	repo.On("GetByUserAndDate", mock.Anything, uint(1), "2026-04-24").Return(existing, nil)
+	repo.On("GetByUserBranchAndDate", mock.Anything, uint(1), uint(7), "2026-04-24").Return(existing, nil)
 
 	_, err := newCashCloseSvc(repo).Create(nil, cashclose.CreateInput{
+		BranchID:       7,
 		CloseDate:      "2026-04-24",
 		PaymentMethods: []cashclose.PaymentMethodInput{{Name: "efectivo", CountedAmount: 300.0}},
 	}, 1)

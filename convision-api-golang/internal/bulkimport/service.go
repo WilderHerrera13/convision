@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // ImportType identifies which entity type is being imported.
@@ -408,11 +409,13 @@ func toTitleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-// parseDate tries to parse DD/MM/YYYY or YYYY-MM-DD or DD-MM-YYYY.
+// parseDate tries to parse DD/MM/YYYY or YYYY-MM-DD or DD-MM-YYYY in the
+// clinic timezone so naive dates from imported spreadsheets stick to the
+// expected wall-clock day.
 func parseDate(s string) *time.Time {
 	formats := []string{"02/01/2006", "2006-01-02", "02-01-2006"}
 	for _, f := range formats {
-		if t, err := time.Parse(f, s); err == nil {
+		if t, err := time.ParseInLocation(f, s, clock.Location()); err == nil {
 			return &t
 		}
 	}

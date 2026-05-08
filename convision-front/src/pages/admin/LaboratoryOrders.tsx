@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,6 +56,10 @@ function StatCard({ label, count, colorClass }: StatCardProps) {
 
 const LaboratoryOrders: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/laboratory/')
+    ? '/laboratory/lab-orders'
+    : '/admin/laboratory-orders';
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -186,14 +190,14 @@ const LaboratoryOrders: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <button
             className="flex items-center justify-center size-8 rounded-[6px] bg-[#eff1ff] border border-[#3a71f7]/30 text-[#3a71f7] hover:opacity-80 transition-colors"
-            onClick={(e) => { e.stopPropagation(); navigate(`/admin/laboratory-orders/${order.id}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/${order.id}`); }}
             title="Ver detalle"
           >
             <Eye className="h-4 w-4" />
           </button>
           <button
             className="flex items-center justify-center size-8 rounded-[6px] bg-[#f5f5f6] border border-[#e5e5e9] text-[#7d7d87] hover:opacity-80 transition-colors"
-            onClick={(e) => { e.stopPropagation(); navigate(`/admin/laboratory-orders/${order.id}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/${order.id}`); }}
             title="Editar"
           >
             <Pencil className="h-4 w-4" />
@@ -232,7 +236,7 @@ const LaboratoryOrders: React.FC = () => {
       actions={
         <Button
           className="bg-[#3a71f7] hover:bg-[#2d5fd6] text-white text-[13px] font-semibold h-9 px-4"
-          onClick={() => navigate('/admin/laboratory-orders/new')}
+          onClick={() => navigate(`${basePath}/new`)}
         >
           <Plus className="h-4 w-4 mr-1.5" /> Nueva Orden
         </Button>
@@ -338,7 +342,7 @@ const LaboratoryOrders: React.FC = () => {
           }}
           searchPlaceholder="Buscar por # o paciente..."
           showPageSizeSelect={false}
-          onRowClick={(order) => navigate(`/admin/laboratory-orders/${order.id}`)}
+          onRowClick={(order) => navigate(`${basePath}/${order.id}`)}
           toolbarLeading={
             <div className="flex flex-col gap-0.5">
               <span className="text-[14px] font-semibold text-[#121215]">Órdenes de laboratorio</span>

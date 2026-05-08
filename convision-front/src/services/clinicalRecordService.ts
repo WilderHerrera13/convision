@@ -181,6 +181,9 @@ export const upsertPrescription = (appointmentId: number, data: PrescriptionInpu
 export const signClinicalRecord = (appointmentId: number, professionalTp: string) =>
   api.post(`/api/v1/appointments/${appointmentId}/clinical-record/sign`, { professional_tp: professionalTp });
 
+export const getPatientLatestClinicalRecord = (patientId: number) =>
+  api.get<ClinicalRecord>(`/api/v1/patients/${patientId}/latest-clinical-record`);
+
 export interface FollowUpAnamnesisInput {
   control_reason: string;
   correction_satisfaction?: 'muy_buena' | 'buena' | 'regular' | 'mala';

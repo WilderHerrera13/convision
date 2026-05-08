@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,18 @@ export function AppointmentClinicalForm({ apptId, appt }: Props) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState(0);
+  const tabStorageKey = `appointment-clinical-step:${apptId}`;
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    const stored = sessionStorage.getItem(tabStorageKey);
+    const parsed = stored ? parseInt(stored, 10) : 0;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 3 ? parsed : 0;
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(tabStorageKey, String(activeTab));
+    }
+  }, [activeTab, tabStorageKey]);
   const [isSaving, setIsSaving] = useState(false);
   const [record, setRecord] = useState<ClinicalRecord | null>(null);
   const [savedVisualExam, setSavedVisualExam] = useState<VisualExamInput | undefined>();

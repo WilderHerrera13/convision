@@ -10,6 +10,12 @@ import {
   type ClinicalRecord,
 } from '@/services/clinicalRecordService';
 import { DigitalSignatureModal } from '@/components/clinical/DigitalSignatureModal';
+import {
+  formatTreatmentList,
+  lensTypeLabel,
+  lensMaterialLabel,
+  lensUseLabel,
+} from '@/lib/prescriptionLabels';
 
 function formatOptical(v?: number | null): string {
   if (v === undefined || v === null) return '—';
@@ -145,12 +151,16 @@ function PrescriptionDoc({ record, patientName, patientId, professionalName }: P
           <div>
             <p className="text-[9px] uppercase font-semibold text-[#7d7d87] mb-1">Tipo de lente</p>
             <p className="text-[12px]">
-              {[rx?.lens_type, rx?.lens_material, rx?.lens_use].filter(Boolean).join(' · ') || '—'}
+              {[
+                lensTypeLabel(rx?.lens_type),
+                lensMaterialLabel(rx?.lens_material),
+                lensUseLabel(rx?.lens_use),
+              ].filter(Boolean).join(' · ') || '—'}
             </p>
           </div>
           <div>
             <p className="text-[9px] uppercase font-semibold text-[#7d7d87] mb-1">Tratamientos</p>
-            <p className="text-[12px]">{(rx?.treatments as string[] | undefined)?.join(', ') || 'Sin tratamientos'}</p>
+            <p className="text-[12px]">{formatTreatmentList(rx?.treatments as string[] | undefined) || 'Sin tratamientos'}</p>
           </div>
         </div>
 

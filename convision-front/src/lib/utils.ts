@@ -29,22 +29,32 @@ export function translateGender(gender: string | undefined): string {
  * @param date The date to format (Date object or date string)
  * @returns The formatted date string in DD/MM/YYYY format
  */
+// All clinic-facing dates are normalised to America/Bogota — the QA env runs in
+// UTC and was shifting birth dates / appointment times by one day.
+export const APP_TIMEZONE = 'America/Bogota';
+
 export function formatDate(date: Date | string | undefined | null): string {
   if (!date) return '—';
-  
+
   try {
-    const dateObj = new Date(date);
-    
-    // Check if the date is valid
-    if (isNaN(dateObj.getTime())) {
-      return '—';
+    // Date-only strings (YYYY-MM-DD) must be parsed as local civil dates,
+    // otherwise the JS engine reads them as UTC midnight and a UTC-5 viewer
+    // sees the previous day (QA-014).
+    if (typeof date === 'string') {
+      const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+      if (dateOnly) {
+        return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+      }
     }
-    
-    // Use the standard ES locale with the desired format
+
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return '—';
+
     return dateObj.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: APP_TIMEZONE,
     });
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -78,36 +88,42 @@ export function safeDateFormat(date: Date | string | undefined | null, formatPat
 }
 
 /**
- * Parses a datetime string from the backend as local time (no UTC conversion).
- * The backend stores appointments without timezone info (naive datetimes).
- * Stripping the trailing Z prevents the browser from shifting to local timezone.
+ * Parses a datetime string from the backend. The Go backend stores
+ * TIMESTAMPTZ values that serialize with a trailing Z, so we let the JS
+ * engine parse them as proper UTC instants — display helpers then render
+ * them in America/Bogota. Strings without timezone info are treated as
+ * naive datetimes (interpreted in the viewer's locale).
  */
 export function parseLocalDatetime(value: string | undefined | null): Date | null {
   if (!value) return null;
-  const naive = value.replace('T', ' ').replace(/Z$/, '').replace(/\+00:00$/, '').slice(0, 16);
-  const d = new Date(naive);
+  const d = new Date(value);
   return isNaN(d.getTime()) ? null : d;
 }
 
-/** 12-hour clock with AM/PM (consistent across the app). */
+/** 12-hour clock with AM/PM in America/Bogota. */
 export function formatTime12h(date: Date | string | undefined | null): string {
   if (!date) return '—';
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) return '—';
-    return format(dateObj, 'h:mm a', { locale: enUS });
+    return dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: APP_TIMEZONE,
+    });
   } catch {
     return '—';
   }
 }
 
-/** Date (dd/MM/yyyy) + 12-hour time with AM/PM. */
+/** Date (dd/MM/yyyy) + 12-hour time with AM/PM in America/Bogota. */
 export function formatDateTime12h(date: Date | string | undefined | null): string {
   if (!date) return '—';
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) return '—';
-    return format(dateObj, 'dd/MM/yyyy h:mm a', { locale: enUS });
+    return `${formatDate(dateObj)} ${formatTime12h(dateObj)}`;
   } catch {
     return '—';
   }

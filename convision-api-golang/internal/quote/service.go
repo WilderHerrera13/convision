@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles quote use-cases.
@@ -182,7 +183,7 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, userID uint) (*domain.Q
 
 	var expDate *time.Time
 	if input.ExpirationDate != "" {
-		t, err := time.Parse("2006-01-02", input.ExpirationDate)
+		t, err := clock.ParseDate(input.ExpirationDate)
 		if err != nil {
 			return nil, &domain.ErrValidation{Field: "expiration_date", Message: "formato debe ser YYYY-MM-DD"}
 		}
@@ -221,7 +222,7 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Quote
 		q.PatientID = input.PatientID
 	}
 	if input.ExpirationDate != "" {
-		t, err := time.Parse("2006-01-02", input.ExpirationDate)
+		t, err := clock.ParseDate(input.ExpirationDate)
 		if err == nil {
 			q.ExpirationDate = &t
 		}

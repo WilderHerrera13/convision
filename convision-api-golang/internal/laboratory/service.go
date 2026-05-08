@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles laboratory and laboratory order use-cases.
@@ -18,6 +19,8 @@ type Service struct {
 	callRepo     domain.LaboratoryOrderCallRepository
 	evidenceRepo domain.LaboratoryOrderEvidenceRepository
 	saleRepo     domain.SaleRepository
+	branchRepo   domain.BranchRepository
+	userRepo     domain.UserRepository
 	logger       *zap.Logger
 }
 
@@ -28,9 +31,11 @@ func NewService(
 	callRepo domain.LaboratoryOrderCallRepository,
 	evidenceRepo domain.LaboratoryOrderEvidenceRepository,
 	saleRepo domain.SaleRepository,
+	branchRepo domain.BranchRepository,
+	userRepo domain.UserRepository,
 	logger *zap.Logger,
 ) *Service {
-	return &Service{labRepo: labRepo, orderRepo: orderRepo, callRepo: callRepo, evidenceRepo: evidenceRepo, saleRepo: saleRepo, logger: logger}
+	return &Service{labRepo: labRepo, orderRepo: orderRepo, callRepo: callRepo, evidenceRepo: evidenceRepo, saleRepo: saleRepo, branchRepo: branchRepo, userRepo: userRepo, logger: logger}
 }
 
 // --- Laboratory DTOs ---
@@ -109,6 +114,7 @@ type CreateOrderInput struct {
 	FrameSpecs              *FrameSpecsInput `json:"frame_specs"`
 	SellerName              string           `json:"seller_name"`
 	SaleDate                *string          `json:"sale_date"`
+	BranchID                *uint            `json:"branch_id"`
 	Branch                  string           `json:"branch"`
 	SpecialInstructions     string           `json:"special_instructions"`
 }
@@ -137,6 +143,81 @@ type UpdateOrderInput struct {
 type UpdateOrderStatusInput struct {
 	Status string `json:"status" binding:"required,oneof=pending in_process sent_to_lab in_transit received_from_lab returned_to_lab in_quality quality_approved ready_for_delivery delivered cancelled portfolio"`
 	Notes  string `json:"notes"`
+}
+
+type AssignSpecialistInput struct {
+	SpecialistID uint   `json:"specialist_id" binding:"required"`
+	Notes        string `json:"notes"`
+}
+
+// allowedTransitions defines the directed graph of valid laboratory order
+// status changes. A transition not present here is rejected with ErrValidation.
+// The graph allows the typical happy path plus a few explicit corrective edges
+// (cancel from any active state, send back to lab from quality review).
+var allowedTransitions = map[domain.LaboratoryOrderStatusValue]map[domain.LaboratoryOrderStatusValue]bool{
+	domain.LaboratoryOrderStatusPending: {
+		domain.LaboratoryOrderStatusInProcess: true,
+		domain.LaboratoryOrderStatusSentToLab: true,
+		domain.LaboratoryOrderStatusCancelled: true,
+	},
+	domain.LaboratoryOrderStatusInProcess: {
+		domain.LaboratoryOrderStatusSentToLab: true,
+		domain.LaboratoryOrderStatusInQuality: true,
+		domain.LaboratoryOrderStatusCancelled: true,
+	},
+	domain.LaboratoryOrderStatusSentToLab: {
+		domain.LaboratoryOrderStatusInTransit:        true,
+		domain.LaboratoryOrderStatusReceivedFromLab:  true,
+		domain.LaboratoryOrderStatusCancelled:        true,
+	},
+	domain.LaboratoryOrderStatusInTransit: {
+		domain.LaboratoryOrderStatusReceivedFromLab: true,
+		domain.LaboratoryOrderStatusCancelled:       true,
+	},
+	domain.LaboratoryOrderStatusReceivedFromLab: {
+		domain.LaboratoryOrderStatusInQuality: true,
+		domain.LaboratoryOrderStatusReturnedToLab: true,
+		domain.LaboratoryOrderStatusCancelled: true,
+	},
+	domain.LaboratoryOrderStatusReturnedToLab: {
+		domain.LaboratoryOrderStatusInTransit:       true,
+		domain.LaboratoryOrderStatusReceivedFromLab: true,
+		domain.LaboratoryOrderStatusCancelled:       true,
+	},
+	domain.LaboratoryOrderStatusInQuality: {
+		domain.LaboratoryOrderStatusQualityApproved: true,
+		domain.LaboratoryOrderStatusReturnedToLab:   true,
+		domain.LaboratoryOrderStatusCancelled:       true,
+	},
+	domain.LaboratoryOrderStatusQualityApproved: {
+		domain.LaboratoryOrderStatusReadyForDelivery: true,
+		domain.LaboratoryOrderStatusCancelled:        true,
+	},
+	domain.LaboratoryOrderStatusReadyForDelivery: {
+		domain.LaboratoryOrderStatusDelivered: true,
+		domain.LaboratoryOrderStatusPortfolio: true,
+		domain.LaboratoryOrderStatusCancelled: true,
+	},
+	domain.LaboratoryOrderStatusDelivered: {
+		// Terminal — no outgoing transitions.
+	},
+	domain.LaboratoryOrderStatusCancelled: {
+		// Terminal — no outgoing transitions.
+	},
+	domain.LaboratoryOrderStatusPortfolio: {
+		domain.LaboratoryOrderStatusDelivered: true,
+		domain.LaboratoryOrderStatusCancelled: true,
+	},
+}
+
+func isAllowedTransition(from, to domain.LaboratoryOrderStatusValue) bool {
+	if from == to {
+		return true
+	}
+	if next, ok := allowedTransitions[from]; ok {
+		return next[to]
+	}
+	return false
 }
 
 type OrderListOutput struct {
@@ -343,7 +424,7 @@ func (s *Service) CreateOrder(db *gorm.DB, input CreateOrderInput, userID uint) 
 
 	var estDate *time.Time
 	if input.EstimatedCompletionDate != nil && *input.EstimatedCompletionDate != "" {
-		t, err := time.Parse("2006-01-02", *input.EstimatedCompletionDate)
+		t, err := clock.ParseDate(*input.EstimatedCompletionDate)
 		if err == nil {
 			estDate = &t
 		}
@@ -351,7 +432,7 @@ func (s *Service) CreateOrder(db *gorm.DB, input CreateOrderInput, userID uint) 
 
 	var saleDate *time.Time
 	if input.SaleDate != nil && *input.SaleDate != "" {
-		t, err := time.Parse("2006-01-02", *input.SaleDate)
+		t, err := clock.ParseDate(*input.SaleDate)
 		if err == nil {
 			saleDate = &t
 		}
@@ -359,6 +440,17 @@ func (s *Service) CreateOrder(db *gorm.DB, input CreateOrderInput, userID uint) 
 
 	labID := input.LaboratoryID
 	patID := input.PatientID
+
+	branchText := input.Branch
+	if branchText == "" && input.BranchID != nil && s.branchRepo != nil {
+		if br, err := s.branchRepo.GetByID(db, *input.BranchID); err == nil && br != nil {
+			if br.City != "" {
+				branchText = fmt.Sprintf("%s — %s", br.Name, br.City)
+			} else {
+				branchText = br.Name
+			}
+		}
+	}
 
 	o := &domain.LaboratoryOrder{
 		OrderID:                 input.OrderID,
@@ -377,7 +469,7 @@ func (s *Service) CreateOrder(db *gorm.DB, input CreateOrderInput, userID uint) 
 		FrameSpecs:              frameSpecsInputToDomain(input.FrameSpecs),
 		SellerName:              input.SellerName,
 		SaleDate:                saleDate,
-		Branch:                  input.Branch,
+		Branch:                  branchText,
 		SpecialInstructions:     input.SpecialInstructions,
 	}
 
@@ -422,7 +514,7 @@ func (s *Service) UpdateOrder(db *gorm.DB, id uint, input UpdateOrderInput) (*do
 		o.Priority = input.Priority
 	}
 	if input.EstimatedCompletionDate != nil && *input.EstimatedCompletionDate != "" {
-		t, err := time.Parse("2006-01-02", *input.EstimatedCompletionDate)
+		t, err := clock.ParseDate(*input.EstimatedCompletionDate)
 		if err == nil {
 			o.EstimatedCompletionDate = &t
 		}
@@ -452,7 +544,7 @@ func (s *Service) UpdateOrder(db *gorm.DB, id uint, input UpdateOrderInput) (*do
 		o.SellerName = *input.SellerName
 	}
 	if input.SaleDate != nil && *input.SaleDate != "" {
-		t, err := time.Parse("2006-01-02", *input.SaleDate)
+		t, err := clock.ParseDate(*input.SaleDate)
 		if err == nil {
 			o.SaleDate = &t
 		}
@@ -476,7 +568,15 @@ func (s *Service) UpdateOrderStatus(db *gorm.DB, id uint, input UpdateOrderStatu
 		return nil, err
 	}
 
-	o.Status = domain.LaboratoryOrderStatusValue(input.Status)
+	target := domain.LaboratoryOrderStatusValue(input.Status)
+	if !isAllowedTransition(o.Status, target) {
+		return nil, &domain.ErrValidation{
+			Field:   "status",
+			Message: fmt.Sprintf("invalid transition: %s → %s", o.Status, target),
+		}
+	}
+
+	o.Status = target
 	if err := s.orderRepo.Update(db, o); err != nil {
 		return nil, err
 	}
@@ -488,6 +588,56 @@ func (s *Service) UpdateOrderStatus(db *gorm.DB, id uint, input UpdateOrderStatu
 		Notes:             input.Notes,
 		UserID:            &userID,
 	})
+
+	return s.orderRepo.GetByID(db, id)
+}
+
+// AssignSpecialist sets the specialist responsible for the QA review on a
+// laboratory order. The status is moved to in_quality if it is currently in
+// a state from which an in_quality transition is allowed; otherwise only the
+// assignment is recorded without changing status.
+func (s *Service) AssignSpecialist(db *gorm.DB, id uint, input AssignSpecialistInput, userID uint) (*domain.LaboratoryOrder, error) {
+	o, err := s.orderRepo.GetByID(db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	specialist, err := s.userRepo.GetByID(db, input.SpecialistID)
+	if err != nil {
+		return nil, &domain.ErrValidation{Field: "specialist_id", Message: "specialist not found"}
+	}
+	if specialist.RoleType != domain.RoleSpecialist && specialist.RoleType != domain.RoleAdmin {
+		return nil, &domain.ErrValidation{Field: "specialist_id", Message: "user is not a specialist"}
+	}
+
+	specID := specialist.ID
+	o.AssignedSpecialistID = &specID
+
+	moveToQuality := isAllowedTransition(o.Status, domain.LaboratoryOrderStatusInQuality)
+	if moveToQuality {
+		o.Status = domain.LaboratoryOrderStatusInQuality
+	}
+
+	if err := s.orderRepo.Update(db, o); err != nil {
+		return nil, err
+	}
+
+	historyStatus := string(o.Status)
+	notes := input.Notes
+	if notes == "" {
+		notes = fmt.Sprintf("Médico asignado: %s", specialist.Name)
+	}
+	_ = s.orderRepo.AddStatusEntry(db, &domain.LaboratoryOrderStatusEntry{
+		LaboratoryOrderID: id,
+		Status:            historyStatus,
+		Notes:             notes,
+		UserID:            &userID,
+	})
+
+	s.logger.Info("specialist assigned to lab order",
+		zap.Uint("order_id", id),
+		zap.Uint("specialist_id", specialist.ID),
+	)
 
 	return s.orderRepo.GetByID(db, id)
 }
@@ -616,7 +766,7 @@ func (s *Service) RegisterPortfolioCall(db *gorm.DB, orderID uint, input Registe
 
 	var nextContact *time.Time
 	if input.NextContactDate != nil && *input.NextContactDate != "" {
-		t, err := time.Parse("2006-01-02", *input.NextContactDate)
+		t, err := clock.ParseDate(*input.NextContactDate)
 		if err == nil {
 			nextContact = &t
 		}

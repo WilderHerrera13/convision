@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles patient-related use-cases.
@@ -29,6 +30,7 @@ type CreateInput struct {
 	Phone                     string `json:"phone"                      binding:"required"`
 	Identification            string `json:"identification"             binding:"required"`
 	IdentificationTypeID      *uint  `json:"identification_type_id"`
+	IdentificationType        string `json:"identification_type"`
 	BirthDate                 string `json:"birth_date"`
 	Gender                    string `json:"gender"                     binding:"required,oneof=male female other"`
 	Address                   string `json:"address"`
@@ -57,6 +59,7 @@ type UpdateInput struct {
 	Phone                     string `json:"phone"`
 	Identification            string `json:"identification"`
 	IdentificationTypeID      *uint  `json:"identification_type_id"`
+	IdentificationType        string `json:"identification_type"`
 	BirthDate                 string `json:"birth_date"`
 	Gender                    string `json:"gender"`
 	Address                   string `json:"address"`
@@ -119,6 +122,24 @@ func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (
 	}, nil
 }
 
+// resolveIdentificationType maps a document-type code (e.g. "CC", "TI") to its
+// row ID in identification_types. Returns nil if the code is empty or unknown
+// so callers can decide whether to error or fall back to identification_type_id.
+func (s *Service) resolveIdentificationType(db *gorm.DB, code string) *uint {
+	if code == "" {
+		return nil
+	}
+	var id uint
+	if err := db.Table("identification_types").
+		Select("id").
+		Where("code = ?", code).
+		Limit(1).
+		Scan(&id).Error; err != nil || id == 0 {
+		return nil
+	}
+	return &id
+}
+
 // Create adds a new patient.
 func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Patient, error) {
 	status := input.Status
@@ -128,9 +149,19 @@ func (s *Service) Create(db *gorm.DB, input CreateInput) (*domain.Patient, error
 
 	var bd *time.Time
 	if input.BirthDate != "" {
-		t, err := time.Parse("2006-01-02", input.BirthDate)
-		if err == nil {
+		if t, err := clock.ParseDate(input.BirthDate); err == nil {
 			bd = &t
+		}
+	}
+
+	if input.IdentificationTypeID == nil && input.IdentificationType != "" {
+		if resolved := s.resolveIdentificationType(db, input.IdentificationType); resolved != nil {
+			input.IdentificationTypeID = resolved
+		} else {
+			return nil, &domain.ErrValidation{
+				Field:   "identification_type",
+				Message: "código de tipo de documento desconocido",
+			}
 		}
 	}
 
@@ -193,11 +224,21 @@ func (s *Service) Update(db *gorm.DB, id uint, input UpdateInput) (*domain.Patie
 	if input.Identification != "" {
 		p.Identification = input.Identification
 	}
+	if input.IdentificationTypeID == nil && input.IdentificationType != "" {
+		if resolved := s.resolveIdentificationType(db, input.IdentificationType); resolved != nil {
+			input.IdentificationTypeID = resolved
+		} else {
+			return nil, &domain.ErrValidation{
+				Field:   "identification_type",
+				Message: "código de tipo de documento desconocido",
+			}
+		}
+	}
 	if input.IdentificationTypeID != nil {
 		p.IdentificationTypeID = input.IdentificationTypeID
 	}
 	if input.BirthDate != "" {
-		if t, err := time.Parse("2006-01-02", input.BirthDate); err == nil {
+		if t, err := clock.ParseDate(input.BirthDate); err == nil {
 			p.BirthDate = &t
 		}
 	}

@@ -149,17 +149,17 @@ const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
             <span className="text-[11px] font-medium text-[#7d7d87]">Sin cierres pendientes de revisión</span>
           ) : (
             <>
-              {advisor.close_dates.slice(0, 4).map((d) => (
+              {advisor.closes.slice(0, 4).map((c) => (
                 <span
-                  key={d}
+                  key={c.id}
                   className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f0f12]"
                 >
-                  {formatDate(d)}
+                  {formatDate(c.close_date)}
                 </span>
               ))}
-              {advisor.close_dates.length > 4 && (
+              {advisor.closes.length > 4 && (
                 <span className="rounded-[6px] bg-[#f7f7f8] border border-[#e5e5e9] px-2.5 py-0.5 text-[11px] font-semibold text-[#7d7d87]">
-                  +{advisor.close_dates.length - 4}
+                  +{advisor.closes.length - 4}
                 </span>
               )}
             </>
