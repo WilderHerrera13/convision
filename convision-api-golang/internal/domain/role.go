@@ -61,10 +61,16 @@ type RoleUserSummary struct {
 	Email    string `json:"email"`
 }
 
+// RoleFilter holds query parameters for listing roles.
+type RoleFilter struct {
+	Pagination
+	Name string `form:"name"`
+}
+
 // RoleRepository defines persistence operations for RoleModel.
 type RoleRepository interface {
 	GetByID(db *gorm.DB, id uint) (*RoleModel, error)
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*RoleModel, int64, error)
+	List(db *gorm.DB, f RoleFilter) ([]*RoleModel, int64, error)
 	Create(db *gorm.DB, r *RoleModel) error
 	Update(db *gorm.DB, r *RoleModel) error
 	SoftDelete(db *gorm.DB, id uint) error

@@ -30,14 +30,15 @@ func (r *RoleRepository) GetByID(db *gorm.DB, id uint) (*domain.RoleModel, error
 	return &role, nil
 }
 
-func (r *RoleRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.RoleModel, int64, error) {
+func (r *RoleRepository) List(db *gorm.DB, f domain.RoleFilter) ([]*domain.RoleModel, int64, error) {
+	f.Clamp()
 	var roles []*domain.RoleModel
 	var total int64
 
 	query := db.Model(&domain.RoleModel{}).Where("deleted_at IS NULL")
 
-	if name, ok := filters["name"]; ok && name != "" {
-		query = query.Where("name ILIKE ?", "%"+name.(string)+"%")
+	if f.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+f.Name+"%")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -47,8 +48,8 @@ func (r *RoleRepository) List(db *gorm.DB, filters map[string]any, page, perPage
 	if err := query.
 		Preload("Permissions").
 		Order("is_system DESC, name ASC").
-		Offset((page - 1) * perPage).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Find(&roles).Error; err != nil {
 		return nil, 0, err
 	}
