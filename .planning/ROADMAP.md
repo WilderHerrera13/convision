@@ -265,14 +265,14 @@ Plans:
   3. Repository allowlist maps (`filterAllowlist`) are removed — the struct fields ARE the allowlist
   4. All existing filter behavior preserved (same query params, same SQL semantics) — no frontend changes required
   5. `make build && make test` exit 0
-**Plans:** 4/10 plans executed
+**Plans:** 5/10 plans executed
 
 Plans:
 - [x] 21-01: Wave 1 — Foundation: domain.Pagination struct + DEVELOPMENT_GUIDE update
 - [x] 21-02: Wave 1 — Simple stateless domains: role and notification filters
 - [x] 21-03: Wave 2 — Inventory module: warehouse, warehouse_location, inventory_item, transfer, adjustment, stock_movement
 - [x] 21-04: Wave 2 — Commercial flow: sale, quote, order filters
-- [ ] 21-05: Wave 3 — Finance + cash close: payroll, service_order, cash_transfer, expense, purchase, cash_register_close
+- [x] 21-05: Wave 3 — Finance + cash close: payroll, service_order, cash_transfer, expense, purchase, cash_register_close
 - [ ] 21-06: Wave 3 — Laboratory filters (special _search/_assigned_uid keys)
 - [ ] 21-07: Wave 4 — Clinical + supplier: prescription, clinical_history, supplier (parseApiFilters recipients)
 - [ ] 21-08: Wave 4 — Patient + appointment (OR-mode search, 5 special keys — most complex)

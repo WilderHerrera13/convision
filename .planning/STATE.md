@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 21
-stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-05-08T23:50:00.000Z"
-last_activity: 2026-05-08 -- Phase 21 plan 04 (sale/quote/order filters) complete
+status: Ready to execute
+stopped_at: Completed 21-05-PLAN.md
+last_updated: "2026-05-08T23:58:26.846Z"
+last_activity: 2026-05-08 -- Phase 21 plan 05 (finance + cash close filters) complete
 progress:
   total_phases: 16
   completed_phases: 6
   total_plans: 55
-  completed_plans: 37
-  percent: 67
+  completed_plans: 38
+  percent: 69
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 21 (standardize-backend-filter-pattern) — EXECUTING
-Plan: 4 of 10 complete
-Last activity: 2026-05-08 -- 21-04 (sale/quote/order filters) complete
-Next: 21-05
+Plan: 5 of 10 complete
+Last activity: 2026-05-08 -- 21-05 (finance + cash close filters) complete
+Next: 21-06
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 69%
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [21-03]: Bundled compound commits (T1+T2 / T3+T4 / T5+T6+T7) to keep HEAD compilable across Repository interface migrations
 - [21-03]: Migrated outside-scope callers (bulkimport + sale) under Rule 3 (Blocking) — required for full project build
 - [21-04]: Single compound commit (5 tasks, 15 files) — partial splits leave HEAD uncompilable; sale/quote/order are tightly coupled with no independently buildable subset
+- [21-05]: Single compound commit (6 tasks, 21 files) — same compound-commit precedent for 6 finance/cash domains
+- [21-05]: CashRegisterCloseRepository.List keeps role + userID as explicit args (typed domain.Role) instead of Filter fields — RBAC concerns separate from query filters
 
 ### Roadmap Evolution
 
@@ -82,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-08T23:50:00Z
-Stopped at: Completed 21-04-PLAN.md
+Last session: 2026-05-08T23:58:26.841Z
+Stopped at: Completed 21-05-PLAN.md
 Resume file: None
