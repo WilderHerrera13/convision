@@ -265,12 +265,12 @@ Plans:
   3. Repository allowlist maps (`filterAllowlist`) are removed — the struct fields ARE the allowlist
   4. All existing filter behavior preserved (same query params, same SQL semantics) — no frontend changes required
   5. `make build && make test` exit 0
-**Plans:** 10 plans across 6 waves — ready to execute
+**Plans:** 3/10 plans executed
 
 Plans:
-- [ ] 21-01: Wave 1 — Foundation: domain.Pagination struct + DEVELOPMENT_GUIDE update
-- [ ] 21-02: Wave 1 — Simple stateless domains: role and notification filters
-- [ ] 21-03: Wave 2 — Inventory module: warehouse, warehouse_location, inventory_item, transfer, adjustment, stock_movement
+- [x] 21-01: Wave 1 — Foundation: domain.Pagination struct + DEVELOPMENT_GUIDE update
+- [x] 21-02: Wave 1 — Simple stateless domains: role and notification filters
+- [x] 21-03: Wave 2 — Inventory module: warehouse, warehouse_location, inventory_item, transfer, adjustment, stock_movement
 - [ ] 21-04: Wave 2 — Commercial flow: sale, quote, order filters
 - [ ] 21-05: Wave 3 — Finance + cash close: payroll, service_order, cash_transfer, expense, purchase, cash_register_close
 - [ ] 21-06: Wave 3 — Laboratory filters (special _search/_assigned_uid keys)
@@ -299,3 +299,13 @@ Plans:
 - [x] 16-05: Repository Refactor — All repo interfaces accept db *gorm.DB; services propagate tenant db
 - [x] 16-06: Frontend — Super-admin portal (optica list, create/edit, feature flags panel)
 - [x] 16-07: Verification — End-to-end tenant isolation tests, JWT round-trip, subdomain resolution
+
+### Phase 22: Comprehensive Test Coverage — unit + integration tests across Go backend (services, repositories, HTTP handlers) and React frontend (components, hooks, services) to lock current behavior and prevent regressions
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 21
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 22 to break down)
