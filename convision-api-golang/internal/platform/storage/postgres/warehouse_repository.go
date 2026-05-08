@@ -8,11 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var warehouseFilterAllowlist = map[string]bool{
-	"branch_id": true,
-	"status":    true,
-}
-
 // WarehouseRepository is the PostgreSQL-backed implementation of domain.WarehouseRepository.
 type WarehouseRepository struct{}
 
@@ -52,30 +47,26 @@ func (r *WarehouseRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Warehouse{}, id).Error
 }
 
-func (r *WarehouseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Warehouse, int64, error) {
+func (r *WarehouseRepository) List(db *gorm.DB, f domain.WarehouseFilter) ([]*domain.Warehouse, int64, error) {
+	f.Clamp()
 	var warehouses []*domain.Warehouse
 	var total int64
 
 	q := db.Model(&domain.Warehouse{})
-	for field, value := range filters {
-		if field == "branch_id" {
-			q = q.Where("warehouses.branch_id = ?", value)
-			continue
-		}
-		if !warehouseFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("warehouses."+field+" = ?", value)
+	if f.BranchID != nil {
+		q = q.Where("warehouses.branch_id = ?", *f.BranchID)
+	}
+	if f.Status != "" {
+		q = q.Where("warehouses.status = ?", f.Status)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.Select("id, name, code, address, city, status, notes, created_at, updated_at").
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("warehouses.id asc").
 		Find(&warehouses).Error
 	if err != nil {

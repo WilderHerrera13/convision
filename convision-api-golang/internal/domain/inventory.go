@@ -100,13 +100,73 @@ type InventoryTransfer struct {
 	TransferredByUser   *User              `json:"transferred_by_user,omitempty"  gorm:"foreignKey:TransferredBy"`
 }
 
+// WarehouseFilter holds query parameters for listing warehouses.
+type WarehouseFilter struct {
+	Pagination
+	BranchID *uint  `form:"-"` // injected by middleware — never from client query
+	Status   string `form:"status"`
+}
+
+// WarehouseLocationFilter holds query parameters for listing warehouse locations.
+type WarehouseLocationFilter struct {
+	Pagination
+	BranchID    *uint  `form:"-"` // injected by middleware
+	WarehouseID *uint  `form:"warehouse_id"`
+	Status      string `form:"status"`
+}
+
+// InventoryItemFilter holds query parameters for listing inventory items.
+type InventoryItemFilter struct {
+	Pagination
+	BranchID            *uint  `form:"-"` // injected by middleware
+	ProductID           *uint  `form:"product_id"`
+	WarehouseID         *uint  `form:"warehouse_id"`
+	WarehouseLocationID *uint  `form:"warehouse_location_id"`
+	Status              string `form:"status"`
+}
+
+// TotalStockFilter holds query parameters for the aggregated stock-per-product view.
+type TotalStockFilter struct {
+	Pagination
+	BranchID            *uint `form:"-"` // injected by middleware
+	WarehouseID         *uint `form:"warehouse_id"`
+	WarehouseLocationID *uint `form:"warehouse_location_id"`
+	BrandID             *uint `form:"brand_id"`
+	SupplierID          *uint `form:"supplier_id"`
+	CategoryID          *uint `form:"category_id"`
+}
+
+// InventoryTransferFilter holds query parameters for listing inventory transfers.
+type InventoryTransferFilter struct {
+	Pagination
+	BranchID  *uint  `form:"-"` // injected by middleware
+	ProductID *uint  `form:"product_id"`
+	Status    string `form:"status"`
+	CreatedBy *uint  `form:"created_by"`
+}
+
+// InventoryAdjustmentFilter holds query parameters for listing inventory adjustments.
+type InventoryAdjustmentFilter struct {
+	Pagination
+	Status      string `form:"status"`
+	RequestedBy *uint  `form:"requested_by"`
+}
+
+// StockMovementFilter holds query parameters for listing stock movements (Kardex).
+type StockMovementFilter struct {
+	Pagination
+	ProductID    *uint  `form:"product_id"`
+	WarehouseID  *uint  `form:"warehouse_id"`
+	MovementType string `form:"movement_type"`
+}
+
 // WarehouseRepository defines persistence operations for Warehouse.
 type WarehouseRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Warehouse, error)
 	Create(db *gorm.DB, w *Warehouse) error
 	Update(db *gorm.DB, w *Warehouse) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Warehouse, int64, error)
+	List(db *gorm.DB, f WarehouseFilter) ([]*Warehouse, int64, error)
 	ListLocations(db *gorm.DB, warehouseID uint) ([]*WarehouseLocation, error)
 }
 
@@ -116,7 +176,7 @@ type WarehouseLocationRepository interface {
 	Create(db *gorm.DB, l *WarehouseLocation) error
 	Update(db *gorm.DB, l *WarehouseLocation) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*WarehouseLocation, int64, error)
+	List(db *gorm.DB, f WarehouseLocationFilter) ([]*WarehouseLocation, int64, error)
 }
 
 // ProductStockEntry holds the aggregated stock quantity for a single product.
@@ -134,11 +194,10 @@ type InventoryItemRepository interface {
 	Create(db *gorm.DB, i *InventoryItem) error
 	Update(db *gorm.DB, i *InventoryItem) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryItem, int64, error)
+	List(db *gorm.DB, f InventoryItemFilter) ([]*InventoryItem, int64, error)
 	TotalStock(db *gorm.DB) (int64, error)
 	// TotalStockPerProduct returns paginated aggregated stock grouped by product.
-	// Supported filter keys: warehouse_id, warehouse_location_id, brand_id, supplier_id.
-	TotalStockPerProduct(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ProductStockEntry, int64, error)
+	TotalStockPerProduct(db *gorm.DB, f TotalStockFilter) ([]*ProductStockEntry, int64, error)
 	// ExistsByProductAndLocation returns true when an InventoryItem already
 	// exists for the given (productID, locationID) pair, optionally excluding
 	// the item with excludeID (use 0 to skip the exclusion).
@@ -151,7 +210,7 @@ type InventoryTransferRepository interface {
 	Create(db *gorm.DB, t *InventoryTransfer) error
 	Update(db *gorm.DB, t *InventoryTransfer) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryTransfer, int64, error)
+	List(db *gorm.DB, f InventoryTransferFilter) ([]*InventoryTransfer, int64, error)
 }
 
 // MovementType enumerates valid stock movement types for the Kardex.
@@ -205,7 +264,7 @@ type StockMovement struct {
 // StockMovementRepository defines persistence for StockMovement (Kardex).
 type StockMovementRepository interface {
 	Create(db *gorm.DB, m *StockMovement) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*StockMovement, int64, error)
+	List(db *gorm.DB, f StockMovementFilter) ([]*StockMovement, int64, error)
 	ListByProduct(db *gorm.DB, productID uint, page, perPage int) ([]*StockMovement, int64, error)
 	// FindBySaleAndProduct returns the most recent exit StockMovement for a given sale and product.
 	// Returns *domain.ErrNotFound if no matching movement exists.
@@ -260,5 +319,5 @@ type InventoryAdjustmentRepository interface {
 	GetByID(db *gorm.DB, id uint) (*InventoryAdjustment, error)
 	Create(db *gorm.DB, a *InventoryAdjustment) error
 	Update(db *gorm.DB, a *InventoryAdjustment) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*InventoryAdjustment, int64, error)
+	List(db *gorm.DB, f InventoryAdjustmentFilter) ([]*InventoryAdjustment, int64, error)
 }
