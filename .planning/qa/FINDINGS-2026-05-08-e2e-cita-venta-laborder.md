@@ -181,6 +181,14 @@ data_created:
 - **Impacto:** el state machine real (12 estados) sólo es accesible vía API o herramienta. Si recepción/laboratorio/admin necesitan registrar `returned_to_lab` o `portfolio`, no pueden.
 - **Estado:** confirmado.
 
+### Resolución
+- **Fecha:** 2026-05-08
+- **Estado:** resuelto
+- **Commit:** a366967
+- **Causa raíz:** el diálogo del header sólo listaba 10 estados (faltaban `returned_to_lab` y `quality_approved`) y preseleccionaba el estado actual, lo que hacía que el botón "Confirmar" pareciera no responder cuando el usuario abría el diálogo y no cambiaba la selección; además los textos no coincidían con el contrato UI acordado.
+- **Fix:** `STATUS_OPTIONS` ahora cubre los 12 estados del enum `LaboratoryOrderStatusValue`; el select excluye el estado actual; el botón "Confirmar" se deshabilita mientras no haya selección; `Input` reemplazado por `Textarea` para el motivo; el toast de error respeta `error.response.data.message` del backend; título "Actualizar estado de la orden", label "Nuevo estado", placeholder "Selecciona un estado", botones "Confirmar"/"Cancelar". El panel "Próxima acción" del sidebar queda intacto como atajo de UX. Pendiente (QA-E2E-LAB-009): filtrar `STATUS_OPTIONS` por `validateTransition(from, to)` cuando el backend lo exponga (TODO marcado en código).
+- **Archivos:** `convision-front/src/pages/admin/LaboratoryOrderDetail.tsx`
+
 ### QA-E2E-LAB-007 — "Iniciar Venta" desde detalle de cita pierde el `appointment_id` y rompe agregar al carrito
 - **Rol:** receptionist
 - **URL:** `/receptionist/appointments/45` → `/receptionist/sales/catalog` (sin query)
