@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	rolesvc "github.com/convision/api/internal/role"
 )
@@ -14,11 +15,12 @@ import (
 // ListRoles godoc
 // GET /api/v1/roles
 func (h *Handler) ListRoles(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := map[string]any{"name": c.Query("name")}
-
-	out, err := h.role.List(tenantDBFromCtx(c), filters, page, perPage)
+	var f domain.RoleFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	out, err := h.role.List(tenantDBFromCtx(c), f)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -79,20 +79,14 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.RoleModel, error) {
 }
 
 // List returns a paginated list of roles.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-
-	roles, total, err := s.roleRepo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.RoleFilter) (*ListOutput, error) {
+	f.Clamp()
+	roles, total, err := s.roleRepo.List(db, f)
 	if err != nil {
 		s.logger.Error("failed to list roles", zap.Error(err))
 		return nil, err
 	}
-	return &ListOutput{Data: roles, Total: total, Page: page, PerPage: perPage}, nil
+	return &ListOutput{Data: roles, Total: total, Page: f.Page, PerPage: f.PerPage}, nil
 }
 
 // Create creates a new role with the given permissions.
