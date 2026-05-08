@@ -8,12 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var serviceOrderFilterAllowlist = map[string]bool{
-	"status":      true,
-	"supplier_id": true,
-	"priority":    true,
-}
-
 // ServiceOrderRepository implements domain.ServiceOrderRepository using GORM/PostgreSQL.
 type ServiceOrderRepository struct{}
 
@@ -59,22 +53,29 @@ func (r *ServiceOrderRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.ServiceOrder{}, id).Error
 }
 
-func (r *ServiceOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
+func (r *ServiceOrderRepository) List(db *gorm.DB, f domain.ServiceOrderFilter) ([]*domain.ServiceOrder, int64, error) {
+	f.Clamp()
 	var records []*domain.ServiceOrder
 	var total int64
 
 	q := db.Model(&domain.ServiceOrder{})
-	for k, v := range filters {
-		if serviceOrderFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.PatientID != nil {
+		q = q.Where("patient_id = ?", *f.PatientID)
+	}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.ServiceTypeID != nil {
+		q = q.Where("service_type_id = ?", *f.ServiceTypeID)
+	}
+	if f.UserID != nil {
+		q = q.Where("created_by_user_id = ?", *f.UserID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset := (page - 1) * perPage
 	err := q.Select("id, order_number, supplier_id, customer_name, customer_phone, service_type, status, priority, estimated_cost, final_cost, created_at, updated_at").
-		Order("created_at DESC").Offset(offset).Limit(perPage).Find(&records).Error
+		Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&records).Error
 	return records, total, err
 }

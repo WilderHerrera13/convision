@@ -184,11 +184,13 @@ func (h *Handler) DeleteSupplier(c *gin.Context) {
 // ---------- Purchases ----------
 
 func (h *Handler) ListPurchases(c *gin.Context) {
+	var f domain.PurchaseFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
-	out, err := h.purchase.List(db, filters, page, perPage)
+	out, err := h.purchase.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -296,11 +298,13 @@ func (h *Handler) GetExpenseStats(c *gin.Context) {
 }
 
 func (h *Handler) ListExpenses(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
+	var f domain.ExpenseFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	out, err := h.expense.List(db, filters, page, perPage)
+	out, err := h.expense.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

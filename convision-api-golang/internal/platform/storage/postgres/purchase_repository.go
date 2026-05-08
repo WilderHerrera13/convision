@@ -8,11 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var purchaseFilterAllowlist = map[string]string{
-	"supplier_id":    "=",
-	"payment_status": "=",
-}
-
 // PurchaseRepository is the PostgreSQL-backed implementation of domain.PurchaseRepository.
 type PurchaseRepository struct{}
 
@@ -70,29 +65,29 @@ func (r *PurchaseRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Purchase{}, id).Error
 }
 
-func (r *PurchaseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Purchase, int64, error) {
+func (r *PurchaseRepository) List(db *gorm.DB, f domain.PurchaseFilter) ([]*domain.Purchase, int64, error) {
+	f.Clamp()
 	var purchases []*domain.Purchase
 	var total int64
 
 	q := db.Model(&domain.Purchase{})
-	for field, value := range filters {
-		op, allowed := purchaseFilterAllowlist[field]
-		if !allowed {
-			continue
-		}
-		if op == "=" {
-			q = q.Where(field+" = ?", value)
-		}
+	if f.SupplierID != nil {
+		q = q.Where("supplier_id = ?", *f.SupplierID)
+	}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.PaymentMethodID != nil {
+		q = q.Where("payment_method_id = ?", *f.PaymentMethodID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
 		Order("purchases.id DESC").
-		Limit(perPage).Offset(offset).
+		Limit(f.PerPage).Offset(f.Offset()).
 		Find(&purchases).Error
 
 	return purchases, total, err

@@ -31,13 +31,21 @@ type Expense struct {
 	CreatedByUser *User          `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedByUserID"`
 }
 
+// ExpenseFilter holds query parameters for listing expenses.
+type ExpenseFilter struct {
+	Pagination
+	SupplierID      *uint  `form:"supplier_id"`
+	Status          string `form:"status"`
+	PaymentMethodID *uint  `form:"payment_method_id"`
+}
+
 // ExpenseRepository defines persistence operations for Expense.
 type ExpenseRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Expense, error)
 	Create(db *gorm.DB, e *Expense) error
 	Update(db *gorm.DB, e *Expense) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Expense, int64, error)
+	List(db *gorm.DB, f ExpenseFilter) ([]*Expense, int64, error)
 }
 
 // ServiceOrder represents an external service order sent to a supplier.
@@ -109,13 +117,31 @@ func (Payroll) TableName() string {
 	return "payroll"
 }
 
+// ServiceOrderFilter holds query parameters for listing service orders.
+type ServiceOrderFilter struct {
+	Pagination
+	PatientID     *uint  `form:"patient_id"`
+	Status        string `form:"status"`
+	ServiceTypeID *uint  `form:"service_type_id"`
+	UserID        *uint  `form:"user_id"`
+}
+
 // ServiceOrderRepository defines persistence operations for ServiceOrder.
 type ServiceOrderRepository interface {
 	GetByID(db *gorm.DB, id uint) (*ServiceOrder, error)
 	Create(db *gorm.DB, s *ServiceOrder) error
 	Update(db *gorm.DB, s *ServiceOrder) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ServiceOrder, int64, error)
+	List(db *gorm.DB, f ServiceOrderFilter) ([]*ServiceOrder, int64, error)
+}
+
+// PayrollFilter holds query parameters for listing payroll records.
+type PayrollFilter struct {
+	Pagination
+	UserID   *uint  `form:"user_id"`
+	FromDate string `form:"from_date"`
+	ToDate   string `form:"to_date"`
+	Status   string `form:"status"`
 }
 
 // PayrollRepository defines persistence operations for Payroll.
@@ -124,5 +150,5 @@ type PayrollRepository interface {
 	Create(db *gorm.DB, p *Payroll) error
 	Update(db *gorm.DB, p *Payroll) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Payroll, int64, error)
+	List(db *gorm.DB, f PayrollFilter) ([]*Payroll, int64, error)
 }

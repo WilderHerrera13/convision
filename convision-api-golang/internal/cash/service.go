@@ -78,7 +78,7 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.CashTransfer, error) {
 
 // GetStats returns aggregate statistics.
 func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
-	data, _, err := s.repo.List(db, map[string]any{}, 1, 10000)
+	data, _, err := s.repo.List(db, domain.CashTransferFilter{Pagination: domain.Pagination{Page: 1, PerPage: 10000}})
 	if err != nil {
 		return nil, err
 	}
@@ -98,27 +98,22 @@ func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
 }
 
 // List returns a paginated list.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.CashTransferFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(math.Ceil(float64(total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(total) / float64(f.PerPage)))
 	}
-	return &ListOutput{Data: data, Total: total, CurrentPage: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &ListOutput{Data: data, Total: total, CurrentPage: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 // Create creates a new cash transfer.
 func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) (*domain.CashTransfer, error) {
-	_, total, _ := s.repo.List(db, map[string]any{}, 1, 1)
+	_, total, _ := s.repo.List(db, domain.CashTransferFilter{Pagination: domain.Pagination{Page: 1, PerPage: 1}})
 	transferNum := fmt.Sprintf("CT-%04d", total+1)
 	now := time.Now()
 

@@ -8,11 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var cashTransferFilterAllowlist = map[string]bool{
-	"status": true,
-	"type":   true,
-}
-
 // CashTransferRepository implements domain.CashTransferRepository using GORM/PostgreSQL.
 type CashTransferRepository struct{}
 
@@ -54,22 +49,23 @@ func (r *CashTransferRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.CashTransfer{}, id).Error
 }
 
-func (r *CashTransferRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.CashTransfer, int64, error) {
+func (r *CashTransferRepository) List(db *gorm.DB, f domain.CashTransferFilter) ([]*domain.CashTransfer, int64, error) {
+	f.Clamp()
 	var records []*domain.CashTransfer
 	var total int64
 
 	q := db.Model(&domain.CashTransfer{})
-	for k, v := range filters {
-		if cashTransferFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.Type != "" {
+		q = q.Where("type = ?", f.Type)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset := (page - 1) * perPage
 	err := q.Select("id, transfer_number, type, from_account, to_account, amount, status, concept, transfer_date, created_at, updated_at, created_by_user_id, approved_by_user_id, approved_at").
-		Order("created_at DESC").Offset(offset).Limit(perPage).Find(&records).Error
+		Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&records).Error
 	return records, total, err
 }

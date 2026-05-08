@@ -112,10 +112,11 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	filters := map[string]any{}
+	var f domain.CashRegisterCloseFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 
 	branchID := branchmw.BranchIDFromCtx(c)
 	if override := resolveBranchOverride(c); override != nil {
@@ -126,29 +127,12 @@ func (h *Handler) ListCashRegisterCloses(c *gin.Context) {
 		}
 	}
 	if branchID > 0 {
-		filters["branch_id"] = branchID
-	}
-
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
-	}
-	if v := c.Query("user_id"); v != "" {
-		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["user_id"] = uint(n)
-		}
-	}
-	if v := c.Query("close_date"); v != "" {
-		filters["close_date"] = v
-	}
-	if v := c.Query("date_from"); v != "" {
-		filters["date_from"] = v
-	}
-	if v := c.Query("date_to"); v != "" {
-		filters["date_to"] = v
+		bid := branchID
+		f.BranchID = &bid
 	}
 
 	db := tenantDBFromCtx(c)
-	out, err := h.cashClose.List(db, filters, page, perPage, claims.Role, claims.UserID)
+	out, err := h.cashClose.List(db, f, claims.Role, claims.UserID)
 	if err != nil {
 		respondError(c, err)
 		return

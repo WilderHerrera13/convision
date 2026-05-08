@@ -75,11 +75,19 @@ type PurchasePayment struct {
 	CreatedByUser *User          `json:"created_by_user,omitempty" gorm:"foreignKey:CreatedByUserID"`
 }
 
+// PurchaseFilter holds query parameters for listing purchases.
+type PurchaseFilter struct {
+	Pagination
+	SupplierID      *uint  `form:"supplier_id"`
+	Status          string `form:"status"`
+	PaymentMethodID *uint  `form:"payment_method_id"`
+}
+
 // PurchaseRepository defines persistence operations for Purchase.
 type PurchaseRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Purchase, error)
 	Create(db *gorm.DB, p *Purchase) error
 	Update(db *gorm.DB, p *Purchase) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Purchase, int64, error)
+	List(db *gorm.DB, f PurchaseFilter) ([]*Purchase, int64, error)
 }

@@ -35,8 +35,8 @@ func (m *MockExpenseRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockExpenseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockExpenseRepository) List(db *gorm.DB, f domain.ExpenseFilter) ([]*domain.Expense, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -67,8 +67,8 @@ func (m *MockPayrollRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockPayrollRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockPayrollRepository) List(db *gorm.DB, f domain.PayrollFilter) ([]*domain.Payroll, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -99,8 +99,8 @@ func (m *MockServiceOrderRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockServiceOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ServiceOrder, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockServiceOrderRepository) List(db *gorm.DB, f domain.ServiceOrderFilter) ([]*domain.ServiceOrder, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

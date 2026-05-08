@@ -9,15 +9,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var cashRegisterCloseFilterAllowlist = map[string]bool{
-	"branch_id":  true,
-	"user_id":    true,
-	"status":     true,
-	"close_date": true,
-	"date_from":  true,
-	"date_to":    true,
-}
-
 // CashRegisterCloseRepository implements domain.CashRegisterCloseRepository.
 type CashRegisterCloseRepository struct{}
 
@@ -73,44 +64,48 @@ func (r *CashRegisterCloseRepository) GetByUserBranchAndDate(db *gorm.DB, userID
 	return r.GetByID(db, records[0].ID)
 }
 
-func (r *CashRegisterCloseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.CashRegisterClose, int64, error) {
+func (r *CashRegisterCloseRepository) List(db *gorm.DB, f domain.CashRegisterCloseFilter, role domain.Role, userID uint) ([]*domain.CashRegisterClose, int64, error) {
+	f.Clamp()
 	var records []*domain.CashRegisterClose
 	var total int64
 
 	q := db.Model(&domain.CashRegisterClose{})
-	for k, v := range filters {
-		if k == "branch_id" {
-			q = q.Where("branch_id = ?", v)
-			continue
-		}
-		if !cashRegisterCloseFilterAllowlist[k] {
-			continue
-		}
-		switch k {
-		case "close_date":
-			q = q.Where("DATE(close_date) = ?", v)
-		case "date_from":
-			q = q.Where("DATE(close_date) >= ?", v)
-		case "date_to":
-			q = q.Where("DATE(close_date) <= ?", v)
-		default:
-			q = q.Where(k+" = ?", v)
-		}
+
+	// Role-based scoping: non-admins see only their own records.
+	if role != domain.RoleAdmin {
+		q = q.Where("user_id = ?", userID)
+	} else if f.UserID != nil {
+		q = q.Where("user_id = ?", *f.UserID)
+	}
+
+	if f.BranchID != nil {
+		q = q.Where("branch_id = ?", *f.BranchID)
+	}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.CloseDate != "" {
+		q = q.Where("DATE(close_date) = ?", f.CloseDate)
+	}
+	if f.DateFrom != "" {
+		q = q.Where("DATE(close_date) >= ?", f.DateFrom)
+	}
+	if f.DateTo != "" {
+		q = q.Where("DATE(close_date) <= ?", f.DateTo)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.
 		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at").
 		Preload("User", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id, name, last_name, role_type")
 		}).
 		Order("close_date DESC NULLS LAST, created_at DESC").
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Find(&records).Error
 
 	return records, total, err

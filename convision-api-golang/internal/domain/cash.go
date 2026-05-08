@@ -78,13 +78,24 @@ type CashCountDenomination struct {
 	CashRegisterClose *CashRegisterClose `json:"cash_register_close,omitempty" gorm:"foreignKey:CashRegisterCloseID"`
 }
 
+// CashRegisterCloseFilter holds query parameters for listing cash register closes.
+type CashRegisterCloseFilter struct {
+	Pagination
+	BranchID  *uint  `form:"-"` // injected by middleware
+	UserID    *uint  `form:"user_id"`
+	Status    string `form:"status"`
+	CloseDate string `form:"close_date"`
+	DateFrom  string `form:"date_from"`
+	DateTo    string `form:"date_to"`
+}
+
 // CashRegisterCloseRepository defines persistence operations for cash register closes.
 type CashRegisterCloseRepository interface {
 	GetByID(db *gorm.DB, id uint) (*CashRegisterClose, error)
 	// GetByUserBranchAndDate returns the single close for (userID, branchID, date). Returns ErrNotFound if none exist.
 	// Prioritizes submitted/approved over draft when multiple exist (historical duplicates).
 	GetByUserBranchAndDate(db *gorm.DB, userID uint, branchID uint, date string) (*CashRegisterClose, error)
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*CashRegisterClose, int64, error)
+	List(db *gorm.DB, f CashRegisterCloseFilter, role Role, userID uint) ([]*CashRegisterClose, int64, error)
 	// ListByStatuses returns all closes whose status is in the given list, ordered by close_date DESC.
 	// Intended for the advisors-pending aggregation (no pagination needed — result is grouped per user).
 	ListByStatuses(db *gorm.DB, statuses []CashRegisterCloseStatus, branchID uint) ([]*CashRegisterClose, error)
@@ -139,13 +150,20 @@ type CashTransfer struct {
 	ApprovedByUser *User `json:"approved_by_user,omitempty" gorm:"foreignKey:ApprovedByUserID"`
 }
 
+// CashTransferFilter holds query parameters for listing cash transfers.
+type CashTransferFilter struct {
+	Pagination
+	Status string `form:"status"`
+	Type   string `form:"type"`
+}
+
 // CashTransferRepository defines persistence operations for CashTransfer.
 type CashTransferRepository interface {
 	GetByID(db *gorm.DB, id uint) (*CashTransfer, error)
 	Create(db *gorm.DB, t *CashTransfer) error
 	Update(db *gorm.DB, t *CashTransfer) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*CashTransfer, int64, error)
+	List(db *gorm.DB, f CashTransferFilter) ([]*CashTransfer, int64, error)
 }
 
 // DailyShift enumerates the shift options for daily reports.

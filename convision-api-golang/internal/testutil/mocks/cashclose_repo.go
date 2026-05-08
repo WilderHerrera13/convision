@@ -29,8 +29,8 @@ func (m *MockCashRegisterCloseRepository) GetByUserBranchAndDate(db *gorm.DB, us
 	return args.Get(0).(*domain.CashRegisterClose), args.Error(1)
 }
 
-func (m *MockCashRegisterCloseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.CashRegisterClose, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockCashRegisterCloseRepository) List(db *gorm.DB, f domain.CashRegisterCloseFilter, role domain.Role, userID uint) ([]*domain.CashRegisterClose, int64, error) {
+	args := m.Called(db, f, role, userID)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

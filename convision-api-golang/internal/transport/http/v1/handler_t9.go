@@ -6,9 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	jwtauth "github.com/convision/api/internal/platform/auth"
 	cashsvc "github.com/convision/api/internal/cash"
+	"github.com/convision/api/internal/domain"
 	payrollsvc "github.com/convision/api/internal/payroll"
+	jwtauth "github.com/convision/api/internal/platform/auth"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
 )
 
@@ -25,11 +26,13 @@ func (h *Handler) GetPayrollStats(c *gin.Context) {
 }
 
 func (h *Handler) ListPayrolls(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
+	var f domain.PayrollFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	out, err := h.payroll.List(db, filters, page, perPage)
+	out, err := h.payroll.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -120,11 +123,13 @@ func (h *Handler) GetServiceOrderStats(c *gin.Context) {
 }
 
 func (h *Handler) ListServiceOrders(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
+	var f domain.ServiceOrderFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	out, err := h.serviceOrder.List(db, filters, page, perPage)
+	out, err := h.serviceOrder.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -215,11 +220,13 @@ func (h *Handler) GetCashTransferStats(c *gin.Context) {
 }
 
 func (h *Handler) ListCashTransfers(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
+	var f domain.CashTransferFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	out, err := h.cashTransfer.List(db, filters, page, perPage)
+	out, err := h.cashTransfer.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

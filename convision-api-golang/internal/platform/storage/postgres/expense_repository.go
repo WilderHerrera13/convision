@@ -8,12 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var expenseFilterAllowlist = map[string]string{
-	"supplier_id":       "=",
-	"status":            "=",
-	"payment_method_id": "=",
-}
-
 // ExpenseRepository is the PostgreSQL-backed implementation of domain.ExpenseRepository.
 type ExpenseRepository struct{}
 
@@ -67,29 +61,29 @@ func (r *ExpenseRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Expense{}, id).Error
 }
 
-func (r *ExpenseRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Expense, int64, error) {
+func (r *ExpenseRepository) List(db *gorm.DB, f domain.ExpenseFilter) ([]*domain.Expense, int64, error) {
+	f.Clamp()
 	var expenses []*domain.Expense
 	var total int64
 
 	q := db.Model(&domain.Expense{})
-	for field, value := range filters {
-		op, allowed := expenseFilterAllowlist[field]
-		if !allowed {
-			continue
-		}
-		if op == "=" {
-			q = q.Where(field+" = ?", value)
-		}
+	if f.SupplierID != nil {
+		q = q.Where("supplier_id = ?", *f.SupplierID)
+	}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.PaymentMethodID != nil {
+		q = q.Where("payment_method_id = ?", *f.PaymentMethodID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
 		Order("expenses.id DESC").
-		Limit(perPage).Offset(offset).
+		Limit(f.PerPage).Offset(f.Offset()).
 		Find(&expenses).Error
 
 	return expenses, total, err

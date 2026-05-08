@@ -8,11 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var payrollFilterAllowlist = map[string]bool{
-	"status":            true,
-	"employee_position": true,
-}
-
 // PayrollRepository implements domain.PayrollRepository using GORM/PostgreSQL.
 type PayrollRepository struct{}
 
@@ -65,22 +60,29 @@ func (r *PayrollRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Payroll{}, id).Error
 }
 
-func (r *PayrollRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Payroll, int64, error) {
+func (r *PayrollRepository) List(db *gorm.DB, f domain.PayrollFilter) ([]*domain.Payroll, int64, error) {
+	f.Clamp()
 	var records []*domain.Payroll
 	var total int64
 
 	q := db.Model(&domain.Payroll{})
-	for k, v := range filters {
-		if payrollFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.UserID != nil {
+		q = q.Where("created_by_user_id = ?", *f.UserID)
+	}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.FromDate != "" {
+		q = q.Where("DATE(created_at) >= ?", f.FromDate)
+	}
+	if f.ToDate != "" {
+		q = q.Where("DATE(created_at) <= ?", f.ToDate)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset := (page - 1) * perPage
 	err := q.Select("id, employee_name, employee_identification, employee_position, pay_period_start, pay_period_end, base_salary, net_salary, status, payment_date, created_at, updated_at").
-		Order("created_at DESC").Offset(offset).Limit(perPage).Find(&records).Error
+		Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&records).Error
 	return records, total, err
 }

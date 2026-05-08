@@ -121,29 +121,17 @@ type PutAdminActualsInput struct {
 }
 
 // List returns cash register closes scoped by role.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int, role domain.Role, userID uint) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	if filters == nil {
-		filters = map[string]any{}
-	}
+func (s *Service) List(db *gorm.DB, f domain.CashRegisterCloseFilter, role domain.Role, userID uint) (*ListOutput, error) {
+	f.Clamp()
 
-	if role != domain.RoleAdmin {
-		filters["user_id"] = userID
-	}
-
-	data, total, err := s.repo.List(db, filters, page, perPage)
+	data, total, err := s.repo.List(db, f, role, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(math.Ceil(float64(total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(total) / float64(f.PerPage)))
 	}
 
 	s.logger.Debug("listed cash register closes", zap.Int("count", len(data)), zap.Int64("total", total), zap.String("role", string(role)))
@@ -151,8 +139,8 @@ func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int, r
 	return &ListOutput{
 		Data:        data,
 		Total:       total,
-		CurrentPage: page,
-		PerPage:     perPage,
+		CurrentPage: f.Page,
+		PerPage:     f.PerPage,
 		LastPage:    lastPage,
 	}, nil
 }
@@ -727,15 +715,18 @@ func (s *Service) Consolidated(db *gorm.DB, branchID uint, branchNameMap map[uin
 	toStr := to.Format("2006-01-02")
 	daysInPeriod := int(to.Sub(from).Hours()/24) + 1
 
-	filters := map[string]any{
-		"date_from": fromStr,
-		"date_to":   toStr,
+	filter := domain.CashRegisterCloseFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 10000},
+		DateFrom:   fromStr,
+		DateTo:     toStr,
 	}
 	if branchID > 0 {
-		filters["branch_id"] = branchID
+		bid := branchID
+		filter.BranchID = &bid
 	}
 
-	closes, _, err := s.repo.List(db, filters, 1, 10000)
+	// Consolidated is admin-only — pass RoleAdmin so the repo doesn't apply user_id scoping.
+	closes, _, err := s.repo.List(db, filter, domain.RoleAdmin, 0)
 	if err != nil {
 		return nil, err
 	}

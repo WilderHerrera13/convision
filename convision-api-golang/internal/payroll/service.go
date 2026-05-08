@@ -93,7 +93,7 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Payroll, error) {
 
 // GetStats returns aggregate payroll statistics.
 func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
-	data, total, err := s.repo.List(db, map[string]any{}, 1, 10000)
+	data, total, err := s.repo.List(db, domain.PayrollFilter{Pagination: domain.Pagination{Page: 1, PerPage: 10000}})
 	if err != nil {
 		return nil, err
 	}
@@ -110,22 +110,17 @@ func (s *Service) GetStats(db *gorm.DB) (*StatsOutput, error) {
 }
 
 // List returns a paginated list of payrolls.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.PayrollFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(math.Ceil(float64(total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(total) / float64(f.PerPage)))
 	}
-	return &ListOutput{Data: data, Total: total, CurrentPage: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &ListOutput{Data: data, Total: total, CurrentPage: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 func calculatePayroll(p *domain.Payroll) {
