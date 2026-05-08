@@ -20,35 +20,38 @@ func (r *StockMovementRepository) Create(db *gorm.DB, m *domain.StockMovement) e
 	return db.Create(m).Error
 }
 
-func (r *StockMovementRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.StockMovement, int64, error) {
+func (r *StockMovementRepository) List(db *gorm.DB, f domain.StockMovementFilter) ([]*domain.StockMovement, int64, error) {
+	f.Clamp()
 	var data []*domain.StockMovement
 	var total int64
 
 	q := db.Model(&domain.StockMovement{}).
 		Preload("Product").
 		Preload("Warehouse")
-
-	if v, ok := filters["product_id"]; ok {
-		q = q.Where("product_id = ?", v)
+	if f.ProductID != nil {
+		q = q.Where("product_id = ?", *f.ProductID)
 	}
-	if v, ok := filters["warehouse_id"]; ok {
-		q = q.Where("warehouse_id = ?", v)
+	if f.WarehouseID != nil {
+		q = q.Where("warehouse_id = ?", *f.WarehouseID)
 	}
-	if v, ok := filters["movement_type"]; ok {
-		q = q.Where("movement_type = ?", v)
+	if f.MovementType != "" {
+		q = q.Where("movement_type = ?", f.MovementType)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
-	err := q.Order("created_at DESC").Offset(offset).Limit(perPage).Find(&data).Error
+	err := q.Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&data).Error
 	return data, total, err
 }
 
 func (r *StockMovementRepository) ListByProduct(db *gorm.DB, productID uint, page, perPage int) ([]*domain.StockMovement, int64, error) {
-	return r.List(db, map[string]any{"product_id": productID}, page, perPage)
+	pid := productID
+	return r.List(db, domain.StockMovementFilter{
+		Pagination: domain.Pagination{Page: page, PerPage: perPage},
+		ProductID:  &pid,
+	})
 }
 
 func (r *StockMovementRepository) FindBySaleAndProduct(db *gorm.DB, saleID, productID uint) (*domain.StockMovement, error) {

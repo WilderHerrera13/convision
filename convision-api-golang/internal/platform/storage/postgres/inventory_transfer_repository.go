@@ -8,14 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var inventoryTransferFilterAllowlist = map[string]bool{
-	"status":                  true,
-	"product_id":              true,
-	"source_location_id":      true,
-	"destination_location_id": true,
-	"transferred_by":          true,
-}
-
 // InventoryTransferRepository is the PostgreSQL-backed implementation of domain.InventoryTransferRepository.
 type InventoryTransferRepository struct{}
 
@@ -60,26 +52,32 @@ func (r *InventoryTransferRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.InventoryTransfer{}, id).Error
 }
 
-func (r *InventoryTransferRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryTransfer, int64, error) {
+func (r *InventoryTransferRepository) List(db *gorm.DB, f domain.InventoryTransferFilter) ([]*domain.InventoryTransfer, int64, error) {
+	f.Clamp()
 	var transfers []*domain.InventoryTransfer
 	var total int64
 
 	q := db.Model(&domain.InventoryTransfer{})
-	for field, value := range filters {
-		if !inventoryTransferFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("inventory_transfers."+field+" = ?", value)
+	if f.BranchID != nil {
+		q = q.Where("inventory_transfers.branch_id = ?", *f.BranchID)
+	}
+	if f.ProductID != nil {
+		q = q.Where("inventory_transfers.product_id = ?", *f.ProductID)
+	}
+	if f.Status != "" {
+		q = q.Where("inventory_transfers.status = ?", f.Status)
+	}
+	if f.CreatedBy != nil {
+		q = q.Where("inventory_transfers.transferred_by = ?", *f.CreatedBy)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("inventory_transfers.id desc").
 		Find(&transfers).Error
 	if err != nil {

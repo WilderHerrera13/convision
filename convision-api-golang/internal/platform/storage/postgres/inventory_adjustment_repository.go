@@ -39,24 +39,23 @@ func (r *InventoryAdjustmentRepository) Update(db *gorm.DB, a *domain.InventoryA
 	}).Error
 }
 
-func (r *InventoryAdjustmentRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.InventoryAdjustment, int64, error) {
+func (r *InventoryAdjustmentRepository) List(db *gorm.DB, f domain.InventoryAdjustmentFilter) ([]*domain.InventoryAdjustment, int64, error) {
+	f.Clamp()
 	var data []*domain.InventoryAdjustment
 	var total int64
 
 	q := db.Model(&domain.InventoryAdjustment{}).Preload("InventoryItem")
-
-	if v, ok := filters["status"]; ok {
-		q = q.Where("status = ?", v)
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
 	}
-	if v, ok := filters["requested_by"]; ok {
-		q = q.Where("requested_by = ?", v)
+	if f.RequestedBy != nil {
+		q = q.Where("requested_by = ?", *f.RequestedBy)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
-	err := q.Order("created_at DESC").Offset(offset).Limit(perPage).Find(&data).Error
+	err := q.Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&data).Error
 	return data, total, err
 }
