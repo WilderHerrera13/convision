@@ -98,6 +98,14 @@ data_created:
 - **Impacto:** la persona que más necesita ver el estado de las órdenes (recepción, que recibe a los pacientes que vienen a reclamar) no tiene acceso. El sidebar miente.
 - **Estado:** confirmado.
 
+### Resolución
+- **Fecha:** 2026-05-08
+- **Estado:** resuelto
+- **Commit:** 7586eaa
+- **Causa raíz:** el árbol de rutas de `/receptionist` solo registraba `lab-orders` y `lab-orders/:id`; el sidebar apuntaba a `/receptionist/laboratory-orders` (URL larga), por lo que React Router caía al `*` 404. El backend ya permite a cualquier usuario autenticado hacer `GET /api/v1/laboratory-orders`, así que no había gap de RBAC.
+- **Fix:** se añade un helper `RedirectWithParams` en `App.tsx` y dos rutas redirect (`laboratory-orders` → `lab-orders`, `laboratory-orders/:id` → `lab-orders/:id`) bajo `/receptionist`, reutilizando `ReceptionistLabOrders` / `ReceptionistLabOrderDetail` sin duplicar componentes.
+- **Archivos:** `convision-front/src/App.tsx`
+
 ### QA-E2E-LAB-003 — Usuario `laboratory` redirigido a `/unauthorized`
 - **Rol:** laboratory (`laboratory@convision.com`)
 - **URL:** `/unauthorized` tras `/login`
@@ -110,6 +118,14 @@ data_created:
 - **Evidencia:** `localStorage.user.role === "laboratory"`, `window.location.pathname === "/unauthorized"`.
 - **Impacto:** el rol existe en seed (`laboratory@convision.com`), tiene permiso en backend (`laboratory_orders:edit`) y puede mover estados vía API — pero no tiene UI. El operador del laboratorio no puede usar la app.
 - **Estado:** confirmado. Regresión documentada en `FINDINGS-2026-05-08-e2e-paciente-venta-v2.md` (QA-V2-006) — sigue abierto.
+
+### Resolución
+- **Fecha:** 2026-05-08
+- **Estado:** resuelto
+- **Commit:** c7fe899
+- **Causa raíz:** ni `PublicRoute` ni `HomePage` enrutaban el rol `laboratory` después del login y no existía un árbol `/laboratory/*` en el router, por lo que la guardia `allowedRoles` caía a `/unauthorized` en cuanto se montaba cualquier ruta privada.
+- **Fix:** se añade rama `case 'laboratory'` → `/laboratory/lab-orders` en los redirectores post-login, se monta un bloque `/laboratory` con `AdminLayout` reutilizando las páginas existentes (`LaboratoryOrders`, `LaboratoryOrderDetail`, `ConfirmShipment/Reception/Delivery`, `AssignDrawer`, `AdminNotifyClient`, `LaboratoryStatus`) y se añade `laboratoryNav` en `AdminLayout` con el sidebar mínimo del rol (Dashboard, Órdenes de Laboratorio, Estado de Laboratorios). Ningún componente nuevo.
+- **Archivos:** `convision-front/src/App.tsx`, `convision-front/src/layouts/AdminLayout.tsx`
 
 ### QA-E2E-LAB-004 — Especialista no puede aprobar control de calidad
 - **Rol:** specialist
