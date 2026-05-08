@@ -27,18 +27,13 @@ type ListOutput struct {
 }
 
 // List returns paginated notifications.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.NotificationFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
-	return &ListOutput{Data: data, Total: total, Page: page, PerPage: perPage}, nil
+	return &ListOutput{Data: data, Total: total, Page: f.Page, PerPage: f.PerPage}, nil
 }
 
 // Summary returns unread/total/archived counts.

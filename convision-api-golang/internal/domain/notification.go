@@ -38,6 +38,13 @@ type NotificationSummary struct {
 	Archived int64 `json:"archived"`
 }
 
+// NotificationFilter holds query parameters for listing admin user notifications.
+type NotificationFilter struct {
+	Pagination
+	Archived *bool `form:"archived"`
+	Unread   *bool `form:"unread"`
+}
+
 // NotificationRepository defines persistence operations for AdminUserNotification.
 type NotificationRepository interface {
 	GetByID(db *gorm.DB, id uint) (*AdminUserNotification, error)
@@ -50,5 +57,5 @@ type NotificationRepository interface {
 	ReadAll(db *gorm.DB) error
 	Summary(db *gorm.DB) (*NotificationSummary, error)
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*AdminUserNotification, int64, error)
+	List(db *gorm.DB, f NotificationFilter) ([]*AdminUserNotification, int64, error)
 }

@@ -344,16 +344,12 @@ func (h *Handler) GetNotificationSummary(c *gin.Context) {
 
 func (h *Handler) ListNotifications(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := map[string]any{}
-	if archived := c.Query("archived"); archived != "" {
-		filters["archived"] = archived
+	var f domain.NotificationFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
-	if unread := c.Query("unread"); unread != "" {
-		filters["unread"] = unread
-	}
-	out, err := h.notification.List(db, filters, page, perPage)
+	out, err := h.notification.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -368,9 +364,9 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	// Calculate last_page
 	lastPage := 1
 	if out.Total > 0 {
-		lastPage = int(math.Ceil(float64(out.Total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(out.Total) / float64(out.PerPage)))
 	}
-	
+
 	// Build response with counts and meta
 	response := gin.H{
 		"data": out.Data,
@@ -380,9 +376,9 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 			"archived": summary.Archived,
 		},
 		"meta": gin.H{
-			"current_page": page,
+			"current_page": out.Page,
 			"last_page":    lastPage,
-			"per_page":     perPage,
+			"per_page":     out.PerPage,
 			"total":        out.Total,
 		},
 	}

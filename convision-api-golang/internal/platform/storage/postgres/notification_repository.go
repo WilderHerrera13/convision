@@ -71,24 +71,25 @@ func (r *NotificationRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.AdminUserNotification{}, id).Error
 }
 
-func (r *NotificationRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.AdminUserNotification, int64, error) {
+func (r *NotificationRepository) List(db *gorm.DB, f domain.NotificationFilter) ([]*domain.AdminUserNotification, int64, error) {
+	f.Clamp()
 	var records []*domain.AdminUserNotification
 	var total int64
 
 	q := db.Model(&domain.AdminUserNotification{})
 
-	if archived, ok := filters["archived"]; ok && archived == "1" {
+	switch {
+	case f.Archived != nil && *f.Archived:
 		q = q.Where("archived_at IS NOT NULL")
-	} else if unread, ok := filters["unread"]; ok && unread == "1" {
+	case f.Unread != nil && *f.Unread:
 		q = q.Where("read_at IS NULL AND archived_at IS NULL")
-	} else {
+	default:
 		q = q.Where("archived_at IS NULL")
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset := (page - 1) * perPage
-	err := q.Order("created_at DESC").Offset(offset).Limit(perPage).Find(&records).Error
+	err := q.Order("created_at DESC").Offset(f.Offset()).Limit(f.PerPage).Find(&records).Error
 	return records, total, err
 }
