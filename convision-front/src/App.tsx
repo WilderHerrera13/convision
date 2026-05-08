@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { BranchProvider, useBranch } from '@/contexts/BranchContext';
 import SelectBranchPage from '@/pages/SelectBranchPage';
@@ -297,6 +297,15 @@ const RootLayout: React.FC = () => {
       </AuthProvider>
     </BranchProvider>
   );
+};
+
+const RedirectWithParams: React.FC<{ to: string }> = ({ to }) => {
+  const params = useParams();
+  let target = to;
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) target = target.replace(`:${key}`, value);
+  }
+  return <Navigate to={target} replace />;
 };
 
 const router = createBrowserRouter([
@@ -861,6 +870,14 @@ const router = createBrowserRouter([
           {
             path: "lab-orders",
             element: <ReceptionistLabOrders />,
+          },
+          {
+            path: "laboratory-orders",
+            element: <Navigate to="/receptionist/lab-orders" replace />,
+          },
+          {
+            path: "laboratory-orders/:id",
+            element: <RedirectWithParams to="/receptionist/lab-orders/:id" />,
           },
           {
             path: "lab-orders/new",
