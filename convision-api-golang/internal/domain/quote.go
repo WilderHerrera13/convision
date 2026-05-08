@@ -61,6 +61,14 @@ type QuoteItem struct {
 	Product *Product `json:"product,omitempty" gorm:"foreignKey:ProductID"`
 }
 
+// QuoteFilter holds query parameters for listing quotes.
+type QuoteFilter struct {
+	Pagination
+	PatientID *uint  `form:"patient_id"`
+	Status    string `form:"status"`
+	UserID    *uint  `form:"user_id"`
+}
+
 // QuoteRepository defines persistence operations for Quote.
 type QuoteRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Quote, error)
@@ -68,5 +76,5 @@ type QuoteRepository interface {
 	Create(db *gorm.DB, q *Quote) error
 	Update(db *gorm.DB, q *Quote) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Quote, int64, error)
+	List(db *gorm.DB, f QuoteFilter) ([]*Quote, int64, error)
 }

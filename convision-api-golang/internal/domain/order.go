@@ -63,6 +63,15 @@ type OrderItem struct {
 	Product *Product `json:"product,omitempty" gorm:"foreignKey:ProductID"`
 }
 
+// OrderFilter holds query parameters for listing orders.
+type OrderFilter struct {
+	Pagination
+	PatientID     *uint  `form:"patient_id"`
+	Status        string `form:"status"`
+	PaymentStatus string `form:"payment_status"`
+	LaboratoryID  *uint  `form:"laboratory_id"`
+}
+
 // OrderRepository defines persistence operations for Order.
 type OrderRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Order, error)
@@ -70,5 +79,5 @@ type OrderRepository interface {
 	Create(db *gorm.DB, o *Order) error
 	Update(db *gorm.DB, o *Order) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Order, int64, error)
+	List(db *gorm.DB, f OrderFilter) ([]*Order, int64, error)
 }

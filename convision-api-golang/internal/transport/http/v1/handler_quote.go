@@ -2,10 +2,10 @@ package v1
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	quotesvc "github.com/convision/api/internal/quote"
 )
@@ -14,18 +14,13 @@ import (
 // GET /api/v1/quotes
 func (h *Handler) ListQuotes(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	filters := map[string]any{}
-	if v := c.Query("patient_id"); v != "" {
-		filters["patient_id"] = v
-	}
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
+	var f domain.QuoteFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
-	out, err := h.quote.List(db, filters, page, perPage)
+	out, err := h.quote.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

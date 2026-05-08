@@ -122,6 +122,16 @@ type SaleLensPriceAdjustment struct {
 	AdjustedByUser *User    `json:"adjusted_by_user,omitempty" gorm:"foreignKey:AdjustedBy"`
 }
 
+// SaleFilter holds query parameters for listing sales.
+type SaleFilter struct {
+	Pagination
+	BranchID      *uint  `form:"-"` // injected by middleware
+	PatientID     *uint  `form:"patient_id"`
+	Status        string `form:"status"`
+	PaymentStatus string `form:"payment_status"`
+	UserID        *uint  `form:"user_id"`
+}
+
 // SaleRepository defines persistence operations for Sale.
 type SaleRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Sale, error)
@@ -129,7 +139,7 @@ type SaleRepository interface {
 	Create(db *gorm.DB, s *Sale) error
 	Update(db *gorm.DB, s *Sale) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Sale, int64, error)
+	List(db *gorm.DB, f SaleFilter) ([]*Sale, int64, error)
 	AddPayment(db *gorm.DB, payment *SalePayment) error
 	RemovePayment(db *gorm.DB, saleID, paymentID uint) error
 	GetStats(db *gorm.DB) (map[string]any, error)

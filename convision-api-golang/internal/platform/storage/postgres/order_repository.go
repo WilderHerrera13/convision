@@ -10,14 +10,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var orderFilterAllowlist = map[string]bool{
-	"patient_id":     true,
-	"status":         true,
-	"payment_status": true,
-	"created_by":     true,
-	"laboratory_id":  true,
-}
-
 // OrderRepository is the PostgreSQL-backed implementation of domain.OrderRepository.
 type OrderRepository struct{}
 
@@ -92,28 +84,34 @@ func (r *OrderRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Order{}, id).Error
 }
 
-func (r *OrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Order, int64, error) {
+func (r *OrderRepository) List(db *gorm.DB, f domain.OrderFilter) ([]*domain.Order, int64, error) {
+	f.Clamp()
 	var orders []*domain.Order
 	var total int64
 
 	q := db.Model(&domain.Order{})
-
-	for k, v := range filters {
-		if orderFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.PatientID != nil {
+		q = q.Where("orders.patient_id = ?", *f.PatientID)
+	}
+	if f.Status != "" {
+		q = q.Where("orders.status = ?", f.Status)
+	}
+	if f.PaymentStatus != "" {
+		q = q.Where("orders.payment_status = ?", f.PaymentStatus)
+	}
+	if f.LaboratoryID != nil {
+		q = q.Where("orders.laboratory_id = ?", *f.LaboratoryID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
 		Select("orders.*").
 		Order("orders.id DESC").
-		Limit(perPage).
-		Offset(offset).
+		Limit(f.PerPage).
+		Offset(f.Offset()).
 		Find(&orders).Error
 
 	return orders, total, err

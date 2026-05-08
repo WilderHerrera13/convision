@@ -10,15 +10,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var saleFilterAllowlist = map[string]bool{
-	"branch_id":      true,
-	"patient_id":     true,
-	"status":         true,
-	"payment_status": true,
-	"created_by":     true,
-	"order_id":       true,
-}
-
 // SaleRepository is the PostgreSQL-backed implementation of domain.SaleRepository.
 type SaleRepository struct{}
 
@@ -94,30 +85,35 @@ func (r *SaleRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Sale{}, id).Error
 }
 
-func (r *SaleRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Sale, int64, error) {
+func (r *SaleRepository) List(db *gorm.DB, f domain.SaleFilter) ([]*domain.Sale, int64, error) {
+	f.Clamp()
 	var sales []*domain.Sale
 	var total int64
 
 	q := db.Model(&domain.Sale{})
-	for field, value := range filters {
-		if field == "branch_id" {
-			q = q.Where("sales.branch_id = ?", value)
-			continue
-		}
-		if !saleFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("sales."+field+" = ?", value)
+	if f.BranchID != nil {
+		q = q.Where("sales.branch_id = ?", *f.BranchID)
+	}
+	if f.PatientID != nil {
+		q = q.Where("sales.patient_id = ?", *f.PatientID)
+	}
+	if f.Status != "" {
+		q = q.Where("sales.status = ?", f.Status)
+	}
+	if f.PaymentStatus != "" {
+		q = q.Where("sales.payment_status = ?", f.PaymentStatus)
+	}
+	if f.UserID != nil {
+		q = q.Where("sales.created_by = ?", *f.UserID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("sales.id desc").
 		Find(&sales).Error
 	if err != nil {

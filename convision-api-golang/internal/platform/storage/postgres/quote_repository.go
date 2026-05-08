@@ -10,12 +10,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var quoteFilterAllowlist = map[string]bool{
-	"patient_id": true,
-	"status":     true,
-	"created_by": true,
-}
-
 // QuoteRepository is the PostgreSQL-backed implementation of domain.QuoteRepository.
 type QuoteRepository struct{}
 
@@ -85,26 +79,29 @@ func (r *QuoteRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Quote{}, id).Error
 }
 
-func (r *QuoteRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Quote, int64, error) {
+func (r *QuoteRepository) List(db *gorm.DB, f domain.QuoteFilter) ([]*domain.Quote, int64, error) {
+	f.Clamp()
 	var quotes []*domain.Quote
 	var total int64
 
 	q := db.Model(&domain.Quote{})
-	for field, value := range filters {
-		if !quoteFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("quotes."+field+" = ?", value)
+	if f.PatientID != nil {
+		q = q.Where("quotes.patient_id = ?", *f.PatientID)
+	}
+	if f.Status != "" {
+		q = q.Where("quotes.status = ?", f.Status)
+	}
+	if f.UserID != nil {
+		q = q.Where("quotes.created_by = ?", *f.UserID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("quotes.id desc").
 		Find(&quotes).Error
 	if err != nil {

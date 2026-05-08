@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	salesvc "github.com/convision/api/internal/sale"
 	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
@@ -14,10 +15,11 @@ import (
 // ListSales godoc
 // GET /api/v1/sales
 func (h *Handler) ListSales(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	filters := map[string]any{}
+	var f domain.SaleFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 
 	branchID := branchmw.BranchIDFromCtx(c)
 	if override := resolveBranchOverride(c); override != nil {
@@ -28,20 +30,11 @@ func (h *Handler) ListSales(c *gin.Context) {
 		}
 	}
 	if branchID > 0 {
-		filters["branch_id"] = branchID
+		bid := branchID
+		f.BranchID = &bid
 	}
 
-	if v := c.Query("patient_id"); v != "" {
-		filters["patient_id"] = v
-	}
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
-	}
-	if v := c.Query("payment_status"); v != "" {
-		filters["payment_status"] = v
-	}
-
-	out, err := h.sale.List(filters, page, perPage)
+	out, err := h.sale.List(f)
 	if err != nil {
 		respondError(c, err)
 		return

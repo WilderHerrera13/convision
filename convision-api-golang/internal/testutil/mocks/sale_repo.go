@@ -42,8 +42,8 @@ func (m *MockSaleRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockSaleRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Sale, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockSaleRepository) List(db *gorm.DB, f domain.SaleFilter) ([]*domain.Sale, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

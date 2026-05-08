@@ -33,24 +33,13 @@ func requestBaseURL(c *gin.Context) string {
 // GET /api/v1/orders
 func (h *Handler) ListOrders(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	filters := map[string]any{}
-	if v := c.Query("patient_id"); v != "" {
-		filters["patient_id"] = v
-	}
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
-	}
-	if v := c.Query("payment_status"); v != "" {
-		filters["payment_status"] = v
-	}
-	if v := c.Query("laboratory_id"); v != "" {
-		filters["laboratory_id"] = v
+	var f domain.OrderFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
-	out, err := h.order.List(db, filters, page, perPage)
+	out, err := h.order.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

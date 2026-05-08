@@ -106,16 +106,6 @@ func calcLastPage(total int64, perPage int) int {
 	return lp
 }
 
-func clampPage(page, perPage int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	return page, perPage
-}
-
 func calcTotals(items []ItemInput, taxPct, discountAmount float64) (subtotal, taxAmount, total float64) {
 	for _, it := range items {
 		lineTotal := it.Price * float64(it.Quantity)
@@ -157,17 +147,17 @@ func buildItems(items []ItemInput) []domain.QuoteItem {
 // --- Service methods ---
 
 // List returns a paginated list of quotes.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.quoteRepo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.QuoteFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.quoteRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }

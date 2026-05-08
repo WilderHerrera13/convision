@@ -153,16 +153,6 @@ func calcLastPage(total int64, perPage int) int {
 	return lp
 }
 
-func clampPage(page, perPage int) (int, int) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	return page, perPage
-}
-
 func derivePaymentStatus(amountPaid, total float64, hasPayments bool) string {
 	if !hasPayments {
 		return "pending"
@@ -176,17 +166,17 @@ func derivePaymentStatus(amountPaid, total float64, hasPayments bool) string {
 // --- Service methods ---
 
 // List returns a paginated list of sales.
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.saleRepo.List(s.db, filters, page, perPage)
+func (s *Service) List(f domain.SaleFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.saleRepo.List(s.db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
