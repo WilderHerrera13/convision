@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -41,15 +41,32 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   in_process: 'En proceso',
   in_progress: 'En proceso',
-  sent_to_lab: 'Enviado a laboratorio',
+  sent_to_lab: 'Enviado al laboratorio',
   in_transit: 'En tránsito',
-  received_from_lab: 'Recibido del lab.',
-  in_quality: 'En calidad',
-  ready_for_delivery: 'Listo para entregar',
-  portfolio: 'Cartera',
+  received_from_lab: 'Recibido del laboratorio',
+  returned_to_lab: 'Devuelto al laboratorio',
+  in_quality: 'En control de calidad',
+  quality_approved: 'Calidad aprobada',
+  ready_for_delivery: 'Listo para entrega',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
+  portfolio: 'Pasado a cartera',
 };
+
+const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'in_process', label: 'En proceso' },
+  { value: 'sent_to_lab', label: 'Enviado al laboratorio' },
+  { value: 'in_transit', label: 'En tránsito' },
+  { value: 'received_from_lab', label: 'Recibido del laboratorio' },
+  { value: 'returned_to_lab', label: 'Devuelto al laboratorio' },
+  { value: 'in_quality', label: 'En control de calidad' },
+  { value: 'quality_approved', label: 'Calidad aprobada' },
+  { value: 'ready_for_delivery', label: 'Listo para entrega' },
+  { value: 'delivered', label: 'Entregado' },
+  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'portfolio', label: 'Pasado a cartera' },
+];
 
 const getStatusVariant = (status: string): BadgeVariant => {
   if (status === 'pending') return 'warning';
@@ -128,7 +145,7 @@ const LaboratoryOrderDetail: React.FC = () => {
 
   const openStatusModal = () => {
     if (!order) return;
-    setNewStatus(order.status);
+    setNewStatus('');
     setStatusNotes('');
     setStatusModalOpen(true);
   };
@@ -144,8 +161,12 @@ const LaboratoryOrderDetail: React.FC = () => {
       toast({ title: 'Estado actualizado', description: 'El estado de la orden fue actualizado con éxito.' });
       setStatusModalOpen(false);
       fetchOrder();
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar el estado.', variant: 'destructive' });
+    } catch (err: unknown) {
+      const apiMessage =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
+        (err as { message?: string })?.message ||
+        'No se pudo actualizar el estado.';
+      toast({ title: 'Error', description: apiMessage, variant: 'destructive' });
     } finally {
       setUpdatingStatus(false);
     }
@@ -295,41 +316,38 @@ const LaboratoryOrderDetail: React.FC = () => {
         </div>
       )}
 
+      {/* TODO QA-E2E-LAB-009: filter STATUS_OPTIONS by validateTransition(from, to) once backend exposes legal transitions. */}
       <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Actualizar Estado</DialogTitle>
+            <DialogTitle>Actualizar estado de la orden</DialogTitle>
             <DialogDescription>
-              Cambia manualmente el estado de la orden {order?.order_number}.
+              Selecciona el nuevo estado para la orden {order?.order_number}.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <label className="text-[13px] font-medium">Estado</label>
+              <label className="text-[13px] font-medium">Nuevo estado</label>
               <Select value={newStatus} onValueChange={setNewStatus}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
+                  <SelectValue placeholder="Selecciona un estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="in_process">En proceso</SelectItem>
-                  <SelectItem value="sent_to_lab">Enviado a laboratorio</SelectItem>
-                  <SelectItem value="in_transit">En tránsito</SelectItem>
-                  <SelectItem value="received_from_lab">Recibido del laboratorio</SelectItem>
-                  <SelectItem value="in_quality">En calidad</SelectItem>
-                  <SelectItem value="ready_for_delivery">Listo para entregar</SelectItem>
-                  <SelectItem value="delivered">Entregado</SelectItem>
-                  <SelectItem value="portfolio">Cartera</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                  {STATUS_OPTIONS.filter((opt) => opt.value !== order?.status).map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-[13px] font-medium">Notas</label>
-              <Input
-                placeholder="Observaciones del cambio de estado (opcional)"
+              <label className="text-[13px] font-medium">Motivo del cambio</label>
+              <Textarea
+                placeholder="Motivo del cambio (opcional)"
                 value={statusNotes}
                 onChange={(e) => setStatusNotes(e.target.value)}
+                rows={3}
               />
             </div>
           </div>
@@ -340,9 +358,9 @@ const LaboratoryOrderDetail: React.FC = () => {
             <Button
               className="bg-[#3a71f7] hover:bg-[#2d5fd6] text-white"
               onClick={handleStatusUpdate}
-              disabled={updatingStatus}
+              disabled={updatingStatus || !newStatus}
             >
-              {updatingStatus ? 'Actualizando...' : 'Actualizar Estado'}
+              {updatingStatus ? 'Actualizando...' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
