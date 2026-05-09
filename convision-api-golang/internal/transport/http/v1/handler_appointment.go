@@ -183,30 +183,14 @@ func toAppointmentResources(appointments []*domain.Appointment) []AppointmentRes
 	return out
 }
 
-// parseAppointmentFilters parses appointment-specific filters from s_f/s_v query params.
-var appointmentStringFilters = map[string]bool{
-	"status": true,
-}
-
-func parseAppointmentApiFilters(c *gin.Context) map[string]any {
-	filters := parseApiFilters(c)
-	if filters == nil {
-		filters = make(map[string]any)
-	}
-	// Also support direct query params for common filters
-	if status := c.Query("status"); status != "" {
-		filters["status"] = status
-	}
-	return filters
-}
-
 // ListAppointments godoc
 // GET /api/v1/appointments
 func (h *Handler) ListAppointments(c *gin.Context) {
-	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseAppointmentApiFilters(c)
+	var f domain.AppointmentFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 
 	branchID := branchmw.BranchIDFromCtx(c)
 	if override := resolveBranchOverride(c); override != nil {
@@ -217,17 +201,12 @@ func (h *Handler) ListAppointments(c *gin.Context) {
 		}
 	}
 	if branchID > 0 {
-		filters["branch_id"] = branchID
+		bid := branchID
+		f.BranchID = &bid
 	}
 
-	if v := c.Query("start_date"); v != "" {
-		filters["_start_date"] = v
-	}
-	if v := c.Query("end_date"); v != "" {
-		filters["_end_date"] = v
-	}
-
-	out, err := h.appointment.List(db, filters, page, perPage)
+	db := tenantDBFromCtx(c)
+	out, err := h.appointment.List(db, f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return

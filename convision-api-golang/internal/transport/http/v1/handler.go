@@ -751,12 +751,13 @@ func parseApiFilters(c *gin.Context) map[string]any {
 // ListPatients godoc
 // GET /api/v1/patients
 func (h *Handler) ListPatients(c *gin.Context) {
+	var f domain.PatientFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
-
-	out, err := h.patient.List(db, filters, page, perPage)
+	out, err := h.patient.List(db, f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return

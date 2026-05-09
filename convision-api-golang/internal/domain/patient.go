@@ -55,6 +55,16 @@ func (p *Patient) FullName() string {
 	return p.FirstName + " " + p.LastName
 }
 
+// PatientFilter holds query parameters for listing patients.
+// Search replaces the legacy s_f/s_v/s_o=or pattern — the repository
+// applies OR ILIKE across first_name, last_name, email, phone, identification.
+type PatientFilter struct {
+	Pagination
+	Search string `form:"search"`
+	Status string `form:"status"`
+	Gender string `form:"gender"`
+}
+
 // PatientRepository defines persistence operations for Patient.
 type PatientRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Patient, error)
@@ -62,5 +72,5 @@ type PatientRepository interface {
 	Create(db *gorm.DB, p *Patient) error
 	Update(db *gorm.DB, p *Patient) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Patient, int64, error)
+	List(db *gorm.DB, f PatientFilter) ([]*Patient, int64, error)
 }

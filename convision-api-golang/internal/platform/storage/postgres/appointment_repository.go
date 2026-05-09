@@ -11,16 +11,6 @@ import (
 	"github.com/convision/api/internal/platform/clock"
 )
 
-// appointmentFilterAllowlist prevents SQL injection via column name injection.
-var appointmentFilterAllowlist = map[string]bool{
-	"branch_id":         true,
-	"status":            true,
-	"patient_id":        true,
-	"specialist_id":     true,
-	"taken_by_id":       true,
-	"consultation_type": true,
-}
-
 // AppointmentRepository is the PostgreSQL-backed implementation of domain.AppointmentRepository.
 type AppointmentRepository struct{}
 
@@ -52,11 +42,19 @@ func (r *AppointmentRepository) GetByID(db *gorm.DB, id uint) (*domain.Appointme
 }
 
 func (r *AppointmentRepository) GetByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
-	return r.List(db, map[string]any{"patient_id": patientID}, page, perPage)
+	pid := patientID
+	return r.List(db, domain.AppointmentFilter{
+		Pagination: domain.Pagination{Page: page, PerPage: perPage},
+		PatientID:  &pid,
+	})
 }
 
 func (r *AppointmentRepository) GetBySpecialistID(db *gorm.DB, specialistID uint, page, perPage int) ([]*domain.Appointment, int64, error) {
-	return r.List(db, map[string]any{"specialist_id": specialistID}, page, perPage)
+	sid := specialistID
+	return r.List(db, domain.AppointmentFilter{
+		Pagination:   domain.Pagination{Page: page, PerPage: perPage},
+		SpecialistID: &sid,
+	})
 }
 
 func (r *AppointmentRepository) Create(db *gorm.DB, a *domain.Appointment) error {
@@ -290,55 +288,68 @@ func (r *AppointmentRepository) GetActiveBySpecialist(db *gorm.DB, specialistID 
 	return &a, nil
 }
 
-func (r *AppointmentRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Appointment, int64, error) {
+func (r *AppointmentRepository) List(db *gorm.DB, f domain.AppointmentFilter) ([]*domain.Appointment, int64, error) {
+	f.Clamp()
 	var appointments []*domain.Appointment
 	var total int64
 
 	q := db.Model(&domain.Appointment{})
-	needsPatientJoin := false
-	for field, value := range filters {
-		switch field {
-		case "branch_id":
-			q = q.Where("appointments.branch_id = ?", value)
-		case "_start_date":
-			// When filtering by date range, only include rows that have a scheduled_at value.
-			q = q.Where("appointments.scheduled_at IS NOT NULL AND appointments.scheduled_at >= ?", value)
-		case "_end_date":
-			q = q.Where("appointments.scheduled_at IS NOT NULL AND appointments.scheduled_at <= ?", value.(string)+" 23:59:59")
-		case "_patient_search":
-			needsPatientJoin = true
-			like := "%" + value.(string) + "%"
-			q = q.Where(
+
+	if f.BranchID != nil {
+		q = q.Where("appointments.branch_id = ?", *f.BranchID)
+	}
+	if f.Status != "" {
+		q = q.Where("appointments.status = ?", f.Status)
+	}
+	if f.SpecialistID != nil {
+		q = q.Where("appointments.specialist_id = ?", *f.SpecialistID)
+	}
+	if f.PatientID != nil {
+		q = q.Where("appointments.patient_id = ?", *f.PatientID)
+	}
+	if f.TakenByID != nil {
+		q = q.Where("appointments.taken_by_id = ?", *f.TakenByID)
+	}
+	if f.ConsultationType != "" {
+		q = q.Where("appointments.consultation_type = ?", f.ConsultationType)
+	}
+
+	// StartDate maps to legacy _start_date — only rows with a scheduled_at value.
+	if f.StartDate != "" {
+		q = q.Where("appointments.scheduled_at IS NOT NULL AND appointments.scheduled_at >= ?", f.StartDate)
+	}
+	// EndDate maps to legacy _end_date — inclusive end-of-day.
+	if f.EndDate != "" {
+		q = q.Where("appointments.scheduled_at IS NOT NULL AND appointments.scheduled_at <= ?", f.EndDate+" 23:59:59")
+	}
+	// PatientSearch maps to legacy _patient_search — JOIN patients ILIKE.
+	if f.PatientSearch != "" {
+		like := "%" + f.PatientSearch + "%"
+		q = q.Joins("LEFT JOIN patients ON patients.id = appointments.patient_id").
+			Where(
 				"patients.first_name ILIKE ? OR patients.last_name ILIKE ? OR patients.identification ILIKE ?",
 				like, like, like,
 			)
-		case "_attended_by":
-			// Appointments handled by a given specialist — either assigned or taken.
-			q = q.Where(
-				"(appointments.specialist_id = ? OR appointments.taken_by_id = ?)",
-				value, value,
-			)
-		case "_pending_report":
-			q = q.Where("(appointments.consultation_type IS NULL OR appointments.consultation_type = '')")
-		default:
-			if !appointmentFilterAllowlist[field] {
-				continue
-			}
-			q = q.Where("appointments."+field+" = ?", value)
-		}
 	}
-	if needsPatientJoin {
-		q = q.Joins("LEFT JOIN patients ON patients.id = appointments.patient_id")
+	// AttendedBy maps to legacy _attended_by — assigned OR taken.
+	if f.AttendedBy != nil {
+		q = q.Where(
+			"(appointments.specialist_id = ? OR appointments.taken_by_id = ?)",
+			*f.AttendedBy, *f.AttendedBy,
+		)
+	}
+	// PendingReport maps to legacy _pending_report.
+	if f.PendingReport {
+		q = q.Where("(appointments.consultation_type IS NULL OR appointments.consultation_type = '')")
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("appointments.id desc").
 		Find(&appointments).Error
 	if err != nil {

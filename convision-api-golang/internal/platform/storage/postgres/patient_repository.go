@@ -2,24 +2,11 @@ package postgres
 
 import (
 	"errors"
-	"strings"
 
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
 )
-
-// patientFilterAllowlist prevents SQL injection via column name injection.
-// Values: "ILIKE" for partial text match, "=" for exact match.
-var patientFilterAllowlist = map[string]string{
-	"first_name":     "ILIKE",
-	"last_name":      "ILIKE",
-	"email":          "ILIKE",
-	"phone":          "ILIKE",
-	"identification": "ILIKE",
-	"status":         "=",
-	"gender":         "=",
-}
 
 // PatientRepository is the PostgreSQL-backed implementation of domain.PatientRepository.
 type PatientRepository struct{}
@@ -104,68 +91,36 @@ func (r *PatientRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Patient{}, id).Error
 }
 
-func (r *PatientRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Patient, int64, error) {
+func (r *PatientRepository) List(db *gorm.DB, f domain.PatientFilter) ([]*domain.Patient, int64, error) {
+	f.Clamp()
 	var patients []*domain.Patient
 	var total int64
 
 	q := db.Model(&domain.Patient{}).Where("patients.deleted_at IS NULL")
 
-	orMode := filters["_or_mode"] == "true"
-	if orMode {
-		// OR search: apply ILIKE conditions joined with OR across all requested text fields.
-		// Exact-match fields (e.g. status) are still applied with AND.
-		var orClauses []string
-		var orArgs []interface{}
-		for field, value := range filters {
-			if field == "_or_mode" {
-				continue
-			}
-			op, allowed := patientFilterAllowlist[field]
-			if !allowed {
-				continue
-			}
-			strVal, ok := value.(string)
-			if !ok {
-				continue
-			}
-			if op == "ILIKE" {
-				orClauses = append(orClauses, "patients."+field+" ILIKE ?")
-				orArgs = append(orArgs, "%"+strVal+"%")
-			} else {
-				// exact-match fields remain AND conditions
-				q = q.Where("patients."+field+" = ?", strVal)
-			}
-		}
-		if len(orClauses) > 0 {
-			q = q.Where("("+strings.Join(orClauses, " OR ")+")", orArgs...)
-		}
-	} else {
-		for field, value := range filters {
-			if field == "_or_mode" {
-				continue
-			}
-			op, allowed := patientFilterAllowlist[field]
-			if !allowed {
-				continue
-			}
-			if strVal, ok := value.(string); ok {
-				if op == "ILIKE" {
-					q = q.Where("patients."+field+" ILIKE ?", "%"+strVal+"%")
-				} else {
-					q = q.Where("patients."+field+" = ?", strVal)
-				}
-			}
-		}
+	// f.Search replaces the legacy s_f/s_v/s_o=or pattern — OR ILIKE across
+	// all text identity fields the frontend used to fan out.
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
+		q = q.Where(
+			"patients.first_name ILIKE ? OR patients.last_name ILIKE ? OR patients.email ILIKE ? OR patients.phone ILIKE ? OR patients.identification ILIKE ?",
+			like, like, like, like, like,
+		)
+	}
+	if f.Status != "" {
+		q = q.Where("patients.status = ?", f.Status)
+	}
+	if f.Gender != "" {
+		q = q.Where("patients.gender = ?", f.Gender)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("patients.id desc").
 		Find(&patients).Error
 	if err != nil {

@@ -95,29 +95,24 @@ func parseScheduledAt(scheduledAt, date, timeStr string) *time.Time {
 }
 
 // List returns a paginated list of appointments, optionally filtered.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
+func (s *Service) List(db *gorm.DB, f domain.AppointmentFilter) (*ListOutput, error) {
+	f.Clamp()
 
-	data, total, err := s.repo.List(db, filters, page, perPage)
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(math.Ceil(float64(total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(total) / float64(f.PerPage)))
 	}
 
 	return &ListOutput{
 		Data:        data,
 		Total:       total,
-		CurrentPage: page,
-		PerPage:     perPage,
+		CurrentPage: f.Page,
+		PerPage:     f.PerPage,
 		LastPage:    lastPage,
 	}, nil
 }
@@ -306,32 +301,24 @@ func (s *Service) ListManagementReport(
 	pendingReport bool,
 	page, perPage int,
 ) (*ListOutput, error) {
-	filters := make(map[string]any)
+	f := domain.AppointmentFilter{
+		Pagination:       domain.Pagination{Page: page, PerPage: perPage},
+		Status:           status,
+		ConsultationType: consultationType,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		PatientSearch:    search,
+		PendingReport:    pendingReport,
+	}
 	if specialistID != 0 {
-		filters["_attended_by"] = specialistID
-	}
-	if s := search; s != "" {
-		filters["_patient_search"] = s
-	}
-	if startDate != "" {
-		filters["_start_date"] = startDate
-	}
-	if endDate != "" {
-		filters["_end_date"] = endDate
-	}
-	if status != "" {
-		filters["status"] = status
-	}
-	if consultationType != "" {
-		filters["consultation_type"] = consultationType
+		sid := specialistID
+		f.AttendedBy = &sid
 	}
 	if branchID != nil && *branchID != 0 {
-		filters["branch_id"] = *branchID
+		bid := *branchID
+		f.BranchID = &bid
 	}
-	if pendingReport {
-		filters["_pending_report"] = true
-	}
-	return s.List(db, filters, page, perPage)
+	return s.List(db, f)
 }
 
 // GetConsolidatedReport returns per-specialist aggregated consultation counts

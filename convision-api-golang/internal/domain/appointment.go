@@ -98,6 +98,31 @@ type SpecialistReportSummary struct {
 	Observation      string `json:"observation"`
 }
 
+// AppointmentFilter holds query parameters for listing appointments.
+// Fields map to the legacy _-prefixed special keys used by the old handler:
+//
+//	StartDate     → _start_date    (scheduled_at >= ?)
+//	EndDate       → _end_date      (scheduled_at <= ? 23:59:59)
+//	PatientSearch → _patient_search (JOIN patients ILIKE)
+//	AttendedBy    → _attended_by    (specialist_id = ? OR taken_by_id = ?)
+//	PendingReport → _pending_report (consultation_type IS NULL OR = '')
+//
+// BranchID is never a form field — it is injected by middleware after binding.
+type AppointmentFilter struct {
+	Pagination
+	Status           string `form:"status"`
+	SpecialistID     *uint  `form:"specialist_id"`
+	PatientID        *uint  `form:"patient_id"`
+	TakenByID        *uint  `form:"taken_by_id"`
+	ConsultationType string `form:"consultation_type"`
+	BranchID         *uint  `form:"-"`
+	StartDate        string `form:"start_date"`
+	EndDate          string `form:"end_date"`
+	PatientSearch    string `form:"patient_search"`
+	AttendedBy       *uint  `form:"attended_by"`
+	PendingReport    bool   `form:"pending_report"`
+}
+
 // AppointmentRepository defines persistence operations for Appointment.
 type AppointmentRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Appointment, error)
@@ -106,7 +131,7 @@ type AppointmentRepository interface {
 	Create(db *gorm.DB, a *Appointment) error
 	Update(db *gorm.DB, a *Appointment) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Appointment, int64, error)
+	List(db *gorm.DB, f AppointmentFilter) ([]*Appointment, int64, error)
 	SaveManagementReport(db *gorm.DB, id uint, consultationType, reportNotes string) error
 	GetConsolidatedReport(db *gorm.DB, from, to string, specialistIDs []uint, branchID *uint) ([]*SpecialistReportSummary, error)
 	ExistsByPatientAndDate(db *gorm.DB, patientID uint, specialistID *uint, date time.Time) (bool, error)
