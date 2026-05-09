@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 21-10-PLAN.md (Phase 21 COMPLETE)
-last_updated: "2026-05-08T23:55:00.000Z"
-last_activity: 2026-05-08 -- Phase 21 plan 10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete; Phase 21 closed
+stopped_at: Phase 21.1 context gathered
+last_updated: "2026-05-09T05:44:26.332Z"
+last_activity: 2026-05-08 -- 21-10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete
 progress:
-  total_phases: 16
+  total_phases: 17
   completed_phases: 7
   total_plans: 55
   completed_plans: 43
@@ -90,6 +90,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 6 marked complete: 2026-04-14
 - Phase 15 added: Mobile & Responsive Design — App funcione correctamente en PC, tablet y teléfono
 - Phase 22 added: Comprehensive Test Coverage — unit + integration tests across Go backend (services, repositories, HTTP handlers) and React frontend (components, hooks, services) to lock current behavior and prevent regressions
+- Phase 21.1 inserted after Phase 21: Migrate frontend to typed query params (URGENT)
 
 ### Pending Todos
 
@@ -101,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-08T23:55:00.000Z
-Stopped at: Completed 21-10-PLAN.md (Phase 21 closed)
-Resume file: None
+Last session: 2026-05-09T05:44:26.315Z
+Stopped at: Phase 21.1 context gathered
+Resume file: .planning/phases/21.1-migrate-frontend-to-typed-query-params/21.1-CONTEXT.md
