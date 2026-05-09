@@ -265,7 +265,7 @@ Plans:
   3. Repository allowlist maps (`filterAllowlist`) are removed — the struct fields ARE the allowlist
   4. All existing filter behavior preserved (same query params, same SQL semantics) — no frontend changes required
   5. `make build && make test` exit 0
-**Plans:** 9/10 plans executed
+**Plans:** 10/10 plans complete
 
 Plans:
 - [x] 21-01: Wave 1 — Foundation: domain.Pagination struct + DEVELOPMENT_GUIDE update
@@ -277,7 +277,7 @@ Plans:
 - [x] 21-07: Wave 4 — Clinical + supplier: prescription, clinical_history, supplier (parseApiFilters recipients)
 - [x] 21-08: Wave 4 — Patient + appointment (OR-mode search, 5 special keys — most complex)
 - [x] 21-09: Wave 5 — Product catalog: product and lens catalog with prescription range filters
-- [ ] 21-10: Wave 6 — Final cleanup: delete parseApiFilters, zero allowlist verification, make build + test
+- [x] 21-10: Wave 6 — Final cleanup: delete parseApiFilters, zero allowlist verification, make build + test
 
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.

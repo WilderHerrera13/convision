@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 21-09-PLAN.md
-last_updated: "2026-05-09T01:00:00.000Z"
-last_activity: 2026-05-08 -- Phase 21 plan 09 (product + lens-catalog + standalone-lens typed Filter migration; PrescriptionFilter JSON DTO preserved; strconv.ParseFloat loop replaced) complete
+stopped_at: Completed 21-10-PLAN.md (Phase 21 COMPLETE)
+last_updated: "2026-05-08T23:55:00.000Z"
+last_activity: 2026-05-08 -- Phase 21 plan 10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete; Phase 21 closed
 progress:
   total_phases: 16
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 55
-  completed_plans: 42
-  percent: 76
+  completed_plans: 43
+  percent: 78
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 
 ## Current Position
 
-Phase: 21 (standardize-backend-filter-pattern) — EXECUTING
-Plan: 9 of 10 complete
-Last activity: 2026-05-08 -- 21-09 (product + lens-catalog + standalone-lens typed Filter migration; PrescriptionFilter JSON DTO preserved; strconv.ParseFloat loop replaced) complete
-Next: 21-10
+Phase: 21 (standardize-backend-filter-pattern) — COMPLETE
+Plan: 10 of 10 complete
+Last activity: 2026-05-08 -- 21-10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete
+Next: Phase 22 (comprehensive-test-coverage)
 
-Progress: [████████░░] 76%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
@@ -77,6 +77,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [21-09]: Per-eye prescription range params (`sphere_od`/`sphere_os`/`cylinder_od`/...) bind cleanly via `*float64` form-tagged pointers + `ShouldBindQuery`, replacing the explicit `strconv.ParseFloat` loop. Repository keeps the OD-priority-falls-back-to-OS rule when fanning to the joined `product_lens_attributes.{sphere,cylinder,addition}_{min,max}` ranges (matches the legacy `ListByPrescription` semantics).
 - [21-09]: `ListByCategory` left untouched — its filter map carries 15+ heterogeneous attribute keys spanning three different attribute tables (lens, frame, contact_lens). Migrating it would require a substantive plan of its own and is outside 21-09's scope.
 - [21-09]: `LensRepository.List` migrated to typed `LensFilter` despite zero production callers — phase 21 mandate is to leave the repository layer fully map-free; the type may disappear entirely in a future cleanup phase.
+- [21-10]: Three atomic commits (T8b 16 files / T1+T2 1 file / T4 4 files) for the closing plan — each independent surface area committed separately; every commit leaves HEAD compilable.
+- [21-10]: DailyActivityRepository pulled into 21-10 mid-flight — the daily-report endpoint added in phase 19 was missed by waves 02-09; T4 grep surfaced it and migrating in-plan honors the Phase 21 mandate (zero map-based List interfaces in domain/) without spawning a wave-11.
+- [21-10]: UserFilter exposes explicit `Identification` field (not just `Search`) because bulkimport's scheduled-appointments importer needs an exact-token document-number lookup; the OR-ILIKE Search fan-out across 5 columns would produce ambiguous matches.
+- [21-10]: UserFilter intentionally has no `BranchID` — the existing `ListUsers` handler reads `branch_id` from the query string itself with special "all"/"0" alias handling and routes to `repo.ListByBranch` (a separate code path) when set; keeping branchID as an explicit service parameter preserves that legacy behavior.
+- [21-10]: parseApiFilters() helper deleted — symbolic close of Phase 21. The central s_f/s_v/s_o → map fan-out had zero remaining callers after waves 02-09 finished migrating their handlers.
+- [21-10]: 3 documented out-of-scope `map[string]any` references remain in domain/ (product.ListByCategory + sale.GetStats/GetTodayStats); listed in 21-10 SUMMARY.md as deliberate exclusions, not regressions.
 
 ### Roadmap Evolution
 
@@ -95,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-09T01:00:00.000Z
-Stopped at: Completed 21-09-PLAN.md
+Last session: 2026-05-08T23:55:00.000Z
+Stopped at: Completed 21-10-PLAN.md (Phase 21 closed)
 Resume file: None
