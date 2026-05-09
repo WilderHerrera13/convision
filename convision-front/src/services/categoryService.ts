@@ -38,8 +38,6 @@ export interface CategorySearchParams {
   per_page?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  s_f?: string;
-  s_v?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -97,9 +95,7 @@ class CategoryService {
   async searchCategories(query: string): Promise<ProductCategory[]> {
     const response = await api.get('/api/v1/product-categories', {
       params: {
-        s_f: JSON.stringify(['name', 'description', 'slug']),
-        s_v: JSON.stringify([query, query, query]),
-        s_o: 'or',
+        search: query,
         per_page: 50
       }
     });

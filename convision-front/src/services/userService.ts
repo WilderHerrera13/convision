@@ -58,9 +58,7 @@ class UserService {
     };
     const t = search?.trim();
     if (t) {
-      query.s_f = JSON.stringify(['name', 'email']);
-      query.s_v = JSON.stringify([`%${t}%`, `%${t}%`]);
-      query.s_o = 'or';
+      query.search = t;
     }
     if (branch_id && branch_id !== 'all' && branch_id !== '0') {
       query.branch_id = branch_id;

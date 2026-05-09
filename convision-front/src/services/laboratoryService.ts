@@ -42,9 +42,7 @@ export const laboratoryService = {
     };
     const t = params.search?.trim();
     if (t) {
-      query.s_f = JSON.stringify(['name', 'contact_person', 'email', 'phone']);
-      query.s_v = JSON.stringify([`%${t}%`, `%${t}%`, `%${t}%`, `%${t}%`]);
-      query.s_o = 'or';
+      query.search = t;
     }
     const response = await api.get('/api/v1/laboratories', { params: query });
     const body = response.data;

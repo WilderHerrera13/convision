@@ -24,8 +24,6 @@ export interface BrandSearchParams {
   per_page?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  s_f?: string;
-  s_v?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -73,9 +71,7 @@ class BrandService {
   async searchBrands(query: string): Promise<Brand[]> {
     const response = await api.get('/api/v1/brands', {
       params: {
-        s_f: JSON.stringify(['name', 'description']),
-        s_v: JSON.stringify([query, query]),
-        s_o: 'or',
+        search: query,
         per_page: 50
       }
     });
