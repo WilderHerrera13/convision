@@ -64,41 +64,17 @@ func (h *Handler) productResponsesWithDiscounts(c *gin.Context, data []*domain.P
 
 func (h *Handler) ListProducts(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, perPage := parsePagination(c)
-	filters := map[string]any{}
-	if s := c.Query("status"); s != "" {
-		filters["status"] = s
-	}
-	if v := c.Query("product_category_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["product_category_id"] = uint(id)
-		}
-	}
-	if v := c.Query("brand_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["brand_id"] = uint(id)
-		}
-	}
-	if v := c.Query("supplier_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["supplier_id"] = uint(id)
-		}
-	}
-	if v := c.Query("product_type"); v != "" {
-		filters["product_type"] = v
-	}
-	if v := c.Query("tracks_stock"); v != "" {
-		switch v {
-		case "1", "true", "TRUE", "True":
-			filters["tracks_stock"] = true
-		case "0", "false", "FALSE", "False":
-			filters["tracks_stock"] = false
-		}
+	var f domain.ProductFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
-	// Inline search falls through to the Search endpoint logic when present.
-	if q := c.Query("search"); q != "" {
-		out, err := h.product.Search(db, q, "", page, perPage)
+	// Inline search falls through to the Search endpoint logic when present, preserving
+	// the legacy response shape (Search hits identifier/internal_code/description with a category join).
+	if f.Search != "" {
+		f.Clamp()
+		out, err := h.product.Search(db, f.Search, "", f.Page, f.PerPage)
 		if err != nil {
 			respondError(c, err)
 			return
@@ -119,7 +95,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		return
 	}
 
-	out, err := h.product.List(db, filters, page, perPage)
+	out, err := h.product.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

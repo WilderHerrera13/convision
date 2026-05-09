@@ -117,17 +117,17 @@ type BulkStatusInput struct {
 
 // --- Methods ---
 
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.ProductFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -355,17 +355,17 @@ type LensCatalogListOutput struct {
 }
 
 // ListLensCatalog returns paginated products with product_type = 'lens'.
-func (s *Service) ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) (*LensCatalogListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.ListLensCatalog(db, filters, page, perPage)
+func (s *Service) ListLensCatalog(db *gorm.DB, f domain.LensCatalogFilter) (*LensCatalogListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.ListLensCatalog(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &LensCatalogListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }

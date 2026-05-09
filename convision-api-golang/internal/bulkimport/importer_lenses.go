@@ -67,10 +67,11 @@ func (i *lensImporter) ProcessRow(db *gorm.DB, rowNum int, data map[string]strin
 	}
 
 	// Duplicate check: look for existing product with same internal_code and product_type=lens.
-	existing, _, err := i.productRepo.List(db, map[string]any{
-		"internal_code": internalCode,
-		"product_type":  string(domain.ProductTypeLens),
-	}, 1, 1)
+	existing, _, err := i.productRepo.List(db, domain.ProductFilter{
+		Pagination:   domain.Pagination{Page: 1, PerPage: 1},
+		InternalCode: internalCode,
+		ProductType:  string(domain.ProductTypeLens),
+	})
 	if err == nil && len(existing) > 0 {
 		rec.Status = RecordStatusSkipped
 		rec.Reason = "lente ya existe (CodigoInterno duplicado)"

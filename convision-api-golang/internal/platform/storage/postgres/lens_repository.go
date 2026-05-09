@@ -8,16 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var lensFilterAllowlist = map[string]bool{
-	"status":        true,
-	"type_id":       true,
-	"brand_id":      true,
-	"material_id":   true,
-	"lens_class_id": true,
-	"treatment_id":  true,
-	"supplier_id":   true,
-}
-
 type LensRepository struct{}
 
 func NewLensRepository() *LensRepository { return &LensRepository{} }
@@ -76,24 +66,40 @@ func (r *LensRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Lens{}, id).Error
 }
 
-func (r *LensRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Lens, int64, error) {
+func (r *LensRepository) List(db *gorm.DB, f domain.LensFilter) ([]*domain.Lens, int64, error) {
+	f.Clamp()
 	var data []*domain.Lens
 	var total int64
 
 	q := db.Model(&domain.Lens{})
-	for k, v := range filters {
-		if lensFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
+	}
+	if f.TypeID != nil {
+		q = q.Where("type_id = ?", *f.TypeID)
+	}
+	if f.BrandID != nil {
+		q = q.Where("brand_id = ?", *f.BrandID)
+	}
+	if f.MaterialID != nil {
+		q = q.Where("material_id = ?", *f.MaterialID)
+	}
+	if f.LensClassID != nil {
+		q = q.Where("lens_class_id = ?", *f.LensClassID)
+	}
+	if f.TreatmentID != nil {
+		q = q.Where("treatment_id = ?", *f.TreatmentID)
+	}
+	if f.SupplierID != nil {
+		q = q.Where("supplier_id = ?", *f.SupplierID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.Select("id, internal_code, identifier, type_id, brand_id, material_id, lens_class_id, treatment_id, photochromic_id, description, supplier_id, price, cost, status, created_at, updated_at").
 		Order("internal_code asc").
-		Offset(offset).Limit(perPage).Find(&data).Error
+		Offset(f.Offset()).Limit(f.PerPage).Find(&data).Error
 	return data, total, err
 }

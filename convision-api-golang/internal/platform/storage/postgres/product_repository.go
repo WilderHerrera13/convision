@@ -9,16 +9,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var productFilterAllowlist = map[string]bool{
-	"status":              true,
-	"product_category_id": true,
-	"brand_id":            true,
-	"supplier_id":         true,
-	"product_type":        true,
-	"tracks_stock":        true,
-	"internal_code":       true,
-}
-
 // ProductRepository is the PostgreSQL-backed implementation of domain.ProductRepository.
 type ProductRepository struct{}
 
@@ -75,26 +65,45 @@ func (r *ProductRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.Product{}, id).Error
 }
 
-func (r *ProductRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) List(db *gorm.DB, f domain.ProductFilter) ([]*domain.Product, int64, error) {
+	f.Clamp()
 	var products []*domain.Product
 	var total int64
 
 	q := db.Model(&domain.Product{})
-	for field, value := range filters {
-		if !productFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("products."+field+" = ?", value)
+	if f.Status != "" {
+		q = q.Where("products.status = ?", f.Status)
+	}
+	if f.ProductCategoryID != nil {
+		q = q.Where("products.product_category_id = ?", *f.ProductCategoryID)
+	}
+	if f.BrandID != nil {
+		q = q.Where("products.brand_id = ?", *f.BrandID)
+	}
+	if f.SupplierID != nil {
+		q = q.Where("products.supplier_id = ?", *f.SupplierID)
+	}
+	if f.ProductType != "" {
+		q = q.Where("products.product_type = ?", f.ProductType)
+	}
+	if f.TracksStock != nil {
+		q = q.Where("products.tracks_stock = ?", *f.TracksStock)
+	}
+	if f.InternalCode != "" {
+		q = q.Where("products.internal_code = ?", f.InternalCode)
+	}
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
+		q = q.Where("products.identifier ILIKE ? OR products.internal_code ILIKE ? OR products.description ILIKE ?", like, like, like)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("products.id desc").
 		Find(&products).Error
 	if err != nil {
@@ -272,7 +281,8 @@ func (r *ProductRepository) StockByProduct(db *gorm.DB, productID uint) ([]*doma
 	return results, err
 }
 
-func (r *ProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
+func (r *ProductRepository) ListLensCatalog(db *gorm.DB, f domain.LensCatalogFilter) ([]*domain.Product, int64, error) {
+	f.Clamp()
 	var data []*domain.Product
 	var total int64
 
@@ -285,39 +295,46 @@ func (r *ProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any,
 		Preload("LensAttributes.LensClass").
 		Preload("LensAttributes.Treatment")
 
-	if v, ok := filters["brand_id"]; ok {
-		q = q.Where("products.brand_id = ?", v)
+	if f.BrandID != nil {
+		q = q.Where("products.brand_id = ?", *f.BrandID)
 	}
-	if v, ok := filters["supplier_id"]; ok {
-		q = q.Where("products.supplier_id = ?", v)
+	if f.SupplierID != nil {
+		q = q.Where("products.supplier_id = ?", *f.SupplierID)
 	}
-	if v, ok := filters["status"]; ok {
-		q = q.Where("products.status = ?", v)
+	if f.Status != "" {
+		q = q.Where("products.status = ?", f.Status)
 	}
-	if v, ok := filters["search"]; ok && v != "" {
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
 		q = q.Joins("LEFT JOIN brands b_search ON b_search.id = products.brand_id").
-			Where("products.internal_code ILIKE ? OR products.identifier ILIKE ? OR b_search.name ILIKE ?",
-				"%"+v.(string)+"%", "%"+v.(string)+"%", "%"+v.(string)+"%")
+			Where("products.internal_code ILIKE ? OR products.identifier ILIKE ? OR b_search.name ILIKE ?", like, like, like)
 	}
 
-	prescriptionKeys := []string{"sphere_od", "cylinder_od", "addition_od", "sphere_os", "cylinder_os", "addition_os"}
-	hasPrescription := false
-	for _, k := range prescriptionKeys {
-		if _, ok := filters[k]; ok {
-			hasPrescription = true
-			break
-		}
-	}
+	hasPrescription := f.SphereOD != nil || f.CylinderOD != nil || f.AdditionOD != nil ||
+		f.SphereOS != nil || f.CylinderOS != nil || f.AdditionOS != nil
 	if hasPrescription {
 		q = q.Joins("JOIN product_lens_attributes pla ON pla.product_id = products.id")
-		if v, ok := filters["sphere_od"]; ok {
-			q = q.Where("pla.sphere_min <= ? AND pla.sphere_max >= ?", v, v)
+		// OD takes priority over OS — lens_attributes carries a single sphere/cylinder/addition range.
+		sphere := f.SphereOD
+		if sphere == nil {
+			sphere = f.SphereOS
 		}
-		if v, ok := filters["cylinder_od"]; ok {
-			q = q.Where("pla.cylinder_min <= ? AND pla.cylinder_max >= ?", v, v)
+		cylinder := f.CylinderOD
+		if cylinder == nil {
+			cylinder = f.CylinderOS
 		}
-		if v, ok := filters["addition_od"]; ok {
-			q = q.Where("pla.addition_min <= ? AND pla.addition_max >= ?", v, v)
+		addition := f.AdditionOD
+		if addition == nil {
+			addition = f.AdditionOS
+		}
+		if sphere != nil {
+			q = q.Where("pla.sphere_min <= ? AND pla.sphere_max >= ?", *sphere, *sphere)
+		}
+		if cylinder != nil {
+			q = q.Where("pla.cylinder_min <= ? AND pla.cylinder_max >= ?", *cylinder, *cylinder)
+		}
+		if addition != nil {
+			q = q.Where("pla.addition_min <= ? AND pla.addition_max >= ?", *addition, *addition)
 		}
 	}
 
@@ -325,8 +342,7 @@ func (r *ProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any,
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.Order("products.internal_code ASC").
-		Offset(offset).Limit(perPage).Find(&data).Error
+		Offset(f.Offset()).Limit(f.PerPage).Find(&data).Error
 	return data, total, err
 }

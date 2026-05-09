@@ -143,6 +143,20 @@ type Lens struct {
 	Photochromic *Photochromic `json:"photochromic,omitempty" gorm:"foreignKey:PhotochromicID"`
 }
 
+// LensFilter holds query parameters for listing standalone Lens entities (the legacy
+// lenses table, distinct from products with product_type='lens'). Only equality filters
+// are supported here — prescription range filtering is done via the product catalog path.
+type LensFilter struct {
+	Pagination
+	Status      string `form:"status"`
+	TypeID      *uint  `form:"type_id"`
+	BrandID     *uint  `form:"brand_id"`
+	MaterialID  *uint  `form:"material_id"`
+	LensClassID *uint  `form:"lens_class_id"`
+	TreatmentID *uint  `form:"treatment_id"`
+	SupplierID  *uint  `form:"supplier_id"`
+}
+
 // LensRepository defines persistence operations for Lens.
 type LensRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Lens, error)
@@ -150,5 +164,5 @@ type LensRepository interface {
 	Create(db *gorm.DB, l *Lens) error
 	Update(db *gorm.DB, l *Lens) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Lens, int64, error)
+	List(db *gorm.DB, f LensFilter) ([]*Lens, int64, error)
 }

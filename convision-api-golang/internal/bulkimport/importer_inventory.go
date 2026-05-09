@@ -270,10 +270,11 @@ func (r *inventoryImportRun) resolveOrCreateProduct(
 		return p, false, nil
 	}
 
-	existing, _, err := r.productRepo.List(db, map[string]any{
-		"internal_code": internalCode,
-		"product_type":  string(productType),
-	}, 1, 1)
+	existing, _, err := r.productRepo.List(db, domain.ProductFilter{
+		Pagination:   domain.Pagination{Page: 1, PerPage: 1},
+		InternalCode: internalCode,
+		ProductType:  string(productType),
+	})
 	if err == nil && len(existing) > 0 {
 		r.productCache[internalCode] = existing[0]
 		return existing[0], false, nil

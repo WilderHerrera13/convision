@@ -120,6 +120,7 @@ type ProductStockByWarehouse struct {
 }
 
 // PrescriptionFilter holds ranges used to filter lens products by prescription compatibility.
+// Used by ListByPrescription — JSON body parsing, not a query-string Filter struct.
 type PrescriptionFilter struct {
 	SphereOD   *float64 `json:"sphere_od"`
 	CylinderOD *float64 `json:"cylinder_od"`
@@ -129,13 +130,44 @@ type PrescriptionFilter struct {
 	AdditionOS *float64 `json:"addition_os"`
 }
 
+// ProductFilter holds query parameters for listing products.
+type ProductFilter struct {
+	Pagination
+	Status            string `form:"status"`
+	ProductCategoryID *uint  `form:"product_category_id"`
+	BrandID           *uint  `form:"brand_id"`
+	SupplierID        *uint  `form:"supplier_id"`
+	ProductType       string `form:"product_type"`
+	TracksStock       *bool  `form:"tracks_stock"`
+	InternalCode      string `form:"internal_code"`
+	Search            string `form:"search"`
+}
+
+// LensCatalogFilter holds query parameters for listing the lens product catalog
+// (products with product_type = 'lens'). The Sphere/Cylinder/Addition pointer fields
+// match the prescription range filter the frontend sends per eye (OD/OS); the repository
+// fans these out to the joined product_lens_attributes range columns.
+type LensCatalogFilter struct {
+	Pagination
+	BrandID    *uint    `form:"brand_id"`
+	SupplierID *uint    `form:"supplier_id"`
+	Status     string   `form:"status"`
+	Search     string   `form:"search"`
+	SphereOD   *float64 `form:"sphere_od"`
+	CylinderOD *float64 `form:"cylinder_od"`
+	AdditionOD *float64 `form:"addition_od"`
+	SphereOS   *float64 `form:"sphere_os"`
+	CylinderOS *float64 `form:"cylinder_os"`
+	AdditionOS *float64 `form:"addition_os"`
+}
+
 // ProductRepository defines persistence operations for Product.
 type ProductRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Product, error)
 	Create(db *gorm.DB, p *Product) error
 	Update(db *gorm.DB, p *Product) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Product, int64, error)
+	List(db *gorm.DB, f ProductFilter) ([]*Product, int64, error)
 	Search(db *gorm.DB, query string, category string, page, perPage int) ([]*Product, int64, error)
 	BulkUpdateStatus(db *gorm.DB, ids []uint, status string) (int64, error)
 	// ListByCategory returns products in a category identified by slug, with optional attribute filters.
@@ -148,7 +180,5 @@ type ProductRepository interface {
 	// StockByProduct returns inventory items for a product grouped by warehouse/location.
 	StockByProduct(db *gorm.DB, productID uint) ([]*ProductStockByWarehouse, error)
 	// ListLensCatalog returns products with product_type = 'lens', paginated.
-	// Supported filter keys: brand_id, supplier_id, lens_type_id, search.
-	// Prescription filter keys: sphere_od, cylinder_od, addition_od, sphere_os, cylinder_os, addition_os.
-	ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Product, int64, error)
+	ListLensCatalog(db *gorm.DB, f LensCatalogFilter) ([]*Product, int64, error)
 }

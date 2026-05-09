@@ -34,8 +34,8 @@ func (m *MockProductRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockProductRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockProductRepository) List(db *gorm.DB, f domain.ProductFilter) ([]*domain.Product, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -79,8 +79,8 @@ func (m *MockProductRepository) StockByProduct(db *gorm.DB, productID uint) ([]*
 	return args.Get(0).([]*domain.ProductStockByWarehouse), args.Error(1)
 }
 
-func (m *MockProductRepository) ListLensCatalog(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Product, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockProductRepository) ListLensCatalog(db *gorm.DB, f domain.LensCatalogFilter) ([]*domain.Product, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
