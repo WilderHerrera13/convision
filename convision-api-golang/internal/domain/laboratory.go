@@ -227,6 +227,27 @@ type LaboratoryOrderEvidenceRepository interface {
 	ListByOrderID(db *gorm.DB, orderID uint, transitionType string) ([]*LaboratoryOrderEvidence, error)
 }
 
+// LaboratoryFilter holds query parameters for listing laboratories.
+type LaboratoryFilter struct {
+	Pagination
+	Status string `form:"status"`
+}
+
+// LaboratoryOrderFilter holds query parameters for listing laboratory orders.
+// Search and AssignedSpecialistID replace the previous internal pseudo-keys
+// (`_search`, `_assigned_uid`) that were injected directly into a generic
+// map-based filter.
+type LaboratoryOrderFilter struct {
+	Pagination
+	PatientID            *uint  `form:"patient_id"`
+	LaboratoryID         *uint  `form:"laboratory_id"`
+	Status               string `form:"status"`
+	Priority             string `form:"priority"`
+	AssignedSpecialistID *uint  `form:"assigned_uid"`
+	Branch               string `form:"-"` // resolved by handler from branch_id query
+	Search               string `form:"search"` // ILIKE on order_number and patient name
+}
+
 // LaboratoryRepository defines persistence operations for Laboratory.
 type LaboratoryRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Laboratory, error)
@@ -234,7 +255,7 @@ type LaboratoryRepository interface {
 	Create(db *gorm.DB, l *Laboratory) error
 	Update(db *gorm.DB, l *Laboratory) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Laboratory, int64, error)
+	List(db *gorm.DB, f LaboratoryFilter) ([]*Laboratory, int64, error)
 }
 
 // LaboratoryOrderRepository defines persistence operations for LaboratoryOrder.
@@ -245,7 +266,7 @@ type LaboratoryOrderRepository interface {
 	Create(db *gorm.DB, o *LaboratoryOrder) error
 	Update(db *gorm.DB, o *LaboratoryOrder) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*LaboratoryOrder, int64, error)
+	List(db *gorm.DB, f LaboratoryOrderFilter) ([]*LaboratoryOrder, int64, error)
 	AddStatusEntry(db *gorm.DB, entry *LaboratoryOrderStatusEntry) error
 	Stats(db *gorm.DB) (map[string]int64, error)
 }

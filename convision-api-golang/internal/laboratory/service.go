@@ -259,25 +259,19 @@ func (s *Service) GetLab(db *gorm.DB, id uint) (*domain.Laboratory, error) {
 	return s.labRepo.GetByID(db, id)
 }
 
-func (s *Service) ListLabs(db *gorm.DB, filters map[string]any, page, perPage int) (*LabListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-
-	data, total, err := s.labRepo.List(db, filters, page, perPage)
+func (s *Service) ListLabs(db *gorm.DB, f domain.LaboratoryFilter) (*LabListOutput, error) {
+	f.Clamp()
+	data, total, err := s.labRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 
 	lastPage := 1
-	if perPage > 0 && total > 0 {
-		lastPage = int((total + int64(perPage) - 1) / int64(perPage))
+	if f.PerPage > 0 && total > 0 {
+		lastPage = int((total + int64(f.PerPage) - 1) / int64(f.PerPage))
 	}
 
-	return &LabListOutput{Data: data, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &LabListOutput{Data: data, Total: total, Page: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 func (s *Service) CreateLab(db *gorm.DB, input CreateLabInput) (*domain.Laboratory, error) {
@@ -352,25 +346,19 @@ func (s *Service) GetOrder(db *gorm.DB, id uint) (*domain.LaboratoryOrder, error
 	return s.orderRepo.GetByID(db, id)
 }
 
-func (s *Service) ListOrders(db *gorm.DB, filters map[string]any, page, perPage int) (*OrderListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-
-	data, total, err := s.orderRepo.List(db, filters, page, perPage)
+func (s *Service) ListOrders(db *gorm.DB, f domain.LaboratoryOrderFilter) (*OrderListOutput, error) {
+	f.Clamp()
+	data, total, err := s.orderRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 
 	lastPage := 1
-	if perPage > 0 && total > 0 {
-		lastPage = int((total + int64(perPage) - 1) / int64(perPage))
+	if f.PerPage > 0 && total > 0 {
+		lastPage = int((total + int64(f.PerPage) - 1) / int64(f.PerPage))
 	}
 
-	return &OrderListOutput{Data: data, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &OrderListOutput{Data: data, Total: total, Page: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 func rxEyeInputToDomain(inp *RxEyeInput) *domain.RxEye {
@@ -687,18 +675,14 @@ func (s *Service) PortfolioStats(db *gorm.DB) (map[string]int64, error) {
 }
 
 func (s *Service) ListPortfolioOrders(db *gorm.DB, page, perPage int, search string) (*PortfolioListOutput, error) {
-	if page < 1 {
-		page = 1
+	f := domain.LaboratoryOrderFilter{
+		Pagination: domain.Pagination{Page: page, PerPage: perPage},
+		Status:     string(domain.LaboratoryOrderStatusPortfolio),
+		Search:     search,
 	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
+	f.Clamp()
 
-	filters := map[string]any{"status": "portfolio"}
-	if search != "" {
-		filters["_search"] = search
-	}
-	orders, total, err := s.orderRepo.List(db, filters, page, perPage)
+	orders, total, err := s.orderRepo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
@@ -747,11 +731,11 @@ func (s *Service) ListPortfolioOrders(db *gorm.DB, page, perPage int, search str
 	}
 
 	lastPage := 1
-	if perPage > 0 && total > 0 {
-		lastPage = int((total + int64(perPage) - 1) / int64(perPage))
+	if f.PerPage > 0 && total > 0 {
+		lastPage = int((total + int64(f.PerPage) - 1) / int64(f.PerPage))
 	}
 
-	return &PortfolioListOutput{Data: items, Total: total, Page: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &PortfolioListOutput{Data: items, Total: total, Page: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 func (s *Service) RegisterPortfolioCall(db *gorm.DB, orderID uint, input RegisterCallInput, userID uint) (*domain.LaboratoryOrderCall, error) {

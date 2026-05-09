@@ -10,22 +10,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var laboratoryFilterAllowlist = map[string]bool{
-	"status": true,
-}
-
-var laboratoryOrderFilterAllowlist = map[string]bool{
-	"patient_id":             true,
-	"laboratory_id":          true,
-	"status":                 true,
-	"priority":               true,
-	"created_by":             true,
-	"order_id":               true,
-	"sale_id":                true,
-	"branch":                 true,
-	"assigned_specialist_id": true,
-}
-
 // LaboratoryRepository is the PostgreSQL-backed implementation of domain.LaboratoryRepository.
 type LaboratoryRepository struct{}
 
@@ -84,24 +68,22 @@ func (r *LaboratoryRepository) GetFirstActive(db *gorm.DB) (*domain.Laboratory, 
 	return &l, nil
 }
 
-func (r *LaboratoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
+func (r *LaboratoryRepository) List(db *gorm.DB, f domain.LaboratoryFilter) ([]*domain.Laboratory, int64, error) {
+	f.Clamp()
 	var labs []*domain.Laboratory
 	var total int64
 
 	q := db.Model(&domain.Laboratory{})
-	for k, v := range filters {
-		if laboratoryFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.Select("laboratories.*").Order("laboratories.id DESC").
-		Limit(perPage).Offset(offset).Find(&labs).Error
+		Limit(f.PerPage).Offset(f.Offset()).Find(&labs).Error
 
 	return labs, total, err
 }
@@ -193,38 +175,49 @@ func (r *LaboratoryOrderRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.LaboratoryOrder{}, id).Error
 }
 
-func (r *LaboratoryOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.LaboratoryOrder, int64, error) {
+func (r *LaboratoryOrderRepository) List(db *gorm.DB, f domain.LaboratoryOrderFilter) ([]*domain.LaboratoryOrder, int64, error) {
+	f.Clamp()
 	var orders []*domain.LaboratoryOrder
 	var total int64
 
 	q := db.Model(&domain.LaboratoryOrder{})
-	for k, v := range filters {
-		if laboratoryOrderFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.PatientID != nil {
+		q = q.Where("patient_id = ?", *f.PatientID)
 	}
-
-	if search, ok := filters["_search"].(string); ok && search != "" {
+	if f.LaboratoryID != nil {
+		q = q.Where("laboratory_id = ?", *f.LaboratoryID)
+	}
+	if f.Status != "" {
+		q = q.Where("laboratory_orders.status = ?", f.Status)
+	}
+	if f.Priority != "" {
+		q = q.Where("priority = ?", f.Priority)
+	}
+	if f.Branch != "" {
+		q = q.Where("branch = ?", f.Branch)
+	}
+	// Replaces the legacy _assigned_uid pseudo-key.
+	if f.AssignedSpecialistID != nil {
+		q = q.Where("laboratory_orders.assigned_specialist_id = ?", *f.AssignedSpecialistID)
+	}
+	// Replaces the legacy _search pseudo-key.
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
 		q = q.Where(
 			"laboratory_orders.order_number ILIKE ? OR laboratory_orders.patient_id IN (SELECT id FROM patients WHERE CONCAT(first_name, ' ', last_name) ILIKE ?)",
-			"%"+search+"%", "%"+search+"%",
+			like, like,
 		)
-	}
-
-	if assignedUID, ok := filters["_assigned_uid"].(string); ok && assignedUID != "" {
-		q = q.Where("laboratory_orders.assigned_specialist_id = ?", assignedUID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
 		Select("laboratory_orders.*").
 		Order("laboratory_orders.id DESC").
-		Limit(perPage).
-		Offset(offset).
+		Limit(f.PerPage).
+		Offset(f.Offset()).
 		Find(&orders).Error
 
 	return orders, total, err

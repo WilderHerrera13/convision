@@ -10,8 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	jwtauth "github.com/convision/api/internal/platform/auth"
+	"github.com/convision/api/internal/domain"
 	labsvc "github.com/convision/api/internal/laboratory"
+	jwtauth "github.com/convision/api/internal/platform/auth"
 	salesvc "github.com/convision/api/internal/sale"
 )
 
@@ -21,15 +22,13 @@ import (
 // GET /api/v1/laboratories
 func (h *Handler) ListLaboratories(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	filters := map[string]any{}
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
+	var f domain.LaboratoryFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
-	out, err := h.laboratory.ListLabs(db, filters, page, perPage)
+	out, err := h.laboratory.ListLabs(db, f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -139,36 +138,26 @@ func (h *Handler) GetLaboratoryOrderStats(c *gin.Context) {
 // GET /api/v1/laboratory-orders
 func (h *Handler) ListLaboratoryOrders(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
+	var f domain.LaboratoryOrderFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 
-	filters := map[string]any{}
-	if v := c.Query("patient_id"); v != "" {
-		filters["patient_id"] = v
-	}
-	if v := c.Query("laboratory_id"); v != "" {
-		filters["laboratory_id"] = v
-	}
-	if v := c.Query("status"); v != "" {
-		filters["status"] = v
-	}
-	if v := c.Query("priority"); v != "" {
-		filters["priority"] = v
-	}
-	if v := c.Query("assigned_uid"); v != "" {
-		filters["_assigned_uid"] = v
-	}
+	// Resolve branch_id query param to a branch name. The DB column stores
+	// the branch as text, so the handler maps numeric id -> name before
+	// passing the filter to the repository.
 	if v := c.Query("branch_id"); v != "" && v != "0" && v != "all" {
 		branchID, err := strconv.ParseUint(v, 10, 64)
 		if err == nil {
 			branch, berr := h.branchRepo.GetByID(db, uint(branchID))
 			if berr == nil && branch != nil {
-				filters["branch"] = branch.Name
+				f.Branch = branch.Name
 			}
 		}
 	}
 
-	out, err := h.laboratory.ListOrders(db, filters, page, perPage)
+	out, err := h.laboratory.ListOrders(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

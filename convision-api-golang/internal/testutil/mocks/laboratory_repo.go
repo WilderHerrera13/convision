@@ -36,8 +36,8 @@ func (m *MockLaboratoryRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockLaboratoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Laboratory, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockLaboratoryRepository) List(db *gorm.DB, f domain.LaboratoryFilter) ([]*domain.Laboratory, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
@@ -92,8 +92,8 @@ func (m *MockLaboratoryOrderRepository) Delete(db *gorm.DB, id uint) error {
 	return m.Called(db, id).Error(0)
 }
 
-func (m *MockLaboratoryOrderRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.LaboratoryOrder, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockLaboratoryOrderRepository) List(db *gorm.DB, f domain.LaboratoryOrderFilter) ([]*domain.LaboratoryOrder, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}
