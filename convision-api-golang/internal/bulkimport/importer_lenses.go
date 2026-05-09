@@ -256,7 +256,10 @@ func (i *lensImporter) resolveOrCreateSupplier(db *gorm.DB, rowNum int, name str
 	if name == "" {
 		return nil
 	}
-	suppliers, _, err := i.supplierRepo.List(db, map[string]any{"name": name}, 1, 1)
+	suppliers, _, err := i.supplierRepo.List(db, domain.SupplierFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 1},
+		Name:       name,
+	})
 	if err == nil && len(suppliers) > 0 {
 		id := suppliers[0].ID
 		return &id

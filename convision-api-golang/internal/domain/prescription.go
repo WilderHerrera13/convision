@@ -44,11 +44,23 @@ type Prescription struct {
 	Appointment *Appointment `json:"appointment,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
+// PrescriptionListFilter holds query parameters for listing prescriptions.
+// (Named PrescriptionListFilter to avoid clashing with the unrelated
+// PrescriptionFilter in product.go that filters lens products by prescription
+// compatibility.)
+type PrescriptionListFilter struct {
+	Pagination
+	AppointmentID  *uint  `form:"appointment_id"`
+	PatientID      *uint  `form:"patient_id"`
+	CorrectionType string `form:"correction_type"`
+	UsageType      string `form:"usage_type"`
+}
+
 // PrescriptionRepository defines persistence operations for Prescription.
 type PrescriptionRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Prescription, error)
 	GetByAppointmentID(db *gorm.DB, appointmentID uint) (*Prescription, error)
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Prescription, int64, error)
+	List(db *gorm.DB, f PrescriptionListFilter) ([]*Prescription, int64, error)
 	ListByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*Prescription, int64, error)
 	Create(db *gorm.DB, p *Prescription) error
 	Update(db *gorm.DB, p *Prescription) error

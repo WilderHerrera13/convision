@@ -43,11 +43,20 @@ type Supplier struct {
 	City *City `json:"city,omitempty" gorm:"foreignKey:CityID"`
 }
 
+// SupplierFilter holds query parameters for listing suppliers.
+type SupplierFilter struct {
+	Pagination
+	Name       string `form:"name"`        // ILIKE match
+	Email      string `form:"email"`       // ILIKE match
+	Search     string `form:"search"`      // OR ILIKE across name, nit, legal_name, email, phone
+	PersonType string `form:"person_type"` // exact match
+}
+
 // SupplierRepository defines persistence operations for Supplier.
 type SupplierRepository interface {
 	GetByID(db *gorm.DB, id uint) (*Supplier, error)
 	Create(db *gorm.DB, s *Supplier) error
 	Update(db *gorm.DB, s *Supplier) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*Supplier, int64, error)
+	List(db *gorm.DB, f SupplierFilter) ([]*Supplier, int64, error)
 }

@@ -229,17 +229,17 @@ func (s *Service) GetByPatientIDSingle(db *gorm.DB, patientID uint) (*domain.Cli
 }
 
 // List returns paginated clinical histories with optional filters.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.histories.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.ClinicalHistoryFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.histories.List(db, f)
 	if err != nil {
 		return nil, err
 	}
-	lastPage := int(math.Ceil(float64(total) / float64(perPage)))
+	lastPage := int(math.Ceil(float64(total) / float64(f.PerPage)))
 	if lastPage < 1 {
 		lastPage = 1
 	}
-	return &ListOutput{Data: data, Total: total, CurrentPage: page, LastPage: lastPage, PerPage: perPage}, nil
+	return &ListOutput{Data: data, Total: total, CurrentPage: f.Page, LastPage: lastPage, PerPage: f.PerPage}, nil
 }
 
 // ListByPatient returns paginated clinical histories for a given patient.

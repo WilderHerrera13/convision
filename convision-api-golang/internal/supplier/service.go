@@ -71,22 +71,17 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Supplier, error) {
 }
 
 // List returns a paginated list of suppliers.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.SupplierFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(math.Ceil(float64(total) / float64(perPage)))
+		lastPage = int(math.Ceil(float64(total) / float64(f.PerPage)))
 	}
-	return &ListOutput{Data: data, Total: total, CurrentPage: page, PerPage: perPage, LastPage: lastPage}, nil
+	return &ListOutput{Data: data, Total: total, CurrentPage: f.Page, PerPage: f.PerPage, LastPage: lastPage}, nil
 }
 
 // Create creates a new supplier.

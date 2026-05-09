@@ -68,14 +68,14 @@ func (r *ClinicalHistoryRepository) GetSingleByPatientID(db *gorm.DB, patientID 
 	return &h, nil
 }
 
-func (r *ClinicalHistoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ClinicalHistory, int64, error) {
-	allowedFilters := map[string]bool{"patient_id": true, "created_by": true}
-
+func (r *ClinicalHistoryRepository) List(db *gorm.DB, f domain.ClinicalHistoryFilter) ([]*domain.ClinicalHistory, int64, error) {
+	f.Clamp()
 	q := db.Model(&domain.ClinicalHistory{})
-	for k, v := range filters {
-		if allowedFilters[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.PatientID != nil {
+		q = q.Where("patient_id = ?", *f.PatientID)
+	}
+	if f.CreatedBy != nil {
+		q = q.Where("created_by = ?", *f.CreatedBy)
 	}
 
 	var total int64
@@ -84,8 +84,7 @@ func (r *ClinicalHistoryRepository) List(db *gorm.DB, filters map[string]any, pa
 	}
 
 	var histories []*domain.ClinicalHistory
-	offset := (page - 1) * perPage
-	err := r.withRelations(q).Order("created_at DESC").Limit(perPage).Offset(offset).Find(&histories).Error
+	err := r.withRelations(q).Order("created_at DESC").Limit(f.PerPage).Offset(f.Offset()).Find(&histories).Error
 	return histories, total, err
 }
 

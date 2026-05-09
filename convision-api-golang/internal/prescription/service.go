@@ -106,17 +106,17 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.Prescription, error) {
 }
 
 // List returns paginated prescriptions with optional filters.
-func (s *Service) List(db *gorm.DB, filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *Service) List(db *gorm.DB, f domain.PrescriptionListFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
-	lastPage := int(math.Ceil(float64(total) / float64(perPage)))
+	lastPage := int(math.Ceil(float64(total) / float64(f.PerPage)))
 	if lastPage < 1 {
 		lastPage = 1
 	}
-	return &ListOutput{Data: data, Total: total, CurrentPage: page, LastPage: lastPage, PerPage: perPage}, nil
+	return &ListOutput{Data: data, Total: total, CurrentPage: f.Page, LastPage: lastPage, PerPage: f.PerPage}, nil
 }
 
 // ListByPatient returns paginated prescriptions for a given patient (via appointments).

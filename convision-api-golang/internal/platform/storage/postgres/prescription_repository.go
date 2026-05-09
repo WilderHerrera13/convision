@@ -8,13 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-// prescriptionFilterAllowlist prevents SQL injection via column name injection.
-var prescriptionFilterAllowlist = map[string]bool{
-	"appointment_id":  true,
-	"correction_type": true,
-	"usage_type":      true,
-}
-
 // PrescriptionRepository is the PostgreSQL-backed implementation of domain.PrescriptionRepository.
 type PrescriptionRepository struct{}
 
@@ -53,12 +46,22 @@ func (r *PrescriptionRepository) GetByAppointmentID(db *gorm.DB, appointmentID u
 	return &p, nil
 }
 
-func (r *PrescriptionRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Prescription, int64, error) {
+func (r *PrescriptionRepository) List(db *gorm.DB, f domain.PrescriptionListFilter) ([]*domain.Prescription, int64, error) {
+	f.Clamp()
 	q := db.Model(&domain.Prescription{})
-	for k, v := range filters {
-		if prescriptionFilterAllowlist[k] {
-			q = q.Where(k+" = ?", v)
-		}
+	if f.AppointmentID != nil {
+		q = q.Where("appointment_id = ?", *f.AppointmentID)
+	}
+	if f.PatientID != nil {
+		// Prescription has no patient_id column; resolve via appointments.
+		apptSubquery := db.Table("appointments").Select("id").Where("patient_id = ?", *f.PatientID)
+		q = q.Where("appointment_id IN (?)", apptSubquery)
+	}
+	if f.CorrectionType != "" {
+		q = q.Where("correction_type = ?", f.CorrectionType)
+	}
+	if f.UsageType != "" {
+		q = q.Where("usage_type = ?", f.UsageType)
 	}
 
 	var total int64
@@ -67,10 +70,9 @@ func (r *PrescriptionRepository) List(db *gorm.DB, filters map[string]any, page,
 	}
 
 	var prescriptions []*domain.Prescription
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
 		Order("appointment_prescriptions.created_at DESC").
-		Limit(perPage).Offset(offset).
+		Limit(f.PerPage).Offset(f.Offset()).
 		Find(&prescriptions).Error
 	return prescriptions, total, err
 }

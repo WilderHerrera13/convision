@@ -93,10 +93,12 @@ func buildSupplierResponse(s *domain.Supplier) SupplierResponse {
 
 func (h *Handler) ListSuppliers(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
-	out, err := h.supplier.List(db, filters, page, perPage)
+	var f domain.SupplierFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	out, err := h.supplier.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

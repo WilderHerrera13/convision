@@ -233,14 +233,13 @@ func buildClinicalEvolutionResource(e *domain.ClinicalEvolution) ClinicalEvoluti
 // GET /api/v1/clinical-histories
 func (h *Handler) ListClinicalHistories(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := parseApiFilters(c)
-	if filters == nil {
-		filters = make(map[string]any)
+	var f domain.ClinicalHistoryFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
-	out, err := h.clinic.List(db, filters, page, perPage)
+	out, err := h.clinic.List(db, f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return

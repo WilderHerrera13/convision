@@ -29,8 +29,8 @@ func (m *MockPrescriptionRepository) GetByAppointmentID(db *gorm.DB, appointment
 	return args.Get(0).(*domain.Prescription), args.Error(1)
 }
 
-func (m *MockPrescriptionRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.Prescription, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockPrescriptionRepository) List(db *gorm.DB, f domain.PrescriptionListFilter) ([]*domain.Prescription, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

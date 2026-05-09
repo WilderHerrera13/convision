@@ -38,8 +38,8 @@ func (m *MockClinicalHistoryRepository) GetSingleByPatientID(db *gorm.DB, patien
 	return args.Get(0).(*domain.ClinicalHistory), args.Error(1)
 }
 
-func (m *MockClinicalHistoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ClinicalHistory, int64, error) {
-	args := m.Called(db, filters, page, perPage)
+func (m *MockClinicalHistoryRepository) List(db *gorm.DB, f domain.ClinicalHistoryFilter) ([]*domain.ClinicalHistory, int64, error) {
+	args := m.Called(db, f)
 	if args.Get(0) == nil {
 		return nil, 0, args.Error(2)
 	}

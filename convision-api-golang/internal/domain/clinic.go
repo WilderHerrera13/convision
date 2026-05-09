@@ -106,12 +106,19 @@ type ClinicalEvolution struct {
 	Updater         *User            `json:"updater,omitempty"          gorm:"foreignKey:UpdatedBy"`
 }
 
+// ClinicalHistoryFilter holds query parameters for listing clinical histories.
+type ClinicalHistoryFilter struct {
+	Pagination
+	PatientID *uint `form:"patient_id"`
+	CreatedBy *uint `form:"created_by"`
+}
+
 // ClinicalHistoryRepository defines persistence operations for ClinicalHistory.
 type ClinicalHistoryRepository interface {
 	GetByID(db *gorm.DB, id uint) (*ClinicalHistory, error)
 	GetByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*ClinicalHistory, int64, error)
 	GetSingleByPatientID(db *gorm.DB, patientID uint) (*ClinicalHistory, error)
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ClinicalHistory, int64, error)
+	List(db *gorm.DB, f ClinicalHistoryFilter) ([]*ClinicalHistory, int64, error)
 	Create(db *gorm.DB, h *ClinicalHistory) error
 	Update(db *gorm.DB, h *ClinicalHistory) error
 	Delete(db *gorm.DB, id uint) error
