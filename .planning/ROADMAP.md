@@ -265,7 +265,7 @@ Plans:
   3. Repository allowlist maps (`filterAllowlist`) are removed — the struct fields ARE the allowlist
   4. All existing filter behavior preserved (same query params, same SQL semantics) — no frontend changes required
   5. `make build && make test` exit 0
-**Plans:** 8/10 plans executed
+**Plans:** 9/10 plans executed
 
 Plans:
 - [x] 21-01: Wave 1 — Foundation: domain.Pagination struct + DEVELOPMENT_GUIDE update
@@ -276,7 +276,7 @@ Plans:
 - [x] 21-06: Wave 3 — Laboratory filters (special _search/_assigned_uid keys)
 - [x] 21-07: Wave 4 — Clinical + supplier: prescription, clinical_history, supplier (parseApiFilters recipients)
 - [x] 21-08: Wave 4 — Patient + appointment (OR-mode search, 5 special keys — most complex)
-- [ ] 21-09: Wave 5 — Product catalog: product and lens catalog with prescription range filters
+- [x] 21-09: Wave 5 — Product catalog: product and lens catalog with prescription range filters
 - [ ] 21-10: Wave 6 — Final cleanup: delete parseApiFilters, zero allowlist verification, make build + test
 
 ### Phase 16: Multi-Tenancy & Super Admin
