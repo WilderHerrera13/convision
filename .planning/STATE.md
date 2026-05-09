@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 21-06-PLAN.md
-last_updated: "2026-05-08T23:58:26.846Z"
-last_activity: 2026-05-08 -- Phase 21 plan 06 (laboratory filters + pseudo-key migration) complete
+stopped_at: Completed 21-07-PLAN.md
+last_updated: "2026-05-08T23:59:00.000Z"
+last_activity: 2026-05-08 -- Phase 21 plan 07 (supplier/prescription/clinical-history typed Filter migration) complete
 progress:
   total_phases: 16
   completed_phases: 6
   total_plans: 55
-  completed_plans: 39
-  percent: 71
+  completed_plans: 40
+  percent: 73
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 21 (standardize-backend-filter-pattern) — EXECUTING
-Plan: 6 of 10 complete
-Last activity: 2026-05-08 -- 21-06 (laboratory filters + pseudo-key migration) complete
-Next: 21-07
+Plan: 7 of 10 complete
+Last activity: 2026-05-08 -- 21-07 (supplier/prescription/clinical-history typed Filter migration) complete
+Next: 21-08
 
-Progress: [███████░░░] 71%
+Progress: [███████░░░] 73%
 
 ## Performance Metrics
 
@@ -68,6 +68,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [21-05]: CashRegisterCloseRepository.List keeps role + userID as explicit args (typed domain.Role) instead of Filter fields — RBAC concerns separate from query filters
 - [21-06]: Pseudo-key migration template — `_search` and `_assigned_uid` internal map keys promoted to explicit named Filter struct fields (`Search string`, `AssignedSpecialistID *uint`)
 - [21-06]: Branch filter kept as `Branch string` with `form:"-"` (handler-resolved post-bind from `branch_id` -> `branch.Name` lookup) because the underlying DB column is TEXT not FK
+- [21-07]: Naming-conflict avoidance — when a domain package already exposes `*Filter`, the new typed list filter takes a more specific name (e.g. `PrescriptionListFilter` coexisting with the unrelated `PrescriptionFilter` for lens compatibility) instead of forcing renames in out-of-scope code
+- [21-07]: Plan-template vs reality — drop filter fields whose underlying DB column does not exist (e.g. `Status` removed from `SupplierFilter`); preserve existing SQL semantics when columns are denormalized (`PatientID` resolves via the appointments subquery for prescription)
 
 ### Roadmap Evolution
 
@@ -86,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-08T23:58:26.841Z
-Stopped at: Completed 21-06-PLAN.md
+Last session: 2026-05-08T23:59:00.000Z
+Stopped at: Completed 21-07-PLAN.md
 Resume file: None
