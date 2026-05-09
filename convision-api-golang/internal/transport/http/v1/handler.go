@@ -722,34 +722,6 @@ func toPatientResources(patients []*domain.Patient) []PatientResource {
 	return out
 }
 
-// parseApiFilters parses s_f/s_v query params (JSON arrays) into a filters map.
-// When s_o=or is present it adds the special key "_or_mode"="true" so repositories
-// can apply OR logic instead of AND across the provided fields.
-func parseApiFilters(c *gin.Context) map[string]any {
-	sf := c.Query("s_f")
-	sv := c.Query("s_v")
-	if sf == "" || sv == "" {
-		return nil
-	}
-	var fields, values []string
-	if err := json.Unmarshal([]byte(sf), &fields); err != nil {
-		return nil
-	}
-	if err := json.Unmarshal([]byte(sv), &values); err != nil {
-		return nil
-	}
-	filters := make(map[string]any, len(fields)+1)
-	for i, f := range fields {
-		if i < len(values) {
-			filters[f] = values[i]
-		}
-	}
-	if c.Query("s_o") == "or" {
-		filters["_or_mode"] = "true"
-	}
-	return filters
-}
-
 // ListPatients godoc
 // GET /api/v1/patients
 func (h *Handler) ListPatients(c *gin.Context) {
