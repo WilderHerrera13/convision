@@ -441,12 +441,14 @@ func (h *Handler) Refresh(c *gin.Context) {
 // GET /api/v1/users
 func (h *Handler) ListUsers(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-
-	role := c.Query("role")
-	if role == "" {
-		role = c.Query("role_type")
+	var f domain.UserFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	// Legacy alias: ?role=... mirrors role_type for backward compatibility.
+	if f.RoleType == "" {
+		f.RoleType = c.Query("role")
 	}
 
 	var branchID uint
@@ -457,7 +459,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	}
 
 	// Legacy contract: branch_id without role kept the old "advisors only" behavior.
-	if branchID > 0 && role == "" {
+	if branchID > 0 && f.RoleType == "" {
 		users, err := h.user.GetAdvisorsByBranch(db, branchID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
@@ -476,7 +478,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	out, err := h.user.List(db, page, perPage, role, branchID)
+	out, err := h.user.List(db, f, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return

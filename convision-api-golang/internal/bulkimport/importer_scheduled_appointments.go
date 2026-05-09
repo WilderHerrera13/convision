@@ -170,7 +170,11 @@ func (i *scheduledAppointmentsImporter) findOrCreateUserByIdentification(
 	fullName string,
 	role domain.Role,
 ) (*domain.User, error) {
-	users, _, err := i.userRepo.List(db, map[string]any{"identification": identification}, 1, 1)
+	lookup := domain.UserFilter{
+		Pagination:     domain.Pagination{Page: 1, PerPage: 1},
+		Identification: identification,
+	}
+	users, _, err := i.userRepo.List(db, lookup)
 	if err == nil && len(users) > 0 {
 		return users[0], nil
 	}
@@ -188,7 +192,7 @@ func (i *scheduledAppointmentsImporter) findOrCreateUserByIdentification(
 	}
 	if err := i.userRepo.Create(db, u); err != nil {
 		// Race: another row may have just created this user — retry lookup
-		users2, _, err2 := i.userRepo.List(db, map[string]any{"identification": identification}, 1, 1)
+		users2, _, err2 := i.userRepo.List(db, lookup)
 		if err2 == nil && len(users2) > 0 {
 			return users2[0], nil
 		}

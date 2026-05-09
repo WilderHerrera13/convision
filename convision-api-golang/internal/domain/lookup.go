@@ -107,13 +107,19 @@ type CategoryWithCount struct {
 	ProductCount int64 `json:"product_count"`
 }
 
+// ProductCategoryFilter holds query parameters for listing product categories.
+type ProductCategoryFilter struct {
+	Pagination
+	IsActive *bool `form:"is_active"`
+}
+
 // ProductCategoryRepository defines persistence operations for ProductCategory.
 type ProductCategoryRepository interface {
 	GetByID(db *gorm.DB, id uint) (*ProductCategory, error)
 	Create(db *gorm.DB, c *ProductCategory) error
 	Update(db *gorm.DB, c *ProductCategory) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*ProductCategory, int64, error)
+	List(db *gorm.DB, f ProductCategoryFilter) ([]*ProductCategory, int64, error)
 	// All returns every active category without pagination.
 	All(db *gorm.DB) ([]*ProductCategory, error)
 	// ListWithProductCount returns all categories annotated with the count of associated products.

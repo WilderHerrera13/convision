@@ -13,17 +13,6 @@ import (
 // userCols lists all columns fetched for user records (explicit, no SELECT *).
 const userCols = "id, name, last_name, email, identification, phone, password_hash, role_type, active, must_change_password, token_version, created_at, updated_at"
 
-// allowedUserFilters maps allowed column names to their match type:
-// "LIKE" for partial text match, "=" for exact match.
-var allowedUserFilters = map[string]string{
-	"name":           "LIKE",
-	"last_name":      "LIKE",
-	"email":          "LIKE",
-	"identification": "LIKE",
-	"phone":          "LIKE",
-	"role_type":      "=",
-}
-
 // UserRepository is the PostgreSQL-backed implementation of domain.UserRepository.
 type UserRepository struct{}
 
@@ -118,30 +107,31 @@ func (r *UserRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.User{}, id).Error
 }
 
-func (r *UserRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.User, int64, error) {
+func (r *UserRepository) List(db *gorm.DB, f domain.UserFilter) ([]*domain.User, int64, error) {
+	f.Clamp()
 	var users []*domain.User
 	var total int64
 
 	q := db.Model(&domain.User{}).Select(userCols)
-	for field, value := range filters {
-		matchType, ok := allowedUserFilters[field]
-		if !ok {
-			continue // skip unknown fields to prevent SQL injection
-		}
-		strVal, _ := value.(string)
-		if matchType == "=" {
-			q = q.Where(field+" = ?", strVal)
-		} else {
-			q = q.Where(field+" LIKE ?", "%"+strVal+"%")
-		}
+	if f.RoleType != "" {
+		q = q.Where("role_type = ?", f.RoleType)
+	}
+	if f.Identification != "" {
+		q = q.Where("identification LIKE ?", "%"+f.Identification+"%")
+	}
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
+		q = q.Where(
+			"name ILIKE ? OR last_name ILIKE ? OR email ILIKE ? OR identification ILIKE ? OR phone ILIKE ?",
+			like, like, like, like, like,
+		)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
-	if err := q.Offset(offset).Limit(perPage).Order("id asc").Find(&users).Error; err != nil {
+	if err := q.Offset(f.Offset()).Limit(f.PerPage).Order("id asc").Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 

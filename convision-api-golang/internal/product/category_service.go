@@ -54,17 +54,17 @@ type CategoryListOutput struct {
 
 // --- Methods ---
 
-func (s *CategoryService) List(db *gorm.DB, filters map[string]any, page, perPage int) (*CategoryListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(db, filters, page, perPage)
+func (s *CategoryService) List(db *gorm.DB, f domain.ProductCategoryFilter) (*CategoryListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &CategoryListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }

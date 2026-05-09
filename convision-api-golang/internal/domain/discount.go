@@ -43,6 +43,16 @@ type DiscountRequest struct {
 	Patient  *Patient `json:"patient,omitempty"  gorm:"foreignKey:PatientID"`
 }
 
+// DiscountFilter holds query parameters for listing discount requests.
+type DiscountFilter struct {
+	Pagination
+	Status    string `form:"status"`
+	ProductID *uint  `form:"product_id"`
+	PatientID *uint  `form:"patient_id"`
+	UserID    *uint  `form:"user_id"`
+	IsGlobal  *bool  `form:"is_global"`
+}
+
 // DiscountRepository defines persistence operations for DiscountRequest.
 type DiscountRepository interface {
 	GetByID(db *gorm.DB, id uint) (*DiscountRequest, error)
@@ -52,5 +62,5 @@ type DiscountRepository interface {
 	Create(db *gorm.DB, d *DiscountRequest) error
 	Update(db *gorm.DB, d *DiscountRequest) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*DiscountRequest, int64, error)
+	List(db *gorm.DB, f DiscountFilter) ([]*DiscountRequest, int64, error)
 }

@@ -36,6 +36,18 @@ type User struct {
 	Roles []RoleModel `json:"roles,omitempty" gorm:"many2many:user_roles;"`
 }
 
+// UserFilter holds query parameters for listing users.
+// Search applies an OR ILIKE fan-out across name, last_name, email, identification, and phone columns,
+// replacing the legacy allowedUserFilters per-field LIKE pattern.
+// Identification matches the legacy `identification` filter exactly so bulkimport callers can build
+// `UserFilter{Identification: id}` to look up an existing user by document number.
+type UserFilter struct {
+	Pagination
+	RoleType       string `form:"role_type"`
+	Identification string `form:"identification"`
+	Search         string `form:"search"`
+}
+
 // UserRepository defines persistence operations for User.
 type UserRepository interface {
 	GetByID(db *gorm.DB, id uint) (*User, error)
@@ -45,7 +57,7 @@ type UserRepository interface {
 	Update(db *gorm.DB, u *User) error
 	UpdatePassword(db *gorm.DB, userID uint, hashedPassword string) error
 	Delete(db *gorm.DB, id uint) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*User, int64, error)
+	List(db *gorm.DB, f UserFilter) ([]*User, int64, error)
 	ListByBranch(db *gorm.DB, branchID uint, role string, page, perPage int) ([]*User, int64, error)
 	GetSpecialistsByBranch(db *gorm.DB, branchID uint) ([]*User, error)
 	GetAdvisorsByBranch(db *gorm.DB, branchID uint) ([]*User, error)

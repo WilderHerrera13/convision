@@ -12,17 +12,12 @@ import (
 )
 
 func (h *Handler) ListDiscountRequests(c *gin.Context) {
-	page, perPage := parsePagination(c)
-	filters := map[string]any{}
-	if s := c.Query("status"); s != "" {
-		filters["status"] = s
+	var f domain.DiscountFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
-	if v := c.Query("product_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
-			filters["product_id"] = uint(id)
-		}
-	}
-	out, err := h.discount.List(filters, page, perPage)
+	out, err := h.discount.List(f)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -184,11 +179,11 @@ func (h *Handler) ListActiveDiscounts(c *gin.Context) {
 	}
 
 	if productID == nil {
-		filters := map[string]any{}
-		if patientID != nil {
-			filters["patient_id"] = *patientID
+		f := domain.DiscountFilter{
+			Pagination: domain.Pagination{Page: page, PerPage: perPage},
+			PatientID:  patientID,
 		}
-		out, err := h.discount.List(filters, page, perPage)
+		out, err := h.discount.List(f)
 		if err != nil {
 			respondError(c, err)
 			return

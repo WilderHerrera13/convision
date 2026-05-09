@@ -84,17 +84,17 @@ type ListOutput struct {
 
 // --- Methods ---
 
-func (s *Service) List(filters map[string]any, page, perPage int) (*ListOutput, error) {
-	page, perPage = clampPage(page, perPage)
-	data, total, err := s.repo.List(s.db, filters, page, perPage)
+func (s *Service) List(f domain.DiscountFilter) (*ListOutput, error) {
+	f.Clamp()
+	data, total, err := s.repo.List(s.db, f)
 	if err != nil {
 		return nil, err
 	}
 	return &ListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        data,
-		LastPage:    calcLastPage(total, perPage),
-		PerPage:     perPage,
+		LastPage:    calcLastPage(total, f.PerPage),
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }

@@ -54,26 +54,16 @@ type ListOutput struct {
 
 // List returns a paginated list of users, optionally filtered by role_type.
 // branchID > 0 restricts results to users with a matching user_branches row.
-func (s *Service) List(db *gorm.DB, page, perPage int, role string, branchID uint) (*ListOutput, error) {
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 15
-	}
-
-	filters := map[string]any{}
-	if role != "" {
-		filters["role_type"] = role
-	}
+func (s *Service) List(db *gorm.DB, f domain.UserFilter, branchID uint) (*ListOutput, error) {
+	f.Clamp()
 
 	var users []*domain.User
 	var total int64
 	var err error
 	if branchID > 0 {
-		users, total, err = s.repo.ListByBranch(db, branchID, role, page, perPage)
+		users, total, err = s.repo.ListByBranch(db, branchID, f.RoleType, f.Page, f.PerPage)
 	} else {
-		users, total, err = s.repo.List(db, filters, page, perPage)
+		users, total, err = s.repo.List(db, f)
 	}
 	if err != nil {
 		return nil, err
@@ -81,17 +71,17 @@ func (s *Service) List(db *gorm.DB, page, perPage int, role string, branchID uin
 
 	lastPage := 1
 	if total > 0 {
-		lastPage = int(total) / perPage
-		if int(total)%perPage != 0 {
+		lastPage = int(total) / f.PerPage
+		if int(total)%f.PerPage != 0 {
 			lastPage++
 		}
 	}
 
 	return &ListOutput{
-		CurrentPage: page,
+		CurrentPage: f.Page,
 		Data:        users,
 		LastPage:    lastPage,
-		PerPage:     perPage,
+		PerPage:     f.PerPage,
 		Total:       total,
 	}, nil
 }
@@ -103,13 +93,19 @@ func (s *Service) GetByID(db *gorm.DB, id uint) (*domain.User, error) {
 
 // GetSpecialists returns all active users with the specialist role (no pagination cap).
 func (s *Service) GetSpecialists(db *gorm.DB) ([]*domain.User, error) {
-	users, _, err := s.repo.List(db, map[string]any{"role_type": string(domain.RoleSpecialist)}, 1, 200)
+	users, _, err := s.repo.List(db, domain.UserFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 200},
+		RoleType:   string(domain.RoleSpecialist),
+	})
 	return users, err
 }
 
 // GetAdmins returns all users with the admin role (no pagination cap).
 func (s *Service) GetAdmins(db *gorm.DB) ([]*domain.User, error) {
-	users, _, err := s.repo.List(db, map[string]any{"role_type": string(domain.RoleAdmin)}, 1, 200)
+	users, _, err := s.repo.List(db, domain.UserFilter{
+		Pagination: domain.Pagination{Page: 1, PerPage: 200},
+		RoleType:   string(domain.RoleAdmin),
+	})
 	return users, err
 }
 

@@ -10,14 +10,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var discountFilterAllowlist = map[string]bool{
-	"status":     true,
-	"product_id": true,
-	"patient_id": true,
-	"user_id":    true,
-	"is_global":  true,
-}
-
 // DiscountRepository is the PostgreSQL-backed implementation of domain.DiscountRepository.
 type DiscountRepository struct{}
 
@@ -158,26 +150,35 @@ func (r *DiscountRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Model(&domain.DiscountRequest{}).Where("id = ?", id).Update("deleted_at", now).Error
 }
 
-func (r *DiscountRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.DiscountRequest, int64, error) {
+func (r *DiscountRepository) List(db *gorm.DB, f domain.DiscountFilter) ([]*domain.DiscountRequest, int64, error) {
+	f.Clamp()
 	var discounts []*domain.DiscountRequest
 	var total int64
 
 	q := db.Model(&domain.DiscountRequest{}).Where("discount_requests.deleted_at IS NULL")
-	for field, value := range filters {
-		if !discountFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("discount_requests."+field+" = ?", value)
+	if f.Status != "" {
+		q = q.Where("discount_requests.status = ?", f.Status)
+	}
+	if f.ProductID != nil {
+		q = q.Where("discount_requests.product_id = ?", *f.ProductID)
+	}
+	if f.PatientID != nil {
+		q = q.Where("discount_requests.patient_id = ?", *f.PatientID)
+	}
+	if f.UserID != nil {
+		q = q.Where("discount_requests.user_id = ?", *f.UserID)
+	}
+	if f.IsGlobal != nil {
+		q = q.Where("discount_requests.is_global = ?", *f.IsGlobal)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := r.withRelations(q).
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("discount_requests.id desc").
 		Find(&discounts).Error
 	if err != nil {

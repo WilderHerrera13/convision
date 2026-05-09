@@ -368,8 +368,12 @@ func (h *Handler) CalculateProductPrice(c *gin.Context) {
 
 func (h *Handler) ListProductCategories(c *gin.Context) {
 	db := tenantDBFromCtx(c)
-	page, perPage := parsePagination(c)
-	out, err := h.category.List(db, map[string]any{}, page, perPage)
+	var f domain.ProductCategoryFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	out, err := h.category.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

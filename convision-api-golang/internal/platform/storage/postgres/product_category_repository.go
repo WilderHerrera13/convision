@@ -8,10 +8,6 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
-var productCategoryFilterAllowlist = map[string]bool{
-	"is_active": true,
-}
-
 // ProductCategoryRepository is the PostgreSQL-backed implementation of domain.ProductCategoryRepository.
 type ProductCategoryRepository struct{}
 
@@ -50,26 +46,23 @@ func (r *ProductCategoryRepository) Delete(db *gorm.DB, id uint) error {
 	return db.Delete(&domain.ProductCategory{}, id).Error
 }
 
-func (r *ProductCategoryRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.ProductCategory, int64, error) {
+func (r *ProductCategoryRepository) List(db *gorm.DB, f domain.ProductCategoryFilter) ([]*domain.ProductCategory, int64, error) {
+	f.Clamp()
 	var cats []*domain.ProductCategory
 	var total int64
 
 	q := db.Model(&domain.ProductCategory{})
-	for field, value := range filters {
-		if !productCategoryFilterAllowlist[field] {
-			continue
-		}
-		q = q.Where("product_categories."+field+" = ?", value)
+	if f.IsActive != nil {
+		q = q.Where("product_categories.is_active = ?", *f.IsActive)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
 	err := q.Select("id, name, slug, description, icon, required_attributes, is_active, created_at, updated_at").
-		Offset(offset).
-		Limit(perPage).
+		Offset(f.Offset()).
+		Limit(f.PerPage).
 		Order("product_categories.id asc").
 		Find(&cats).Error
 	if err != nil {
