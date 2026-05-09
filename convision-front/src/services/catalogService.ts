@@ -145,17 +145,8 @@ class CatalogService {
       if (params.treatment_id) searchParams.append('treatment_id', params.treatment_id.toString());
       if (params.supplier_id) searchParams.append('supplier_id', params.supplier_id.toString());
 
-      const searchFields: string[] = [];
-      const searchValues: string[] = [];
-
       if (params.description) {
-        searchFields.push('description');
-        searchValues.push(params.description);
-      }
-
-      if (searchFields.length > 0) {
-        searchParams.append('s_f', JSON.stringify(searchFields));
-        searchParams.append('s_v', JSON.stringify(searchValues));
+        searchParams.append('search', params.description);
       }
 
       if (params.sort) {
