@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 21-05-PLAN.md
+stopped_at: Completed 21-06-PLAN.md
 last_updated: "2026-05-08T23:58:26.846Z"
-last_activity: 2026-05-08 -- Phase 21 plan 05 (finance + cash close filters) complete
+last_activity: 2026-05-08 -- Phase 21 plan 06 (laboratory filters + pseudo-key migration) complete
 progress:
   total_phases: 16
   completed_phases: 6
   total_plans: 55
-  completed_plans: 38
-  percent: 69
+  completed_plans: 39
+  percent: 71
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 21 (standardize-backend-filter-pattern) — EXECUTING
-Plan: 5 of 10 complete
-Last activity: 2026-05-08 -- 21-05 (finance + cash close filters) complete
-Next: 21-06
+Plan: 6 of 10 complete
+Last activity: 2026-05-08 -- 21-06 (laboratory filters + pseudo-key migration) complete
+Next: 21-07
 
-Progress: [███████░░░] 69%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -66,6 +66,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [21-04]: Single compound commit (5 tasks, 15 files) — partial splits leave HEAD uncompilable; sale/quote/order are tightly coupled with no independently buildable subset
 - [21-05]: Single compound commit (6 tasks, 21 files) — same compound-commit precedent for 6 finance/cash domains
 - [21-05]: CashRegisterCloseRepository.List keeps role + userID as explicit args (typed domain.Role) instead of Filter fields — RBAC concerns separate from query filters
+- [21-06]: Pseudo-key migration template — `_search` and `_assigned_uid` internal map keys promoted to explicit named Filter struct fields (`Search string`, `AssignedSpecialistID *uint`)
+- [21-06]: Branch filter kept as `Branch string` with `form:"-"` (handler-resolved post-bind from `branch_id` -> `branch.Name` lookup) because the underlying DB column is TEXT not FK
 
 ### Roadmap Evolution
 
@@ -85,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-08T23:58:26.841Z
-Stopped at: Completed 21-05-PLAN.md
+Stopped at: Completed 21-06-PLAN.md
 Resume file: None
