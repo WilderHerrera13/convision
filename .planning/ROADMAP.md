@@ -279,6 +279,18 @@ Plans:
 - [x] 21-09: Wave 5 — Product catalog: product and lens catalog with prescription range filters
 - [x] 21-10: Wave 6 — Final cleanup: delete parseApiFilters, zero allowlist verification, make build + test
 
+### Phase 21.1: Migrate frontend to typed query params (INSERTED)
+
+**Goal:** Migrate every frontend list/search call off the legacy `s_f`/`s_v`/`s_o=or` JSON-array filter contract onto flat `?key=value` query params that match the typed `domain.<Entity>Filter` form tags introduced in Phase 21, locking the retirement with a repo-wide grep gate and an alignment audit.
+**Requirements**: TBD
+**Depends on:** Phase 21
+**Plans:** 3 plans
+
+Plans:
+- [ ] 21.1-01: Migrate list-page services and direct page callers (patient, appointment, clinical evolution, plus admin/receptionist Patients/Appointments pages, NewQuote, DiscountRequestModal)
+- [ ] 21.1-02: Migrate catalog and dropdown services (lens, catalog, inventory, brand, category, supplier, laboratory, user)
+- [ ] 21.1-03: Audit list-call/Filter-struct alignment + lock retirement of legacy params (D-10/D-11)
+
 ### Phase 16: Multi-Tenancy & Super Admin
 **Goal:** Introduce full PostgreSQL schema-per-tenant isolation, a super-admin tier, and optica management so the platform can serve multiple independent optica clients from a single deployment.
 **Depends on:** Phase 14 (multi-branch)
