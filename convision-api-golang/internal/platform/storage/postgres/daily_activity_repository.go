@@ -88,32 +88,36 @@ func (r *DailyActivityRepository) Update(db *gorm.DB, report *domain.DailyActivi
 	}).Error
 }
 
-func (r *DailyActivityRepository) List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*domain.DailyActivityReport, int64, error) {
+func (r *DailyActivityRepository) List(db *gorm.DB, f domain.DailyActivityFilter) ([]*domain.DailyActivityReport, int64, error) {
+	f.Clamp()
 	var records []*domain.DailyActivityReport
 	var total int64
 
 	q := db.Model(&domain.DailyActivityReport{})
 
-	if branchID, ok := filters["branch_id"]; ok {
-		q = q.Where("branch_id = ?", branchID)
+	if f.BranchID != nil {
+		q = q.Where("branch_id = ?", *f.BranchID)
 	}
-	if userID, ok := filters["user_id"]; ok {
-		q = q.Where("user_id = ?", userID)
+	if f.UserID != nil {
+		q = q.Where("user_id = ?", *f.UserID)
 	}
-	if dateFrom, ok := filters["date_from"]; ok {
-		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date >= ?::date", dateFrom)
+	if f.DateFrom != "" {
+		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date >= ?::date", f.DateFrom)
 	}
-	if dateTo, ok := filters["date_to"]; ok {
-		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date <= ?::date", dateTo)
+	if f.DateTo != "" {
+		q = q.Where("(report_date AT TIME ZONE 'America/Bogota')::date <= ?::date", f.DateTo)
 	}
-	if status, ok := filters["status"]; ok {
-		q = q.Where("status = ?", status)
+	if f.Status != "" {
+		q = q.Where("status = ?", f.Status)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	offset := (page - 1) * perPage
-	err := q.Preload("User").Order("report_date DESC, created_at DESC").Offset(offset).Limit(perPage).Find(&records).Error
+	err := q.Preload("User").
+		Order("report_date DESC, created_at DESC").
+		Offset(f.Offset()).
+		Limit(f.PerPage).
+		Find(&records).Error
 	return records, total, err
 }

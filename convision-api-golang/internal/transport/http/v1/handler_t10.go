@@ -526,9 +526,11 @@ func (h *Handler) CreateNote(c *gin.Context) {
 // ---------- Daily Activity Reports ----------
 
 func (h *Handler) ListDailyActivityReports(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
-	filters := map[string]any{}
+	var f domain.DailyActivityFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
 	claims, ok := jwtauth.GetClaims(c)
 
 	branchID := branchmw.BranchIDFromCtx(c)
@@ -540,26 +542,22 @@ func (h *Handler) ListDailyActivityReports(c *gin.Context) {
 		}
 	}
 	if branchID > 0 {
-		filters["branch_id"] = branchID
+		bID := branchID
+		f.BranchID = &bID
 	}
 
 	if ok && claims.Role != "admin" {
-		filters["user_id"] = claims.UserID
+		uid := claims.UserID
+		f.UserID = &uid
 	}
-	if userID := c.Query("user_id"); userID != "" && ok && claims.Role == "admin" {
-		filters["user_id"] = userID
-	}
-	if dateFrom := c.Query("date_from"); dateFrom != "" {
-		filters["date_from"] = dateFrom
-	}
-	if dateTo := c.Query("date_to"); dateTo != "" {
-		filters["date_to"] = dateTo
-	}
-	if status := c.Query("status"); status != "" {
-		filters["status"] = status
+	if userIDStr := c.Query("user_id"); userIDStr != "" && ok && claims.Role == "admin" {
+		if n, err := strconv.ParseUint(userIDStr, 10, 64); err == nil {
+			uid := uint(n)
+			f.UserID = &uid
+		}
 	}
 	db := tenantDBFromCtx(c)
-	out, err := h.dailyActivity.List(db, filters, page, perPage)
+	out, err := h.dailyActivity.List(db, f)
 	if err != nil {
 		respondError(c, err)
 		return

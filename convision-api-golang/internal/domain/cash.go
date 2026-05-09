@@ -236,6 +236,19 @@ type DailyActivityReport struct {
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID"`
 }
 
+// DailyActivityFilter holds query parameters for listing daily activity reports.
+// BranchID and UserID are populated by the handler post-bind: BranchID from the
+// branch context middleware (or admin override), UserID forced to the caller's
+// own ID for non-admin roles.
+type DailyActivityFilter struct {
+	Pagination
+	BranchID *uint  `form:"-"`
+	UserID   *uint  `form:"-"`
+	DateFrom string `form:"date_from"`
+	DateTo   string `form:"date_to"`
+	Status   string `form:"status"`
+}
+
 // DailyActivityRepository defines persistence operations for DailyActivityReport.
 type DailyActivityRepository interface {
 	GetByID(db *gorm.DB, id uint) (*DailyActivityReport, error)
@@ -243,7 +256,7 @@ type DailyActivityRepository interface {
 	FindByUserAndDate(db *gorm.DB, userID uint, date string) (*DailyActivityReport, error)
 	Create(db *gorm.DB, r *DailyActivityReport) error
 	Update(db *gorm.DB, r *DailyActivityReport) error
-	List(db *gorm.DB, filters map[string]any, page, perPage int) ([]*DailyActivityReport, int64, error)
+	List(db *gorm.DB, f DailyActivityFilter) ([]*DailyActivityReport, int64, error)
 }
 
 // DailyReportEditLog records every mutation applied to a DailyActivityReport.
