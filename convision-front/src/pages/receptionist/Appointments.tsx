@@ -96,7 +96,6 @@ const Appointments: React.FC = () => {
         endDate: dateRange.endDate,
         search: search || undefined,
         filters,
-        branchIdQuery: branchFilter !== 'all' ? branchFilter : '0',
       });
     },
     placeholderData: (prev) => prev,
