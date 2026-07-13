@@ -384,6 +384,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			lookup.GET("/districts", h.LookupDistricts)
 		}
 
+		// ICD-10 (CIE-10) catalog — all authenticated roles, read-only.
+		// Backs the diagnosis search combobox (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 03/08).
+		icd10Codes := protected.Group("/icd10-codes")
+		{
+			icd10Codes.GET("", h.ListIcd10Codes)
+		}
+
 		// Product categories — read: all; write: admin only
 		productCategories := protected.Group("/product-categories")
 		{

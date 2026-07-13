@@ -26,6 +26,7 @@ import (
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
+	icd10svc "github.com/convision/api/internal/icd10"
 	inventorysvc "github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
@@ -107,6 +108,7 @@ func main() {
 	clinicalHistoryRepo := postgresplatform.NewClinicalHistoryRepository()
 	clinicalEvolutionRepo := postgresplatform.NewClinicalEvolutionRepository()
 	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository()
+	icd10Repo := postgresplatform.NewIcd10CodeRepository()
 
 	// Catalog repos
 	brandRepo := postgresplatform.NewBrandRepository()
@@ -189,7 +191,8 @@ func main() {
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
 	prescriptionService := prescriptionsvc.NewService(prescriptionRepo, logger)
 	clinicService := clinic.NewService(clinicalHistoryRepo, clinicalEvolutionRepo, patientRepo, logger)
-	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, logger)
+	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, icd10Repo, logger)
+	icd10Service := icd10svc.NewService(icd10Repo, logger)
 	catalogService := catalogsvc.NewService(
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,
@@ -255,7 +258,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema, icd10Service)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----
