@@ -167,6 +167,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.Diagnosis{},
 		&domain.ClinicalPrescription{},
 		&domain.Icd10Code{},
+		&domain.RipsRecord{},
 		// Catalogue
 		&domain.LensType{},
 		&domain.LensClass{},
@@ -297,6 +298,7 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.Diagnosis{},
 		&domain.ClinicalPrescription{},
 		&domain.Icd10Code{},
+		&domain.RipsRecord{},
 		// Catalogue
 		&domain.LensType{},
 		&domain.LensClass{},

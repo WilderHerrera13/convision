@@ -66,6 +66,38 @@ func (r *ClinicalRecordRepository) GetLatestSignedByPatientID(db *gorm.DB, patie
 	return &rec, nil
 }
 
+func (r *ClinicalRecordRepository) ListSignedByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.ClinicalRecord, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 15
+	}
+
+	q := db.Model(&domain.ClinicalRecord{}).
+		Where("patient_id = ? AND status = ? AND deleted_at IS NULL", patientID, "signed")
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var records []*domain.ClinicalRecord
+	err := q.
+		Preload("Anamnesis").
+		Preload("VisualExam").
+		Preload("Diagnosis").
+		Preload("ClinicalPrescription").
+		Offset((page - 1) * perPage).
+		Limit(perPage).
+		Order("updated_at DESC").
+		Find(&records).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return records, total, nil
+}
+
 func (r *ClinicalRecordRepository) Create(db *gorm.DB, rec *domain.ClinicalRecord) error {
 	return db.Create(rec).Error
 }

@@ -243,6 +243,14 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 		return
 	}
 
+	// Build the RIPS record fire-and-forget — signing must never fail or
+	// block on it (mirrors sale.Service's async invoice emission). Uses the
+	// non-transactional db handle since the transaction above has already
+	// committed by this point.
+	if h.rips != nil {
+		h.rips.BuildForAppointmentAsync(db, apptID)
+	}
+
 	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
 	c.JSON(http.StatusOK, updated)
 }

@@ -38,11 +38,13 @@ import (
 	payrollsvc "github.com/convision/api/internal/payroll"
 	"github.com/convision/api/internal/platform/featurecache"
 	"github.com/convision/api/internal/platform/opticacache"
+	platformrips "github.com/convision/api/internal/platform/rips"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	productsvc "github.com/convision/api/internal/product"
 	purchasesvc "github.com/convision/api/internal/purchase"
 	quotesvc "github.com/convision/api/internal/quote"
+	ripssvc "github.com/convision/api/internal/rips"
 	salesvc "github.com/convision/api/internal/sale"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
 	suppliersvc "github.com/convision/api/internal/supplier"
@@ -109,6 +111,7 @@ func main() {
 	clinicalEvolutionRepo := postgresplatform.NewClinicalEvolutionRepository()
 	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository()
 	icd10Repo := postgresplatform.NewIcd10CodeRepository()
+	ripsRepo := postgresplatform.NewRipsRecordRepository()
 
 	// Catalog repos
 	brandRepo := postgresplatform.NewBrandRepository()
@@ -193,6 +196,8 @@ func main() {
 	clinicService := clinic.NewService(clinicalHistoryRepo, clinicalEvolutionRepo, patientRepo, logger)
 	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, icd10Repo, logger)
 	icd10Service := icd10svc.NewService(icd10Repo, logger)
+	ripsTransmitter := platformrips.NewFromEnv(logger)
+	ripsService := ripssvc.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, ripsTransmitter, logger)
 	catalogService := catalogsvc.NewService(
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,
@@ -258,7 +263,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema, icd10Service)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema, icd10Service, ripsService)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----

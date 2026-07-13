@@ -29,6 +29,14 @@ func (m *MockClinicalRecordRepository) GetLatestSignedByPatientID(db *gorm.DB, p
 	return args.Get(0).(*domain.ClinicalRecord), args.Error(1)
 }
 
+func (m *MockClinicalRecordRepository) ListSignedByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*domain.ClinicalRecord, int64, error) {
+	args := m.Called(db, patientID, page, perPage)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]*domain.ClinicalRecord), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockClinicalRecordRepository) Create(db *gorm.DB, r *domain.ClinicalRecord) error {
 	return m.Called(db, r).Error(0)
 }

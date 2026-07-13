@@ -391,6 +391,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			icd10Codes.GET("", h.ListIcd10Codes)
 		}
 
+		// RIPS (Resolución 2275/2023) — admin only, compliance/regulatory data.
+		// See docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md section 07.
+		rips := protected.Group("/rips")
+		{
+			rips.GET("", jwtauth.RequirePermission("rips:view"), h.ListRipsRecords)
+			rips.GET("/:id", jwtauth.RequirePermission("rips:view"), h.GetRipsRecord)
+			rips.POST("/:id/attach-invoice", jwtauth.RequirePermission("rips:view"), h.AttachRipsInvoice)
+		}
+
 		// Product categories — read: all; write: admin only
 		productCategories := protected.Group("/product-categories")
 		{

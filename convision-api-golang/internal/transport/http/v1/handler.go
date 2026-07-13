@@ -23,6 +23,7 @@ import (
 	"github.com/convision/api/internal/domain"
 	expensesvc "github.com/convision/api/internal/expense"
 	icd10svc "github.com/convision/api/internal/icd10"
+	ripssvc "github.com/convision/api/internal/rips"
 	"github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	"github.com/convision/api/internal/location"
@@ -152,6 +153,7 @@ type Handler struct {
 	opticaPermRepo       domain.OpticaPermissionRepository
 	superAdminPermSchema string
 	icd10                *icd10svc.Service
+	rips                 *ripssvc.Service
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -196,6 +198,7 @@ func NewHandler(
 	opticaPermRepo       domain.OpticaPermissionRepository,
 	superAdminPermSchema string,
 	icd10Svc             *icd10svc.Service,
+	ripsSvc              *ripssvc.Service,
 ) *Handler {
 	return &Handler{
 		db:             db,
@@ -238,6 +241,7 @@ func NewHandler(
 		opticaPermRepo:       opticaPermRepo,
 		superAdminPermSchema: superAdminPermSchema,
 		icd10:                icd10Svc,
+		rips:                 ripsSvc,
 	}
 }
 
