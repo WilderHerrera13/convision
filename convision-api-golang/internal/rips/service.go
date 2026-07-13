@@ -60,6 +60,14 @@ const (
 	professionalDocTypeDefault = "CC"
 )
 
+// ConnectionFactory opens a short-lived, schema-scoped *gorm.DB (plus a
+// cleanup func to release it) for a given tenant schema name. Mirrors
+// bulkimport.Service's ConnectionFactory — both need a DB handle that
+// outlives a single HTTP request/transaction. The concrete implementation
+// (postgresplatform.NewSchemaConnection) is injected from main.go so this
+// package never imports internal/platform/storage/postgres directly.
+type ConnectionFactory func(schemaName string) (*gorm.DB, func(), error)
+
 // Service builds and stores RIPS records from signed clinical encounters.
 type Service struct {
 	clinicalRecordRepo domain.ClinicalRecordRepository
@@ -68,6 +76,7 @@ type Service struct {
 	icd10Repo          domain.Icd10CodeRepository
 	repo               domain.RipsRecordRepository
 	transmitter        *platformrips.Transmitter
+	connFactory        ConnectionFactory
 	logger             *zap.Logger
 }
 
@@ -79,6 +88,7 @@ func NewService(
 	icd10Repo domain.Icd10CodeRepository,
 	repo domain.RipsRecordRepository,
 	transmitter *platformrips.Transmitter,
+	connFactory ConnectionFactory,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
@@ -88,6 +98,7 @@ func NewService(
 		icd10Repo:          icd10Repo,
 		repo:               repo,
 		transmitter:        transmitter,
+		connFactory:        connFactory,
 		logger:             logger,
 	}
 }
@@ -193,10 +204,35 @@ func (s *Service) BuildForAppointment(db *gorm.DB, appointmentID uint) (*domain.
 // BuildForAppointmentAsync builds the RIPS record in a background goroutine,
 // mirroring sale.Service's fire-and-forget invoice emission
 // (go s.emitInvoiceAsync(...)) — signing a clinical record must never fail
-// or block on RIPS construction. Call with the handler's non-transactional
-// db handle, never a *gorm.DB scoped to an already-committed transaction.
-func (s *Service) BuildForAppointmentAsync(db *gorm.DB, appointmentID uint) {
+// or block on RIPS construction.
+//
+// It deliberately does NOT accept the handler's request-scoped *gorm.DB:
+// TenantSchema (internal/transport/http/v1/middleware/tenant_schema.go) runs
+// every request inside a transaction (`globalDB.Begin()` + `SET LOCAL
+// search_path`) that is committed the moment the HTTP handler returns —
+// reusing that handle from a goroutine that outlives the request fails with
+// "sql: transaction has already been committed or rolled back". Instead this
+// takes the tenant schema name and opens its own short-lived schema-scoped
+// connection via connFactory (mirrors bulkimport.Service's ConnectionFactory
+// pattern), which the caller supplies from main.go
+// (postgresplatform.NewSchemaConnection).
+func (s *Service) BuildForAppointmentAsync(schemaName string, appointmentID uint) {
 	go func() {
+		if s.connFactory == nil {
+			s.logger.Warn("rips: no connection factory configured, skipping async build",
+				zap.Uint("appointment_id", appointmentID))
+			return
+		}
+		db, cleanup, err := s.connFactory(schemaName)
+		if err != nil {
+			s.logger.Warn("rips: failed to open schema-scoped connection for async build",
+				zap.Uint("appointment_id", appointmentID),
+				zap.String("schema", schemaName),
+				zap.Error(err))
+			return
+		}
+		defer cleanup()
+
 		if _, err := s.BuildForAppointment(db, appointmentID); err != nil {
 			s.logger.Warn("rips: failed to build record after clinical record signed",
 				zap.Uint("appointment_id", appointmentID),
@@ -385,13 +421,45 @@ func patientDocument(patient *domain.Patient) (docType string, docNumber string,
 	if patient.IdentificationType == nil || patient.IdentificationType.Code == "" {
 		return "", "", &domain.ErrValidation{Field: "identification_type", Message: "el paciente no tiene tipo de documento registrado"}
 	}
-	code := strings.ToUpper(strings.TrimSpace(patient.IdentificationType.Code))
-	switch code {
-	case "CC", "TI", "CE", "PA", "RC", "CN", "NV", "AS", "MS", "SC", "PT", "PE", "DE", "CD", "NI", "SI":
-		return code, patient.Identification, nil
-	default:
-		return "", "", &domain.ErrValidation{Field: "identification_type", Message: "tipo de documento no reconocido por el catálogo TipoIdPISIS: " + code}
+	code, err := mapIdentificationTypeToTipoIdPISIS(patient.IdentificationType.Code)
+	if err != nil {
+		return "", "", err
 	}
+	return code, patient.Identification, nil
+}
+
+// mapIdentificationTypeToTipoIdPISIS translates Convision's IdentificationType
+// catalog (internal/domain/lookup.go, seeded with descriptive slugs such as
+// "cedula_ciudadania") to the official TipoIdPISIS abbreviations RIPS expects
+// (CC, TI, CE...). Also accepts the abbreviation directly, in case a given
+// tenant's catalog is already seeded that way. Returns a validation error —
+// never a fabricated code — for anything unrecognized.
+func mapIdentificationTypeToTipoIdPISIS(rawCode string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(rawCode))
+	switch normalized {
+	case "cedula_ciudadania", "cc":
+		return "CC", nil
+	case "tarjeta_identidad", "ti":
+		return "TI", nil
+	case "cedula_extranjeria", "ce":
+		return "CE", nil
+	case "pasaporte", "pa":
+		return "PA", nil
+	case "registro_civil", "rc":
+		return "RC", nil
+	case "nit", "ni":
+		return "NI", nil
+	case "pep", "pe":
+		return "PE", nil
+	}
+	// Already-uppercase official abbreviation, not covered by the slugs above
+	// (e.g. tenants that seed the catalog with the abbreviation directly).
+	upper := strings.ToUpper(normalized)
+	switch upper {
+	case "CD", "CN", "NV", "AS", "MS", "SC", "PT", "DE", "SI":
+		return upper, nil
+	}
+	return "", &domain.ErrValidation{Field: "identification_type", Message: "tipo de documento no reconocido por el catálogo TipoIdPISIS: " + rawCode}
 }
 
 // deriveTipoUsuario maps Convision's AffiliationType to RIPSTipoUsuarioVersion2.

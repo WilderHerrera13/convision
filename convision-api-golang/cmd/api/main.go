@@ -197,7 +197,14 @@ func main() {
 	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, icd10Repo, logger)
 	icd10Service := icd10svc.NewService(icd10Repo, logger)
 	ripsTransmitter := platformrips.NewFromEnv(logger)
-	ripsService := ripssvc.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, ripsTransmitter, logger)
+	// Fire-and-forget RIPS builds run in a goroutine that outlives the HTTP
+	// request's transaction (see TenantSchema middleware), so they need their
+	// own short-lived schema-scoped connection instead of reusing the
+	// request-scoped tx — mirrors bulkConnFactory below for bulkimport.
+	ripsConnFactory := func(schemaName string) (*gorm.DB, func(), error) {
+		return postgresplatform.NewSchemaConnection(db, schemaName)
+	}
+	ripsService := ripssvc.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, ripsTransmitter, ripsConnFactory, logger)
 	catalogService := catalogsvc.NewService(
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,

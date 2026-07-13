@@ -381,6 +381,13 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total, true)
 	_ = s.saleRepo.Update(s.db, sale)
 
+	// A sale created unpaid (e.g. quoted then paid later) only reaches
+	// PaymentStatus "paid" here, never inside Create — so its linked
+	// appointment must be marked billed here too, or it never leaves the
+	// receptionist's sales queue (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md,
+	// section 05 P0#3).
+	s.updateAppointmentBilling(sale)
+
 	s.logger.Info("payment added to sale",
 		zap.Uint("sale_id", saleID),
 		zap.Float64("amount", input.Amount),

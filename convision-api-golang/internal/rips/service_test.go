@@ -31,6 +31,11 @@ func signedRecordFixture() *domain.ClinicalRecord {
 	}
 }
 
+// patientFixture uses IdentificationType.Code = "cedula_ciudadania" — the
+// real descriptive-slug format Convision's identification_types catalog is
+// seeded with (verified against a running instance during this phase), not
+// the official "CC" abbreviation. mapIdentificationTypeToTipoIdPISIS must
+// translate this correctly or RIPS building silently fails for every patient.
 func patientFixture() *domain.Patient {
 	birth := time.Date(1990, 5, 10, 0, 0, 0, 0, time.UTC)
 	return &domain.Patient{
@@ -39,7 +44,7 @@ func patientFixture() *domain.Patient {
 		LastName:             "Gómez",
 		Identification:       "1010101010",
 		IdentificationTypeID: uintPtr(1),
-		IdentificationType:   &domain.IdentificationType{Code: "CC"},
+		IdentificationType:   &domain.IdentificationType{Code: "cedula_ciudadania"},
 		BirthDate:            &birth,
 		Gender:               "female",
 		City:                 &domain.City{Code: "11001"},
@@ -60,7 +65,9 @@ func newTestService(t *testing.T,
 	t.Setenv("RIPS_TRANSMISSION_MODE", "none")
 	logger := zaptest.NewLogger(t)
 	transmitter := platformrips.NewFromEnv(logger)
-	return rips.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, transmitter, logger)
+	// nil connFactory: these tests call BuildForAppointment directly with an
+	// in-memory sqlite/mock db, never the async path that needs it.
+	return rips.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, transmitter, nil, logger)
 }
 
 func TestBuildForAppointment_FirstVisit_UsesDiagnosticoAndPrimeraVez(t *testing.T) {
@@ -240,6 +247,30 @@ func TestBuildForAppointment_RejectsPatientMissingDocument(t *testing.T) {
 	incompletePatient := patientFixture()
 	incompletePatient.Identification = "" // never fabricate a document number
 	patientRepo.On("GetByID", mock.Anything, uint(30)).Return(incompletePatient, nil)
+
+	svc := newTestService(t, clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo)
+
+	_, err := svc.BuildForAppointment(nil, 20)
+	var validationErr *domain.ErrValidation
+	assert.ErrorAs(t, err, &validationErr)
+	ripsRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestBuildForAppointment_RejectsUnrecognizedIdentificationTypeCode(t *testing.T) {
+	clinicalRecordRepo := new(mocks.MockClinicalRecordRepository)
+	patientRepo := new(mocks.MockPatientRepository)
+	userRepo := new(mocks.MockUserRepository)
+	icd10Repo := new(mocks.MockIcd10CodeRepository)
+	ripsRepo := new(mocks.MockRipsRecordRepository)
+
+	rec := signedRecordFixture()
+	clinicalRecordRepo.On("GetByAppointmentID", mock.Anything, uint(20)).Return(rec, nil)
+	ripsRepo.On("GetByClinicalRecordID", mock.Anything, uint(10)).Return(nil, &domain.ErrNotFound{Resource: "rips_record"})
+	icd10Repo.On("GetByCode", mock.Anything, "H520").Return(&domain.Icd10Code{Code: "H520"}, nil)
+
+	unknownTypePatient := patientFixture()
+	unknownTypePatient.IdentificationType = &domain.IdentificationType{Code: "some_future_slug"}
+	patientRepo.On("GetByID", mock.Anything, uint(30)).Return(unknownTypePatient, nil)
 
 	svc := newTestService(t, clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo)
 

@@ -267,11 +267,15 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 	}
 
 	// Build the RIPS record fire-and-forget — signing must never fail or
-	// block on it (mirrors sale.Service's async invoice emission). Uses the
-	// non-transactional db handle since the transaction above has already
-	// committed by this point.
+	// block on it (mirrors sale.Service's async invoice emission). Passes the
+	// tenant SCHEMA NAME, not db: db is a per-request transaction
+	// (TenantSchema middleware) that TenantSchema commits the moment this
+	// handler returns, before the goroutine below runs — reusing it there
+	// fails with "transaction has already been committed or rolled back".
+	// rips.Service opens its own short-lived schema-scoped connection instead.
 	if h.rips != nil {
-		h.rips.BuildForAppointmentAsync(db, apptID)
+		schemaName := branchmw.SchemaNameFromCtx(c)
+		h.rips.BuildForAppointmentAsync(schemaName, apptID)
 	}
 
 	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)
