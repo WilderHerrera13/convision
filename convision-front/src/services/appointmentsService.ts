@@ -187,6 +187,7 @@ export const appointmentsService = {
       page,
       per_page,
       status: 'completed',
+      is_billed: 'false',
       sort: 'updated_at,desc',
     };
     const t = params.search?.trim();

@@ -313,6 +313,9 @@ func (r *AppointmentRepository) List(db *gorm.DB, f domain.AppointmentFilter) ([
 	if f.ConsultationType != "" {
 		q = q.Where("appointments.consultation_type = ?", f.ConsultationType)
 	}
+	if f.IsBilled != nil {
+		q = q.Where("appointments.is_billed = ?", *f.IsBilled)
+	}
 
 	// StartDate maps to legacy _start_date — only rows with a scheduled_at value.
 	if f.StartDate != "" {
