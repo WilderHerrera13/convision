@@ -3,6 +3,7 @@ package sale
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -25,8 +26,15 @@ type Service struct {
 	itemRepo         domain.InventoryItemRepository
 	movementRepo     domain.StockMovementRepository
 	prescriptionRepo domain.PrescriptionRepository
-	userRepo         domain.UserRepository
-	logger           *zap.Logger
+	// clinicalRecordRepo is the primary source of truth for the signed optical
+	// formula (ClinicalPrescription). prescriptionRepo (the legacy Prescription
+	// model, table appointment_prescriptions) is kept only as a fallback for
+	// appointments that never went through the active clinical-record flow —
+	// see createLabOrderIfNeeded. Do not remove prescriptionRepo: the legacy
+	// /api/v1/prescriptions CRUD and PrescriptionForm.tsx still depend on it.
+	clinicalRecordRepo domain.ClinicalRecordRepository
+	userRepo           domain.UserRepository
+	logger             *zap.Logger
 }
 
 // NewService creates a new sale Service.
@@ -42,23 +50,25 @@ func NewService(
 	itemRepo domain.InventoryItemRepository,
 	movementRepo domain.StockMovementRepository,
 	prescriptionRepo domain.PrescriptionRepository,
+	clinicalRecordRepo domain.ClinicalRecordRepository,
 	userRepo domain.UserRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		db:               db,
-		saleRepo:         saleRepo,
-		adjRepo:          adjRepo,
-		productRepo:      productRepo,
-		labOrderRepo:     labOrderRepo,
-		labRepo:          labRepo,
-		appointmentRepo:  appointmentRepo,
-		branchRepo:       branchRepo,
-		itemRepo:         itemRepo,
-		movementRepo:     movementRepo,
-		prescriptionRepo: prescriptionRepo,
-		userRepo:         userRepo,
-		logger:           logger,
+		db:                 db,
+		saleRepo:           saleRepo,
+		adjRepo:            adjRepo,
+		productRepo:        productRepo,
+		labOrderRepo:       labOrderRepo,
+		labRepo:            labRepo,
+		appointmentRepo:    appointmentRepo,
+		branchRepo:         branchRepo,
+		itemRepo:           itemRepo,
+		movementRepo:       movementRepo,
+		prescriptionRepo:   prescriptionRepo,
+		clinicalRecordRepo: clinicalRecordRepo,
+		userRepo:           userRepo,
+		logger:             logger,
 	}
 }
 
@@ -846,26 +856,8 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 		lo.FrameSpecs = fs
 	}
 
-	if sale.AppointmentID != nil && s.prescriptionRepo != nil {
-		if rx, err := s.prescriptionRepo.GetByAppointmentID(s.db, *sale.AppointmentID); err == nil && rx != nil {
-			lo.RxOD = &domain.RxEye{
-				Sphere:   rx.RightSphere,
-				Cylinder: rx.RightCylinder,
-				Axis:     rx.RightAxis,
-				Addition: rx.RightAddition,
-				DP:       rx.RightDistanceP,
-			}
-			lo.RxOI = &domain.RxEye{
-				Sphere:   rx.LeftSphere,
-				Cylinder: rx.LeftCylinder,
-				Axis:     rx.LeftAxis,
-				Addition: rx.LeftAddition,
-				DP:       rx.LeftDistanceP,
-			}
-			if rx.Recommendation != "" {
-				lo.SpecialInstructions = rx.Recommendation
-			}
-		}
+	if sale.AppointmentID != nil {
+		s.populateRxFromAppointment(lo, *sale.AppointmentID)
 	}
 
 	if err := s.labOrderRepo.Create(s.db, lo); err != nil {
@@ -883,6 +875,101 @@ func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, l
 	s.logger.Info("lab order created from sale",
 		zap.Uint("sale_id", sale.ID),
 		zap.Uint("lab_order_id", lo.ID))
+}
+
+// populateRxFromAppointment fills lo.RxOD/RxOI (and SpecialInstructions when
+// available) from the clinical formula tied to appointmentID.
+//
+// Source-of-truth decision (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md,
+// section 04/09, P0 #1): the signed ClinicalPrescription — reached through
+// ClinicalRecordRepository, part of the active clinical-record flow
+// (internal/clinicalrecord) that the specialist actually fills and signs
+// today — is the primary source. The legacy domain.Prescription (table
+// appointment_prescriptions, internal/prescription) is kept only as a
+// fallback for appointments that never went through the new clinical-record
+// flow; it is NOT removed because it still has live consumers (the
+// /api/v1/prescriptions CRUD, PrescriptionForm.tsx and PrescriptionCreate.tsx
+// in convision-front — confirmed by repo-wide grep before this change).
+func (s *Service) populateRxFromAppointment(lo *domain.LaboratoryOrder, appointmentID uint) {
+	if s.clinicalRecordRepo != nil {
+		if rec, err := s.clinicalRecordRepo.GetByAppointmentID(s.db, appointmentID); err == nil && rec != nil {
+			if p := rec.ClinicalPrescription; p != nil && p.SignedAt != nil {
+				lo.RxOD = &domain.RxEye{
+					Sphere:   formatDiopter(p.SphOd),
+					Cylinder: formatDiopter(p.CylOd),
+					Axis:     formatAxis(p.AxisOd),
+					Addition: formatDiopter(p.AddOd),
+					DP:       formatMillimeters(p.DpOd),
+				}
+				lo.RxOI = &domain.RxEye{
+					Sphere:   formatDiopter(p.SphOi),
+					Cylinder: formatDiopter(p.CylOi),
+					Axis:     formatAxis(p.AxisOi),
+					Addition: formatDiopter(p.AddOi),
+					DP:       formatMillimeters(p.DpOi),
+				}
+				s.logger.Info("lab order formula sourced from signed clinical prescription",
+					zap.Uint("appointment_id", appointmentID),
+					zap.Uint("clinical_record_id", rec.ID))
+				return
+			}
+		}
+	}
+
+	// Fallback: legacy Prescription model (appointment_prescriptions) — only
+	// reached when no signed ClinicalPrescription exists for this appointment.
+	if s.prescriptionRepo == nil {
+		return
+	}
+	rx, err := s.prescriptionRepo.GetByAppointmentID(s.db, appointmentID)
+	if err != nil || rx == nil {
+		return
+	}
+	lo.RxOD = &domain.RxEye{
+		Sphere:   rx.RightSphere,
+		Cylinder: rx.RightCylinder,
+		Axis:     rx.RightAxis,
+		Addition: rx.RightAddition,
+		DP:       rx.RightDistanceP,
+	}
+	lo.RxOI = &domain.RxEye{
+		Sphere:   rx.LeftSphere,
+		Cylinder: rx.LeftCylinder,
+		Axis:     rx.LeftAxis,
+		Addition: rx.LeftAddition,
+		DP:       rx.LeftDistanceP,
+	}
+	if rx.Recommendation != "" {
+		lo.SpecialInstructions = rx.Recommendation
+	}
+	s.logger.Warn("lab order formula sourced from legacy prescription model — no signed clinical prescription found",
+		zap.Uint("appointment_id", appointmentID))
+}
+
+// formatDiopter renders an optional diopter value (sphere/cylinder/addition)
+// with an explicit sign, matching the notation optometrists use on paper
+// formulas (e.g. "+1.25", "-0.50").
+func formatDiopter(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%+.2f", *v)
+}
+
+// formatAxis renders an optional axis value (0-180 degrees) as a plain integer string.
+func formatAxis(v *int) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.Itoa(*v)
+}
+
+// formatMillimeters renders an optional millimeter value (e.g. pupillary distance) with one decimal.
+func formatMillimeters(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%.1f", *v)
 }
 
 func (s *Service) updateOrderPaymentStatus(sale *domain.Sale) {
