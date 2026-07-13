@@ -82,6 +82,33 @@ func (s *Service) GetLatestSignedForPatient(db *gorm.DB, patientID uint) (*domai
 	return s.repo.GetLatestSignedByPatientID(db, patientID)
 }
 
+// HistoryOutput is the paginated response for a patient's longitudinal
+// clinical-record history.
+type HistoryOutput struct {
+	Data    []*domain.ClinicalRecord `json:"data"`
+	Total   int64                    `json:"total"`
+	Page    int                      `json:"page"`
+	PerPage int                      `json:"per_page"`
+}
+
+// ListHistoryForPatient returns the full signed-record history for a patient
+// (paginated, newest first) — unlike GetLatestSignedForPatient, this exposes
+// the evolution of the visual/refraction findings over time, not just the
+// most recent visit (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 11).
+func (s *Service) ListHistoryForPatient(db *gorm.DB, patientID uint, page, perPage int) (*HistoryOutput, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 15
+	}
+	data, total, err := s.repo.ListSignedByPatientID(db, patientID, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &HistoryOutput{Data: data, Total: total, Page: page, PerPage: perPage}, nil
+}
+
 // Create creates a new clinical record linked to an appointment.
 func (s *Service) Create(db *gorm.DB, in CreateRecordInput) (*domain.ClinicalRecord, error) {
 	if in.RecordType == "" {

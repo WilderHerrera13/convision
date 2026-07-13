@@ -12,6 +12,39 @@ import (
 	"github.com/convision/api/internal/testutil/mocks"
 )
 
+func TestListHistoryForPatient_ReturnsPaginatedSignedRecords(t *testing.T) {
+	recordRepo := new(mocks.MockClinicalRecordRepository)
+	icd10Repo := new(mocks.MockIcd10CodeRepository)
+	logger := zaptest.NewLogger(t)
+	svc := clinicalrecord.NewService(recordRepo, icd10Repo, logger)
+
+	records := []*domain.ClinicalRecord{{ID: 2, PatientID: 7}, {ID: 1, PatientID: 7}}
+	recordRepo.On("ListSignedByPatientID", mock.Anything, uint(7), 1, 15).
+		Return(records, int64(2), nil)
+
+	out, err := svc.ListHistoryForPatient(nil, 7, 1, 15)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), out.Total)
+	assert.Len(t, out.Data, 2)
+	assert.Equal(t, uint(2), out.Data[0].ID, "newest-first order preserved")
+}
+
+func TestListHistoryForPatient_ClampsInvalidPagination(t *testing.T) {
+	recordRepo := new(mocks.MockClinicalRecordRepository)
+	icd10Repo := new(mocks.MockIcd10CodeRepository)
+	logger := zaptest.NewLogger(t)
+	svc := clinicalrecord.NewService(recordRepo, icd10Repo, logger)
+
+	recordRepo.On("ListSignedByPatientID", mock.Anything, uint(7), 1, 15).
+		Return([]*domain.ClinicalRecord{}, int64(0), nil)
+
+	_, err := svc.ListHistoryForPatient(nil, 7, 0, 0)
+
+	assert.NoError(t, err)
+	recordRepo.AssertCalled(t, "ListSignedByPatientID", mock.Anything, uint(7), 1, 15)
+}
+
 func TestUpsertDiagnosis_ValidPrimaryCode_Succeeds(t *testing.T) {
 	recordRepo := new(mocks.MockClinicalRecordRepository)
 	icd10Repo := new(mocks.MockIcd10CodeRepository)
