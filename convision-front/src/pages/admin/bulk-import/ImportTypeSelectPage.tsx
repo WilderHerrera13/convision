@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageLayout from '@/components/layouts/PageLayout';
-import { UserRound, Stethoscope, CalendarCheck, Glasses, Users, Package } from 'lucide-react';
+import { UserRound, Stethoscope, CalendarCheck, Glasses, Users, Package, BadgePercent } from 'lucide-react';
 
 interface ImportOption {
   type: string;
@@ -52,6 +52,14 @@ const OPTIONS: ImportOption[] = [
     columns: ['Nombre', 'Documento', 'Rol', 'Sede'],
     icon: Users,
     path: '/admin/bulk-import/staff-users',
+  },
+  {
+    type: 'promotions',
+    title: 'Promociones',
+    description: 'Carga masiva de campañas de promoción (por monto, monto fijo, cumpleaños, categoría/marca, segundo par y compra cruzada). Se aplican automáticamente en la venta.',
+    columns: ['Nombre', 'Tipo', 'DescuentoPorcentaje', 'DescuentoMonto', 'CompraMinima', 'AplicaA', 'CondicionAplicaA', 'FechaInicio', 'FechaFin', 'Prioridad', 'Acumulable', 'Activa'],
+    icon: BadgePercent,
+    path: '/admin/bulk-import/promotions',
   },
   {
     type: 'inventory',

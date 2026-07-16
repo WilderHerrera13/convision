@@ -291,7 +291,7 @@ const DiscountRequestModal: React.FC<DiscountRequestModalProps> = ({
     
     try {
       // Search lenses by identifier or description
-      const response = await api.get('/api/v1/lenses', {
+      const response = await api.get('/api/v1/products', {
         params: {
           per_page: 10,
           search: value

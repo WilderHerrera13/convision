@@ -34,6 +34,8 @@ Before writing any code: if you are about to name something in Spanish, stop and
 
 Este proyecto expone 69 skills de la suite **GSD (Get Shit Done)** en `.claude/skills/` (enlazadas desde `.codex/skills/`). Úsalas cuando una tarea encaje con su descripción — por ejemplo `gsd-do` para enrutar intenciones libres, `gsd-plan-phase` para planificar, `gsd-execute-phase` para ejecutar, `gsd-qa-explore` para QA exploratoria, `gsd-debug` para depuración estructurada, etc. Lee el `SKILL.md` correspondiente antes de invocarla.
 
+Los subagentes GSD para `Task(subagent_type="gsd-planner" | "gsd-executor" | …)` están en **`.claude/agents/`** como enlaces simbólicos a **`.codex/agents/`**; el texto canónico se edita solo bajo `.codex/agents/`.
+
 ## Project Overview
 
 Convision es un monorepo para un sistema de gestión de clínicas de óptica con dos sub-proyectos:
@@ -65,18 +67,27 @@ make tidy           # go mod tidy — usar SIEMPRE tras agregar dependencias con
 make build          # Compila bin/convision-api
 make run            # build + run
 make dev            # live-reload con air
-make test           # tests + cobertura
+make test           # go test ./... + cobertura (go tool cover)
 make lint           # golangci-lint
 make docker-up      # Levanta PostgreSQL + API con docker compose
 make docker-down
 
-# Migraciones SQL versionadas (golang-migrate)
-# Ubicación: convision-api-golang/db/migrations/platform/
-migrate -database "$DATABASE_URL" -path db/migrations/platform up
-migrate -database "$DATABASE_URL" -path db/migrations/platform version
+# Un solo paquete / un solo test (no hay target make — usar go test directo)
+go test ./internal/cashclose -v
+go test ./internal/cashclose -run TestCreate_NewClose_Success -v
+
+# Migraciones — wrapper propio en cmd/migrate (NO el CLI golang-migrate)
+# SQL versionado en: db/migrations/platform/  (NNNNNN_<descripcion>.{up,down}.sql)
+make migrate                       # aplica migraciones de la plataforma
+make migrate-tenant TENANT=<slug>  # migra el schema de un tenant
+make migrate-all                   # plataforma + todos los tenants activos
+make migrate-down                  # revierte 1 paso
+make migration NAME=<descripcion>  # genera un nuevo par .up.sql/.down.sql
 ```
 
 > **AutoMigrate solo corre con `APP_ENV=local`.** En staging/producción usar exclusivamente migraciones SQL numeradas (ver `DATABASE_GUIDE.md` §10).
+
+> **Multi-tenant por schema:** el tenant se resuelve con `DEFAULT_TENANT_SLUG` (`main` = clínica regular, `admin` = plataforma super-admin). Variables de entorno en `convision-api-golang/.env.example` (`APP_ENV`, `APP_PORT=8001`, `DB_*`, `JWT_*`, `DEFAULT_TENANT_SLUG`).
 
 ### Frontend (`convision-front/`)
 
@@ -85,6 +96,8 @@ npm install
 npm run dev         # puerto 4300 (ver vite.config.ts)
 npm run build
 npm run lint
+npm run preview     # sirve el build de producción
+# No hay runner de tests aún (sin vitest/jest); la cobertura de frontend llega en la fase 22.
 ```
 
 ### Test Credentials
@@ -162,6 +175,26 @@ transport/http/v1   →   internal/<feature>/service.go   →   internal/domain
 9. Tests unitarios del servicio en `internal/<feature>/service_test.go` con mocks de las interfaces `Repository`.
 10. `make tidy && make lint && make test && make build`.
 
+### Filtros de listas — query params tipados (patrón canónico desde fase 21)
+
+Todo endpoint de listado usa **structs `Filter` tipados con tags `form`**, no `map[string]any` ni los antiguos arreglos `s_f`/`s_v`.
+
+**Backend** — define el filtro en `internal/domain/<entity>.go`, embebiendo `Pagination`:
+
+```go
+type AppointmentFilter struct {
+    Pagination
+    Status       string `form:"status"`
+    SpecialistID *uint  `form:"specialist_id"`
+    BranchID     *uint  `form:"-"`          // resuelto en servidor, jamás desde el cliente
+    StartDate    string `form:"start_date"`
+}
+```
+- Servicio: `List(db, filter *AppointmentFilter) ([]*Appointment, int64, error)`.
+- Handler: `c.ShouldBindQuery(&filter)` — sin parseo manual de filtros.
+
+**Frontend** — interfaz TypeScript que refleja los tags `form`; se envían claves planas snake_case como query params (jamás `s_f`/`s_v`). Ej: [lensService.ts](convision-front/src/services/lensService.ts), [inventoryService.ts](convision-front/src/services/inventoryService.ts). Toda llamada axios pasa por el singleton [ApiService.ts](convision-front/src/services/ApiService.ts) (sobre [api.ts](convision-front/src/services/api.ts)) — nunca usar axios directo desde componentes.
+
 ### Frontend (React)
 
 **Estructura:**
@@ -201,3 +234,21 @@ const finalPrice = discountService.calculateDiscountedPrice(originalPrice, bestD
 | Laboratory | Órdenes de laboratorio |
 
 Constantes en `domain`: `domain.RoleAdmin`, `domain.RoleSpecialist`, `domain.RoleReceptionist`, `domain.RoleLaboratory`. Ver matriz completa en `DEVELOPMENT_GUIDE.md` §9.
+
+---
+
+## Convenciones reforzadas (`.cursor/rules/`)
+
+Reglas de editor de cumplimiento obligatorio, además de las guías canónicas:
+
+- **Filtro de sucursal en admin** ([convision-admin-branch-filter.mdc](.cursor/rules/convision-admin-branch-filter.mdc)): toda lista de admin envía `branch_id` en la query (`'0'` = todas); el backend aplica el filtro vía `resolveBranchOverride()`. Incluir siempre `branch_id` en las query keys de React Query.
+- **EntityTable** ([convision-entity-table.mdc](.cursor/rules/convision-entity-table.mdc)): toda tabla usa `EntityTable` ([EntityTable.tsx](convision-front/src/components/ui/data-table/EntityTable.tsx)) y debe proveer `emptyStateNode` (sin datos) **y** `filterEmptyStateNode` (búsqueda sin resultados). Nunca `<table>` crudo.
+- **Dropdowns** ([searchable-dropdown.mdc](.cursor/rules/searchable-dropdown.mdc)): todo select/combobox de formulario usa `SearchableCombobox` (debounce 300ms, opciones `{ value, label }`); no usar el `Select` de shadcn en formularios de usuario.
+- **Infra AWS** ([convision-aws-infra.mdc](.cursor/rules/convision-aws-infra.mdc)): referencia de VPC/EC2/RDS/S3/CloudFront, Terraform y scripts (cuenta `us-east-1`; un scheduler de EventBridge apaga la infra fuera de horario laboral).
+
+---
+
+## Despliegue y estado del proyecto
+
+- **Deploy:** `bash deploy.sh dev [all|api|frontend]` ([deploy.sh](deploy.sh)) — build de imagen ARM64 a ECR, SSH a EC2 + restart del contenedor, build del frontend a S3 + invalidación de CloudFront. Requiere AWS SSO activo (`aws sso login --profile convision-admin`; ver [docs/AWS_SSO_ACCESS.md](docs/AWS_SSO_ACCESS.md)) + Docker + llave SSH.
+- **Estado / planificación:** flujo GSD en [.planning/](.planning/) — `ROADMAP.md` (fases), `STATE.md` (milestone, fase y progreso actuales), `qa/` (`FINDINGS-*.md`). Consultar antes de empezar trabajo nuevo.

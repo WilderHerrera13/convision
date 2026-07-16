@@ -1,55 +1,45 @@
 # Credenciales de prueba por rol (Convision)
 
-Solo para **desarrollo y demos locales**. Los usuarios se crean con `php artisan migrate --seed` (o `migrate:fresh --seed`) en `convision-api/`.
+Solo para **desarrollo y demos locales**. Los usuarios se crean automáticamente cuando el backend Go arranca con `APP_ENV=local` (vía `EnsureLocalDevUsers` en `convision-api-golang/internal/platform/storage/postgres/dev_users.go`).
 
-**Contraseña común en seeders:** `password`
+> **Backend activo:** `convision-api-golang` (Go 1.22). El backend Laravel `convision-api/` está en proceso de retiro y sus seeders extra (`DemoStaffSeeder`, etc.) **ya no están disponibles** en el backend Go.
 
----
-
-## Usuarios genéricos por rol
-
-| Rol (API)     | Correo                     | Contraseña | Notas                          |
-|---------------|----------------------------|------------|--------------------------------|
-| **admin**     | `admin@convision.com`      | `password` | `UsersTableSeeder`             |
-| **specialist**| `specialist@convision.com` | `password` | `UsersTableSeeder`             |
-| **receptionist** | `receptionist@convision.com` | `password` | `UsersTableSeeder`          |
+**Contraseña común:** `password`
 
 ---
 
-## Personal demo (`DemoStaffSeeder`)
+## Usuarios disponibles en el backend Go
 
-Misma contraseña: **`password`**
+| Rol             | Correo                      | Contraseña | Nombre demo            |
+|-----------------|-----------------------------|------------|------------------------|
+| **admin**       | `admin@convision.com`       | `password` | Carlos Vargas          |
+| **specialist**  | `specialist@convision.com`  | `password` | Specialist Demo        |
+| **receptionist**| `receptionist@convision.com`| `password` | Receptionist Demo      |
+| **laboratory**  | `laboratory@convision.com`  | `password` | Laboratory Demo        |
 
-| Rol            | Correo                    | Nombre (referencia)        |
-|----------------|---------------------------|----------------------------|
-| **admin**      | `cvargas@convision.com`   | Claudia Patricia Vargas    |
-| **specialist** | `abermudez@convision.com` | Andrés Felipe Bermúdez     |
-| **specialist** | `storres@convision.com`   | Sandra Milena Torres       |
-| **specialist** | `dmontoya@convision.com`  | Diego Alejandro Montoya    |
-| **receptionist** | `vcastillo@convision.com` | Valentina Castillo       |
-| **receptionist** | `jnieto@convision.com`  | Julián Camilo Nieto        |
-| **laboratory** | `hquintero@convision.com` | Hernán Darío Quintero      |
+> Los usuarios extra del antiguo `DemoStaffSeeder` (`cvargas@`, `abermudez@`, `storres@`, `dmontoya@`, `vcastillo@`, `jnieto@`, `hquintero@`) **no se cargan** en `convision-api-golang` y el login con esos correos devuelve `401 Credenciales incorrectas`.
 
 ---
 
-## Login API devuelve 401 con estas credenciales
+## Login API devuelve 401
 
-Suele indicar que **no hay filas en `users`** (por ejemplo `php artisan migrate` sin `--seed`). En `convision-api/`:
+Si los 4 usuarios genéricos también devuelven 401, el seed local no corrió. Comprueba que `APP_ENV=local` esté seteado y reinicia el API:
 
 ```bash
-php artisan convision:ensure-dev-users
+cd convision-api-golang
+APP_ENV=local make run
 ```
 
-(o `php artisan db:seed --class=Database\\Seeders\\UsersTableSeeder`).
+`EnsureLocalDevUsers` se ejecuta una vez por arranque y crea los usuarios faltantes.
 
 ---
 
 ## Login API (JWT)
 
-Backend por defecto: `http://localhost:8000`
+Backend Go por defecto: `http://localhost:8001`
 
 ```bash
-curl --location 'http://localhost:8000/api/v1/auth/login' \
+curl --location 'http://localhost:8001/api/v1/auth/login' \
   --header 'Content-Type: application/json' \
   --data-raw '{"email":"admin@convision.com","password":"password"}'
 ```
@@ -58,8 +48,8 @@ curl --location 'http://localhost:8000/api/v1/auth/login' \
 
 ## Frontend
 
-App por defecto: `http://localhost:4300/login` (Vite; puerto en `convision-front/vite.config.ts`) — inicia sesión con cualquier correo de las tablas y `password`.
+App por defecto: `http://localhost:4300/login` (Vite; puerto en `convision-front/vite.config.ts`) — inicia sesión con cualquiera de los 4 correos y `password`.
 
 ---
 
-**No uses estas credenciales en producción.** Si cambias los seeders, actualiza este documento.
+**No uses estas credenciales en producción.** Si agregas usuarios al seed local, actualiza `dev_users.go` y este documento.

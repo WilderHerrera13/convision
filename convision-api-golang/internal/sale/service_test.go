@@ -35,6 +35,7 @@ func buildService(t *testing.T,
 		nil, // db
 		nil, // saleRepo
 		nil, // adjRepo
+		nil, // partialPaymentRepo
 		nil, // productRepo
 		labOrderRepo,
 		labRepo,
@@ -45,6 +46,8 @@ func buildService(t *testing.T,
 		prescriptionRepo,
 		clinicalRecordRepo,
 		userRepo,
+		nil, // promotionRepo
+		nil, // patientRepo
 		logger,
 	)
 }
@@ -222,3 +225,194 @@ func TestCreateLabOrderIfNeeded_NoLensItem_SkipsOrderCreation(t *testing.T) {
 }
 
 func uintPtr(v uint) *uint { return &v }
+
+// buildSaleCentricService wires only the repos exercised by Cancel/Delete/
+// PartialPayment/LensPriceAdjustment flows. s.db stays nil: revertStock's
+// s.db.Transaction call is only reached when a sale has items with a
+// non-nil ProductID, which the fixtures below avoid by using empty Items.
+func buildSaleCentricService(t *testing.T,
+	saleRepo *mocks.MockSaleRepository,
+	adjRepo *mocks.MockSaleLensPriceAdjustmentRepository,
+	partialPaymentRepo *mocks.MockPartialPaymentRepository,
+	productRepo *mocks.MockProductRepository,
+) *Service {
+	logger := zaptest.NewLogger(t)
+	return NewService(
+		nil, // db
+		saleRepo,
+		adjRepo,
+		partialPaymentRepo,
+		productRepo,
+		nil, // labOrderRepo
+		nil, // labRepo
+		nil, // appointmentRepo
+		nil, // branchRepo
+		nil, // itemRepo
+		nil, // movementRepo
+		nil, // prescriptionRepo
+		nil, // clinicalRecordRepo
+		nil, // userRepo
+		nil, // promotionRepo
+		nil, // patientRepo
+		logger,
+	)
+}
+
+func TestCancel_ZeroesBalanceAndMarksRefunded(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, nil, nil)
+
+	sale := &domain.Sale{
+		ID:         1,
+		Status:     domain.SaleStatusCompleted,
+		Total:      180000,
+		AmountPaid: 100000,
+		Balance:    80000,
+		Items:      []domain.SaleItem{},
+	}
+	saleRepo.On("GetByID", mock.Anything, uint(1)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+
+	updated, err := svc.Cancel(1)
+
+	assert.NoError(t, err)
+	assert.Equal(t, domain.SaleStatusCancelled, updated.Status)
+	assert.Equal(t, float64(0), updated.Balance)
+	assert.Equal(t, "refunded", updated.PaymentStatus)
+}
+
+func TestCancel_NoPaymentsMade_LeavesPaymentStatusUnchanged(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, nil, nil)
+
+	sale := &domain.Sale{
+		ID:            2,
+		Status:        domain.SaleStatusPending,
+		Total:         180000,
+		AmountPaid:    0,
+		Balance:       180000,
+		PaymentStatus: "pending",
+		Items:         []domain.SaleItem{},
+	}
+	saleRepo.On("GetByID", mock.Anything, uint(2)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+
+	updated, err := svc.Cancel(2)
+
+	assert.NoError(t, err)
+	assert.Equal(t, float64(0), updated.Balance)
+	assert.Equal(t, "pending", updated.PaymentStatus)
+}
+
+func TestDelete_ActiveSale_RevertsStockAndCallsRepoDelete(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, nil, nil)
+
+	sale := &domain.Sale{ID: 3, Status: domain.SaleStatusCompleted, Items: []domain.SaleItem{}}
+	saleRepo.On("GetByID", mock.Anything, uint(3)).Return(sale, nil)
+	saleRepo.On("Delete", mock.Anything, uint(3)).Return(nil)
+
+	err := svc.Delete(3)
+
+	assert.NoError(t, err)
+	saleRepo.AssertCalled(t, "Delete", mock.Anything, uint(3))
+}
+
+func TestDelete_AlreadyCancelledSale_SkipsProtectiveLogicAndDeletes(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, nil, nil)
+
+	sale := &domain.Sale{ID: 4, Status: domain.SaleStatusCancelled, Items: []domain.SaleItem{}}
+	saleRepo.On("GetByID", mock.Anything, uint(4)).Return(sale, nil)
+	saleRepo.On("Delete", mock.Anything, uint(4)).Return(nil)
+
+	err := svc.Delete(4)
+
+	assert.NoError(t, err)
+	saleRepo.AssertCalled(t, "Delete", mock.Anything, uint(4))
+}
+
+func TestAddPartialPayment_IncreasesAmountPaidAndDerivesPaymentStatus(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	partialPaymentRepo := new(mocks.MockPartialPaymentRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, partialPaymentRepo, nil)
+
+	sale := &domain.Sale{ID: 5, Total: 100000, AmountPaid: 20000, Balance: 80000}
+	saleRepo.On("GetByID", mock.Anything, uint(5)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+	partialPaymentRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.PartialPayment")).Return(nil)
+
+	updated, err := svc.AddPartialPayment(5, AddPaymentInput{PaymentMethodID: 1, Amount: 30000}, 9)
+
+	assert.NoError(t, err)
+	assert.Equal(t, float64(50000), updated.AmountPaid)
+	assert.Equal(t, float64(50000), updated.Balance)
+	assert.Equal(t, "partial", updated.PaymentStatus)
+}
+
+func TestRemovePartialPayment_DecreasesAmountPaid(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	partialPaymentRepo := new(mocks.MockPartialPaymentRepository)
+	svc := buildSaleCentricService(t, saleRepo, nil, partialPaymentRepo, nil)
+
+	sale := &domain.Sale{
+		ID:              6,
+		Total:           100000,
+		AmountPaid:      50000,
+		Balance:         50000,
+		PartialPayments: []domain.PartialPayment{{ID: 77, SaleID: 6, Amount: 30000}},
+	}
+	saleRepo.On("GetByID", mock.Anything, uint(6)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+	partialPaymentRepo.On("Delete", mock.Anything, uint(6), uint(77)).Return(nil)
+
+	updated, err := svc.RemovePartialPayment(6, 77)
+
+	assert.NoError(t, err)
+	assert.Equal(t, float64(20000), updated.AmountPaid)
+	assert.Equal(t, float64(80000), updated.Balance)
+}
+
+func TestCreateLensPriceAdjustment_IncreasesTotalAndBalance(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	adjRepo := new(mocks.MockSaleLensPriceAdjustmentRepository)
+	productRepo := new(mocks.MockProductRepository)
+	svc := buildSaleCentricService(t, saleRepo, adjRepo, nil, productRepo)
+
+	lens := &domain.Product{ID: 10, Price: 100000}
+	sale := &domain.Sale{ID: 7, Total: 100000, AmountPaid: 100000, Balance: 0, PaymentStatus: "paid"}
+	adj := &domain.SaleLensPriceAdjustment{ID: 1, SaleID: 7, LensID: uintPtr(10), BasePrice: 100000, AdjustedPrice: 130000, AdjustmentAmount: 30000}
+
+	productRepo.On("GetByID", mock.Anything, uint(10)).Return(lens, nil)
+	adjRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.SaleLensPriceAdjustment")).Return(nil)
+	adjRepo.On("GetByID", mock.Anything, uint(0)).Return(adj, nil)
+	saleRepo.On("GetByID", mock.Anything, uint(7)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+
+	_, err := svc.CreateLensPriceAdjustment(7, LensPriceAdjInput{LensID: 10, AdjustedPrice: 130000}, 9)
+
+	assert.NoError(t, err)
+	assert.Equal(t, float64(130000), sale.Total)
+	assert.Equal(t, float64(30000), sale.Balance)
+	assert.Equal(t, "partial", sale.PaymentStatus)
+}
+
+func TestDeleteLensPriceAdjustment_RevertsTotalAndBalance(t *testing.T) {
+	saleRepo := new(mocks.MockSaleRepository)
+	adjRepo := new(mocks.MockSaleLensPriceAdjustmentRepository)
+	svc := buildSaleCentricService(t, saleRepo, adjRepo, nil, nil)
+
+	adj := &domain.SaleLensPriceAdjustment{ID: 2, SaleID: 8, AdjustmentAmount: 30000}
+	sale := &domain.Sale{ID: 8, Total: 130000, AmountPaid: 100000, Balance: 30000}
+
+	adjRepo.On("GetByID", mock.Anything, uint(2)).Return(adj, nil)
+	adjRepo.On("Delete", mock.Anything, uint(2)).Return(nil)
+	saleRepo.On("GetByID", mock.Anything, uint(8)).Return(sale, nil)
+	saleRepo.On("Update", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+
+	err := svc.DeleteLensPriceAdjustment(8, 2)
+
+	assert.NoError(t, err)
+	assert.Equal(t, float64(100000), sale.Total)
+	assert.Equal(t, float64(0), sale.Balance)
+}

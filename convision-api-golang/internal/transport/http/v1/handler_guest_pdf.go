@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/convision/api/internal/domain"
 )
 
 // validateGuestToken validates the simple PDF token format used by the Go API.
@@ -145,7 +147,43 @@ func (h *Handler) GuestSalePdf(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "El enlace ha expirado o no es válido."})
 		return
 	}
-	writePdfResponse(c, "sale", uint(id))
+
+	sale, err := h.sale.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Venta no encontrada."})
+		return
+	}
+
+	branchName := ""
+	if sale.BranchID > 0 && h.branchRepo != nil {
+		if br, berr := h.branchRepo.GetByID(h.db, sale.BranchID); berr == nil && br != nil {
+			branchName = br.Name
+			if br.City != "" {
+				branchName += " — " + br.City
+			}
+		}
+	}
+
+	// Unscoped lookup: the receipt must keep the campaign name even after the
+	// promotion is deactivated or soft-deleted once the campaign ends.
+	promotionName := ""
+	if sale.PromotionID != nil {
+		var promo domain.Promotion
+		if perr := h.db.Unscoped().First(&promo, *sale.PromotionID).Error; perr == nil {
+			promotionName = promo.Name
+		}
+	}
+
+	pdfBytes, genErr := buildSalePDF(sale, branchName, promotionName)
+	if genErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generando el PDF."})
+		return
+	}
+
+	filename := fmt.Sprintf("venta-%s.pdf", sale.SaleNumber)
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
 // GuestQuotePdf godoc

@@ -8,11 +8,15 @@ import { AdminNotificationBellButton } from '@/components/admin/AdminNotificatio
 import { useAuth } from '@/contexts/AuthContext';
 import { useBranch } from '@/contexts/BranchContext';
 
+const NOTIFICATION_ROLES = ['admin', 'receptionist'];
+
 export const AdminTopBar: React.FC = () => {
   const { user } = useAuth();
   const { branchName } = useBranch();
   const location = useLocation();
-  const isNotifications = location.pathname.startsWith('/admin/notifications');
+  const showNotifications = !!user && NOTIFICATION_ROLES.includes(user.role);
+  const notificationsPath = user?.role === 'admin' ? '/admin/notifications' : '/receptionist/notifications';
+  const isNotifications = location.pathname.startsWith(notificationsPath);
 
   const todayLine = useMemo(
     () => format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es }),
@@ -22,14 +26,13 @@ export const AdminTopBar: React.FC = () => {
   const { data: summary } = useQuery({
     queryKey: ['admin-notifications-summary'],
     queryFn: () => adminNotificationService.getSummary(),
-    enabled: user?.role === 'admin',
+    enabled: showNotifications,
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 
   const unread = summary?.unread ?? 0;
   const archived = summary?.archived ?? 0;
-  const showNotifications = user?.role === 'admin';
 
   return (
     <header className="flex h-[60px] shrink-0 items-center border-b border-convision-border-subtle bg-white px-6">
@@ -37,7 +40,7 @@ export const AdminTopBar: React.FC = () => {
         {isNotifications && showNotifications && (
           <>
             <div className="flex items-center gap-1 text-[11px] text-convision-text-secondary">
-              <span>Admin</span>
+              <span>{user?.role === 'admin' ? 'Admin' : 'Recepción'}</span>
               <span>/</span>
               <span className="text-convision-text">Notificaciones</span>
             </div>
@@ -51,7 +54,7 @@ export const AdminTopBar: React.FC = () => {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-3">
-{showNotifications && <AdminNotificationBellButton unread={unread} />}
+        {showNotifications && <AdminNotificationBellButton unread={unread} to={notificationsPath} />}
         <div className="text-right">
           <p className="text-[11px] capitalize text-convision-text-secondary">Hoy · {todayLine}</p>
         </div>

@@ -53,6 +53,14 @@ func (m *MockCashRegisterCloseRepository) ListByUserAndDateRange(db *gorm.DB, us
 	return args.Get(0).([]*domain.CashRegisterClose), args.Error(1)
 }
 
+func (m *MockCashRegisterCloseRepository) ListDetailedByDateRange(db *gorm.DB, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
+	args := m.Called(db, branchID, from, to)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.CashRegisterClose), args.Error(1)
+}
+
 func (m *MockCashRegisterCloseRepository) Create(db *gorm.DB, c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination) error {
 	return m.Called(db, c, payments, denoms).Error(0)
 }
@@ -67,4 +75,8 @@ func (m *MockCashRegisterCloseRepository) Delete(db *gorm.DB, id uint) error {
 
 func (m *MockCashRegisterCloseRepository) SyncActualPayments(db *gorm.DB, closeID uint, payments []domain.CashRegisterCloseActualPayment) error {
 	return m.Called(db, closeID, payments).Error(0)
+}
+
+func (m *MockCashRegisterCloseRepository) AdjustAndApprove(db *gorm.DB, c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination, adjustment *domain.CashRegisterCloseAdjustment) error {
+	return m.Called(db, c, payments, denoms, adjustment).Error(0)
 }

@@ -1,0 +1,273 @@
+---
+description: AWS infrastructure knowledge for Convision — use when the user asks about cloud, deployment, infra, AWS, EC2, RDS, S3, CloudFront, Terraform, or domain/SSL tasks.
+globs:
+  - "terraform/**"
+  - "deploy.sh"
+  - "infra.sh"
+  - "convision-api-golang/.github/workflows/**"
+  - "convision-front/.github/workflows/**"
+alwaysApply: false
+---
+
+# Convision AWS Infrastructure
+
+## Account & Access
+
+**SSO desde Cursor o terminal (flujo completo):** `docs/AWS_SSO_ACCESS.md` en la raíz del monorepo.
+
+- **AWS Account ID:** `649629927448`
+- **Region:** `us-east-1`
+- **SSO URL:** `https://d-90660dc2e5.awsapps.com/start`
+- **SSO Profile:** `convision-admin` (AdministratorAccess)
+- **Authenticate:** `aws sso login --profile convision-admin`
+- **Verify session:** `aws sts get-caller-identity --profile convision-admin`
+
+All AWS CLI commands must use `--profile convision-admin --region us-east-1`.
+
+---
+
+## Infrastructure Overview
+
+Provisioned with **Terraform** in `terraform/` (root of monorepo). Single environment: `dev`.
+
+| Resource | ID / Name | Notes |
+|---|---|---|
+| EC2 instance | `convision-dev-api` tag | `t4g.micro`, ARM64, Amazon Linux 2023 |
+| EC2 public IP | `3.213.51.178` | Static (Elastic IP via Terraform) |
+| RDS PostgreSQL | `convision-dev-db.czrlj7pszo4t.us-east-1.rds.amazonaws.com` | `db.t4g.micro`, port 5432 |
+| S3 frontend | `convision-dev-frontend` | Static assets for React SPA |
+| S3 uploads | `convision-dev-uploads` | Patient/clinic file uploads |
+| ECR repo | `649629927448.dkr.ecr.us-east-1.amazonaws.com/convision/api` | Go backend Docker images |
+| CloudFront | `EPTJUWJZVGVW` | Frontend CDN, domain `app.opticaconvision.com` |
+| CloudFront domain | `di4rurkxvzkhm.cloudfront.net` | |
+
+---
+
+## Domain & SSL
+
+- **Domain registrar:** GoDaddy (`opticaconvision.com`)
+- **Frontend:** `https://app.opticaconvision.com` → CloudFront → S3
+- **Backend API:** `https://api.opticaconvision.com` → EC2 nginx (port 443) → Docker container (port 8001)
+- **SSL frontend:** AWS ACM certificate (managed by Terraform)
+- **SSL backend:** Let's Encrypt via Certbot on EC2 (`/etc/letsencrypt/live/api.opticaconvision.com/`)
+- **Certbot renews automatically** via systemd timer on EC2
+
+### Required DNS records in GoDaddy
+
+| Type | Host | Points to | TTL |
+|---|---|---|---|
+| A | `api` | `3.213.51.178` | 600 |
+| CNAME | `app` | `di4rurkxvzkhm.cloudfront.net` | 3600 |
+| CNAME | ACM validation | (value from `terraform output`) | 300 |
+
+---
+
+## Database
+
+- **Engine:** PostgreSQL 16, SSL required (`sslmode=require`)
+- **DB name:** `convision`
+- **App user:** `convision_app`
+- **Password:** stored in `aws_cred.txt` (never commit this file)
+- **Migrations path:** `convision-api-golang/db/migrations/platform/`
+- **Run migrations** (from EC2, since RDS is in private subnet):
+
+```bash
+# 1. Copy migrations to EC2
+scp -r convision-api-golang/db/migrations/platform/ ec2-user@3.213.51.178:/tmp/migrations/
+
+# 2. SSH and run
+ssh ec2-user@3.213.51.178
+migrate \
+  -database "postgres://convision_app:<PASSWORD>@convision-dev-db.czrlj7pszo4t.us-east-1.rds.amazonaws.com:5432/convision?sslmode=require" \
+  -path /tmp/migrations/platform \
+  up
+```
+
+> **IMPORTANT:** `golang-migrate` must be installed on EC2 first:
+> `curl -sL https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-arm64.tar.gz | tar xz -C /tmp && sudo mv /tmp/migrate /usr/local/bin/migrate`
+
+> **IMPORTANT:** `AutoMigrate` (GORM) only runs when `APP_ENV=local`. For a **fresh production DB**, run the container once with `APP_ENV=local` to create all tables, then restart with `APP_ENV=production`. The SQL migrations in `db/migrations/platform/` are **patches on top of** the AutoMigrate base schema — they assume the base tables already exist.
+
+---
+
+## Backend API on EC2
+
+The API runs as a Docker container named `convision-api`.
+
+### SSH access
+
+```bash
+ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ~/.ssh/id_rsa ec2-user@3.213.51.178
+```
+
+### Container management
+
+```bash
+# Check status
+docker ps -a
+docker logs convision-api --tail 30
+
+# Restart with correct env (reference — use deploy.sh instead)
+docker rm -f convision-api
+docker run -d \
+  --name convision-api \
+  --restart unless-stopped \
+  -p 127.0.0.1:8001:8001 \
+  -e APP_ENV=production \
+  -e APP_PORT=8001 \
+  -e DB_HOST=convision-dev-db.czrlj7pszo4t.us-east-1.rds.amazonaws.com \
+  -e DB_PORT=5432 \
+  -e DB_DATABASE=convision \
+  -e DB_USERNAME=convision_app \
+  -e DB_PASSWORD=<from aws_cred.txt> \
+  -e DB_SSLMODE=require \
+  -e JWT_SECRET=<from aws_cred.txt> \
+  -e JWT_TTL_HOURS=24 \
+  -e LOG_LEVEL=info \
+  -e AWS_REGION=us-east-1 \
+  -e UPLOADS_BUCKET=convision-dev-uploads \
+  -e BOOTSTRAP_DEFAULT_USERS=false \
+  649629927448.dkr.ecr.us-east-1.amazonaws.com/convision/api:latest
+```
+
+### nginx on EC2
+
+Config: `/etc/nginx/conf.d/convision.conf`
+
+Listens on port 80 (redirect to HTTPS) and 443 (SSL proxy to `127.0.0.1:8001`).
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### BOOTSTRAP_DEFAULT_USERS
+
+**En producción debe ser `false`.** `deploy.sh` usa por defecto `false` (sobreescribible con `BOOTSTRAP_DEFAULT_USERS=true` solo en entornos desechables).
+
+Si se pone `true`, la API crea en el arranque (si faltan) estos usuarios demo:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@convision.com` | `password` | admin |
+| `specialist@convision.com` | `password` | specialist |
+| `receptionist@convision.com` | `password` | receptionist |
+| `laboratory@convision.com` | `password` | laboratory |
+
+It also creates a "Sede Principal" branch if no branches exist.
+
+---
+
+## Deployment Scripts
+
+### `deploy.sh` — Deploy backend and/or frontend
+
+```bash
+# Deploy both (backend Docker image + frontend S3+CloudFront)
+bash deploy.sh dev
+
+# The script:
+# 1. Gets EC2 IP by tag "convision-dev-api" (instance must be running)
+# 2. Builds Docker image (linux/arm64) and pushes to ECR
+# 3. SSHs to EC2, pulls new image, restarts container
+# 4. Builds React frontend with VITE_API_URL=https://api.opticaconvision.com
+# 5. Syncs dist/ to S3 convision-dev-frontend
+# 6. Invalidates CloudFront cache
+```
+
+**Requires:** AWS SSO session active (`aws sso login --profile convision-admin`), Docker running locally, SSH key at `~/.ssh/id_rsa` or `~/.ssh/convision`.
+
+### `infra.sh` — Start/stop/status infrastructure
+
+```bash
+bash infra.sh dev start    # Start EC2 + RDS
+bash infra.sh dev stop     # Stop EC2 + RDS
+bash infra.sh dev status   # Show current state and IPs
+```
+
+---
+
+## Cost-Saving Schedule
+
+EventBridge Scheduler (via Terraform `modules/scheduler`) automatically:
+
+- **Starts** EC2 + RDS at **6:00 AM Bogotá** — Mon–Sat (`cron(0 6 ? * MON-SAT *)`)
+- **Stops** EC2 + RDS at **7:00 PM Bogotá** — Mon–Sat (`cron(0 19 ? * MON-SAT *)`)
+- Sunday: **always off**
+
+Expected savings: ~55% vs always-on.
+
+When infra is stopped and you need to deploy, run `bash infra.sh dev start` first.
+
+---
+
+## Terraform
+
+```bash
+cd terraform/
+terraform init
+terraform plan
+terraform apply
+
+# SSO credentials must be active first:
+aws sso login --profile convision-admin
+export AWS_PROFILE=convision-admin
+```
+
+Modules: `networking`, `compute`, `database`, `storage`, `cdn`, `scheduler`.
+
+Key variables in `terraform/terraform.tfvars`:
+- `root_domain = "opticaconvision.com"`
+- `db_password` and `jwt_secret` — from `aws_cred.txt`
+- `bootstrap_default_users = "false"` (recomendado en entorno real)
+
+> After changing `user_data` in compute module, `terraform apply` only takes effect on new EC2 instances. For running instances, use `deploy.sh` which patches the container directly.
+
+---
+
+## GitHub Actions
+
+Both repos have `workflow_dispatch` (manual trigger only — saves GitHub Actions minutes):
+
+- `convision-api-golang/.github/workflows/deploy.yml` — builds and deploys backend
+- `convision-front/.github/workflows/deploy.yml` — builds and deploys frontend
+
+Required GitHub secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EC2_SSH_KEY`, `DB_PASSWORD`, `JWT_SECRET`.
+
+**Preferred deployment method: `bash deploy.sh dev` locally** — faster and more transparent than GHA.
+
+---
+
+## Known Issues & Fixes Applied
+
+### `userCols` must use `password_hash` not `password`
+
+In `convision-api-golang/internal/platform/storage/postgres/user_repository.go`:
+
+```go
+// CORRECT — matches the GORM column tag `gorm:"column:password_hash"`
+const userCols = "id, name, last_name, email, identification, phone, password_hash, role, active, created_at, updated_at"
+```
+
+Using `"password"` causes login to always fail (bcrypt compare gets empty string).
+
+### Fresh DB bootstrap order
+
+1. Run container with `APP_ENV=local` → AutoMigrate creates all tables
+2. Run SQL migrations: `migrate ... up` (skips already-applied via `schema_migrations` table)
+3. Restart container with `APP_ENV=production` + `BOOTSTRAP_DEFAULT_USERS=true`
+
+### `dev_users.go` creates default branch
+
+`EnsureLocalDevUsers` automatically creates "Sede Principal" (branch_id=1) if no branches exist before seeding users. This prevents the FK violation on `user_branches`.
+
+---
+
+## Quick Checklist — When User Asks About AWS
+
+1. **Is the SSO session active?** → `aws sts get-caller-identity --profile convision-admin`
+2. **Is the EC2 running?** → `bash infra.sh dev status` or check AWS console
+3. **Is the API healthy?** → `curl https://api.opticaconvision.com/health`
+4. **Need to deploy?** → `bash deploy.sh dev` (from monorepo root)
+5. **Need to start infra?** → `bash infra.sh dev start`
+6. **Need to run migrations?** → Copy to EC2, run `migrate ... up`
+7. **DNS issues?** → Check `dig A api.opticaconvision.com @ns57.domaincontrol.com` (GoDaddy NS)

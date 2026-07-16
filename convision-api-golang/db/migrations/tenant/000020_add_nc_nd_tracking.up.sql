@@ -1,0 +1,7 @@
+ALTER TABLE sales
+    ADD COLUMN IF NOT EXISTS credit_note_id     VARCHAR(100) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS credit_note_status VARCHAR(30)  NOT NULL DEFAULT '';
+
+ALTER TABLE sale_lens_price_adjustments
+    ADD COLUMN IF NOT EXISTS debit_note_id     VARCHAR(100) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS debit_note_status VARCHAR(30)  NOT NULL DEFAULT '';

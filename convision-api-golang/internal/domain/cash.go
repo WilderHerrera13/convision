@@ -102,11 +102,83 @@ type CashRegisterCloseRepository interface {
 	// ListByUserAndDateRange returns all closes for a user within a date range ordered by close_date ASC.
 	// Used by the calendar endpoint.
 	ListByUserAndDateRange(db *gorm.DB, userID uint, branchID uint, from, to string) ([]*CashRegisterClose, error)
+	// ListDetailedByDateRange returns all closes within a date range (branchID 0 = all branches)
+	// with User, Payments, ActualPayments and Denominations preloaded. Used by the Excel export.
+	ListDetailedByDateRange(db *gorm.DB, branchID uint, from, to string) ([]*CashRegisterClose, error)
 	Create(db *gorm.DB, c *CashRegisterClose, payments []CashRegisterClosePayment, denoms []CashCountDenomination) error
 	Update(db *gorm.DB, c *CashRegisterClose, payments *[]CashRegisterClosePayment, denoms *[]CashCountDenomination) error
 	Delete(db *gorm.DB, id uint) error
 	// SyncActualPayments replaces all actual_payments and recalculates total_actual_amount.
 	SyncActualPayments(db *gorm.DB, closeID uint, payments []CashRegisterCloseActualPayment) error
+	// AdjustAndApprove atomically inserts the adjustment audit row and applies the admin's
+	// edits (payments/denoms replaced) + approval to the close, in a single transaction.
+	AdjustAndApprove(db *gorm.DB, c *CashRegisterClose, payments []CashRegisterClosePayment, denoms []CashCountDenomination, adjustment *CashRegisterCloseAdjustment) error
+}
+
+// CashCloseSnapshotPayment is a payment-method line inside a cash-close snapshot.
+type CashCloseSnapshotPayment struct {
+	Name          string  `json:"name"`
+	CountedAmount float64 `json:"counted_amount"`
+}
+
+// CashCloseSnapshotDenomination is a denomination line inside a cash-close snapshot.
+type CashCloseSnapshotDenomination struct {
+	Denomination int     `json:"denomination"`
+	Quantity     int     `json:"quantity"`
+	Subtotal     float64 `json:"subtotal"`
+}
+
+// CashCloseSnapshot is an immutable point-in-time capture of a cash register close,
+// stored as JSONB inside a CashRegisterCloseAdjustment for before/after comparison.
+type CashCloseSnapshot struct {
+	CloseDate      string                          `json:"close_date"`
+	Status         string                          `json:"status"`
+	TotalCounted   float64                         `json:"total_counted"`
+	AdvisorNotes   string                          `json:"advisor_notes"`
+	AdminNotes     string                          `json:"admin_notes"`
+	PaymentMethods []CashCloseSnapshotPayment      `json:"payment_methods"`
+	Denominations  []CashCloseSnapshotDenomination `json:"denominations"`
+}
+
+// CashRegisterCloseAdjustment records a single admin adjustment of a submitted cash
+// register close. Each row is both a version (before/after snapshots) and a warning
+// counted against the advisor (advisor_user_id). Immutable except for acknowledged_at.
+type CashRegisterCloseAdjustment struct {
+	ID                  uint            `json:"id"                     gorm:"primaryKey;autoIncrement"`
+	CashRegisterCloseID uint            `json:"cash_register_close_id" gorm:"not null;index"`
+	BranchID            uint            `json:"branch_id"              gorm:"column:branch_id;not null;index"`
+	AdvisorUserID       uint            `json:"advisor_user_id"        gorm:"not null;index"`
+	AdminUserID         uint            `json:"admin_user_id"          gorm:"not null;index"`
+	Reason              string          `json:"reason"                 gorm:"type:text;not null"`
+	BeforeSnapshot      json.RawMessage `json:"before_snapshot"        gorm:"type:jsonb"`
+	AfterSnapshot       json.RawMessage `json:"after_snapshot"         gorm:"type:jsonb"`
+	AcknowledgedAt      *time.Time      `json:"acknowledged_at"`
+	CreatedAt           time.Time       `json:"created_at"`
+
+	AdminUser   *User `json:"admin_user,omitempty"   gorm:"foreignKey:AdminUserID"`
+	AdvisorUser *User `json:"advisor_user,omitempty" gorm:"foreignKey:AdvisorUserID"`
+}
+
+// CashRegisterCloseAdjustmentFilter holds query parameters for listing adjustments.
+type CashRegisterCloseAdjustmentFilter struct {
+	Pagination
+	AdvisorUserID  *uint  `form:"advisor_user_id"`
+	BranchID       *uint  `form:"-"` // injected by middleware
+	DateFrom       string `form:"date_from"`
+	DateTo         string `form:"date_to"`
+	Unacknowledged *bool  `form:"unacknowledged"`
+}
+
+// CashRegisterCloseAdjustmentRepository defines read + acknowledge operations for adjustments.
+// Writes happen atomically via CashRegisterCloseRepository.AdjustAndApprove.
+type CashRegisterCloseAdjustmentRepository interface {
+	GetByID(db *gorm.DB, id uint) (*CashRegisterCloseAdjustment, error)
+	// ListByCloseID returns all adjustments for one close ordered by created_at ASC.
+	ListByCloseID(db *gorm.DB, closeID uint) ([]*CashRegisterCloseAdjustment, error)
+	List(db *gorm.DB, f CashRegisterCloseAdjustmentFilter) ([]*CashRegisterCloseAdjustment, int64, error)
+	// CountByAdvisor returns the number of adjustments (warnings) recorded for an advisor.
+	CountByAdvisor(db *gorm.DB, advisorUserID uint) (int64, error)
+	Acknowledge(db *gorm.DB, id uint) error
 }
 
 // CashTransferType enumerates types of cash transfer movements.

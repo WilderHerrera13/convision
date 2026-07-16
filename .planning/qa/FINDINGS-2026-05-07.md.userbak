@@ -1,0 +1,95 @@
+---
+status: complete
+app: convision-front
+api: convision-api-golang
+base_url: http://localhost:4300
+started: 2026-05-07T00:00:00
+updated: 2026-05-07T00:00:00
+roles_tested: [receptionist]
+scope: fix-validation — cierre de caja (doble conteo anticipo / pago_sistecredito)
+---
+
+# QA FINDINGS — 2026-05-07
+
+## Resumen ejecutivo
+
+- Pantallas verificadas: 1 (cierre de caja — flujo asesor)
+- Hallazgos confirmados (pre-fix): 1 (QA-001 — cerrado por el fix)
+- Hipótesis / pendiente evidencia: 0
+- Sin incidencias post-fix: 1
+
+**Contexto de sesión:** Sesión enfocada en validar el fix de doble conteo en el cierre de caja.
+Herramienta MCP de navegador no disponible; validación por análisis estático de código + TypeScript.
+Backend Go (8001) y Vite (4300) reiniciados y confirmados healthy antes de validar.
+
+---
+
+## Hallazgos (FAIL / GAP)
+
+### QA-001 — CERRADO
+- Rol: receptionist
+- URL: `http://localhost:4300/receptionist/cash-close`
+- Severidad: mayor
+- Pasos:
+  1. Login como receptionist.
+  2. Ir a Cierre de Caja.
+  3. Contar denominaciones en panel izquierdo con efectivo que incluye cobros de anticipo y pago_sistecredito.
+  4. Ingresar valores en las filas "Anticipo" y "Pago Sistecredito" del panel derecho.
+  5. Observar el TOTAL al pie del panel derecho.
+- Esperado: TOTAL = efectivo contado + medios de pago genuinamente no-efectivo (voucher, bancolombia, daviplata, nequi, addi, sistecredito, bono).
+- Observado (pre-fix): TOTAL sumaba anticipo y pago_sistecredito encima del efectivo del arqueo → $400 000 duplicados en el escenario del reporte ($1 066 000 vs $666 000 correcto).
+- Evidencia: Lógica en `src/hooks/useCashClose.ts` línea 107–111: `nonCashCounted` filtraba solo `efectivo`, dejando `anticipo` y `pago_sistecredito` en la suma mientras sus billetes ya estaban contados en `totalCashCounted`.
+- Estado: **confirmado → CORREGIDO**
+
+---
+
+## Descripción del fix aplicado
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/services/cashRegisterCloseService.ts` | Nuevo export `CASH_EQUIVALENT_METHODS = Set(['efectivo', 'anticipo', 'pago_sistecredito'])` |
+| `src/hooks/useCashClose.ts` | Filtro de `nonCashCounted` cambia de `m.name !== 'efectivo'` a `!CASH_EQUIVALENT_METHODS.has(m.name)` — excluye los tres métodos |
+| `src/components/cashClose/CashPaymentMethodRow.tsx` | Prop opcional `isCashEquivalent?: boolean`; cuando `true` muestra badge `efectivo` junto al nombre de la fila |
+| `src/components/cashClose/advisor/AdvisorCashClosePaymentsPanel.tsx` | Pasa `isCashEquivalent` a filas de anticipo/pago_sistecredito; nota de alerta actualizada explicando que esos cobros ya están en el arqueo |
+| `src/components/cashClose/advisor/AdvisorCashCloseReviewPanel.tsx` | Igual que el panel anterior: pasa `isCashEquivalent` en la vista de revisión (paso 2) |
+
+**Validación matemática del fix:**
+
+Escenario del reporte de usuario:
+- Efectivo (denominaciones): $466 000  ← ya incluye $100k anticipo + $300k pago_sistecredito cobrados en efectivo
+- Anticipo en panel derecho: $100 000
+- Pago Sistecredito en panel derecho: $300 000
+- Otros medios no-efectivo (bancolombia, nequi, etc.): $200 000
+
+| | `nonCashCounted` | `totalCounted` |
+|---|---|---|
+| Antes del fix | $600 000 ($100k+$300k+$200k) | **$1 066 000** ← incorrecto |
+| Después del fix | $200 000 (solo otros) | **$666 000** ← correcto |
+
+**TypeScript:** `npx tsc --noEmit` → 0 errores tras el fix.
+
+---
+
+## OK (sin incidencias)
+
+| Rol | Área | Notas |
+|-----|------|--------|
+| receptionist | Cierre de caja — cálculo de total | Fix aplicado; lógica correcta post-cambio |
+| — | API Go (8001) | Healthy — login JWT responde 200 |
+| — | Vite front (4300) | Healthy — servidor levantado en 348 ms |
+
+---
+
+## Handoff al agente de corrección
+
+No hay ítems pendientes para el agente corrector en esta sesión.
+
+**QA-001 cerrado** por fix en esta misma sesión (ver commit correspondiente).
+
+Para cobertura completa del módulo cierre de caja recomendamos una sesión adicional con MCP de navegador que pruebe:
+1. Flujo completo paso 1 → paso 2 → envío con anticipo/pago_sistecredito = 0.
+2. Flujo con anticipo/pago_sistecredito > 0 y verificar que el badge `efectivo` se muestra.
+3. Vista de revisión (paso 2): confirmar que el TOTALES tampoco duplica.
+4. Vista admin de cierre: confirmar que el total del asesor refleja el valor corregido.

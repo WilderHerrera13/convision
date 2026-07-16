@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
 stopped_at: Phase 21.1 context gathered
-last_updated: "2026-05-09T05:44:26.332Z"
-last_activity: 2026-05-08 -- 21-10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete
+last_updated: "2026-05-09T16:27:38.244Z"
+last_activity: 2026-05-09
 progress:
   total_phases: 17
   completed_phases: 7
-  total_plans: 55
-  completed_plans: 43
+  total_plans: 58
+  completed_plans: 45
   percent: 78
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Clinic staff can complete core operational and sales workflows reliably in one integrated system
-**Current focus:** Phase 21 — standardize-backend-filter-pattern
+**Current focus:** Phase 21.1 — migrate-frontend-to-typed-query-params
 
 ## Current Position
 
-Phase: 21 (standardize-backend-filter-pattern) — COMPLETE
-Plan: 10 of 10 complete
-Last activity: 2026-05-08 -- 21-10 (final cleanup — discount/lookup/user/dailyactivity typed Filter migration + parseApiFilters deleted + grep verification suite passes) complete
+Phase: 21.1 (migrate-frontend-to-typed-query-params) — EXECUTING
+Plan: 3 of 3
+Last activity: 2026-05-09
 Next: Phase 22 (comprehensive-test-coverage)
 
 Progress: [████████░░] 78%

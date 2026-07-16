@@ -15,7 +15,7 @@ import (
 )
 
 func newCashCloseSvc(repo *mocks.MockCashRegisterCloseRepository) *cashclose.Service {
-	return cashclose.NewService(repo, zap.NewNop())
+	return cashclose.NewService(repo, nil, nil, zap.NewNop())
 }
 
 func TestCreate_NewClose_Success(t *testing.T) {

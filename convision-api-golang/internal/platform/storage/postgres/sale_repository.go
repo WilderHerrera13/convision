@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/convision/api/internal/domain"
 )
@@ -26,6 +27,8 @@ func (r *SaleRepository) withRelations(q *gorm.DB) *gorm.DB {
 		Preload("Items.Product").
 		Preload("Payments").
 		Preload("Payments.PaymentMethod").
+		Preload("PartialPayments").
+		Preload("PartialPayments.PaymentMethod").
 		Preload("LensPriceAdjustments")
 }
 
@@ -64,20 +67,29 @@ func (r *SaleRepository) Create(db *gorm.DB, s *domain.Sale) error {
 	return db.Model(s).Update("sale_number", s.SaleNumber).Error
 }
 
+// Update touches only the sales table columns listed below. Omit(clause.Associations)
+// is required: s typically arrives with preloaded Payments/PartialPayments/
+// LensPriceAdjustments still in memory, and GORM auto-upserts populated has-many
+// associations on Model(s).Updates(...) even though the update values are a map —
+// without the Omit, this silently resurrects rows a caller just deleted (e.g.
+// RemovePayment/RemovePartialPayment deleting a payment, then this Update call
+// re-inserting it because the in-memory slice was never spliced).
 func (r *SaleRepository) Update(db *gorm.DB, s *domain.Sale) error {
-	return db.Model(s).Updates(map[string]any{
-		"patient_id":     s.PatientID,
-		"order_id":       s.OrderID,
-		"appointment_id": s.AppointmentID,
-		"subtotal":       s.Subtotal,
-		"tax":            s.Tax,
-		"discount":       s.Discount,
-		"total":          s.Total,
-		"amount_paid":    s.AmountPaid,
-		"balance":        s.Balance,
-		"status":         s.Status,
-		"payment_status": s.PaymentStatus,
-		"notes":          s.Notes,
+	return db.Model(s).Omit(clause.Associations).Updates(map[string]any{
+		"patient_id":       s.PatientID,
+		"order_id":         s.OrderID,
+		"appointment_id":   s.AppointmentID,
+		"subtotal":         s.Subtotal,
+		"tax":              s.Tax,
+		"discount":         s.Discount,
+		"total":            s.Total,
+		"amount_paid":      s.AmountPaid,
+		"balance":          s.Balance,
+		"status":           s.Status,
+		"payment_status":   s.PaymentStatus,
+		"notes":            s.Notes,
+		"invoicing_id":     s.InvoicingID,
+		"invoicing_status": s.InvoicingStatus,
 	}).Error
 }
 

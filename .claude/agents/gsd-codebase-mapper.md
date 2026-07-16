@@ -1,0 +1,1 @@
+../../.codex/agents/gsd-codebase-mapper.md

@@ -1,6 +1,7 @@
 package purchase
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
@@ -9,18 +10,20 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/invoicingclient"
 	"github.com/convision/api/internal/platform/clock"
 )
 
 // Service handles purchase use-cases.
 type Service struct {
-	repo   domain.PurchaseRepository
-	logger *zap.Logger
+	repo      domain.PurchaseRepository
+	invoicing *invoicingclient.Client
+	logger    *zap.Logger
 }
 
 // NewService creates a new purchase Service.
-func NewService(repo domain.PurchaseRepository, logger *zap.Logger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo domain.PurchaseRepository, invoicing *invoicingclient.Client, logger *zap.Logger) *Service {
+	return &Service{repo: repo, invoicing: invoicing, logger: logger}
 }
 
 // CreateItemInput is a purchase line item for creation.
@@ -159,7 +162,17 @@ func (s *Service) Create(db *gorm.DB, input CreateInput, createdByUserID *uint) 
 	}
 
 	s.logger.Info("purchase created", zap.Uint("id", p.ID), zap.String("invoice", p.InvoiceNumber))
-	return s.repo.GetByID(db, p.ID)
+
+	created, err := s.repo.GetByID(db, p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if needsDocumentoSoporte(created) {
+		go s.emitDocumentoSoporteAsync(context.Background(), db, created)
+	}
+
+	return created, nil
 }
 
 // Update updates a purchase.
@@ -241,4 +254,78 @@ func (s *Service) Receive(db *gorm.DB, id uint) (*domain.Purchase, error) {
 // GeneratePurchaseNumber generates a sequential purchase number like PUR-0001.
 func GeneratePurchaseNumber(id uint) string {
 	return fmt.Sprintf("PUR-%04d", id)
+}
+
+// needsDocumentoSoporte returns true when the supplier is a non-obligated taxpayer
+// who cannot issue their own electronic invoice, requiring the buyer to emit a DS.
+// Colombian suppliers on simplified regime or marked as non-obligated fall in this category.
+func needsDocumentoSoporte(p *domain.Purchase) bool {
+	if p.Supplier == nil {
+		return false
+	}
+	r := p.Supplier.RegimeType
+	return r == "simplified" || r == "no_obligated" || r == "no-obligated"
+}
+
+// emitDocumentoSoporteAsync emits a Documento Soporte (DS) for a purchase from a
+// non-obligated supplier. Best-effort: errors are logged but never block purchase creation.
+func (s *Service) emitDocumentoSoporteAsync(ctx context.Context, db *gorm.DB, p *domain.Purchase) {
+	if !s.invoicing.IsEnabled() {
+		return
+	}
+	if p.Supplier == nil {
+		return
+	}
+
+	lines := make([]invoicingclient.LineRequest, 0, len(p.Items))
+	for _, item := range p.Items {
+		ivaTreatment := "gravado_19"
+		if p.TaxExcluded {
+			ivaTreatment = "excluido"
+		}
+		lines = append(lines, invoicingclient.LineRequest{
+			ProductCode:  item.ProductCode,
+			Description:  item.ProductDescription,
+			Quantity:     item.Quantity,
+			UnitPrice:    item.UnitPrice,
+			IVATreatment: ivaTreatment,
+		})
+	}
+
+	if len(lines) == 0 {
+		return
+	}
+
+	supplierNIT := p.Supplier.NIT
+	if supplierNIT == "" {
+		supplierNIT = fmt.Sprintf("%d", p.SupplierID)
+	}
+
+	req := invoicingclient.EmitRequest{
+		ExternalRef:  p.InvoiceNumber,
+		DocumentType: "DS",
+		Recipient: invoicingclient.RecipientRequest{
+			DocType:   "NIT",
+			DocNumber: supplierNIT,
+			Name:      p.Supplier.Name,
+		},
+		Lines: lines,
+		Notes: p.Notes,
+	}
+
+	inv, err := s.invoicing.EmitInvoice(ctx, req)
+	if err != nil {
+		s.logger.Warn("invoicing: DS emit failed",
+			zap.Uint("purchase_id", p.ID), zap.Error(err))
+		p.InvoicingStatus = "error"
+	} else if inv != nil {
+		p.InvoicingID = fmt.Sprintf("%d", inv.ID)
+		p.InvoicingStatus = inv.DIANStatus
+		s.logger.Info("invoicing: DS emitted",
+			zap.Uint("purchase_id", p.ID),
+			zap.String("ds_number", inv.Number),
+			zap.String("dian_status", inv.DIANStatus))
+	}
+
+	_ = s.repo.Update(db, p)
 }

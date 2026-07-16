@@ -9,3 +9,22 @@ figma_token.txt
 .logs/
 .playwright-mcp/
 figma-bridge/mcp-server/node_modules/
+.DS_Store
+
+# Local credentials / secrets — never commit
+/aws_cred.txt
+*.pem
+
+# Local QA / exploration scratch (screenshots from ad-hoc browser testing)
+/*.png
+/qa-*.png
+
+# Separate untracked projects, not part of this repo's push scope
+qa-automation/
+convision-invoicing-api/
+jarvis_optica/
+observability/
+
+# Local data exports used for manual testing — not project assets
+/*.xlsx
+/*.csv

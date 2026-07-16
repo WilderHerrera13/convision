@@ -1,0 +1,1 @@
+../../.codex/agents/gsd-integration-checker.md

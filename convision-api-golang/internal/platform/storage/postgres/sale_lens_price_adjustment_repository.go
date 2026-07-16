@@ -45,6 +45,13 @@ func (r *SaleLensPriceAdjustmentRepository) Create(db *gorm.DB, adj *domain.Sale
 	return db.Create(adj).Error
 }
 
+func (r *SaleLensPriceAdjustmentRepository) Update(db *gorm.DB, adj *domain.SaleLensPriceAdjustment) error {
+	return db.Model(adj).Updates(map[string]any{
+		"debit_note_id":     adj.DebitNoteID,
+		"debit_note_status": adj.DebitNoteStatus,
+	}).Error
+}
+
 func (r *SaleLensPriceAdjustmentRepository) Delete(db *gorm.DB, id uint) error {
 	result := db.Delete(&domain.SaleLensPriceAdjustment{}, id)
 	if result.Error != nil {

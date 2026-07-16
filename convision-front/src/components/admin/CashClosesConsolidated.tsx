@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, Info } from 'lucide-react';
@@ -111,17 +111,23 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 interface CashClosesConsolidatedProps {
   branchFilter?: string;
   onBranchChange?: (v: string) => void;
+  onRangeChange?: (from: Date, to: Date) => void;
 }
 
 const CashClosesConsolidated: React.FC<CashClosesConsolidatedProps> = ({
   branchFilter = 'all',
   onBranchChange,
+  onRangeChange,
 }) => {
   const navigate = useNavigate();
   const [range, setRange] = useState<{ from: Date; to: Date }>(() => {
     const r = computeAggregatedPreset('14d');
     return { from: r.from, to: r.to };
   });
+
+  useEffect(() => {
+    onRangeChange?.(range.from, range.to);
+  }, [range, onRangeChange]);
 
   const params = useMemo(
     () => ({

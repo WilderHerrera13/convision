@@ -8,7 +8,10 @@ import { DatePicker } from '@/components/ui/date-picker';
 import EntityTable from '@/components/ui/data-table/EntityTable';
 import type { DataTableColumnDef } from '@/components/ui/data-table';
 import PageLayout from '@/components/layouts/PageLayout';
-import cashRegisterCloseService, { CashClose } from '@/services/cashRegisterCloseService';
+import cashRegisterCloseService, {
+  CashClose,
+  isCloseCreatedOnDifferentDay,
+} from '@/services/cashRegisterCloseService';
 
 const formatCOP = (v: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
@@ -43,6 +46,30 @@ const CashRegisterHistory: React.FC = () => {
           {format(new Date(`${item.close_date}T12:00:00`), 'dd/MM/yyyy')}
         </span>
       ),
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'Registrado',
+      enableSorting: false,
+      cell: (item) => {
+        const mismatch = isCloseCreatedOnDifferentDay(item.close_date, item.created_at);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[13px] ${mismatch ? 'font-semibold text-[#b57218]' : 'text-[#7d7d87]'}`}>
+              {format(new Date(item.created_at), 'dd/MM/yyyy h:mm a')}
+            </span>
+            {mismatch && (
+              <Badge
+                variant="outline"
+                className="rounded-full border-[#f4c778] bg-[#fff6e3] px-1.5 py-0 text-[9px] font-bold text-[#b57218]"
+                title="El cierre se registró en un día distinto a la fecha del cierre"
+              >
+                OTRO DÍA
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'total_counted',

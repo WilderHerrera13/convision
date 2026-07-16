@@ -11,15 +11,18 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import AdminCashCloseAdjustModal from '@/components/admin/AdminCashCloseAdjustModal';
 import PageLayout from '@/components/layouts/PageLayout';
 import cashRegisterCloseService, {
   CashCloseCalendarDay,
   CashCloseCalendarPayload,
+  isCloseCreatedOnDifferentDay,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   DENOMINATIONS,
   type PaymentMethodName,
 } from '@/services/cashRegisterCloseService';
+import { downloadBlob } from '@/lib/downloadFile';
 import { formatCOP } from './cashClosesConfig';
 
 type DayStatusKind = 'approved' | 'submitted' | 'draft' | 'today' | 'empty';
@@ -138,7 +141,32 @@ const AdminCashCloseCalendar: React.FC = () => {
 
   const [pendingApprove, setPendingApprove] = useState<{ id: number; date: string } | null>(null);
   const [pendingReturn, setPendingReturn] = useState<{ id: number; date: string } | null>(null);
+  const [pendingAdjust, setPendingAdjust] = useState<{
+    id: number;
+    date: string;
+    paymentMethods: { name: string; counted_amount: number }[];
+    denominations: { denomination: number; quantity: number }[];
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { blob, filename } = await cashRegisterCloseService.exportExcel({
+        user_id: String(queryParams.user_id),
+        date_from: queryParams.date_from,
+        date_to: queryParams.date_to,
+        branch_id: queryParams.branch_id,
+      });
+      downloadBlob(blob, filename);
+      toast.success('Reporte exportado correctamente');
+    } catch {
+      toast.error('No se pudo exportar el reporte');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!pendingApprove) return;
@@ -233,10 +261,11 @@ const AdminCashCloseCalendar: React.FC = () => {
           variant="outline"
           size="sm"
           className="h-9 w-[120px] gap-1.5 border-[#e5e5e9] text-[13px] font-semibold text-[#121215]"
-          onClick={() => toast.info('Exportación disponible próximamente')}
+          onClick={handleExport}
+          disabled={isExporting}
         >
           <Download className="h-3.5 w-3.5" />
-          Exportar
+          {isExporting ? 'Exportando…' : 'Exportar'}
         </Button>
       }
     >
@@ -329,6 +358,14 @@ const AdminCashCloseCalendar: React.FC = () => {
           loading={isLoading || isFetching}
           onApprove={(close, date) => setPendingApprove({ id: close.id, date })}
           onReturn={(close, date) => setPendingReturn({ id: close.id, date })}
+          onAdjust={(close, date) =>
+            setPendingAdjust({
+              id: close.id,
+              date,
+              paymentMethods: close.payment_methods,
+              denominations: close.denominations,
+            })
+          }
           scrollRef={matrixScrollRef}
           todayRef={todayColumnRef}
           focusDate={focusDate}
@@ -364,6 +401,21 @@ const AdminCashCloseCalendar: React.FC = () => {
         variant="danger"
         onConfirm={handleReturn}
         isLoading={actionLoading}
+      />
+
+      <AdminCashCloseAdjustModal
+        open={!!pendingAdjust}
+        onOpenChange={(open) => !open && setPendingAdjust(null)}
+        closeId={pendingAdjust?.id ?? null}
+        closeDate={pendingAdjust ? format(new Date(`${pendingAdjust.date}T12:00:00`), 'dd/MM/yyyy') : null}
+        initialPaymentMethods={pendingAdjust?.paymentMethods ?? []}
+        initialDenominations={pendingAdjust?.denominations ?? []}
+        onAdjusted={() => {
+          setPendingAdjust(null);
+          void refetch();
+          queryClient.invalidateQueries({ queryKey: ['advisors-pending-closes'] });
+          queryClient.invalidateQueries({ queryKey: ['cash-closes-consolidated'] });
+        }}
       />
     </PageLayout>
   );
@@ -491,11 +543,12 @@ const CalendarMatrix: React.FC<{
   loading: boolean;
   onApprove: (close: NonNullable<CloseSnapshot>, date: string) => void;
   onReturn: (close: NonNullable<CloseSnapshot>, date: string) => void;
+  onAdjust: (close: NonNullable<CloseSnapshot>, date: string) => void;
   scrollRef?: React.RefObject<HTMLDivElement>;
   todayRef?: React.RefObject<HTMLDivElement>;
   focusDate?: string | null;
   focusRef?: React.RefObject<HTMLDivElement>;
-}> = ({ days, loading, onApprove, onReturn, scrollRef, todayRef, focusDate, focusRef }) => {
+}> = ({ days, loading, onApprove, onReturn, onAdjust, scrollRef, todayRef, focusDate, focusRef }) => {
   if (loading && days.length === 0) {
     return <Skeleton className="h-[500px] w-full rounded-[12px]" />;
   }
@@ -553,13 +606,20 @@ const CalendarMatrix: React.FC<{
                   {cfg.label}
                 </Badge>
                 {kind === 'submitted' && day.close && (
-                  <div className="mt-0.5 flex w-full items-center gap-1.5">
+                  <div className="mt-0.5 flex w-full flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => day.close && onApprove(day.close, day.date)}
                       className="flex h-6 items-center rounded-[4px] bg-[#228b52] px-2.5 text-[11px] font-semibold text-white shadow-[0px_1px_2px_rgba(34,139,82,0.25)] transition-colors hover:bg-[#1a6e3f]"
                     >
                       Aprobar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => day.close && onAdjust(day.close, day.date)}
+                      className="flex h-6 items-center rounded-[4px] border border-[#c5d3f8] bg-[#eff1ff] px-2.5 text-[11px] font-semibold text-[#3a71f7] transition-colors hover:bg-[#dce5ff]"
+                    >
+                      Ajustar
                     </button>
                     <button
                       type="button"
@@ -618,6 +678,28 @@ const CalendarMatrix: React.FC<{
               >
                 {cfg.label}
               </Badge>
+            );
+          }}
+        />
+        <DataRow
+          label="Registrado (fecha real)"
+          days={days}
+          idx={4}
+          render={(d) => {
+            if (!d.close?.created_at) return <span className="text-[#b4b5bc]">—</span>;
+            const mismatch = isCloseCreatedOnDifferentDay(d.date, d.close.created_at);
+            return (
+              <span
+                className={mismatch ? 'font-semibold text-[#b57218]' : 'text-[#7d7d87]'}
+                title={
+                  mismatch
+                    ? 'El cierre se registró en un día distinto a la fecha del cierre'
+                    : undefined
+                }
+              >
+                {mismatch ? '⚠ ' : ''}
+                {format(new Date(d.close.created_at), 'dd/MM h:mm a')}
+              </span>
             );
           }}
         />

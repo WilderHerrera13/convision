@@ -204,6 +204,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.Quote{},
 		&domain.QuoteItem{},
 		&domain.DiscountRequest{},
+		&domain.Promotion{},
 		// Purchasing & finance
 		&domain.Purchase{},
 		&domain.PurchaseItem{},
@@ -216,6 +217,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.CashRegisterClosePayment{},
 		&domain.CashRegisterCloseActualPayment{},
 		&domain.CashCountDenomination{},
+		&domain.CashRegisterCloseAdjustment{},
 		&domain.CashTransfer{},
 		&domain.DailyActivityReport{},
 		&domain.DailyReportEditLog{},
@@ -335,6 +337,7 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.Quote{},
 		&domain.QuoteItem{},
 		&domain.DiscountRequest{},
+		&domain.Promotion{},
 		// Purchasing & finance
 		&domain.Purchase{},
 		&domain.PurchaseItem{},
@@ -347,6 +350,7 @@ func MigrateTenantSchema(db *gorm.DB, schemaName string) error {
 		&domain.CashRegisterClosePayment{},
 		&domain.CashRegisterCloseActualPayment{},
 		&domain.CashCountDenomination{},
+		&domain.CashRegisterCloseAdjustment{},
 		&domain.CashTransfer{},
 		&domain.DailyActivityReport{},
 		&domain.DailyReportEditLog{},

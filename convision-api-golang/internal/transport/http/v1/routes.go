@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/convision/api/internal/domain"
 	jwtauth "github.com/convision/api/internal/platform/auth"
 	"github.com/convision/api/internal/platform/opticacache"
 	branchmw "github.com/convision/api/internal/transport/http/v1/middleware"
@@ -397,9 +398,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		// See docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md section 07.
 		rips := protected.Group("/rips")
 		{
-			rips.GET("", jwtauth.RequirePermission("rips:view"), h.ListRipsRecords)
-			rips.GET("/:id", jwtauth.RequirePermission("rips:view"), h.GetRipsRecord)
-			rips.POST("/:id/attach-invoice", jwtauth.RequirePermission("rips:view"), h.AttachRipsInvoice)
+			rips.GET("", jwtauth.RequireRole(domain.RoleAdmin), h.ListRipsRecords)
+			rips.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.GetRipsRecord)
+			rips.POST("/:id/attach-invoice", jwtauth.RequireRole(domain.RoleAdmin), h.AttachRipsInvoice)
 		}
 
 		// Product categories — read: all; write: admin only
@@ -539,6 +540,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		// Active discounts query (legacy)
 		protected.GET("/active-discounts", h.ListActiveDiscounts)
 
+		// Promotions — marketing campaigns. Management is admin-only; the evaluate
+		// endpoint is available to any authenticated seller for checkout preview.
+		protected.POST("/promotions/evaluate", h.EvaluatePromotions)
+		promotions := protected.Group("/promotions")
+		promotions.Use(jwtauth.RequireRole(domain.RoleAdmin))
+		{
+			promotions.GET("", h.ListPromotions)
+			promotions.GET("/:id", h.GetPromotion)
+			promotions.POST("", h.CreatePromotion)
+			promotions.PUT("/:id", h.UpdatePromotion)
+			promotions.DELETE("/:id", h.DeletePromotion)
+		}
+
 		// Quotes — admin and receptionist
 		quotes := protected.Group("/quotes")
 		{
@@ -596,6 +610,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 				h.CancelSale,
 			)
+			sales.POST("/:id/retry-invoicing",
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
+				h.RetrySaleInvoicing,
+			)
+			sales.POST("/:id/partial-payments",
+				jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
+				h.AddSalePartialPayment,
+			)
+			sales.GET("/:id/partial-payments", h.ListSalePartialPayments)
 			sales.GET("/:id/pdf-token", h.GetSalePdfToken)
 			sales.GET("/:id/lens-price-adjustments", h.ListLensPriceAdjustments)
 			sales.POST("/:id/lens-price-adjustments",
@@ -607,6 +630,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 		branchScoped.DELETE("/sales/:id/payments/:paymentId",
 			jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
 			h.RemoveSalePayment,
+		)
+		branchScoped.DELETE("/sales/:id/partial-payments/:paymentId",
+			jwtauth.RequireAnyPermission("sales:create", "sales:edit"),
+			h.RemoveSalePartialPayment,
 		)
 		branchScoped.DELETE("/sales/:id/lens-price-adjustments/:adjId",
 			jwtauth.RequireAnyPermission("sales:edit"),
@@ -806,13 +833,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			cashRegisterCloses.POST("/:id/submit", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.SubmitCashRegisterClose)
 			cashRegisterCloses.POST("/:id/approve", jwtauth.RequirePermission("cash_close:approve"), h.ApproveCashRegisterClose)
 			cashRegisterCloses.POST("/:id/return", jwtauth.RequirePermission("cash_close:approve"), h.ReturnCashRegisterCloseToDraft)
+			cashRegisterCloses.POST("/:id/adjust", jwtauth.RequirePermission("cash_close:approve"), h.AdjustCashRegisterClose)
+			cashRegisterCloses.GET("/:id/adjustments", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.ListCashRegisterCloseAdjustments)
 			cashRegisterCloses.PUT("/:id/admin-actuals", jwtauth.RequirePermission("cash_close:approve"), h.PutCashRegisterCloseAdminActuals)
 			cashRegisterCloses.DELETE("/:id", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.DeleteCashRegisterClose)
 		}
 
+		// Adjustment acknowledgement lives outside the /:id group to avoid a wildcard
+		// route conflict with the static "adjustments" segment.
+		branchScoped.POST("/cash-register-close-adjustments/:id/acknowledge", jwtauth.RequireAnyPermission("cash_close:view", "cash_close:create"), h.AcknowledgeCashRegisterCloseAdjustment)
+
 		branchScoped.GET("/cash-register-closes-advisors-pending", jwtauth.RequirePermission("cash_close:view"), h.ListCashRegisterClosesAdvisorsPending)
 		branchScoped.GET("/cash-register-closes-calendar", jwtauth.RequirePermission("cash_close:view"), h.GetCashRegisterClosesCalendar)
 		branchScoped.GET("/cash-register-closes-consolidated", jwtauth.RequirePermission("cash_close:view"), h.GetCashRegisterClosesConsolidated)
+		branchScoped.GET("/cash-register-closes-export", jwtauth.RequirePermission("cash_close:view"), h.ExportCashRegisterCloses)
 
 		// Dashboard — all authenticated roles
 		dashboard := protected.Group("/dashboard")
@@ -831,6 +865,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			adminNotifications.PATCH("/:id/archive", jwtauth.RequirePermission("notifications:manage"), h.ArchiveNotification)
 			adminNotifications.PATCH("/:id/unarchive", jwtauth.RequirePermission("notifications:manage"), h.UnarchiveNotification)
 			adminNotifications.DELETE("/:id", jwtauth.RequirePermission("notifications:manage"), h.DeleteNotification)
+		}
+
+		// Notifications — self-scoped inbox for any authenticated user (each caller
+		// only ever sees/mutates notifications addressed to them). Reuses the same
+		// per-user handlers as the admin group above.
+		notifications := protected.Group("/notifications")
+		{
+			notifications.GET("/summary", h.GetNotificationSummary)
+			notifications.GET("", h.ListNotifications)
+			notifications.PATCH("/read-all", h.MarkAllNotificationsRead)
+			notifications.PATCH("/:id/read", h.MarkNotificationRead)
+			notifications.PATCH("/:id/unread", h.MarkNotificationUnread)
+			notifications.PATCH("/:id/archive", h.ArchiveNotification)
+			notifications.PATCH("/:id/unarchive", h.UnarchiveNotification)
+			notifications.DELETE("/:id", h.DeleteNotification)
 		}
 
 		// Notes — all authenticated roles; polymorphic /:type/:id/notes
@@ -853,6 +902,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			bulkImportGroup.POST("/lenses", h.BulkImportLenses)
 			bulkImportGroup.POST("/staff-users", h.BulkImportStaffUsers)
 			bulkImportGroup.POST("/inventory", h.BulkImportInventory)
+			bulkImportGroup.POST("/promotions", h.BulkImportPromotions)
 			bulkImportGroup.GET("/history", h.BulkImportHistory)
 		}
 
@@ -867,6 +917,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, opticaCache *opticacache.C
 			dailyActivity.POST("/:id/reopen", jwtauth.RequirePermission("daily_reports:view"), h.ReopenReport)
 			dailyActivity.POST("/quick-attention", jwtauth.RequireAnyPermission("daily_reports:create"), h.QuickAttentionDailyActivity)
 			dailyActivity.GET("/:id/edit-logs", jwtauth.RequirePermission("daily_reports:view"), h.GetDailyActivityReportEditLogs)
+		}
+
+		invoicing := protected.Group("/invoicing/documents")
+		{
+			invoicing.GET("", jwtauth.RequireRole(domain.RoleAdmin), h.ListElectronicDocuments)
+			invoicing.GET("/:id", jwtauth.RequireRole(domain.RoleAdmin), h.GetElectronicDocument)
+			invoicing.GET("/:id/xml", jwtauth.RequireRole(domain.RoleAdmin), h.DownloadElectronicDocumentXML)
+			invoicing.POST("/:id/retry", jwtauth.RequireRole(domain.RoleAdmin), h.RetryElectronicDocument)
 		}
 	}
 }

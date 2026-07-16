@@ -223,6 +223,88 @@ func (h *Handler) CancelSale(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+// RetrySaleInvoicing godoc
+// POST /api/v1/sales/:id/retry-invoicing
+func (h *Handler) RetrySaleInvoicing(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	s, err := h.sale.RetryInvoicing(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, s)
+}
+
+// AddSalePartialPayment godoc
+// POST /api/v1/sales/:id/partial-payments
+func (h *Handler) AddSalePartialPayment(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	var input salesvc.AddPaymentInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	s, err := h.sale.AddPartialPayment(id, input, claims.UserID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, s)
+}
+
+// ListSalePartialPayments godoc
+// GET /api/v1/sales/:id/partial-payments
+func (h *Handler) ListSalePartialPayments(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	payments, err := h.sale.GetPartialPayments(id)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, payments)
+}
+
+// RemoveSalePartialPayment godoc
+// DELETE /api/v1/sales/:id/partial-payments/:paymentId
+func (h *Handler) RemoveSalePartialPayment(c *gin.Context) {
+	saleID, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	paymentIDRaw := c.Param("paymentId")
+	paymentIDParsed, parseErr := strconv.ParseUint(paymentIDRaw, 10, 64)
+	if parseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid payment id"})
+		return
+	}
+	paymentID := uint(paymentIDParsed)
+
+	s, err := h.sale.RemovePartialPayment(saleID, paymentID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, s)
+}
+
 // GetSalePdfToken godoc
 // GET /api/v1/sales/:id/pdf-token
 func (h *Handler) GetSalePdfToken(c *gin.Context) {

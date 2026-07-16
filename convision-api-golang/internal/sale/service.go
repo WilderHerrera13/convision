@@ -3,6 +3,7 @@ package sale
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -10,22 +11,28 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/convision/api/internal/domain"
+	"github.com/convision/api/internal/invoicingclient"
 	"github.com/convision/api/internal/platform/clock"
+	"github.com/convision/api/internal/promotion"
 )
+
+// ivaRate is the single VAT (IVA) rate applied across the app.
+const ivaRate = 0.19
 
 // Service handles sale use-cases.
 type Service struct {
-	db               *gorm.DB
-	saleRepo         domain.SaleRepository
-	adjRepo          domain.SaleLensPriceAdjustmentRepository
-	productRepo      domain.ProductRepository
-	labOrderRepo     domain.LaboratoryOrderRepository
-	labRepo          domain.LaboratoryRepository
-	appointmentRepo  domain.AppointmentRepository
-	branchRepo       domain.BranchRepository
-	itemRepo         domain.InventoryItemRepository
-	movementRepo     domain.StockMovementRepository
-	prescriptionRepo domain.PrescriptionRepository
+	db                 *gorm.DB
+	saleRepo           domain.SaleRepository
+	adjRepo            domain.SaleLensPriceAdjustmentRepository
+	partialPaymentRepo domain.PartialPaymentRepository
+	productRepo        domain.ProductRepository
+	labOrderRepo       domain.LaboratoryOrderRepository
+	labRepo            domain.LaboratoryRepository
+	appointmentRepo    domain.AppointmentRepository
+	branchRepo         domain.BranchRepository
+	itemRepo           domain.InventoryItemRepository
+	movementRepo       domain.StockMovementRepository
+	prescriptionRepo   domain.PrescriptionRepository
 	// clinicalRecordRepo is the primary source of truth for the signed optical
 	// formula (ClinicalPrescription). prescriptionRepo (the legacy Prescription
 	// model, table appointment_prescriptions) is kept only as a fallback for
@@ -34,6 +41,9 @@ type Service struct {
 	// /api/v1/prescriptions CRUD and PrescriptionForm.tsx still depend on it.
 	clinicalRecordRepo domain.ClinicalRecordRepository
 	userRepo           domain.UserRepository
+	promotionRepo      domain.PromotionRepository
+	patientRepo        domain.PatientRepository
+	invoicing          *invoicingclient.Client
 	logger             *zap.Logger
 }
 
@@ -42,6 +52,7 @@ func NewService(
 	db *gorm.DB,
 	saleRepo domain.SaleRepository,
 	adjRepo domain.SaleLensPriceAdjustmentRepository,
+	partialPaymentRepo domain.PartialPaymentRepository,
 	productRepo domain.ProductRepository,
 	labOrderRepo domain.LaboratoryOrderRepository,
 	labRepo domain.LaboratoryRepository,
@@ -52,12 +63,15 @@ func NewService(
 	prescriptionRepo domain.PrescriptionRepository,
 	clinicalRecordRepo domain.ClinicalRecordRepository,
 	userRepo domain.UserRepository,
+	promotionRepo domain.PromotionRepository,
+	patientRepo domain.PatientRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
 		db:                 db,
 		saleRepo:           saleRepo,
 		adjRepo:            adjRepo,
+		partialPaymentRepo: partialPaymentRepo,
 		productRepo:        productRepo,
 		labOrderRepo:       labOrderRepo,
 		labRepo:            labRepo,
@@ -68,6 +82,9 @@ func NewService(
 		prescriptionRepo:   prescriptionRepo,
 		clinicalRecordRepo: clinicalRecordRepo,
 		userRepo:           userRepo,
+		promotionRepo:      promotionRepo,
+		patientRepo:        patientRepo,
+		invoicing:          invoicingclient.NewFromEnv(),
 		logger:             logger,
 	}
 }
@@ -163,8 +180,8 @@ func calcLastPage(total int64, perPage int) int {
 	return lp
 }
 
-func derivePaymentStatus(amountPaid, total float64, hasPayments bool) string {
-	if !hasPayments {
+func derivePaymentStatus(amountPaid, total float64) string {
+	if amountPaid <= 0 {
 		return "pending"
 	}
 	if amountPaid >= total {
@@ -260,26 +277,61 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 		input.Tax = taxAmt
 	}
 
-	paymentStatus := derivePaymentStatus(amountPaid, input.Total, len(payments) > 0)
+	// Server-authoritative marketing promotions: independently recompute every
+	// applicable promotion from the catalog (conflict resolution included). When any
+	// apply, their combined amount reduces the taxable base before IVA and the totals
+	// are recomputed from server figures — the client-sent totals are never trusted
+	// for promotions. Sales without matching promotions keep their existing
+	// (client-provided) totals unchanged. promotion_id records the largest single
+	// promotion as the representative campaign for reporting.
+	var promotionID *uint
+	var promotionDiscount float64
+	if applied := s.applicablePromotions(input); len(applied) > 0 {
+		var repID uint
+		var repAmount float64
+		for _, a := range applied {
+			promotionDiscount += a.Amount
+			if a.Amount > repAmount {
+				repAmount = a.Amount
+				repID = a.ID
+			}
+		}
+		promotionDiscount = round2(promotionDiscount)
+		promotionID = &repID
+
+		taxable := subtotal - discount - promotionDiscount
+		if taxable < 0 {
+			taxable = 0
+		}
+		tax := round2(taxable * ivaRate)
+		input.Subtotal = subtotal
+		input.Discount = discount
+		input.Tax = tax
+		input.Total = round2(taxable + tax)
+	}
+
+	paymentStatus := derivePaymentStatus(amountPaid, input.Total)
 	balance := input.Total - amountPaid
 
 	sale := &domain.Sale{
-		BranchID:      input.BranchID,
-		PatientID:     input.PatientID,
-		OrderID:       input.OrderID,
-		AppointmentID: input.AppointmentID,
-		Subtotal:      input.Subtotal,
-		Tax:           input.Tax,
-		Discount:      input.Discount,
-		Total:         input.Total,
-		AmountPaid:    amountPaid,
-		Balance:       balance,
-		Status:        domain.SaleStatusPending,
-		PaymentStatus: paymentStatus,
-		Notes:         input.Notes,
-		CreatedBy:     &userID,
-		Items:         items,
-		Payments:      payments,
+		BranchID:          input.BranchID,
+		PatientID:         input.PatientID,
+		OrderID:           input.OrderID,
+		AppointmentID:     input.AppointmentID,
+		Subtotal:          input.Subtotal,
+		Tax:               input.Tax,
+		Discount:          input.Discount,
+		PromotionID:       promotionID,
+		PromotionDiscount: promotionDiscount,
+		Total:             input.Total,
+		AmountPaid:        amountPaid,
+		Balance:           balance,
+		Status:            domain.SaleStatusPending,
+		PaymentStatus:     paymentStatus,
+		Notes:             input.Notes,
+		CreatedBy:         &userID,
+		Items:             items,
+		Payments:          payments,
 	}
 
 	if err := s.saleRepo.Create(s.db, sale); err != nil {
@@ -294,7 +346,69 @@ func (s *Service) Create(input CreateInput, userID uint) (*domain.Sale, error) {
 	s.updateOrderPaymentStatus(sale)
 	s.updateAppointmentBilling(sale)
 
-	return s.saleRepo.GetByID(s.db, sale.ID)
+	created, err := s.saleRepo.GetByID(s.db, sale.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	go s.emitInvoiceAsync(context.Background(), created)
+
+	return created, nil
+}
+
+// applicablePromotions re-runs the promotion engine server-side for a sale being
+// created, resolving each line's category/brand from the catalog and the patient's
+// birth date, so applied promotions cannot be forged by the client. Returns every
+// promotion the conflict-resolution engine grants (empty when none apply).
+func (s *Service) applicablePromotions(input CreateInput) []promotion.AppliedPromotion {
+	if s.promotionRepo == nil {
+		return nil
+	}
+	now := time.Now()
+	candidates, err := s.promotionRepo.ListActiveAt(s.db, now)
+	if err != nil || len(candidates) == 0 {
+		return nil
+	}
+
+	items := make([]promotion.EvaluateItemInput, 0, len(input.Items))
+	for _, it := range input.Items {
+		ei := promotion.EvaluateItemInput{
+			ProductID:    it.ProductID,
+			LensID:       it.LensID,
+			ProductType:  it.ProductType,
+			Quantity:     it.Quantity,
+			Price:        it.Price,
+			LineDiscount: it.Discount,
+		}
+		pid := it.ProductID
+		if pid == nil {
+			pid = it.LensID
+		}
+		if pid != nil {
+			if prod, perr := s.productRepo.GetByID(s.db, *pid); perr == nil && prod != nil {
+				ei.ProductCategoryID = prod.ProductCategoryID
+				ei.BrandID = prod.BrandID
+				if ei.ProductType == "" {
+					ei.ProductType = string(prod.ProductType)
+				}
+			}
+		}
+		items = append(items, ei)
+	}
+
+	var birth *string
+	if input.PatientID != 0 && s.patientRepo != nil {
+		if p, perr := s.patientRepo.GetByID(s.db, input.PatientID); perr == nil && p != nil && p.BirthDate != nil {
+			b := p.BirthDate.Format("2006-01-02")
+			birth = &b
+		}
+	}
+
+	return promotion.EvaluateCart(items, birth, now, candidates)
+}
+
+func round2(v float64) float64 {
+	return math.Round(v*100) / 100
 }
 
 // Update updates an existing sale's fields.
@@ -335,11 +449,23 @@ func (s *Service) Update(id uint, input UpdateInput) (*domain.Sale, error) {
 	return s.saleRepo.GetByID(s.db, sale.ID)
 }
 
-// Delete soft-deletes a sale.
+// Delete soft-deletes a sale. If the sale hasn't already been cancelled, it
+// runs the same protective steps as Cancel — reverting consumed stock and
+// emitting a Nota Crédito for any DIAN invoice already issued — so a deleted
+// sale never leaves stale inventory or an unreconciled invoice behind.
 func (s *Service) Delete(id uint) error {
-	if _, err := s.saleRepo.GetByID(s.db, id); err != nil {
+	sale, err := s.saleRepo.GetByID(s.db, id)
+	if err != nil {
 		return err
 	}
+
+	if sale.Status != domain.SaleStatusCancelled {
+		s.revertStock(context.Background(), sale.ID, sale.BranchID, sale.Items)
+		if sale.InvoicingID != "" && sale.CreditNoteID == "" {
+			go s.emitCreditNoteAsync(context.Background(), sale)
+		}
+	}
+
 	return s.saleRepo.Delete(s.db, id)
 }
 
@@ -378,7 +504,7 @@ func (s *Service) AddPayment(saleID uint, input AddPaymentInput, userID uint) (*
 	if sale.Balance < 0 {
 		sale.Balance = 0
 	}
-	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total, true)
+	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
 	_ = s.saleRepo.Update(s.db, sale)
 
 	// A sale created unpaid (e.g. quoted then paid later) only reaches
@@ -421,18 +547,105 @@ func (s *Service) RemovePayment(saleID, paymentID uint) (*domain.Sale, error) {
 		sale.AmountPaid = 0
 	}
 	sale.Balance = sale.Total - sale.AmountPaid
-
-	refreshed, err := s.saleRepo.GetByID(s.db, saleID)
-	if err != nil {
+	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
+	if err := s.saleRepo.Update(s.db, sale); err != nil {
 		return nil, err
 	}
-	refreshed.PaymentStatus = derivePaymentStatus(refreshed.AmountPaid, refreshed.Total, len(refreshed.Payments) > 0)
-	_ = s.saleRepo.Update(s.db, refreshed)
 
 	return s.saleRepo.GetByID(s.db, saleID)
 }
 
-// Cancel changes a sale's status to cancelled.
+// AddPartialPayment adds an installment (abono) to an existing sale's balance
+// and recalculates payment_status, mirroring AddPayment.
+func (s *Service) AddPartialPayment(saleID uint, input AddPaymentInput, userID uint) (*domain.Sale, error) {
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
+	if err != nil {
+		return nil, err
+	}
+
+	pmID := input.PaymentMethodID
+	now := time.Now()
+	pd := now
+	if input.PaymentDate != "" {
+		if t, err := clock.ParseDate(input.PaymentDate); err == nil {
+			pd = t
+		}
+	}
+	payment := &domain.PartialPayment{
+		SaleID:          saleID,
+		PaymentMethodID: &pmID,
+		Amount:          input.Amount,
+		ReferenceNumber: input.ReferenceNumber,
+		PaymentDate:     &pd,
+		Notes:           input.Notes,
+		CreatedBy:       &userID,
+	}
+
+	if err := s.partialPaymentRepo.Create(s.db, payment); err != nil {
+		return nil, err
+	}
+
+	sale.AmountPaid += input.Amount
+	sale.Balance = sale.Total - sale.AmountPaid
+	if sale.Balance < 0 {
+		sale.Balance = 0
+	}
+	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
+	_ = s.saleRepo.Update(s.db, sale)
+
+	s.logger.Info("partial payment added to sale",
+		zap.Uint("sale_id", saleID),
+		zap.Float64("amount", input.Amount),
+	)
+	return s.saleRepo.GetByID(s.db, saleID)
+}
+
+// GetPartialPayments returns all installments (abonos) recorded against a sale.
+func (s *Service) GetPartialPayments(saleID uint) ([]*domain.PartialPayment, error) {
+	if _, err := s.saleRepo.GetByID(s.db, saleID); err != nil {
+		return nil, err
+	}
+	return s.partialPaymentRepo.GetBySaleID(s.db, saleID)
+}
+
+// RemovePartialPayment removes an installment (abono) from a sale and
+// recalculates payment_status, mirroring RemovePayment.
+func (s *Service) RemovePartialPayment(saleID, paymentID uint) (*domain.Sale, error) {
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
+	if err != nil {
+		return nil, err
+	}
+
+	var removedAmount float64
+	for _, p := range sale.PartialPayments {
+		if p.ID == paymentID {
+			removedAmount = p.Amount
+			break
+		}
+	}
+
+	if err := s.partialPaymentRepo.Delete(s.db, saleID, paymentID); err != nil {
+		return nil, err
+	}
+
+	sale.AmountPaid -= removedAmount
+	if sale.AmountPaid < 0 {
+		sale.AmountPaid = 0
+	}
+	sale.Balance = sale.Total - sale.AmountPaid
+	sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
+	if err := s.saleRepo.Update(s.db, sale); err != nil {
+		return nil, err
+	}
+
+	return s.saleRepo.GetByID(s.db, saleID)
+}
+
+// Cancel changes a sale's status to cancelled, reverting consumed stock and
+// zeroing the outstanding balance — a cancelled sale never shows an amount
+// still owed. If money had already been collected, payment_status flips to
+// "refunded" (a status the schema already reserves for this case) so the
+// sale record and the Nota Crédito emitted below agree on the sale being void.
 func (s *Service) Cancel(id uint) (*domain.Sale, error) {
 	sale, err := s.saleRepo.GetByID(s.db, id)
 	if err != nil {
@@ -445,9 +658,21 @@ func (s *Service) Cancel(id uint) (*domain.Sale, error) {
 	s.revertStock(context.Background(), sale.ID, sale.BranchID, sale.Items)
 
 	sale.Status = domain.SaleStatusCancelled
+	sale.Balance = 0
+	if sale.AmountPaid > 0 {
+		sale.PaymentStatus = "refunded"
+	}
 	if err := s.saleRepo.Update(s.db, sale); err != nil {
 		return nil, err
 	}
+
+	updated, err := s.saleRepo.GetByID(s.db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	go s.emitCreditNoteAsync(context.Background(), updated)
+
 	return s.saleRepo.GetByID(s.db, id)
 }
 
@@ -729,10 +954,30 @@ func (s *Service) CreateLensPriceAdjustment(saleID uint, input LensPriceAdjInput
 	if err := s.adjRepo.Create(s.db, adj); err != nil {
 		return nil, err
 	}
-	return s.adjRepo.GetByID(s.db, adj.ID)
+
+	created, err := s.adjRepo.GetByID(s.db, adj.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// The adjustment raises the price the patient owes above what the sale was
+	// originally created for, so Total/Balance must grow by the same amount —
+	// otherwise the sale keeps understating what's actually pending while the
+	// Nota Débito emitted below tells DIAN the price went up.
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
+	if err == nil {
+		sale.Total += adj.AdjustmentAmount
+		sale.Balance += adj.AdjustmentAmount
+		sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
+		_ = s.saleRepo.Update(s.db, sale)
+		go s.emitDebitNoteAsync(context.Background(), sale, created)
+	}
+
+	return created, nil
 }
 
-// DeleteLensPriceAdjustment removes a lens price adjustment.
+// DeleteLensPriceAdjustment removes a lens price adjustment, reverting the
+// Total/Balance increase it applied in CreateLensPriceAdjustment.
 func (s *Service) DeleteLensPriceAdjustment(saleID, adjID uint) error {
 	adj, err := s.adjRepo.GetByID(s.db, adjID)
 	if err != nil {
@@ -741,7 +986,23 @@ func (s *Service) DeleteLensPriceAdjustment(saleID, adjID uint) error {
 	if adj.SaleID != saleID {
 		return &domain.ErrNotFound{Resource: "lens_price_adjustment"}
 	}
-	return s.adjRepo.Delete(s.db, adjID)
+
+	if err := s.adjRepo.Delete(s.db, adjID); err != nil {
+		return err
+	}
+
+	sale, err := s.saleRepo.GetByID(s.db, saleID)
+	if err == nil {
+		sale.Total -= adj.AdjustmentAmount
+		sale.Balance -= adj.AdjustmentAmount
+		if sale.Balance < 0 {
+			sale.Balance = 0
+		}
+		sale.PaymentStatus = derivePaymentStatus(sale.AmountPaid, sale.Total)
+		_ = s.saleRepo.Update(s.db, sale)
+	}
+
+	return nil
 }
 
 // GetAdjustedPrice returns price info for a specific lens in a sale.
@@ -781,6 +1042,298 @@ func (s *Service) GeneratePdfToken(id uint) (map[string]any, error) {
 		"pdf_token":     token,
 		"guest_pdf_url": fmt.Sprintf("/api/v1/sales/%d/pdf?token=%s", sale.ID, token),
 	}, nil
+}
+
+// RetryInvoicing re-attempts full DIAN invoice emission for a sale whose
+// first attempt failed outright (invoicing_status=error, no invoicing_id was
+// ever assigned). The existing contingency-retry endpoint can't reach these
+// sales because it requires an invoicing_id to already exist. Runs
+// synchronously (unlike the fire-and-forget emitInvoiceAsync calls elsewhere)
+// so a manual retry gets an immediate, actionable result.
+func (s *Service) RetryInvoicing(id uint) (*domain.Sale, error) {
+	sale, err := s.saleRepo.GetByID(s.db, id)
+	if err != nil {
+		return nil, err
+	}
+	if sale.InvoicingID != "" {
+		return nil, &domain.ErrValidation{
+			Field:   "invoicing_status",
+			Message: "sale already has an emitted invoice; use the contingency retry endpoint instead",
+		}
+	}
+
+	s.emitInvoiceAsync(context.Background(), sale)
+
+	return s.saleRepo.GetByID(s.db, id)
+}
+
+// emitInvoiceAsync sends the sale to the invoicing API and stores the result.
+// Runs in a goroutine — never blocks the sale response.
+func (s *Service) emitInvoiceAsync(ctx context.Context, sale *domain.Sale) {
+	if !s.invoicing.IsEnabled() {
+		return
+	}
+
+	patient, err := s.patientRepo.GetByID(s.db, sale.PatientID)
+	if err != nil {
+		s.logger.Warn("invoicing: patient not found",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		return
+	}
+
+	lines := make([]invoicingclient.LineRequest, 0, len(sale.Items))
+	for _, item := range sale.Items {
+		qty := float64(item.Quantity)
+		if qty == 0 {
+			qty = 1
+		}
+		unitPrice := item.Price
+		discountRate := 0.0
+		if unitPrice > 0 && item.Discount > 0 {
+			discountRate = (item.Discount / (unitPrice * qty)) * 100
+		}
+		desc := item.Description
+		if desc == "" {
+			desc = item.Name
+		}
+		if desc == "" && item.ProductID != nil {
+			if prod, perr := s.productRepo.GetByID(s.db, *item.ProductID); perr == nil && prod != nil {
+				desc = prod.Description
+			}
+		}
+		if desc == "" {
+			desc = fmt.Sprintf("Item #%d", item.ID)
+		}
+		lines = append(lines, invoicingclient.LineRequest{
+			Description:  desc,
+			Quantity:     qty,
+			UnitPrice:    unitPrice,
+			DiscountRate: discountRate,
+			IVATreatment: ivaTreatmentForSale(sale),
+		})
+	}
+
+	if len(lines) == 0 {
+		return
+	}
+
+	docType := "CC"
+	docNumber := patient.Identification
+	if patient.IdentificationType != nil {
+		docType = patient.IdentificationType.Code
+	}
+	if docNumber == "" {
+		docNumber = fmt.Sprintf("%d", patient.ID)
+	}
+
+	req := invoicingclient.EmitRequest{
+		ExternalRef:  sale.SaleNumber,
+		DocumentType: "FV",
+		Recipient: invoicingclient.RecipientRequest{
+			DocType:   docType,
+			DocNumber: docNumber,
+			Name:      patient.FullName(),
+			Email:     patient.Email,
+		},
+		Lines:            lines,
+		PaymentMeansCode: paymentMeansCode(sale.Payments),
+		Notes:            sale.Notes,
+	}
+
+	inv, err := s.invoicing.EmitInvoice(ctx, req)
+	if err != nil {
+		s.logger.Warn("invoicing: emit failed — sale proceeds",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		sale.InvoicingStatus = "error"
+	} else if inv != nil {
+		sale.InvoicingID = fmt.Sprintf("%d", inv.ID)
+		sale.InvoicingStatus = inv.DIANStatus
+		s.logger.Info("invoicing: invoice emitted",
+			zap.Uint("sale_id", sale.ID),
+			zap.String("invoice_number", inv.Number),
+			zap.String("dian_status", inv.DIANStatus))
+	}
+
+	_ = s.saleRepo.Update(s.db, sale)
+}
+
+// emitCreditNoteAsync emits a Nota Crédito (NC) for a cancelled sale, referencing the original FV.
+// Best-effort: errors are logged but never propagate to the caller.
+func (s *Service) emitCreditNoteAsync(ctx context.Context, sale *domain.Sale) {
+	if !s.invoicing.IsEnabled() {
+		return
+	}
+	if sale.InvoicingID == "" {
+		return
+	}
+
+	patient, err := s.patientRepo.GetByID(s.db, sale.PatientID)
+	if err != nil {
+		s.logger.Warn("invoicing: NC — patient not found",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		return
+	}
+
+	lines := make([]invoicingclient.LineRequest, 0, len(sale.Items))
+	for _, item := range sale.Items {
+		qty := float64(item.Quantity)
+		if qty == 0 {
+			qty = 1
+		}
+		unitPrice := item.Price
+		discountRate := 0.0
+		if unitPrice > 0 && item.Discount > 0 {
+			discountRate = (item.Discount / (unitPrice * qty)) * 100
+		}
+		desc := item.Description
+		if desc == "" {
+			desc = item.Name
+		}
+		if desc == "" && item.ProductID != nil {
+			if prod, perr := s.productRepo.GetByID(s.db, *item.ProductID); perr == nil && prod != nil {
+				desc = prod.Description
+			}
+		}
+		if desc == "" {
+			desc = fmt.Sprintf("Item #%d", item.ID)
+		}
+		lines = append(lines, invoicingclient.LineRequest{
+			Description:  desc,
+			Quantity:     qty,
+			UnitPrice:    unitPrice,
+			DiscountRate: discountRate,
+			IVATreatment: ivaTreatmentForSale(sale),
+		})
+	}
+
+	if len(lines) == 0 {
+		return
+	}
+
+	docType := "CC"
+	docNumber := patient.Identification
+	if patient.IdentificationType != nil {
+		docType = patient.IdentificationType.Code
+	}
+	if docNumber == "" {
+		docNumber = fmt.Sprintf("%d", patient.ID)
+	}
+
+	req := invoicingclient.EmitRequest{
+		ExternalRef:  fmt.Sprintf("NC-%s", sale.SaleNumber),
+		DocumentType: "NC",
+		Recipient: invoicingclient.RecipientRequest{
+			DocType:   docType,
+			DocNumber: docNumber,
+			Name:      patient.FullName(),
+			Email:     patient.Email,
+		},
+		Lines: lines,
+		Notes: fmt.Sprintf("Anulación venta %s", sale.SaleNumber),
+	}
+
+	inv, err := s.invoicing.EmitCreditNote(ctx, s.invoicing.IssuerID(), sale.InvoicingID, req)
+	if err != nil {
+		s.logger.Warn("invoicing: NC emit failed",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		sale.CreditNoteStatus = "error"
+	} else if inv != nil {
+		sale.CreditNoteID = fmt.Sprintf("%d", inv.ID)
+		sale.CreditNoteStatus = inv.DIANStatus
+		s.logger.Info("invoicing: NC emitted",
+			zap.Uint("sale_id", sale.ID),
+			zap.String("credit_note_number", inv.Number),
+			zap.String("dian_status", inv.DIANStatus))
+	}
+
+	_ = s.saleRepo.Update(s.db, sale)
+}
+
+// emitDebitNoteAsync emits a Nota Débito (ND) for a price adjustment on a completed sale.
+// Best-effort: errors are logged but never propagate to the caller.
+func (s *Service) emitDebitNoteAsync(ctx context.Context, sale *domain.Sale, adj *domain.SaleLensPriceAdjustment) {
+	if !s.invoicing.IsEnabled() {
+		return
+	}
+	if sale.InvoicingID == "" {
+		return
+	}
+	if adj.AdjustmentAmount <= 0 {
+		return
+	}
+
+	patient, err := s.patientRepo.GetByID(s.db, sale.PatientID)
+	if err != nil {
+		s.logger.Warn("invoicing: ND — patient not found",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		return
+	}
+
+	docType := "CC"
+	docNumber := patient.Identification
+	if patient.IdentificationType != nil {
+		docType = patient.IdentificationType.Code
+	}
+	if docNumber == "" {
+		docNumber = fmt.Sprintf("%d", patient.ID)
+	}
+
+	req := invoicingclient.EmitRequest{
+		ExternalRef:  fmt.Sprintf("ND-%s-adj%d", sale.SaleNumber, adj.ID),
+		DocumentType: "ND",
+		Recipient: invoicingclient.RecipientRequest{
+			DocType:   docType,
+			DocNumber: docNumber,
+			Name:      patient.FullName(),
+			Email:     patient.Email,
+		},
+		Lines: []invoicingclient.LineRequest{
+			{
+				Description:  fmt.Sprintf("Ajuste de precio — %s", adj.Reason),
+				Quantity:     1,
+				UnitPrice:    adj.AdjustmentAmount,
+				IVATreatment: ivaTreatmentForSale(sale),
+			},
+		},
+		Notes: fmt.Sprintf("Ajuste precio venta %s", sale.SaleNumber),
+	}
+
+	inv, err := s.invoicing.EmitDebitNote(ctx, s.invoicing.IssuerID(), sale.InvoicingID, req)
+	if err != nil {
+		s.logger.Warn("invoicing: ND emit failed",
+			zap.Uint("sale_id", sale.ID), zap.Error(err))
+		adj.DebitNoteStatus = "error"
+	} else if inv != nil {
+		adj.DebitNoteID = fmt.Sprintf("%d", inv.ID)
+		adj.DebitNoteStatus = inv.DIANStatus
+		s.logger.Info("invoicing: ND emitted",
+			zap.Uint("sale_id", sale.ID),
+			zap.String("debit_note_number", inv.Number),
+			zap.String("dian_status", inv.DIANStatus))
+	}
+
+	_ = s.adjRepo.Update(s.db, adj)
+}
+
+// ivaTreatmentForSale derives the DIAN IVA treatment from the tax actually charged
+// on the sale, so the electronic invoice always matches what was collected from the
+// patient — never a hardcoded classification that can drift out of sync with the
+// real total. Convision charges a single IVA rate (ivaRate, 19%) per sale rather
+// than per line, so the treatment is uniform across all lines of a given emission.
+func ivaTreatmentForSale(sale *domain.Sale) string {
+	if sale.Tax > 0 {
+		return "gravado_19"
+	}
+	return "excluido"
+}
+
+// paymentMeansCode returns the DIAN payment means code from the first sale payment.
+// 10 = cash, 20 = credit card, 42 = transfer, 1 = instrument not defined.
+func paymentMeansCode(payments []domain.SalePayment) string {
+	if len(payments) == 0 {
+		return "1"
+	}
+	return "10"
 }
 
 func (s *Service) createLabOrderIfNeeded(sale *domain.Sale, items []ItemInput, labID *uint, userID uint) {

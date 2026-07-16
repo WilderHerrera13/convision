@@ -1,0 +1,110 @@
+---
+description: Branch (sede) filter pattern for admin tables — how to wire AdminBranchFilter to backend endpoints
+globs: convision-front/src/pages/admin/**/*.tsx,convision-front/src/components/admin/**/*.tsx,convision-api-golang/internal/transport/http/v1/handler_*.go
+alwaysApply: false
+---
+
+# Admin Branch (Sede) Filter — Mandatory Pattern
+
+Every admin page that lists clinic data must include a branch selector so admins can view one sede or all of them at once.
+
+---
+
+## How the branch mechanism works end-to-end
+
+1. **Global header** — The axios interceptor in `src/lib/axios.ts` always attaches `X-Branch-ID: <id>` from `localStorage('convision_branch_id')` to every request. This reflects the globally selected branch.
+
+2. **Backend middleware** — `BranchContext` middleware reads `X-Branch-ID`, validates the branch, and stores the ID in the Gin context via `c.Set("branch_id", branchID)`. Handlers read it with `branchmw.BranchIDFromCtx(c)`.
+
+3. **Query param override** — The helper `resolveBranchOverride(c)` in `handler.go` reads `?branch_id=` from the query string and lets it **override** the header value. `branch_id=0` or `branch_id=all` means "no branch filter" (show all branches). Any positive integer filters to that specific branch.
+
+4. **Admin override** — Admin users are exempt from the branch access check in the middleware, so they can freely override to any branch or to `0` (all).
+
+---
+
+## Frontend rules
+
+### State
+```tsx
+const [branchFilter, setBranchFilter] = useState<string>('all');
+```
+
+### Always send branch_id — even for "Todas"
+```ts
+// CORRECT: '0' tells the backend to drop the branch filter
+branch_id: branchFilter !== 'all' ? branchFilter : '0',
+
+// WRONG: omitting it causes the backend to fall back to the X-Branch-ID header
+branch_id: branchFilter !== 'all' ? branchFilter : undefined,
+```
+
+When `branch_id` is omitted the backend silently uses the global header, so switching to "Todas" has no effect.
+
+### Placing the selector
+
+- **Consolidated / summary views** (own date bar): render `AdminBranchFilter` inline inside that bar, between the preset buttons and the summary text, separated by a thin divider.
+- **List / table views**: render `AdminBranchFilter` inside `CashClosesFiltersBar` (or equivalent filters bar) alongside the date pickers.
+- **Never** put it as a standalone element above the filters bar.
+
+### Component
+```tsx
+import { AdminBranchFilter } from '@/components/admin/AdminBranchFilter';
+
+<AdminBranchFilter value={branchFilter} onChange={setBranchFilter} />
+```
+
+`AdminBranchFilter` shows a read-only **Sede** label when the clinic has only one branch; with two or more branches it renders the combobox. It returns `null` only while the branches list is still empty (loading).
+
+### React Query key must include the branch
+```ts
+queryKey: ['my-feature', dateFrom, dateTo, branchFilter],
+```
+
+### Clear button must reset branch
+```ts
+const handleClear = () => {
+  setDateFrom(undefined);
+  setDateTo(undefined);
+  setBranchFilter('all');   // ← always include
+};
+```
+
+---
+
+## Backend rules
+
+Every handler that an admin can call to list or aggregate data **must** apply `resolveBranchOverride`:
+
+```go
+branchID := branchmw.BranchIDFromCtx(c)
+if override := resolveBranchOverride(c); override != nil {
+    if *override == 0 {
+        branchID = 0   // no branch filter → all branches
+    } else {
+        branchID = *override
+    }
+}
+// then pass branchID to the service; service skips the filter when branchID == 0
+```
+
+`resolveBranchOverride` is defined in `handler.go` and handles `?branch_id=0`, `?branch_id=all`, and any positive integer.
+
+In the service / repository layer: only apply the `branch_id` filter when `branchID > 0`.
+
+```go
+if branchID > 0 {
+    filters["branch_id"] = branchID
+}
+```
+
+---
+
+## Checklist for a new admin data page
+
+- [ ] `branchFilter` state initialised to `'all'`
+- [ ] `AdminBranchFilter` rendered inside the filters bar (not above it)
+- [ ] `branch_id` always sent as query param — `'0'` when "Todas", specific ID otherwise
+- [ ] `branchFilter` included in the React Query `queryKey`
+- [ ] `handleClear` resets `branchFilter` to `'all'`
+- [ ] Backend handler uses `resolveBranchOverride` before passing `branchID` to the service
+- [ ] Service / repo skips the `branch_id` filter when `branchID == 0`

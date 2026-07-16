@@ -69,7 +69,7 @@ const UserRolesSection: React.FC<Props> = ({ userId, readOnly = false }) => {
   const availableRoles = allRoles.filter((r) => !assignedIds.has(r.id));
 
   const permMatrix = new Map<string, Set<string>>();
-  for (const key of effectivePerms) {
+  for (const key of Array.isArray(effectivePerms) ? effectivePerms : []) {
     const [mod, action] = key.split(':');
     if (!mod || !action) continue;
     if (!permMatrix.has(mod)) {

@@ -180,6 +180,23 @@ const Sales: React.FC = () => {
     }
   };
 
+  const handleRetryInvoicing = async (sale: Sale) => {
+    try {
+      await saleService.retryInvoicing(sale.id);
+      toast({
+        title: 'Facturación reintentada',
+        description: 'Se reintentó el envío de la factura electrónica a la DIAN.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo reintentar la facturación electrónica.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleRemovePayment = async () => {
     if (!removePaymentTarget) return;
     const { saleId, paymentId } = removePaymentTarget;
@@ -402,19 +419,19 @@ const Sales: React.FC = () => {
       header: 'Acciones',
       type: 'actions',
       cell: (sale) => (
-          <div className="flex space-x-2 justify-end">
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="outline"
+              size="sm"
               className="flex items-center"
               onClick={() => handlePreviewInvoice(sale)}
             >
               <FileText className="h-4 w-4 mr-1" />
               Ver Factura
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex items-center"
               onClick={() => {
                 // Navigate to the appropriate route based on user role
@@ -425,6 +442,32 @@ const Sales: React.FC = () => {
               <Eye className="h-4 w-4 mr-1" />
               Ver
             </Button>
+            {(sale.status !== 'cancelled' || sale.invoicing_status === 'error') && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {sale.invoicing_status === 'error' && (
+                    <DropdownMenuItem onClick={() => handleRetryInvoicing(sale)}>
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Reintentar Facturación
+                    </DropdownMenuItem>
+                  )}
+                  {sale.status !== 'cancelled' && (
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setCancelSaleTarget(sale.id)}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancelar Venta
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
       )
     }

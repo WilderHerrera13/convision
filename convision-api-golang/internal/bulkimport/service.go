@@ -93,6 +93,8 @@ func NewService(
 	warehouseRepo domain.WarehouseRepository,
 	itemRepo domain.InventoryItemRepository,
 	movementRepo domain.StockMovementRepository,
+	promotionRepo domain.PromotionRepository,
+	categoryRepo domain.ProductCategoryRepository,
 	logger *zap.Logger,
 ) *Service {
 	return &Service{
@@ -104,6 +106,7 @@ func NewService(
 			ImportTypeScheduledAppointments: newScheduledAppointmentsImporter(patientRepo, userRepo, appointmentRepo, logger),
 			ImportTypeLenses:                newLensImporter(productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, logger),
 			ImportTypeInventory:             newInventoryImporter(productRepo, brandRepo, warehouseRepo, itemRepo, movementRepo, logger),
+			ImportTypePromotions:            newPromotionImporter(promotionRepo, categoryRepo, brandRepo, logger),
 		},
 		logger: logger,
 	}

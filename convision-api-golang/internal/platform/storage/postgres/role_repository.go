@@ -123,6 +123,9 @@ func (r *RoleRepository) GetUserPermissions(db *gorm.DB, userID uint) ([]string,
 		Scan(&keys).Error; err != nil {
 		return nil, err
 	}
+	if keys == nil {
+		keys = []string{}
+	}
 	return keys, nil
 }
 

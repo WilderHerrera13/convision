@@ -16,6 +16,7 @@ interface PurchaseSummaryProps {
   tax: number;
   total: number;
   isLoading: boolean;
+  promotions?: { id: number; name: string; amount: number }[];
 }
 
 const PurchaseSummary: React.FC<PurchaseSummaryProps> = ({
@@ -24,6 +25,7 @@ const PurchaseSummary: React.FC<PurchaseSummaryProps> = ({
   tax,
   total,
   isLoading,
+  promotions = [],
 }) => {
   const totalDiscount = items.reduce((acc, item) => acc + item.discount, 0);
   const discountPct =
@@ -86,6 +88,14 @@ const PurchaseSummary: React.FC<PurchaseSummaryProps> = ({
                 <span className="text-[12px] text-[#af2926]">- {formatCurrency(totalDiscount)}</span>
               </div>
             )}
+            {promotions.filter((p) => p.amount > 0).map((p) => (
+              <div key={p.id} className="flex items-center justify-between" data-testid="promotion-row">
+                <span className="text-[12px] text-[#0f8f64] flex items-center gap-1">
+                  🎁 Promoción<span className="text-[#7d7d87]">· {p.name}</span>
+                </span>
+                <span className="text-[12px] text-[#0f8f64]" data-testid="promotion-amount">- {formatCurrency(p.amount)}</span>
+              </div>
+            ))}
             <div className="flex items-center justify-between">
               <span className="text-[12px] text-[#7d7d87]">IVA (19%)</span>
               <span className="text-[12px] text-[#7d7d87]">{formatCurrency(tax)}</span>

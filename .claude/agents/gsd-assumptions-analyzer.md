@@ -1,0 +1,1 @@
+../../.codex/agents/gsd-assumptions-analyzer.md

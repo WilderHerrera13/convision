@@ -8,6 +8,7 @@ import { saleService, PaymentMethod } from '@/services/saleService';
 import api from '@/lib/axios';
 import { translatePaymentMethods } from '@/lib/translations';
 import { discountService, Discount } from '@/services/discountService';
+import { promotionService, AppliedPromotion } from '@/services/promotionService';
 import { sessionPriceAdjustmentService } from '@/services/sessionPriceAdjustmentService';
 import type { Lens } from '@/services/lensService';
 
@@ -30,6 +31,7 @@ export interface Patient {
   identification: string;
   email: string;
   phone: string;
+  birth_date?: string | null;
 }
 
 interface SessionLens {
@@ -90,6 +92,7 @@ export function useNewSale() {
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
+  const [appliedPromotions, setAppliedPromotions] = useState<AppliedPromotion[]>([]);
   const [documentNumber] = useState(generateDocumentNumber);
   const [customerNote, setCustomerNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,16 +141,48 @@ export function useNewSale() {
     return undefined;
   })();
 
-  const recalcTotals = (items: SaleItem[]) => {
+  const recalcTotals = (items: SaleItem[], promoAmount: number) => {
     const totalDisc = items.reduce((acc, i) => acc + i.discount, 0);
     const raw = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-    const net = raw - totalDisc;
-    setSubtotal(net);
-    setTax(net * 0.19);
-    setTotal(net + net * 0.19);
+    const preNet = raw - totalDisc;
+    const taxable = Math.max(0, preNet - promoAmount);
+    setSubtotal(preNet);
+    setTax(taxable * 0.19);
+    setTotal(taxable + taxable * 0.19);
   };
 
-  useEffect(() => { recalcTotals(saleItems); }, [saleItems]);
+  const promotionsTotal = appliedPromotions.reduce((s, p) => s + p.amount, 0);
+
+  useEffect(() => { recalcTotals(saleItems, promotionsTotal); }, [saleItems, appliedPromotions]);
+
+  // Auto-evaluate marketing promotions whenever the cart or patient changes.
+  // The backend resolves each line's category/brand, runs conflict resolution and
+  // returns every promotion that applies; all are re-validated server-side at sale
+  // creation.
+  const evaluatePromotion = async (items: SaleItem[], patient: Patient | null) => {
+    try {
+      if (!localStorage.getItem('access_token')) return;
+      if (items.length === 0) { setAppliedPromotions([]); return; }
+      const result = await promotionService.evaluate({
+        patient_id: patient?.id ?? null,
+        patient_birth_date: patient?.birth_date ?? null,
+        items: items.map((i) => ({
+          lens_id: i.lens.id,
+          quantity: i.quantity,
+          price: i.price,
+          line_discount: i.discount,
+        })),
+      });
+      setAppliedPromotions(result.promotions ?? []);
+    } catch (e) {
+      console.error('Error evaluating promotions:', e);
+      setAppliedPromotions([]);
+    }
+  };
+
+  useEffect(() => {
+    evaluatePromotion(saleItems, selectedPatient);
+  }, [saleItems, selectedPatient]);
 
   const fetchPatientData = async (patientId: number) => {
     try {
@@ -411,13 +446,16 @@ export function useNewSale() {
       let currentPatient = selectedPatient;
       const rawSub = saleItems.reduce((s, i) => s + i.price * i.quantity, 0);
       const totalDisc = saleItems.reduce((s, i) => s + i.discount, 0);
-      const calcTax = Math.round((rawSub - totalDisc) * 0.19 * 100) / 100;
-      const calcTotal = rawSub - totalDisc + calcTax;
+      const promoAmount = appliedPromotions.reduce((s, p) => s + p.amount, 0);
+      const representativePromo = appliedPromotions.reduce<AppliedPromotion | null>((best, p) => (best && best.amount >= p.amount ? best : p), null);
+      const taxable = Math.max(0, rawSub - totalDisc - promoAmount);
+      const calcTax = Math.round(taxable * 0.19 * 100) / 100;
+      const calcTotal = taxable + calcTax;
       const items = saleItems.map((i) => ({ lens_id: i.lens.id, quantity: i.quantity, price: i.price, discount: i.discount, total: i.total }));
       const paymentData = { payment_method_id: selectedPaymentMethodId, amount: isPartialPayment ? parseFloat(paymentAmount) : calcTotal, reference_number: paymentReference, payment_date: salesDate, notes: customerNote };
       const containsLenses = items.some((i) => i.lens_id);
       const lensItems = items.filter((i) => i.lens_id).map((i) => ({ lens_id: i.lens_id, quantity: i.quantity, price: i.price }));
-      const saleData = { patient_id: Number(currentPatient.id), order_id: null, appointment_id: appointmentId ?? null, subtotal: rawSub, tax: calcTax, discount: totalDisc, total: calcTotal, notes: customerNote, payments: [paymentData], is_partial_payment: isPartialPayment, items, contains_lenses: containsLenses, lens_items: lensItems };
+      const saleData = { patient_id: Number(currentPatient.id), order_id: null, appointment_id: appointmentId ?? null, subtotal: rawSub, tax: calcTax, discount: totalDisc, promotion_id: representativePromo?.id ?? null, promotion_discount: promoAmount, total: calcTotal, notes: customerNote, payments: [paymentData], is_partial_payment: isPartialPayment, items, contains_lenses: containsLenses, lens_items: lensItems };
 
       if (!currentPatient) {
         const stored = sessionStorage.getItem('pendingSale');
@@ -481,7 +519,7 @@ export function useNewSale() {
   };
 
   return {
-    saleItems, subtotal, tax, total, documentNumber, customerNote, setCustomerNote,
+    saleItems, subtotal, tax, total, appliedPromotions, documentNumber, customerNote, setCustomerNote,
     isLoading, selectedPatient, setSelectedPatient,
     paymentReference, setPaymentReference, productType, setProductType,
     productDescription, setProductDescription, productCode, setProductCode,

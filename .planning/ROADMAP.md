@@ -284,11 +284,11 @@ Plans:
 **Goal:** Migrate every frontend list/search call off the legacy `s_f`/`s_v`/`s_o=or` JSON-array filter contract onto flat `?key=value` query params that match the typed `domain.<Entity>Filter` form tags introduced in Phase 21, locking the retirement with a repo-wide grep gate and an alignment audit.
 **Requirements**: TBD
 **Depends on:** Phase 21
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
-- [ ] 21.1-01: Migrate list-page services and direct page callers (patient, appointment, clinical evolution, plus admin/receptionist Patients/Appointments pages, NewQuote, DiscountRequestModal)
-- [ ] 21.1-02: Migrate catalog and dropdown services (lens, catalog, inventory, brand, category, supplier, laboratory, user)
+- [x] 21.1-01: Migrate list-page services and direct page callers (patient, appointment, clinical evolution, plus admin/receptionist Patients/Appointments pages, NewQuote, DiscountRequestModal)
+- [x] 21.1-02: Migrate catalog and dropdown services (lens, catalog, inventory, brand, category, supplier, laboratory, user)
 - [ ] 21.1-03: Audit list-call/Filter-struct alignment + lock retirement of legacy params (D-10/D-11)
 
 ### Phase 16: Multi-Tenancy & Super Admin
