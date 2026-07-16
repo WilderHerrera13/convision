@@ -119,17 +119,10 @@ const NewQuote: React.FC = () => {
     
     setSearchLoading(true);
     try {
-      // Search in key fields with logical OR
-      const s_f = ['identification', 'first_name', 'last_name', 'email'];
-      const s_v = Array(s_f.length).fill(patientSearchQuery);
-      const s_o = 'or'; // Use OR for better matches
-      
       const response = await api.get('/api/v1/patients', {
         params: {
           per_page: 10,
-          s_f: JSON.stringify(s_f),
-          s_v: JSON.stringify(s_v),
-          s_o,
+          search: patientSearchQuery,
           sort: 'first_name,asc',
         }
       });
@@ -296,16 +289,10 @@ const NewQuote: React.FC = () => {
     
     setLensSearchLoading(true);
     try {
-      const s_f = ['description', 'identifier', 'internal_code'];
-      const s_v = Array(s_f.length).fill(query);
-      const s_o = 'or';
-      
       const response = await api.get('/api/v1/products', {
         params: {
           per_page: 20,
-          s_f: JSON.stringify(s_f),
-          s_v: JSON.stringify(s_v),
-          s_o,
+          search: query,
           sort: 'description,asc',
         }
       });

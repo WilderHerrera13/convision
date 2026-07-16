@@ -1,6 +1,6 @@
 import api from '@/lib/axios';
 
-export type ImportType = 'patients' | 'doctors' | 'scheduled-appointments' | 'lenses' | 'staff-users' | 'inventory';
+export type ImportType = 'patients' | 'doctors' | 'scheduled-appointments' | 'lenses' | 'staff-users' | 'inventory' | 'promotions';
 
 export type RecordStatus = 'created' | 'skipped' | 'error' | 'updated';
 
@@ -89,6 +89,15 @@ const bulkImportService = {
     const form = new FormData();
     form.append('file', file);
     const { data } = await api.post<ImportResult>('/api/v1/bulk-import/inventory', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  uploadPromotions: async (file: File): Promise<ImportResult> => {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<ImportResult>('/api/v1/bulk-import/promotions', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data;

@@ -12,8 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import AdminCashCloseActualsSection from '@/components/admin/AdminCashCloseActualsSection';
+import CashCloseAdjustmentComparison from '@/components/cashClose/CashCloseAdjustmentComparison';
 import cashRegisterCloseService, {
   CashClose,
+  isCloseCreatedOnDifferentDay,
   PAYMENT_METHOD_LABELS,
   PaymentMethodName,
 } from '@/services/cashRegisterCloseService';
@@ -123,6 +125,11 @@ const AdminCashCloseDetail: React.FC = () => {
     ? `Enviado el ${format(new Date(close.updated_at), 'dd/MM/yyyy')} a las ${formatTime12h(close.updated_at)}`
     : null;
 
+  const createdLabel = close.created_at
+    ? `Registrado el ${format(new Date(close.created_at), 'dd/MM/yyyy')} a las ${formatTime12h(close.created_at)}`
+    : null;
+  const createdOnDifferentDay = isCloseCreatedOnDifferentDay(close.close_date, close.created_at);
+
   return (
     <div className="flex flex-col h-full">
       <div className="border-b border-[#e5e5e9] bg-white px-6 py-0 h-[72px] flex items-center gap-4 shrink-0">
@@ -144,6 +151,16 @@ const AdminCashCloseDetail: React.FC = () => {
         <Badge variant="outline" className={`shrink-0 ${statusCfg.className}`}>
           {statusCfg.label}
         </Badge>
+
+        {createdLabel && (
+          <p
+            className={`hidden lg:block ml-2 text-[11px] ${
+              createdOnDifferentDay ? 'font-semibold text-[#b57218]' : 'text-[#7d7d87]'
+            }`}
+          >
+            {createdLabel}
+          </p>
+        )}
 
         {submittedLabel && close.status === 'submitted' && (
           <p className="text-[11px] text-[#7d7d87] hidden lg:block ml-2">{submittedLabel}</p>
@@ -177,6 +194,16 @@ const AdminCashCloseDetail: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
+        {createdOnDifferentDay && createdLabel && (
+          <div className="flex items-center gap-3 rounded-[10px] border border-[#f4c778] bg-[#fff6e3] px-4 py-3">
+            <p className="text-[13px] text-[#b57218]">
+              <span className="font-bold">⚠ Registro en día distinto:</span> este cierre corresponde al{' '}
+              <span className="font-semibold">{dateLabel}</span>, pero fue {createdLabel.charAt(0).toLowerCase() + createdLabel.slice(1)}.
+              Verifica si la fecha del cierre es correcta.
+            </p>
+          </div>
+        )}
+
         <Card className="border-[#c5d3f8] bg-[#f8f9ff]">
           <CardContent className="pt-5 pb-4 border-l-4 border-l-[#3a71f7]">
             <p className="text-sm text-[#3a71f7]">Total declarado por el asesor (medios de pago)</p>
@@ -197,6 +224,8 @@ const AdminCashCloseDetail: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
+        <CashCloseAdjustmentComparison closeId={close.id} canAcknowledge={!isAdmin} />
 
         {showAdminReconciliation ? (
           <AdminCashCloseActualsSection

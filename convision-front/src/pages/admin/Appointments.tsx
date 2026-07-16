@@ -97,8 +97,7 @@ const Appointments: React.FC = () => {
         const response = await api.get('/api/v1/users', {
           params: {
             per_page: 100,
-            s_f: JSON.stringify(['role']),
-            s_v: JSON.stringify(['specialist']),
+            role_type: 'specialist',
             sort: 'name,asc',
           },
         });
@@ -129,17 +128,10 @@ const Appointments: React.FC = () => {
     setIsSearching(true);
     
     try {
-      // Search in key fields with logical OR
-      const s_f = ['identification', 'first_name', 'last_name', 'email'];
-      const s_v = Array(s_f.length).fill(value);
-      const s_o = 'or'; // Use OR for better matches
-      
       const response = await api.get('/api/v1/patients', {
         params: {
           per_page: 10,
-          s_f: JSON.stringify(s_f),
-          s_v: JSON.stringify(s_v),
-          s_o,
+          search: value,
           sort: 'first_name,asc',
         }
       });

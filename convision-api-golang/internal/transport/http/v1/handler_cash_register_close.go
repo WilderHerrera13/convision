@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -362,6 +363,125 @@ func (h *Handler) DeleteCashRegisterClose(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+type cashCloseAdjustmentUserResource struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	LastName string `json:"last_name,omitempty"`
+}
+
+type cashCloseAdjustmentResource struct {
+	ID                  uint                             `json:"id"`
+	CashRegisterCloseID uint                             `json:"cash_register_close_id"`
+	Reason              string                           `json:"reason"`
+	BeforeSnapshot      json.RawMessage                  `json:"before_snapshot"`
+	AfterSnapshot       json.RawMessage                  `json:"after_snapshot"`
+	AdminUser           *cashCloseAdjustmentUserResource `json:"admin_user,omitempty"`
+	AdvisorUser         *cashCloseAdjustmentUserResource `json:"advisor_user,omitempty"`
+	AcknowledgedAt      *string                          `json:"acknowledged_at,omitempty"`
+	CreatedAt           string                           `json:"created_at"`
+}
+
+func toCashCloseAdjustmentResource(a *domain.CashRegisterCloseAdjustment) cashCloseAdjustmentResource {
+	res := cashCloseAdjustmentResource{
+		ID:                  a.ID,
+		CashRegisterCloseID: a.CashRegisterCloseID,
+		Reason:              a.Reason,
+		BeforeSnapshot:      a.BeforeSnapshot,
+		AfterSnapshot:       a.AfterSnapshot,
+		AcknowledgedAt:      toOptionalTimeString(a.AcknowledgedAt),
+		CreatedAt:           a.CreatedAt.UTC().Format(timeFormat) + "Z",
+	}
+	if a.AdminUser != nil {
+		res.AdminUser = &cashCloseAdjustmentUserResource{ID: a.AdminUser.ID, Name: a.AdminUser.Name, LastName: a.AdminUser.LastName}
+	}
+	if a.AdvisorUser != nil {
+		res.AdvisorUser = &cashCloseAdjustmentUserResource{ID: a.AdvisorUser.ID, Name: a.AdvisorUser.Name, LastName: a.AdvisorUser.LastName}
+	}
+	return res
+}
+
+// AdjustCashRegisterClose godoc
+// POST /api/v1/cash-register-closes/:id/adjust
+func (h *Handler) AdjustCashRegisterClose(c *gin.Context) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	var input cashclosesvc.AdjustInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": err.Error()})
+		return
+	}
+
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.AdjustAndApprove(db, id, claims.UserID, input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": toCashCloseResource(item)})
+}
+
+// ListCashRegisterCloseAdjustments godoc
+// GET /api/v1/cash-register-closes/:id/adjustments
+func (h *Handler) ListCashRegisterCloseAdjustments(c *gin.Context) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	db := tenantDBFromCtx(c)
+	items, err := h.cashClose.ListAdjustments(db, id, claims.Role, claims.UserID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	data := make([]cashCloseAdjustmentResource, len(items))
+	for i, a := range items {
+		data[i] = toCashCloseAdjustmentResource(a)
+	}
+	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+
+// AcknowledgeCashRegisterCloseAdjustment godoc
+// POST /api/v1/cash-register-close-adjustments/:id/acknowledge
+func (h *Handler) AcknowledgeCashRegisterCloseAdjustment(c *gin.Context) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return
+	}
+
+	id, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+
+	db := tenantDBFromCtx(c)
+	item, err := h.cashClose.AcknowledgeAdjustment(db, id, claims.Role, claims.UserID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": toCashCloseAdjustmentResource(item)})
 }
 
 // ListCashRegisterClosesAdvisorsPending godoc

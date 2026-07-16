@@ -324,9 +324,24 @@ func (h *Handler) GetDashboardSummary(c *gin.Context) {
 
 // ---------- Notifications ----------
 
+// notificationUserID resolves the authenticated caller's user id; every notification
+// handler is scoped to it so a user only sees/mutates their own notifications.
+func notificationUserID(c *gin.Context) (uint, bool) {
+	claims, ok := jwtauth.GetClaims(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthenticated"})
+		return 0, false
+	}
+	return claims.UserID, true
+}
+
 func (h *Handler) GetNotificationSummary(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
-	s, err := h.notification.Summary(db)
+	s, err := h.notification.Summary(db, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -343,12 +358,17 @@ func (h *Handler) GetNotificationSummary(c *gin.Context) {
 }
 
 func (h *Handler) ListNotifications(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	var f domain.NotificationFilter
 	if err := c.ShouldBindQuery(&f); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
+	f.UserID = &userID
 	out, err := h.notification.List(db, f)
 	if err != nil {
 		respondError(c, err)
@@ -356,11 +376,11 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	}
 
 	// Get summary for counts
-	summary, err := h.notification.Summary(db)
+	summary, err := h.notification.Summary(db, userID)
 	if err != nil {
 		summary = &domain.NotificationSummary{Unread: 0, Total: 0, Archived: 0}
 	}
-	
+
 	// Calculate last_page
 	lastPage := 1
 	if out.Total > 0 {
@@ -386,13 +406,17 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 }
 
 func (h *Handler) MarkNotificationRead(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.MarkAsRead(db, uint(id))
+	n, err := h.notification.MarkAsRead(db, uint(id), userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -401,13 +425,17 @@ func (h *Handler) MarkNotificationRead(c *gin.Context) {
 }
 
 func (h *Handler) MarkNotificationUnread(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.MarkAsUnread(db, uint(id))
+	n, err := h.notification.MarkAsUnread(db, uint(id), userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -416,13 +444,17 @@ func (h *Handler) MarkNotificationUnread(c *gin.Context) {
 }
 
 func (h *Handler) MarkAllNotificationsRead(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
-	summary, err := h.notification.Summary(db)
+	summary, err := h.notification.Summary(db, userID)
 	if err != nil {
 		summary = &domain.NotificationSummary{}
 	}
 
-	if err := h.notification.ReadAll(db); err != nil {
+	if err := h.notification.ReadAll(db, userID); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -434,13 +466,17 @@ func (h *Handler) MarkAllNotificationsRead(c *gin.Context) {
 }
 
 func (h *Handler) ArchiveNotification(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.Archive(db, uint(id))
+	n, err := h.notification.Archive(db, uint(id), userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -449,13 +485,17 @@ func (h *Handler) ArchiveNotification(c *gin.Context) {
 }
 
 func (h *Handler) UnarchiveNotification(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	n, err := h.notification.Unarchive(db, uint(id))
+	n, err := h.notification.Unarchive(db, uint(id), userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -464,13 +504,17 @@ func (h *Handler) UnarchiveNotification(c *gin.Context) {
 }
 
 func (h *Handler) DeleteNotification(c *gin.Context) {
+	userID, ok := notificationUserID(c)
+	if !ok {
+		return
+	}
 	db := tenantDBFromCtx(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
 		return
 	}
-	if err := h.notification.Delete(db, uint(id)); err != nil {
+	if err := h.notification.Delete(db, uint(id), userID); err != nil {
 		respondError(c, err)
 		return
 	}

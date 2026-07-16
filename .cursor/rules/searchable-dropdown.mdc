@@ -1,0 +1,106 @@
+---
+description: Enforce SearchableCombobox for all dropdown/select fields in convision-front
+globs:
+  - "convision-front/src/**/*.tsx"
+  - "convision-front/src/**/*.ts"
+alwaysApply: true
+---
+
+# Regla: Dropdowns siempre son SearchableCombobox
+
+## Obligatorio
+
+Todos los campos de tipo **select / dropdown** en `convision-front` deben usar el componente
+`SearchableCombobox` ubicado en `@/components/ui/SearchableCombobox`.
+
+**Nunca usar** los primitivos de shadcn `Select / SelectTrigger / SelectContent / SelectItem`
+directamente en formularios o páginas para presentar listas de opciones al usuario.
+
+La única excepción son los `Select` internos dentro de componentes de UI base (p. ej. filtros
+de tabla con muy pocas opciones estáticas — máximo 4 — donde la búsqueda no aporta valor).
+
+## Interfaz del componente
+
+```tsx
+import SearchableCombobox, { ComboboxOption } from '@/components/ui/SearchableCombobox';
+
+// ComboboxOption: { value: string; label: string }
+
+<SearchableCombobox
+  options={options}           // ComboboxOption[]
+  value={value}               // string | undefined
+  onChange={onChange}         // (value: string) => void
+  placeholder="Seleccione..." // texto cuando no hay valor
+  searchPlaceholder="Buscar..." // placeholder del input de búsqueda
+  disabled={false}            // opcional
+  isLoading={false}           // opcional — muestra spinner
+  onSearch={handleSearch}     // opcional — búsqueda async con debounce 300ms
+  emptyText="Sin resultados." // opcional
+/>
+```
+
+## Patrón con React Hook Form
+
+```tsx
+<Controller
+  control={control}
+  name="field_name"
+  render={({ field }) => (
+    <SearchableCombobox
+      options={options}
+      value={field.value ?? ''}
+      onChange={field.onChange}
+      placeholder="Seleccione una opción"
+      searchPlaceholder="Buscar..."
+    />
+  )}
+/>
+```
+
+## Para listas de entidades (pacientes, laboratorios, usuarios, etc.)
+
+Convertir el array al formato `ComboboxOption[]` antes de pasarlo:
+
+```tsx
+const patientOptions: ComboboxOption[] = patients.map((p) => ({
+  value: String(p.id),
+  label: `${p.first_name} ${p.last_name}`,
+}));
+```
+
+## Listas estáticas
+
+Definir como constante fuera del componente para evitar re-renders:
+
+```tsx
+const PRIORITY_OPTIONS: ComboboxOption[] = [
+  { value: 'low', label: 'Baja' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'Alta' },
+  { value: 'urgent', label: 'Urgente' },
+];
+```
+
+## Búsqueda asíncrona
+
+Usar la prop `onSearch` cuando la lista es muy grande (>200 items) o requiere filtrado en
+el servidor. El componente aplica debounce de 300 ms automáticamente.
+
+```tsx
+<SearchableCombobox
+  options={results}
+  value={value}
+  onChange={onChange}
+  onSearch={(q) => fetchOptions(q)}
+  isLoading={isFetching}
+/>
+```
+
+## Tecnología base
+
+`SearchableCombobox` está construido sobre los primitivos de shadcn:
+- `Popover` / `PopoverContent` — contenedor flotante
+- `Command` / `CommandInput` / `CommandList` / `CommandItem` — búsqueda y lista
+
+No depende de `react-select` ni de ninguna librería externa adicional. Usa clases Tailwind
+del sistema de diseño Convision (tokens `#e0e0e5`, `#8753ef`, `#121215`, `#b4b5bc`, etc.).

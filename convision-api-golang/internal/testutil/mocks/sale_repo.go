@@ -9,6 +9,7 @@ import (
 
 var _ domain.SaleRepository = (*MockSaleRepository)(nil)
 var _ domain.SaleLensPriceAdjustmentRepository = (*MockSaleLensPriceAdjustmentRepository)(nil)
+var _ domain.PartialPaymentRepository = (*MockPartialPaymentRepository)(nil)
 
 type MockSaleRepository struct {
 	mock.Mock
@@ -108,4 +109,29 @@ func (m *MockSaleLensPriceAdjustmentRepository) GetBySaleLens(db *gorm.DB, saleI
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.SaleLensPriceAdjustment), args.Error(1)
+}
+
+func (m *MockSaleLensPriceAdjustmentRepository) Update(db *gorm.DB, adj *domain.SaleLensPriceAdjustment) error {
+	args := m.Called(db, adj)
+	return args.Error(0)
+}
+
+type MockPartialPaymentRepository struct {
+	mock.Mock
+}
+
+func (m *MockPartialPaymentRepository) Create(db *gorm.DB, payment *domain.PartialPayment) error {
+	return m.Called(db, payment).Error(0)
+}
+
+func (m *MockPartialPaymentRepository) GetBySaleID(db *gorm.DB, saleID uint) ([]*domain.PartialPayment, error) {
+	args := m.Called(db, saleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.PartialPayment), args.Error(1)
+}
+
+func (m *MockPartialPaymentRepository) Delete(db *gorm.DB, saleID, paymentID uint) error {
+	return m.Called(db, saleID, paymentID).Error(0)
 }

@@ -21,9 +21,11 @@ type Purchase struct {
 	Balance          float64    `json:"balance"           gorm:"type:decimal(12,2)"`
 	PaymentStatus    string     `json:"payment_status"    gorm:"type:varchar(20);not null;default:'pending'"`
 	Status           string     `json:"status"            gorm:"type:varchar(20);not null;default:'pending'"`
-	TaxExcluded      bool       `json:"tax_excluded"      gorm:"not null;default:false"`
-	InvoiceFile      string     `json:"invoice_file"`
-	Notes            string     `json:"notes"             gorm:"type:text"`
+	TaxExcluded      bool   `json:"tax_excluded"       gorm:"not null;default:false"`
+	InvoiceFile      string `json:"invoice_file"`
+	Notes            string `json:"notes"              gorm:"type:text"`
+	InvoicingID      string `json:"invoicing_id"       gorm:"type:varchar(100);not null;default:''"`
+	InvoicingStatus  string `json:"invoicing_status"   gorm:"type:varchar(30);not null;default:''"`
 	PaymentDueDate   *time.Time `json:"payment_due_date"`
 	CreatedByUserID  *uint      `json:"created_by_user_id" gorm:"column:created_by_user_id"`
 	CreatedAt        time.Time  `json:"created_at"`

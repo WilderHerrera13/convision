@@ -8,7 +8,7 @@ import {
   CreditCard, TrendingUp, LogOut, Menu, Eye,
   Wrench, Tag, ArrowLeftRight, Banknote, Users2, Building2,
   ClipboardList, BarChart3, FileBarChart2, FlaskConical as LabIcon, Upload, Wallet,
-  ShieldCheck,
+  ShieldCheck, BadgePercent, Receipt,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -41,6 +41,7 @@ const adminNav: NavSection[] = [
       { title: 'Gestión de Cartera', path: '/admin/portfolio', icon: Wallet },
       { title: 'Órdenes de Arreglo', path: '/admin/service-orders', icon: Wrench },
       { title: 'Descuentos', path: '/admin/discount-requests', icon: Tag, featureKey: 'sidebar.discounts' },
+      { title: 'Promociones', path: '/admin/promotions', icon: BadgePercent },
     ],
   },
   {
@@ -54,6 +55,7 @@ const adminNav: NavSection[] = [
       { title: 'Traslados', path: '/admin/cash-transfers', icon: ArrowLeftRight },
       { title: 'Pagos Proveedores', path: '/admin/supplier-payments', icon: Banknote },
       { title: 'Cierres de Caja', path: '/admin/cash-closes', icon: ClipboardList, featureKey: 'sidebar.cash_close' },
+      { title: 'Facturación Electrónica', path: '/admin/electronic-invoices', icon: Receipt },
     ],
   },
   {

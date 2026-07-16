@@ -1244,5 +1244,47 @@ logger.Info("server exited")
 
 ---
 
-> **Última actualización:** 2026-04-18 (correcciones: respondError type-switch, SQL injection whitelist, constantes de rol, AutoMigrate warning, transacciones, graceful shutdown)  
+## 20. Exportaciones a Excel (.xlsx)
+
+Toda descarga de un reporte en Excel usa el paquete reutilizable **`internal/platform/excel`** (envuelve `github.com/xuri/excelize/v2`). **No** llames a `excelize` directamente desde un handler o servicio nuevo — describe las hojas de forma declarativa y deja que el `Builder` maneje estilos, formatos de número, anchos de columna, cabecera fija y fila de totales.
+
+### El paquete `excel` (platform)
+
+```go
+data, err := excel.New().
+    AddSheet(excel.Sheet{
+        Name:     "Resumen",              // tab (sanitizado y truncado a 31 chars)
+        Title:    "Reporte de Conciliación",
+        Subtitle: "Periodo 2026-05-01 a 2026-05-31",
+        Columns: []excel.Column{
+            {Header: "Asesor",     Width: 28, Format: excel.FormatText},
+            {Header: "Declarado",  Width: 16, Format: excel.FormatMoney},
+            {Header: "Diferencia", Width: 16, Format: excel.FormatMoneySigned},
+        },
+        Rows: [][]any{
+            {"Ana Gómez", 1500.0, -50.0},
+            // Una celda puede sobreescribir el formato de su columna (útil en
+            // hojas clave/valor con tipos mixtos):
+            {"Total", excel.Cell{Value: 1500.0, Format: excel.FormatMoney}},
+        },
+        Total: []any{"TOTAL", 1500.0, -50.0}, // fila de totales en negrita (opcional)
+    }).
+    Bytes() // → []byte listo para responder por HTTP
+```
+
+Formatos disponibles (`excel.CellFormat`): `FormatText`, `FormatInt` (`#,##0`), `FormatMoney` (estilo contable — separador de miles, **ceros como `-`**, sin símbolo `$`, replicando cómo el equipo de finanzas formatea sus libros), `FormatMoneySigned` (igual pero negativos en rojo — para diferencias/variaciones), `FormatDate` (`dd/mm/yyyy`), `FormatPercent` (`0.0%`).
+
+### Receta de un endpoint de exportación
+
+1. **Servicio** — método que devuelve un DTO estructurado con todos los datos del reporte (no el archivo). Ej: `cashclose.Service.ReconciliationReportData(...) (*ReconciliationReport, error)` en `internal/cashclose/report.go`. Recibe `generatedAt time.Time` por parámetro para mantenerse determinista y testeable.
+2. **Transport** — un builder que traduce el DTO a `excel.Sheet`s (`buildCashCloseWorkbook` en `handler_cash_register_close_export.go`) y el handler delgado que lo transmite con el helper reutilizable **`respondExcel(c, filename, data)`** (setea `Content-Type` de OOXML y `Content-Disposition: attachment` con `filename*` UTF-8).
+3. **Ruta** — `GET` bajo `/api/v1/...-export` con RBAC por permiso.
+
+Ejemplo de referencia completo (6 hojas: Resumen, Por Asesor, Por Forma de Pago, Cierres, Denominaciones, Resumen Diario): el export de cierre de caja — `GET /api/v1/cash-register-closes-export?date_from=&date_to=&branch_id=&user_id=` (`cash_close:view`).
+
+**Frontend:** el servicio hace `api.get(url, { responseType: 'blob' })` y devuelve `{ blob, filename }` (parseando `Content-Disposition`); la descarga se dispara con el helper reutilizable `downloadBlob(blob, filename)` de `src/lib/downloadFile.ts`. Ver `cashRegisterCloseService.exportExcel`.
+
+---
+
+> **Última actualización:** 2026-07-03 (agregado: §20 Exportaciones a Excel — paquete reutilizable `internal/platform/excel` + receta de endpoint)  
 > **Mantenido por:** Equipo Convision — aplicar a todo nuevo código en `convision-api-golang/`

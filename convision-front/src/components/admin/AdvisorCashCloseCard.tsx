@@ -96,6 +96,15 @@ const AdvisorCashCloseCard: React.FC<Props> = ({ advisor, onReview }) => {
           >
             {pendingLabel}
           </Badge>
+          {advisor.warning_count > 0 && (
+            <Badge
+              variant="outline"
+              className="rounded-full border-[#f5baba] bg-[#ffeeed] text-[10px] font-semibold text-[#b82626] shrink-0"
+              title="Ajustes administrativos registrados"
+            >
+              ⚠ {advisor.warning_count} ajuste{advisor.warning_count > 1 ? 's' : ''}
+            </Badge>
+          )}
         </div>
       </div>
 

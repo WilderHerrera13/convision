@@ -66,8 +66,6 @@ export interface SupplierSearchParams {
   per_page?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
-  s_f?: string;
-  s_v?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -115,9 +113,7 @@ class SupplierService {
   async searchSuppliers(query: string): Promise<Supplier[]> {
     const response = await api.get('/api/v1/suppliers', {
       params: {
-        s_f: JSON.stringify(['name', 'nit', 'legal_name', 'email']),
-        s_v: JSON.stringify([query, query, query, query]),
-        s_o: 'or',
+        search: query,
         per_page: 50
       }
     });

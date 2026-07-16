@@ -52,9 +52,16 @@ func (h *Handler) CreateDiscountRequest(c *gin.Context) {
 	}
 	input.UserID = claims.UserID
 
-	if input.ProductID != nil {
+	// The frontend sends the target lens as lens_id; product_id may be nil here and
+	// only gets resolved from lens_id later in the service. Resolve it now so the
+	// original/discounted prices are computed and persisted (otherwise they save as 0).
+	productID := input.ProductID
+	if productID == nil {
+		productID = input.LensID
+	}
+	if productID != nil {
 		db := tenantDBFromCtx(c)
-		product, err := h.product.GetByID(db, *input.ProductID)
+		product, err := h.product.GetByID(db, *productID)
 		if err != nil {
 			respondError(c, err)
 			return

@@ -18,33 +18,40 @@ const (
 
 // Sale represents a commercial transaction with a patient.
 type Sale struct {
-	ID            uint       `json:"id"             gorm:"primaryKey;autoIncrement"`
-	BranchID      uint       `json:"branch_id"      gorm:"column:branch_id;not null;index"`
-	SaleNumber    string     `json:"sale_number"    gorm:"uniqueIndex;not null"`
-	OrderID       *uint      `json:"order_id"       gorm:"column:order_id"`
-	PatientID     uint       `json:"patient_id"     gorm:"not null;index"`
-	AppointmentID *uint      `json:"appointment_id" gorm:"column:appointment_id"`
-	Subtotal      float64    `json:"subtotal"       gorm:"type:decimal(12,2)"`
-	Tax           float64    `json:"tax"            gorm:"type:decimal(12,2)"`
-	Discount      float64    `json:"discount"       gorm:"type:decimal(12,2)"`
-	Total         float64    `json:"total"          gorm:"type:decimal(12,2)"`
-	AmountPaid    float64    `json:"amount_paid"    gorm:"type:decimal(12,2)"`
-	Balance       float64    `json:"balance"        gorm:"type:decimal(12,2)"`
-	Status        SaleStatus `json:"status"         gorm:"type:varchar(20);not null;default:'pending'"`
-	PaymentStatus string     `json:"payment_status" gorm:"type:varchar(20);not null;default:'pending'"`
-	Notes         string     `json:"notes"          gorm:"type:text"`
-	CreatedBy     *uint      `json:"created_by"     gorm:"column:created_by"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID                uint           `json:"id"             gorm:"primaryKey;autoIncrement"`
+	BranchID          uint           `json:"branch_id"      gorm:"column:branch_id;not null;index"`
+	SaleNumber        string         `json:"sale_number"    gorm:"uniqueIndex;not null"`
+	OrderID           *uint          `json:"order_id"       gorm:"column:order_id"`
+	PatientID         uint           `json:"patient_id"     gorm:"not null;index"`
+	AppointmentID     *uint          `json:"appointment_id" gorm:"column:appointment_id"`
+	Subtotal          float64        `json:"subtotal"       gorm:"type:decimal(12,2)"`
+	Tax               float64        `json:"tax"            gorm:"type:decimal(12,2)"`
+	Discount          float64        `json:"discount"       gorm:"type:decimal(12,2)"`
+	PromotionID       *uint          `json:"promotion_id"       gorm:"column:promotion_id"`
+	PromotionDiscount float64        `json:"promotion_discount" gorm:"type:decimal(12,2);not null;default:0"`
+	Total             float64        `json:"total"          gorm:"type:decimal(12,2)"`
+	AmountPaid        float64        `json:"amount_paid"    gorm:"type:decimal(12,2)"`
+	Balance           float64        `json:"balance"        gorm:"type:decimal(12,2)"`
+	Status            SaleStatus     `json:"status"         gorm:"type:varchar(20);not null;default:'pending'"`
+	PaymentStatus     string         `json:"payment_status" gorm:"type:varchar(20);not null;default:'pending'"`
+	Notes             string         `json:"notes"             gorm:"type:text"`
+	InvoicingID       string         `json:"invoicing_id"          gorm:"type:varchar(100);not null;default:''"`
+	InvoicingStatus   string         `json:"invoicing_status"      gorm:"type:varchar(30);not null;default:''"`
+	CreditNoteID      string         `json:"credit_note_id"        gorm:"type:varchar(100);not null;default:''"`
+	CreditNoteStatus  string         `json:"credit_note_status"    gorm:"type:varchar(30);not null;default:''"`
+	CreatedBy         *uint          `json:"created_by"        gorm:"column:created_by"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+	DeletedAt         gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
 
 	// Associations
-	Patient             *Patient               `json:"patient,omitempty"              gorm:"foreignKey:PatientID"`
-	CreatedByUser       *User                  `json:"created_by_user,omitempty"      gorm:"foreignKey:CreatedBy"`
-	Items               []SaleItem             `json:"items,omitempty"                gorm:"foreignKey:SaleID"`
-	Payments            []SalePayment          `json:"payments"                     gorm:"foreignKey:SaleID"`
-	PartialPayments     []PartialPayment       `json:"partial_payments"              gorm:"foreignKey:SaleID"`
+	Patient              *Patient                  `json:"patient,omitempty"              gorm:"foreignKey:PatientID"`
+	CreatedByUser        *User                     `json:"created_by_user,omitempty"      gorm:"foreignKey:CreatedBy"`
+	Items                []SaleItem                `json:"items,omitempty"                gorm:"foreignKey:SaleID"`
+	Payments             []SalePayment             `json:"payments"                     gorm:"foreignKey:SaleID"`
+	PartialPayments      []PartialPayment          `json:"partial_payments"              gorm:"foreignKey:SaleID"`
 	LensPriceAdjustments []SaleLensPriceAdjustment `json:"lens_price_adjustments,omitempty" gorm:"foreignKey:SaleID"`
-	LaboratoryOrders    []LaboratoryOrder      `json:"laboratory_orders"            gorm:"-"`
+	LaboratoryOrders     []LaboratoryOrder         `json:"laboratory_orders"            gorm:"-"`
 }
 
 // SaleItem represents a line item within a sale.
@@ -113,7 +120,9 @@ type SaleLensPriceAdjustment struct {
 	AdjustedPrice    float64   `json:"adjusted_price"    gorm:"type:decimal(12,2)"`
 	AdjustmentAmount float64   `json:"adjustment_amount" gorm:"type:decimal(12,2)"`
 	Reason           string    `json:"reason"            gorm:"type:text"`
-	AdjustedBy       *uint     `json:"adjusted_by"       gorm:"column:adjusted_by"`
+	AdjustedBy       *uint     `json:"adjusted_by"        gorm:"column:adjusted_by"`
+	DebitNoteID      string    `json:"debit_note_id"      gorm:"type:varchar(100);not null;default:''"`
+	DebitNoteStatus  string    `json:"debit_note_status"  gorm:"type:varchar(30);not null;default:''"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 
@@ -151,6 +160,14 @@ type SaleLensPriceAdjustmentRepository interface {
 	GetBySaleID(db *gorm.DB, saleID uint) ([]*SaleLensPriceAdjustment, error)
 	GetByID(db *gorm.DB, id uint) (*SaleLensPriceAdjustment, error)
 	Create(db *gorm.DB, adj *SaleLensPriceAdjustment) error
+	Update(db *gorm.DB, adj *SaleLensPriceAdjustment) error
 	Delete(db *gorm.DB, id uint) error
 	GetBySaleLens(db *gorm.DB, saleID, lensID uint) (*SaleLensPriceAdjustment, error)
+}
+
+// PartialPaymentRepository defines persistence operations for PartialPayment (abonos).
+type PartialPaymentRepository interface {
+	Create(db *gorm.DB, payment *PartialPayment) error
+	GetBySaleID(db *gorm.DB, saleID uint) ([]*PartialPayment, error)
+	Delete(db *gorm.DB, saleID, paymentID uint) error
 }

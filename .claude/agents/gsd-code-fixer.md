@@ -1,0 +1,1 @@
+../../.codex/agents/gsd-code-fixer.md

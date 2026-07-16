@@ -79,8 +79,7 @@ class ClinicalEvolutionService {
       };
       
       if (appointmentId) {
-        params.s_f = JSON.stringify(['appointment_id']);
-        params.s_v = JSON.stringify([appointmentId.toString()]);
+        params.appointment_id = appointmentId;
       }
       
       const evolutionsResponse = await api.get(`/api/v1/clinical-histories/${clinicalHistory.id}/evolutions`, {

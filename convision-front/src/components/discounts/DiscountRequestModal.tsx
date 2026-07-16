@@ -151,17 +151,10 @@ const DiscountRequestModal: React.FC<DiscountRequestModalProps> = ({
     setShowPatientResults(true);
     
     try {
-      // Search in key fields with logical OR
-      const s_f = ['identification', 'first_name', 'last_name', 'email'];
-      const s_v = Array(s_f.length).fill(value);
-      const s_o = 'or'; // Use OR for better matches
-      
       const response = await api.get('/api/v1/patients', {
         params: {
           per_page: 10,
-          s_f: JSON.stringify(s_f),
-          s_v: JSON.stringify(s_v),
-          s_o,
+          search: value,
           sort: 'first_name,asc',
         }
       });
@@ -298,12 +291,10 @@ const DiscountRequestModal: React.FC<DiscountRequestModalProps> = ({
     
     try {
       // Search lenses by identifier or description
-      const response = await api.get('/api/v1/lenses', {
+      const response = await api.get('/api/v1/products', {
         params: {
           per_page: 10,
-          s_f: JSON.stringify(['identifier', 'description']),
-          s_v: JSON.stringify([value, value]),
-          s_o: 'or'
+          search: value
         }
       });
       

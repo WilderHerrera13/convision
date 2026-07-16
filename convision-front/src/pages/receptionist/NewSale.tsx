@@ -106,6 +106,7 @@ const NewSale: React.FC = () => {
               tax={sale.tax}
               total={sale.total}
               isLoading={sale.isSummaryLoading}
+              promotions={sale.appliedPromotions.map((p) => ({ id: p.id, name: p.name, amount: p.amount }))}
             />
             <PaymentForm
               paymentMethods={sale.paymentMethods}

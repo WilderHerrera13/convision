@@ -34,7 +34,9 @@ export interface AdminNotificationListResult {
 }
 
 class AdminNotificationService {
-  private readonly baseUrl = '/api/v1/admin/notifications';
+  // Self-scoped inbox: each authenticated user (admin, receptionist, …) only ever
+  // sees/mutates notifications addressed to them. The backend scopes by JWT claims.
+  private readonly baseUrl = '/api/v1/notifications';
 
   async getSummary(): Promise<{ unread: number; archived: number; inbox: number }> {
     const res = await axios.get(`${this.baseUrl}/summary`);
@@ -94,3 +96,7 @@ class AdminNotificationService {
 }
 
 export const adminNotificationService = new AdminNotificationService();
+
+// Preferred name for the generalized per-user notification service. `adminNotificationService`
+// is kept as an alias for existing imports.
+export const notificationService = adminNotificationService;

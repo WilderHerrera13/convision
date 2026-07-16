@@ -87,6 +87,22 @@ export interface LensSearchParams {
   sortDirection?: string;
 }
 
+export interface LensCatalogFilter {
+  page?: number;
+  per_page?: number;
+  brand_id?: number;
+  supplier_id?: number;
+  status?: string;
+  search?: string;
+  sphere_od?: number;
+  cylinder_od?: number;
+  addition_od?: number;
+  sphere_os?: number;
+  cylinder_os?: number;
+  addition_os?: number;
+  sort?: string;
+}
+
 interface PaginatedResponse<T> {
   data: T[];
   current_page: number;
@@ -177,86 +193,24 @@ class LensService {
     
     const searchParams = new URLSearchParams();
     
-    // Set pagination
     searchParams.append('per_page', params.perPage?.toString() || '10');
     searchParams.append('page', params.page?.toString() || '1');
     
-    // Build search fields and values arrays
-    const searchFields: string[] = []; 
-    const searchValues: string[] = []; 
-    
-    // Always filter by lens category - this is handled by ApiFilterable's dot notation
-    searchFields.push('category.slug');
-    searchValues.push('lens');
-    
-    // Add direct filter params that are actual columns on products table
     if (params.brandId) {
       searchParams.append('brand_id', params.brandId.toString());
-      // Optionally, ApiFilterable can also pick it up if it's also in s_f/s_v for complex OR conditions,
-      // but for simple AND, direct param is fine and handled by ApiFilterable's directIdFilters.
-      // For consistency with how other attributes will be handled via s_f/s_v for lensAttributes,
-      // we can add it here too.
-      searchFields.push('brand_id');
-      searchValues.push(params.brandId.toString());
     }
-    
-    // For attributes on product_lens_attributes, use dot notation for ApiFilterable
-    if (params.materialId) {
-      searchFields.push('lensAttributes.material_id');
-      searchValues.push(params.materialId.toString());
-    }
-    
-    if (params.lensClassId) {
-      searchFields.push('lensAttributes.lens_class_id');
-      searchValues.push(params.lensClassId.toString());
-    }
-    
-    if (params.treatmentId) {
-      searchFields.push('lensAttributes.treatment_id');
-      searchValues.push(params.treatmentId.toString());
-    }
-
-    // Assuming LensSearchParams might get a photochromicId or typeId (lens_type_id)
-    // if (params.photochromicId) {
-    //   searchFields.push('lensAttributes.photochromic_id');
-    //   searchValues.push(params.photochromicId.toString());
-    // }
-    // if (params.typeId) { // Assuming typeId maps to lens_type_id
-    //   searchFields.push('lensAttributes.lens_type_id');
-    //   searchValues.push(params.typeId.toString());
-    // }
     
     if (params.query && params.query.trim() !== '') {
-      searchParams.append('search', params.query.trim()); // General text search
-      // For ApiFilterable's s_f/s_v, if you want specific field text search:
-      searchFields.push('description'); 
-      searchValues.push(params.query.trim());
+      searchParams.append('search', params.query.trim());
     }
     
-    // Only append if we have search parameters - ALWAYS use proper JSON strings
-    if (searchFields.length > 0) {
-      const fieldsJson = JSON.stringify(searchFields);
-      const valuesJson = JSON.stringify(searchValues);
-      
-      console.log('Filter parameters being sent:', { 
-        fields: fieldsJson, 
-        values: valuesJson 
-      });
-      
-      searchParams.append('s_f', fieldsJson);
-      searchParams.append('s_v', valuesJson);
-    }
-    
-    // Add sorting if provided
     if (params.sortField) {
       const sortDirection = params.sortDirection || 'asc';
       searchParams.append('sort', `${params.sortField},${sortDirection}`);
     } else {
-      // Default sort by created_at,desc
       searchParams.append('sort', 'created_at,desc');
     }
     
-    // Add timestamp to prevent caching
     searchParams.append('_t', Date.now().toString());
     
     const url = `/api/v1/products?${searchParams.toString()}`; // Changed from /lenses to /products
@@ -385,8 +339,7 @@ class LensService {
       console.log(`Searching brands with query: "${query}"`);
       const searchParams = new URLSearchParams();
       if (query && query.trim() !== '') {
-        searchParams.append('s_f', JSON.stringify(['name']));
-        searchParams.append('s_v', JSON.stringify([query.trim()]));
+        searchParams.append('search', query.trim());
       }
       
       try {
@@ -434,8 +387,7 @@ class LensService {
       console.log(`Searching materials with query: "${query}"`);
       const searchParams = new URLSearchParams();
       if (query && query.trim() !== '') {
-        searchParams.append('s_f', JSON.stringify(['name']));
-        searchParams.append('s_v', JSON.stringify([query.trim()]));
+        searchParams.append('search', query.trim());
       }
       
       try {
@@ -483,8 +435,7 @@ class LensService {
       console.log(`Searching lens classes with query: "${query}"`);
       const searchParams = new URLSearchParams();
       if (query && query.trim() !== '') {
-        searchParams.append('s_f', JSON.stringify(['name']));
-        searchParams.append('s_v', JSON.stringify([query.trim()]));
+        searchParams.append('search', query.trim());
       }
       
       try {
@@ -532,8 +483,7 @@ class LensService {
       console.log(`Searching treatments with query: "${query}"`);
       const searchParams = new URLSearchParams();
       if (query && query.trim() !== '') {
-        searchParams.append('s_f', JSON.stringify(['name']));
-        searchParams.append('s_v', JSON.stringify([query.trim()]));
+        searchParams.append('search', query.trim());
       }
       
       try {

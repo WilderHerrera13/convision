@@ -38,24 +38,29 @@ type NotificationSummary struct {
 	Archived int64 `json:"archived"`
 }
 
-// NotificationFilter holds query parameters for listing admin user notifications.
+// NotificationFilter holds query parameters for listing user notifications.
+// UserID is injected server-side from the JWT claims so a caller only ever sees
+// notifications addressed to them.
 type NotificationFilter struct {
 	Pagination
+	UserID   *uint `form:"-"`
 	Archived *bool `form:"archived"`
 	Unread   *bool `form:"unread"`
 }
 
 // NotificationRepository defines persistence operations for AdminUserNotification.
+// Mutations and reads that resolve a single recipient take userID and scope/verify
+// ownership so one user can never read or mutate another user's notifications.
 type NotificationRepository interface {
-	GetByID(db *gorm.DB, id uint) (*AdminUserNotification, error)
+	GetByID(db *gorm.DB, id uint, userID uint) (*AdminUserNotification, error)
 	GetUnreadByUserID(db *gorm.DB, userID uint) ([]*AdminUserNotification, error)
 	Create(db *gorm.DB, n *AdminUserNotification) error
-	MarkAsRead(db *gorm.DB, id uint) error
-	MarkAsUnread(db *gorm.DB, id uint) error
-	Archive(db *gorm.DB, id uint) error
-	Unarchive(db *gorm.DB, id uint) error
-	ReadAll(db *gorm.DB) error
-	Summary(db *gorm.DB) (*NotificationSummary, error)
-	Delete(db *gorm.DB, id uint) error
+	MarkAsRead(db *gorm.DB, id uint, userID uint) error
+	MarkAsUnread(db *gorm.DB, id uint, userID uint) error
+	Archive(db *gorm.DB, id uint, userID uint) error
+	Unarchive(db *gorm.DB, id uint, userID uint) error
+	ReadAll(db *gorm.DB, userID uint) error
+	Summary(db *gorm.DB, userID uint) (*NotificationSummary, error)
+	Delete(db *gorm.DB, id uint, userID uint) error
 	List(db *gorm.DB, f NotificationFilter) ([]*AdminUserNotification, int64, error)
 }

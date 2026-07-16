@@ -107,6 +107,12 @@ type SpecialistReportSummary struct {
 //	AttendedBy    → _attended_by    (specialist_id = ? OR taken_by_id = ?)
 //	PendingReport → _pending_report (consultation_type IS NULL OR = '')
 //
+// IsBilled filters on Appointment.IsBilled — added so the receptionist sales
+// queue can exclude appointments that already have a sale attached
+// (updateAppointmentBilling in internal/sale/service.go sets it) instead of
+// relying solely on Status=completed, which never changes back once billed
+// (see docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 05, P0 #3).
+//
 // BranchID is never a form field — it is injected by middleware after binding.
 type AppointmentFilter struct {
 	Pagination
@@ -121,6 +127,7 @@ type AppointmentFilter struct {
 	PatientSearch    string `form:"patient_search"`
 	AttendedBy       *uint  `form:"attended_by"`
 	PendingReport    bool   `form:"pending_report"`
+	IsBilled         *bool  `form:"is_billed"`
 }
 
 // AppointmentRepository defines persistence operations for Appointment.

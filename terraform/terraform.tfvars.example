@@ -1,0 +1,22 @@
+aws_region  = "us-east-1"
+project     = "convision"
+environment = "prod"
+
+root_domain = "convision.com"
+
+ssh_public_key    = "ssh-ed25519 AAAAC3Nza... your-public-key-here"
+ssh_allowed_cidrs = ["TU_IP/32"]
+
+db_username = "convision_app"
+db_password = "CHANGE_ME_strong_password_here"
+db_name     = "convision"
+
+jwt_secret = "CHANGE_ME_at_least_32_chars_secret"
+
+docker_image = "123456789.dkr.ecr.us-east-1.amazonaws.com/convision/api:latest"
+
+ec2_instance_type  = "t4g.micro"
+rds_instance_class = "db.t4g.micro"
+
+rds_allocated_storage     = 20
+rds_backup_retention_days = 7

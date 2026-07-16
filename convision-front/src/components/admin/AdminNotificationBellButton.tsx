@@ -5,16 +5,17 @@ import { cn } from '@/lib/utils';
 
 type AdminNotificationBellButtonProps = {
   unread: number;
+  to?: string;
 };
 
-export const AdminNotificationBellButton: React.FC<AdminNotificationBellButtonProps> = ({ unread }) => {
+export const AdminNotificationBellButton: React.FC<AdminNotificationBellButtonProps> = ({ unread, to = '/admin/notifications' }) => {
   const location = useLocation();
-  const active = location.pathname.startsWith('/admin/notifications');
+  const active = location.pathname.startsWith(to);
   const badge = unread > 9 ? '9+' : unread > 0 ? String(unread) : null;
 
   return (
     <NavLink
-      to="/admin/notifications"
+      to={to}
       className={cn(
         'relative flex size-9 shrink-0 items-center justify-center rounded-[6px] border border-convision-border bg-white transition-colors',
         active ? 'border-convision-primary/40 bg-convision-light' : 'hover:bg-convision-background',

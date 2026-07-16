@@ -2,12 +2,40 @@
   "mcpServers": {
     "playwright": {
       "type": "stdio",
-      "command": "npx",
+      "command": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin/npx",
       "args": [
         "-y",
         "@playwright/mcp@latest"
       ],
-      "env": {}
+      "env": {
+        "PATH": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    },
+    "playwright-convision": {
+      "type": "stdio",
+      "command": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin/npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--user-data-dir",
+        "/Users/wilderherrera/Library/Caches/ms-playwright/mcp-chrome-convision"
+      ],
+      "env": {
+        "PATH": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    },
+    "playwright-convision-2": {
+      "type": "stdio",
+      "command": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin/npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--user-data-dir",
+        "/Users/wilderherrera/Library/Caches/ms-playwright/mcp-chrome-convision-2"
+      ],
+      "env": {
+        "PATH": "/Users/wilderherrera/.nvm/versions/node/v22.19.0/bin:/usr/local/bin:/usr/bin:/bin"
+      }
     }
   }
 }

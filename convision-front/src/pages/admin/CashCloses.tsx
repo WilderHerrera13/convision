@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,7 +15,11 @@ import CashClosesFiltersBar from '@/components/admin/CashClosesFiltersBar';
 import AdvisorCashCloseCard from '@/components/admin/AdvisorCashCloseCard';
 import CashClosesConsolidated from '@/components/admin/CashClosesConsolidated';
 import { formatCurrency } from '@/lib/utils';
-import cashRegisterCloseService, { type AdvisorPendingGroup } from '@/services/cashRegisterCloseService';
+import { downloadBlob } from '@/lib/downloadFile';
+import cashRegisterCloseService, {
+  isCloseCreatedOnDifferentDay,
+  type AdvisorPendingGroup,
+} from '@/services/cashRegisterCloseService';
 import { userService, User } from '@/services/userService';
 import { type CashCloseRow, STATUS_CONFIG, formatCOP } from './cashClosesConfig';
 
@@ -125,6 +129,15 @@ const AdminCashCloses: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('consolidated');
   const [tableData, setTableData] = useState<CashCloseRow[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+  const [consolidatedRange, setConsolidatedRange] = useState<{ from: Date; to: Date } | null>(null);
+  const handleConsolidatedRangeChange = useCallback((from: Date, to: Date) => {
+    setConsolidatedRange((prev) =>
+      prev && prev.from.getTime() === from.getTime() && prev.to.getTime() === to.getTime()
+        ? prev
+        : { from, to },
+    );
+  }, []);
 
   const { data: users = [], isPending: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['users-list', branchFilter],
@@ -263,6 +276,32 @@ const AdminCashCloses: React.FC = () => {
       ),
     },
     {
+      id: 'created_at',
+      header: 'Registrado',
+      type: 'text',
+      accessorKey: 'created_at',
+      enableSorting: false,
+      cell: (item) => {
+        const mismatch = isCloseCreatedOnDifferentDay(item.close_date, item.created_at);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[12px] ${mismatch ? 'font-semibold text-[#b57218]' : 'text-[#7d7d87]'}`}>
+              {format(new Date(item.created_at), 'dd/MM/yyyy h:mm a')}
+            </span>
+            {mismatch && (
+              <Badge
+                variant="outline"
+                className="rounded-full border-[#f4c778] bg-[#fff6e3] px-1.5 py-0 text-[9px] font-bold text-[#b57218]"
+                title="El cierre se registró en un día distinto a la fecha del cierre"
+              >
+                OTRO DÍA
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       id: 'user',
       header: 'Asesor',
       type: 'text',
@@ -383,6 +422,31 @@ const AdminCashCloses: React.FC = () => {
     navigate(`/admin/cash-closes/advisor/${advisor.user_id}?branch_id=${bid}`);
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // In the consolidated view the visible date range is owned by the
+      // consolidated panel, so the export follows that range; the other views
+      // use the page-level filter bar.
+      const useConsolidated = viewMode === 'consolidated' && consolidatedRange;
+      const { blob, filename } = await cashRegisterCloseService.exportExcel({
+        date_from: useConsolidated
+          ? format(consolidatedRange!.from, 'yyyy-MM-dd')
+          : extraFilters.date_from,
+        date_to: useConsolidated
+          ? format(consolidatedRange!.to, 'yyyy-MM-dd')
+          : extraFilters.date_to,
+        branch_id: extraFilters.branch_id,
+      });
+      downloadBlob(blob, filename);
+      toast.success('Reporte exportado correctamente');
+    } catch {
+      toast.error('No se pudo exportar el reporte');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const totalVarianceForPeriod = stats.accumulatedVariance ?? 0;
   const variancePositive = totalVarianceForPeriod >= 0;
 
@@ -396,10 +460,11 @@ const AdminCashCloses: React.FC = () => {
           variant="outline"
           size="sm"
           className="h-9 gap-1.5 border-[#e5e5e9] text-[13px] font-semibold text-[#121215]"
-          onClick={() => toast.info('Exportación disponible próximamente')}
+          onClick={handleExport}
+          disabled={isExporting}
         >
           <Download className="h-3.5 w-3.5" />
-          Exportar
+          {isExporting ? 'Exportando…' : 'Exportar'}
         </Button>
       }
     >
@@ -444,7 +509,11 @@ const AdminCashCloses: React.FC = () => {
         </div>
 
         {viewMode === 'consolidated' && (
-          <CashClosesConsolidated branchFilter={branchFilter} onBranchChange={setBranchFilter} />
+          <CashClosesConsolidated
+            branchFilter={branchFilter}
+            onBranchChange={setBranchFilter}
+            onRangeChange={handleConsolidatedRangeChange}
+          />
         )}
 
         {viewMode !== 'consolidated' && (

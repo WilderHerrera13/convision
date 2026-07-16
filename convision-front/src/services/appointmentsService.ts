@@ -58,6 +58,24 @@ export type PaginatedAppointmentsTable = {
   total: number;
 };
 
+export interface AppointmentFilter {
+  page?: number;
+  per_page?: number;
+  status?: string;
+  specialist_id?: number;
+  patient_id?: number;
+  taken_by_id?: number;
+  consultation_type?: string;
+  start_date?: string;
+  end_date?: string;
+  patient_search?: string;
+  attended_by?: number;
+  pending_report?: boolean;
+  search?: string;
+  sort?: string;
+  view?: string;
+}
+
 type GetAppointmentsParams = {
   perPage?: number;
   filters?: Record<string, unknown>;
@@ -67,7 +85,6 @@ type GetAppointmentsParams = {
   startDate?: string;
   endDate?: string;
   search?: string;
-  branchIdQuery?: string;
 };
 
 export const appointmentsService = {
@@ -99,41 +116,25 @@ export const appointmentsService = {
     startDate,
     endDate,
     search,
-    branchIdQuery,
   }: GetAppointmentsParams = {}): Promise<AppointmentsResponse> {
-    const s_f: string[] = [];
-    const s_v: string[] = [];
-    
     let status: string | undefined;
     const filtersCopy = { ...filters };
-    
+
     if ('status' in filtersCopy && filtersCopy.status) {
       status = String(filtersCopy.status);
       delete filtersCopy.status;
     }
 
-    if (branchIdQuery !== undefined) {
-      delete filtersCopy.branch_id;
-    }
-    
-    Object.entries(filtersCopy).forEach(([key, value]) => {
-      s_f.push(key);
-      s_v.push(String(value));
-    });
-    
     const params: Record<string, string | number | undefined> = {
       per_page: perPage,
       page,
-      s_f: s_f.length ? JSON.stringify(s_f) : undefined,
-      s_v: s_v.length ? JSON.stringify(s_v) : undefined,
       sort,
     };
-    
-    // Add status directly as a query parameter
+
     if (status) {
       params.status = status;
     }
-    
+
     if (view) {
       params.view = view;
     }
@@ -150,11 +151,16 @@ export const appointmentsService = {
       params.search = search;
     }
 
-    if (branchIdQuery !== undefined) {
-      params.branch_id = branchIdQuery;
+    const knownKeys = [
+      'patient_id', 'specialist_id', 'taken_by_id',
+      'consultation_type', 'patient_search', 'attended_by', 'pending_report',
+    ];
+    for (const key of knownKeys) {
+      if (key in filtersCopy && filtersCopy[key] !== undefined && filtersCopy[key] !== null && filtersCopy[key] !== '') {
+        params[key] = filtersCopy[key] as string | number;
+      }
     }
-    
-    // Use no-cache headers to ensure fresh data
+
     const response = await api.get('/api/v1/appointments', {
       params,
       headers: {
@@ -163,7 +169,7 @@ export const appointmentsService = {
         'Expires': '0',
       }
     });
-    
+
     return response.data;
   },
 
@@ -181,6 +187,7 @@ export const appointmentsService = {
       page,
       per_page,
       status: 'completed',
+      is_billed: 'false',
       sort: 'updated_at,desc',
     };
     const t = params.search?.trim();
@@ -297,25 +304,16 @@ export const appointmentsService = {
   },
 
   async searchPatients(query: string): Promise<Patient[]> {
-    // Don't search if query is too short
     if (query.length < 3) {
       return [];
     }
-    
-    // Search in key fields with logical OR
-    const s_f = ['identification', 'first_name', 'last_name', 'email'];
-    const s_v = Array(s_f.length).fill(query);
-    const s_o = 'or'; // Use OR for better matches
-    
+
     const response = await api.get('/api/v1/patients', {
       params: {
-        per_page: 10, // Reduce to 10 for faster responses
-        s_f: JSON.stringify(s_f),
-        s_v: JSON.stringify(s_v),
-        s_o,
+        per_page: 10,
+        search: query,
         sort: 'first_name,asc',
       },
-      // Add caching headers for 1 minute to reduce duplicate requests
       headers: {
         'Cache-Control': 'max-age=60',
       }

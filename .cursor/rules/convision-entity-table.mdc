@@ -1,0 +1,50 @@
+---
+description: EntityTable usage with mandatory empty states for every table in the project
+globs: convision-front/src/**/*.tsx
+alwaysApply: false
+---
+
+# EntityTable + EmptyState — Mandatory Pattern
+
+Every table in `convision-front` must use `EntityTable`. Never build a custom table UI or use raw `<table>` elements.
+
+Every `EntityTable` must declare **both** empty-state props:
+
+```tsx
+<EntityTable<MyItem>
+  columns={columns}
+  queryKeyBase="my-feature"
+  fetcher={({ page, per_page, search }) => myService.getForTable({ page, per_page, search })}
+  emptyStateNode={
+    <EmptyState
+      leadingIcon={SomeLucideIcon}
+      accentColor="#8753ef"            // use role accent or domain colour
+      title="Sin registros"
+      description="No hay elementos para mostrar en este momento."
+    />
+  }
+  filterEmptyStateNode={
+    <EmptyState variant="table-filter" />
+  }
+/>
+```
+
+## Rules
+
+- `emptyStateNode` — shown when there is **no data and no active search**. Use a domain-relevant icon (`lucide-react`) and a descriptive `accentColor`.
+- `filterEmptyStateNode` — shown when a search/filter returns **zero results**. Always use `variant="table-filter"` (renders "Sin resultados" with a clear-filters button).
+- Never omit either prop.
+- Import from `@/components/ui/empty-state`.
+
+## EmptyState quick-ref
+
+| Variant | Icon | Title | When to use |
+|---|---|---|---|
+| `table-filter` | `Filter` | Sin resultados | Active search/filter returns nothing |
+| `default` | none | Sin datos | Generic fallback only |
+| custom | pass `leadingIcon` | custom | Domain-specific base state |
+
+## Fetcher shape for EntityTable
+
+The `fetcher` must return `{ data: T[], last_page: number, total: number }`.
+Wrap the service call in a dedicated `getForTable` helper inside the service file when the raw API response has a different shape.

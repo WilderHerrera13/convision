@@ -71,7 +71,7 @@ const rolesApi = {
 
   getPermissions: async (): Promise<Permission[]> => {
     const { data } = await api.get('/api/v1/permissions');
-    return data.data;
+    return data.data ?? [];
   },
 
   assignRole: async (userId: number, roleId: number): Promise<void> => {
@@ -84,12 +84,12 @@ const rolesApi = {
 
   getUserPermissions: async (userId: number): Promise<string[]> => {
     const { data } = await api.get(`/api/v1/users/${userId}/permissions`);
-    return data.data;
+    return data.data ?? [];
   },
 
   getUserRoles: async (userId: number): Promise<Role[]> => {
     const { data } = await api.get(`/api/v1/users/${userId}/roles`);
-    return data.data;
+    return data.data ?? [];
   },
 
   getRoleUsers: async (roleId: number): Promise<RoleUser[]> => {

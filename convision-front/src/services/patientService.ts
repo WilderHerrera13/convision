@@ -14,12 +14,15 @@ export interface Patient {
   profile_image: string | null;
 }
 
-export interface PatientSearchParams {
-  search?: string;
+export interface PatientFilter {
   page?: number;
-  perPage?: number;
+  per_page?: number;
+  search?: string;
   status?: string;
+  gender?: string;
 }
+
+export type PatientSearchParams = PatientFilter & { perPage?: number };
 
 export interface PaginatedResponse<T> {
   current_page: number;
@@ -39,8 +42,9 @@ class PatientService {
     const response = await api.get('/api/v1/patients', { 
       params: {
         page: params?.page || 1,
-        per_page: params?.perPage || 10,
-        status: params?.status
+        per_page: params?.perPage || params?.per_page || 10,
+        status: params?.status,
+        gender: params?.gender,
       }
     });
     return response.data as PaginatedResponse<Patient>;
@@ -49,18 +53,19 @@ class PatientService {
   async searchPatients(params: PatientSearchParams) {
     const queryParams: Record<string, string | number> = {
       page: params.page || 1,
-      per_page: params.perPage || 20,
+      per_page: params.perPage || params.per_page || 20,
     };
 
     if (params.search?.trim()) {
-      const fields = ['first_name', 'last_name', 'identification', 'email'];
-      queryParams['s_f'] = JSON.stringify(fields);
-      queryParams['s_v'] = JSON.stringify(Array(fields.length).fill(params.search.trim()));
-      queryParams['s_o'] = 'or';
+      queryParams.search = params.search.trim();
     }
 
     if (params.status) {
-      queryParams['status'] = params.status;
+      queryParams.status = params.status;
+    }
+
+    if (params.gender) {
+      queryParams.gender = params.gender;
     }
 
     const response = await api.get('/api/v1/patients', { params: queryParams });

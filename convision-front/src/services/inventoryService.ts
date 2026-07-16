@@ -215,8 +215,7 @@ class InventoryService {
     if (params?.allBranches) searchParams.append('branch_id', '0');
 
     if (params?.status) {
-      searchParams.append('s_f', JSON.stringify(['status']));
-      searchParams.append('s_v', JSON.stringify([params.status]));
+      searchParams.append('status', params.status);
     }
 
     return await ApiService.get<PaginatedResponse<Warehouse>>(`/api/v1/warehouses?${searchParams.toString()}`);
@@ -296,29 +295,10 @@ class InventoryService {
     
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.perPage) searchParams.append('per_page', params.perPage.toString());
-    
-    const searchFields: string[] = [];
-    const searchValues: string[] = [];
-    
-    if (params?.warehouseId) {
-      searchFields.push('warehouse_id');
-      searchValues.push(params.warehouseId.toString());
-    }
-    
-    if (params?.locationId) {
-      searchFields.push('warehouse_location_id');
-      searchValues.push(params.locationId.toString());
-    }
-    
-    if (params?.status) {
-      searchFields.push('status');
-      searchValues.push(params.status);
-    }
-    
-    if (searchFields.length > 0) {
-      searchParams.append('s_f', JSON.stringify(searchFields));
-      searchParams.append('s_v', JSON.stringify(searchValues));
-    }
+
+    if (params?.warehouseId) searchParams.append('warehouse_id', String(params.warehouseId));
+    if (params?.locationId) searchParams.append('warehouse_location_id', String(params.locationId));
+    if (params?.status) searchParams.append('status', params.status);
     
     if (params?.sortField) {
       const sortDirection = params.sortDirection || 'asc';

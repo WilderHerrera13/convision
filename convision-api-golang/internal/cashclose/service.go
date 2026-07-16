@@ -1,6 +1,7 @@
 package cashclose
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -12,10 +13,19 @@ import (
 	"github.com/convision/api/internal/domain"
 )
 
+// Notifier emits an in-app notification to a single recipient user. Implemented by
+// *notification.Service; kept as a local interface so the service stays decoupled and
+// unit-testable without importing the notification package.
+type Notifier interface {
+	Emit(db *gorm.DB, userID uint, kind domain.NotificationKind, title, body, actionURL string) error
+}
+
 // Service handles cash register close read use-cases.
 type Service struct {
-	repo   domain.CashRegisterCloseRepository
-	logger *zap.Logger
+	repo     domain.CashRegisterCloseRepository
+	adjRepo  domain.CashRegisterCloseAdjustmentRepository
+	notifier Notifier
+	logger   *zap.Logger
 }
 
 var allowedPaymentMethods = map[string]struct{}{
@@ -53,8 +63,8 @@ var allowedDenominations = map[int]struct{}{
 }
 
 // NewService creates a new cash register close service.
-func NewService(repo domain.CashRegisterCloseRepository, logger *zap.Logger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo domain.CashRegisterCloseRepository, adjRepo domain.CashRegisterCloseAdjustmentRepository, notifier Notifier, logger *zap.Logger) *Service {
+	return &Service{repo: repo, adjRepo: adjRepo, notifier: notifier, logger: logger}
 }
 
 // isCashCloseAdvisorRole reports whether the user is allowed to appear in the
@@ -346,6 +356,171 @@ func (s *Service) ReturnToDraft(db *gorm.DB, id uint, input ApproveInput) (*doma
 	return s.repo.GetByID(db, item.ID)
 }
 
+// AdjustInput carries the admin's corrected figures + mandatory reason for an adjustment.
+type AdjustInput struct {
+	PaymentMethods []PaymentMethodInput `json:"payment_methods" binding:"required"`
+	Denominations  []DenominationInput  `json:"denominations"`
+	AdminNotes     *string              `json:"admin_notes"`
+	Reason         string               `json:"reason" binding:"required"`
+}
+
+func paymentsToSnapshot(rows []domain.CashRegisterClosePayment) []domain.CashCloseSnapshotPayment {
+	out := make([]domain.CashCloseSnapshotPayment, 0, len(rows))
+	for _, p := range rows {
+		out = append(out, domain.CashCloseSnapshotPayment{Name: p.PaymentMethodName, CountedAmount: p.CountedAmount})
+	}
+	return out
+}
+
+func denomsToSnapshot(rows []domain.CashCountDenomination) []domain.CashCloseSnapshotDenomination {
+	out := make([]domain.CashCloseSnapshotDenomination, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, domain.CashCloseSnapshotDenomination{Denomination: d.Denomination, Quantity: d.Quantity, Subtotal: d.Subtotal})
+	}
+	return out
+}
+
+// snapshotFromClose captures the current persisted state of a close for the "before" version.
+func snapshotFromClose(c *domain.CashRegisterClose) domain.CashCloseSnapshot {
+	closeDate := ""
+	if c.CloseDate != nil {
+		closeDate = c.CloseDate.UTC().Format("2006-01-02")
+	}
+	return domain.CashCloseSnapshot{
+		CloseDate:      closeDate,
+		Status:         string(c.Status),
+		TotalCounted:   c.TotalCounted,
+		AdvisorNotes:   c.AdvisorNotes,
+		AdminNotes:     c.AdminNotes,
+		PaymentMethods: paymentsToSnapshot(c.Payments),
+		Denominations:  denomsToSnapshot(c.Denominations),
+	}
+}
+
+// AdjustAndApprove lets an admin correct a submitted close and approve it in one action.
+// It records an immutable before/after adjustment (also a warning against the advisor),
+// applies the edits + approval atomically, then notifies the advisor (best-effort).
+func (s *Service) AdjustAndApprove(db *gorm.DB, id uint, adminID uint, input AdjustInput) (*domain.CashRegisterClose, error) {
+	reason := strings.TrimSpace(input.Reason)
+	if reason == "" {
+		return nil, &domain.ErrValidation{Field: "reason", Message: "el motivo del ajuste es requerido"}
+	}
+
+	item, err := s.repo.GetByID(db, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != domain.CashRegisterCloseStatusSubmitted {
+		return nil, &domain.ErrValidation{Field: "status", Message: "solo se pueden ajustar cierres en estado enviado"}
+	}
+
+	payments, totalCounted, err := validateAndMapPayments(input.PaymentMethods, true)
+	if err != nil {
+		return nil, err
+	}
+	denoms, err := validateAndMapDenominations(input.Denominations)
+	if err != nil {
+		return nil, err
+	}
+
+	// before = advisor-reported state, exactly as currently persisted.
+	before := snapshotFromClose(item)
+
+	now := time.Now().UTC()
+	adminNotes := sanitizeOptionalText(input.AdminNotes, 1000)
+
+	// after = admin-corrected + approved state.
+	after := domain.CashCloseSnapshot{
+		CloseDate:      before.CloseDate,
+		Status:         string(domain.CashRegisterCloseStatusApproved),
+		TotalCounted:   totalCounted,
+		AdvisorNotes:   item.AdvisorNotes,
+		AdminNotes:     adminNotes,
+		PaymentMethods: paymentsToSnapshot(payments),
+		Denominations:  denomsToSnapshot(denoms),
+	}
+
+	beforeJSON, err := json.Marshal(before)
+	if err != nil {
+		return nil, err
+	}
+	afterJSON, err := json.Marshal(after)
+	if err != nil {
+		return nil, err
+	}
+
+	adjustment := &domain.CashRegisterCloseAdjustment{
+		CashRegisterCloseID: item.ID,
+		BranchID:            item.BranchID,
+		AdvisorUserID:       item.UserID,
+		AdminUserID:         adminID,
+		Reason:              reason,
+		BeforeSnapshot:      beforeJSON,
+		AfterSnapshot:       afterJSON,
+	}
+
+	item.TotalCounted = totalCounted
+	item.AdminNotes = adminNotes
+	item.Status = domain.CashRegisterCloseStatusApproved
+	item.ApprovedBy = &adminID
+	item.ApprovedAt = &now
+
+	if err := s.repo.AdjustAndApprove(db, item, payments, denoms, adjustment); err != nil {
+		return nil, err
+	}
+
+	s.logger.Info("cash register close adjusted and approved",
+		zap.Uint("id", item.ID), zap.Uint("admin_id", adminID), zap.Uint("advisor_id", item.UserID))
+
+	// Warning notification to the advisor — best-effort; a delivery failure must not
+	// roll back an already-approved adjustment.
+	if s.notifier != nil {
+		title := "Cierre de caja ajustado"
+		body := fmt.Sprintf("El administrador ajustó y aprobó tu cierre de caja del %s. Motivo: %s", before.CloseDate, reason)
+		actionURL := fmt.Sprintf("/receptionist/cash-close-detail/%d?adjustment=1", item.ID)
+		if emitErr := s.notifier.Emit(db, item.UserID, domain.NotificationKindOperational, title, body, actionURL); emitErr != nil {
+			s.logger.Warn("failed to notify advisor of cash close adjustment", zap.Uint("advisor_id", item.UserID), zap.Error(emitErr))
+		}
+	}
+
+	return s.repo.GetByID(db, item.ID)
+}
+
+// ListAdjustments returns the adjustment/version history for one close. The owner may
+// view their own; admins may view any.
+func (s *Service) ListAdjustments(db *gorm.DB, closeID uint, role domain.Role, userID uint) ([]*domain.CashRegisterCloseAdjustment, error) {
+	item, err := s.repo.GetByID(db, closeID)
+	if err != nil {
+		return nil, err
+	}
+	if !canAccessClose(role, userID, item.UserID) {
+		return nil, &domain.ErrUnauthorized{Action: "view cash register close adjustments"}
+	}
+	return s.adjRepo.ListByCloseID(db, closeID)
+}
+
+// ListAdjustmentsFiltered returns adjustments (warnings) for admin reporting.
+func (s *Service) ListAdjustmentsFiltered(db *gorm.DB, f domain.CashRegisterCloseAdjustmentFilter) ([]*domain.CashRegisterCloseAdjustment, int64, error) {
+	f.Clamp()
+	return s.adjRepo.List(db, f)
+}
+
+// AcknowledgeAdjustment marks an adjustment warning as acknowledged. The recipient
+// advisor may acknowledge their own; admins may acknowledge any.
+func (s *Service) AcknowledgeAdjustment(db *gorm.DB, id uint, role domain.Role, userID uint) (*domain.CashRegisterCloseAdjustment, error) {
+	adj, err := s.adjRepo.GetByID(db, id)
+	if err != nil {
+		return nil, err
+	}
+	if role != domain.RoleAdmin && adj.AdvisorUserID != userID {
+		return nil, &domain.ErrUnauthorized{Action: "acknowledge cash register close adjustment"}
+	}
+	if err := s.adjRepo.Acknowledge(db, id); err != nil {
+		return nil, err
+	}
+	return s.adjRepo.GetByID(db, id)
+}
+
 func (s *Service) PutAdminActuals(db *gorm.DB, id uint, input PutAdminActualsInput) (*domain.CashRegisterClose, error) {
 	if len(input.ActualPaymentMethods) != len(allowedPaymentMethods) {
 		return nil, &domain.ErrValidation{Field: "actual_payment_methods", Message: fmt.Sprintf("debe enviar exactamente %d medios de pago", len(allowedPaymentMethods))}
@@ -426,6 +601,7 @@ type AdvisorPendingRow struct {
 	TotalYesterday      *float64           `json:"total_yesterday"`
 	AccumulatedVariance *float64           `json:"accumulated_variance"`
 	LatestStatus        string             `json:"latest_status"`
+	WarningCount        int64              `json:"warning_count"`
 	Closes              []AdvisorCloseItem `json:"closes"`
 }
 
@@ -519,6 +695,14 @@ func (s *Service) AdvisorsPending(db *gorm.DB, branchID uint) (*AdvisorsPendingO
 			})
 		}
 
+		// Warnings (adjustments) recorded against this advisor — an admin performance signal.
+		var warningCount int64
+		if s.adjRepo != nil {
+			if wc, wcErr := s.adjRepo.CountByAdvisor(db, uid); wcErr == nil {
+				warningCount = wc
+			}
+		}
+
 		rows = append(rows, AdvisorPendingRow{
 			UserID:              uid,
 			UserName:            userName,
@@ -528,6 +712,7 @@ func (s *Service) AdvisorsPending(db *gorm.DB, branchID uint) (*AdvisorsPendingO
 			TotalYesterday:      totalYesterday,
 			AccumulatedVariance: accumulatedVariance,
 			LatestStatus:        string(latest.Status),
+			WarningCount:        warningCount,
 			Closes:              items,
 		})
 	}
@@ -557,6 +742,7 @@ type CalendarClose struct {
 	AdminNotes        *string                     `json:"admin_notes"`
 	ApprovedAt        *string                     `json:"approved_at"`
 	SubmittedAt       *string                     `json:"submitted_at"`
+	CreatedAt         string                      `json:"created_at"`
 	PaymentMethods    []CalendarClosePayment      `json:"payment_methods"`
 	Denominations     []CalendarCloseDenomination `json:"denominations"`
 }
@@ -1199,6 +1385,7 @@ func formatCloseForCalendar(c *domain.CashRegisterClose) *CalendarClose {
 		AdminNotes:        adminNotes,
 		ApprovedAt:        approvedAt,
 		SubmittedAt:       &submittedAt,
+		CreatedAt:         c.CreatedAt.UTC().Format(time.RFC3339),
 		PaymentMethods:    payments,
 		Denominations:     denoms,
 	}

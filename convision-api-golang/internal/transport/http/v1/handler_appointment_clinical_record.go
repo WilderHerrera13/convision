@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -48,6 +49,28 @@ func (h *Handler) GetPatientLatestClinicalRecord(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, rec)
+}
+
+// GetPatientClinicalRecordHistory godoc
+// GET /api/v1/patients/:id/clinical-records?page=&per_page=
+// Returns the full signed-record history for a patient (paginated, newest
+// first) — the longitudinal view GetPatientLatestClinicalRecord cannot
+// provide (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 11).
+func (h *Handler) GetPatientClinicalRecordHistory(c *gin.Context) {
+	db := tenantDBFromCtx(c)
+	patientID, err := parseID(c, "id")
+	if err != nil {
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "15"))
+
+	out, err := h.clinicalRecord.ListHistoryForPatient(db, patientID, page, perPage)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // CreateAppointmentClinicalRecord godoc
@@ -241,6 +264,18 @@ func (h *Handler) SignAppointmentClinicalRecord(c *gin.Context) {
 	if txErr != nil {
 		respondError(c, txErr)
 		return
+	}
+
+	// Build the RIPS record fire-and-forget — signing must never fail or
+	// block on it (mirrors sale.Service's async invoice emission). Passes the
+	// tenant SCHEMA NAME, not db: db is a per-request transaction
+	// (TenantSchema middleware) that TenantSchema commits the moment this
+	// handler returns, before the goroutine below runs — reusing it there
+	// fails with "transaction has already been committed or rolled back".
+	// rips.Service opens its own short-lived schema-scoped connection instead.
+	if h.rips != nil {
+		schemaName := branchmw.SchemaNameFromCtx(c)
+		h.rips.BuildForAppointmentAsync(schemaName, apptID)
 	}
 
 	updated, _ := h.clinicalRecord.GetByAppointmentID(db, apptID)

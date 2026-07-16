@@ -1,0 +1,1 @@
+../../.codex/agents/gsd-doc-writer.md

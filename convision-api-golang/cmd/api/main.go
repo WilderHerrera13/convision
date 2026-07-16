@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +18,6 @@ import (
 	appointmentsvc "github.com/convision/api/internal/appointment"
 	authsvc "github.com/convision/api/internal/auth"
 	branchsvc "github.com/convision/api/internal/branch"
-	rolesvc "github.com/convision/api/internal/role"
 	"github.com/convision/api/internal/bulkimport"
 	cashsvc "github.com/convision/api/internal/cash"
 	cashclosesvc "github.com/convision/api/internal/cashclose"
@@ -26,7 +27,9 @@ import (
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	discountsvc "github.com/convision/api/internal/discount"
 	expensesvc "github.com/convision/api/internal/expense"
+	icd10svc "github.com/convision/api/internal/icd10"
 	inventorysvc "github.com/convision/api/internal/inventory"
+	"github.com/convision/api/internal/invoicingclient"
 	labsvc "github.com/convision/api/internal/laboratory"
 	locationsvc "github.com/convision/api/internal/location"
 	notesvc "github.com/convision/api/internal/note"
@@ -37,11 +40,15 @@ import (
 	payrollsvc "github.com/convision/api/internal/payroll"
 	"github.com/convision/api/internal/platform/featurecache"
 	"github.com/convision/api/internal/platform/opticacache"
+	platformrips "github.com/convision/api/internal/platform/rips"
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	productsvc "github.com/convision/api/internal/product"
+	promotionsvc "github.com/convision/api/internal/promotion"
 	purchasesvc "github.com/convision/api/internal/purchase"
 	quotesvc "github.com/convision/api/internal/quote"
+	ripssvc "github.com/convision/api/internal/rips"
+	rolesvc "github.com/convision/api/internal/role"
 	salesvc "github.com/convision/api/internal/sale"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
 	suppliersvc "github.com/convision/api/internal/supplier"
@@ -51,6 +58,8 @@ import (
 )
 
 func main() {
+	signal.Ignore(syscall.SIGHUP)
+
 	// Load environment variables from .env (ignored in production if not present)
 	_ = godotenv.Load()
 
@@ -107,6 +116,8 @@ func main() {
 	clinicalHistoryRepo := postgresplatform.NewClinicalHistoryRepository()
 	clinicalEvolutionRepo := postgresplatform.NewClinicalEvolutionRepository()
 	clinicalRecordRepo := postgresplatform.NewClinicalRecordRepository()
+	icd10Repo := postgresplatform.NewIcd10CodeRepository()
+	ripsRepo := postgresplatform.NewRipsRecordRepository()
 
 	// Catalog repos
 	brandRepo := postgresplatform.NewBrandRepository()
@@ -136,10 +147,14 @@ func main() {
 	// Discount repo
 	discountRepo := postgresplatform.NewDiscountRepository()
 
+	// Promotion repo
+	promotionRepo := postgresplatform.NewPromotionRepository()
+
 	// Quote & Sale repos
 	quoteRepo := postgresplatform.NewQuoteRepository()
 	saleRepo := postgresplatform.NewSaleRepository()
 	saleLensAdjRepo := postgresplatform.NewSaleLensPriceAdjustmentRepository()
+	partialPaymentRepo := postgresplatform.NewPartialPaymentRepository()
 
 	// Order & Laboratory repos
 	orderRepo := postgresplatform.NewOrderRepository()
@@ -156,6 +171,7 @@ func main() {
 	serviceOrderRepo := postgresplatform.NewServiceOrderRepository()
 	cashTransferRepo := postgresplatform.NewCashTransferRepository()
 	cashRegisterCloseRepo := postgresplatform.NewCashRegisterCloseRepository()
+	cashRegisterCloseAdjustmentRepo := postgresplatform.NewCashRegisterCloseAdjustmentRepository()
 	notificationRepo := postgresplatform.NewNotificationRepository()
 	noteRepo := postgresplatform.NewNoteRepository()
 	dailyActivityRepo := postgresplatform.NewDailyActivityRepository()
@@ -189,7 +205,17 @@ func main() {
 	appointmentService := appointmentsvc.NewService(appointmentRepo, logger)
 	prescriptionService := prescriptionsvc.NewService(prescriptionRepo, logger)
 	clinicService := clinic.NewService(clinicalHistoryRepo, clinicalEvolutionRepo, patientRepo, logger)
-	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, logger)
+	clinicalRecordService := clinicalrecordsvc.NewService(clinicalRecordRepo, icd10Repo, logger)
+	icd10Service := icd10svc.NewService(icd10Repo, logger)
+	ripsTransmitter := platformrips.NewFromEnv(logger)
+	// Fire-and-forget RIPS builds run in a goroutine that outlives the HTTP
+	// request's transaction (see TenantSchema middleware), so they need their
+	// own short-lived schema-scoped connection instead of reusing the
+	// request-scoped tx — mirrors bulkConnFactory below for bulkimport.
+	ripsConnFactory := func(schemaName string) (*gorm.DB, func(), error) {
+		return postgresplatform.NewSchemaConnection(db, schemaName)
+	}
+	ripsService := ripssvc.NewService(clinicalRecordRepo, patientRepo, userRepo, icd10Repo, ripsRepo, ripsTransmitter, ripsConnFactory, logger)
 	catalogService := catalogsvc.NewService(
 		brandRepo, lensTypeRepo, materialRepo, lensClassRepo,
 		treatmentRepo, photochromicRepo, paymentMethodRepo, logger,
@@ -199,24 +225,25 @@ func main() {
 	categoryService := productsvc.NewCategoryService(productCategoryRepo, logger)
 	inventoryService := inventorysvc.NewService(db, warehouseRepo, warehouseLocationRepo, inventoryItemRepo, inventoryTransferRepo, stockMovementRepo, inventoryAdjustmentRepo, logger)
 	discountService := discountsvc.NewService(discountRepo, db, logger)
+	promotionService := promotionsvc.NewService(promotionRepo, db, logger)
 	quoteService := quotesvc.NewService(quoteRepo, saleRepo, logger)
-	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, branchRepo, inventoryItemRepo, stockMovementRepo, prescriptionRepo, userRepo, logger)
+	saleService := salesvc.NewService(db, saleRepo, saleLensAdjRepo, partialPaymentRepo, productRepo, laboratoryOrderRepo, laboratoryRepo, appointmentRepo, branchRepo, inventoryItemRepo, stockMovementRepo, prescriptionRepo, clinicalRecordRepo, userRepo, promotionRepo, patientRepo, logger)
 	orderService := ordersvc.NewService(orderRepo, logger)
 	laboratoryService := labsvc.NewService(laboratoryRepo, laboratoryOrderRepo, laboratoryOrderCallRepo, laboratoryOrderEvidenceRepo, saleRepo, branchRepo, userRepo, logger)
 	supplierService := suppliersvc.NewService(supplierRepo, logger)
-	purchaseService := purchasesvc.NewService(purchaseRepo, logger)
+	purchaseService := purchasesvc.NewService(purchaseRepo, invoicingclient.NewFromEnv(), logger)
 	expenseService := expensesvc.NewService(expenseRepo, logger)
 	payrollService := payrollsvc.NewService(payrollRepo, logger)
 	serviceOrderService := serviceordersvc.NewService(serviceOrderRepo, logger)
 	cashService := cashsvc.NewService(cashTransferRepo, logger)
-	cashCloseService := cashclosesvc.NewService(cashRegisterCloseRepo, logger)
 	notificationService := notificationsvc.NewService(notificationRepo, logger)
+	cashCloseService := cashclosesvc.NewService(cashRegisterCloseRepo, cashRegisterCloseAdjustmentRepo, notificationService, logger)
 	noteService := notesvc.NewService(noteRepo, logger)
 	dailyActivityService := dailyactivitysvc.NewService(dailyActivityRepo, dailyReportEditLogRepo, logger)
 	bulkConnFactory := func(schemaName string) (*gorm.DB, func(), error) {
 		return postgresplatform.NewSchemaConnection(db, schemaName)
 	}
-	bulkImportService := bulkimport.NewService(bulkConnFactory, patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, warehouseRepo, inventoryItemRepo, stockMovementRepo, logger)
+	bulkImportService := bulkimport.NewService(bulkConnFactory, patientRepo, userRepo, branchRepo, appointmentRepo, productRepo, lensTypeRepo, brandRepo, materialRepo, lensClassRepo, treatmentRepo, photochromicRepo, supplierRepo, warehouseRepo, inventoryItemRepo, stockMovementRepo, promotionRepo, productCategoryRepo, logger)
 	bulkImportLogRepo := postgresplatform.NewBulkImportLogRepository(db)
 
 	// Branch service
@@ -255,7 +282,7 @@ func main() {
 
 	// Mount versioned API
 	api := router.Group("/api")
-	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema)
+	handler := v1.NewHandler(db, authService, branchService, patientService, clinicService, clinicalRecordService, userService, appointmentService, prescriptionService, catalogService, locationService, productService, categoryService, inventoryService, discountService, promotionService, quoteService, saleService, orderService, laboratoryService, supplierService, purchaseService, expenseService, payrollService, serviceOrderService, cashService, cashCloseService, notificationService, noteService, dailyActivityService, dashboardRepo, bulkImportService, bulkImportLogRepo, revokedTokenRepo, branchRepo, opticaService, featureService, roleService, opticaPermRepo, superAdminPermSchema, invoicingclient.NewFromEnv(), icd10Service, ripsService)
 	handler.RegisterRoutes(api, opticaCache, db)
 
 	// ---- Start server ----
@@ -316,8 +343,8 @@ func buildLogger() *zap.Logger {
 func corsMiddleware() gin.HandlerFunc {
 	allowedOriginSuffix := ".app.opticaconvision.com"
 	localOrigins := map[string]bool{
-		"http://localhost:4300":          true,
-		"http://localhost:5173":          true,
+		"http://localhost:4300":           true,
+		"http://localhost:5173":           true,
 		"https://app.opticaconvision.com": true,
 	}
 	return func(c *gin.Context) {

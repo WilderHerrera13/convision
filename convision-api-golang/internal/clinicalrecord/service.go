@@ -1,6 +1,7 @@
 package clinicalrecord
 
 import (
+	"errors"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -56,13 +57,17 @@ type CreateRecordInput struct {
 
 // Service implements clinical record use cases.
 type Service struct {
-	repo   domain.ClinicalRecordRepository
-	logger *zap.Logger
+	repo domain.ClinicalRecordRepository
+	// icd10Repo validates Diagnosis codes against the real ICD-10 catalog
+	// (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 03/08). May be
+	// nil in tests/callers that do not need validation.
+	icd10Repo domain.Icd10CodeRepository
+	logger    *zap.Logger
 }
 
 // NewService creates a new clinical record Service.
-func NewService(repo domain.ClinicalRecordRepository, logger *zap.Logger) *Service {
-	return &Service{repo: repo, logger: logger}
+func NewService(repo domain.ClinicalRecordRepository, icd10Repo domain.Icd10CodeRepository, logger *zap.Logger) *Service {
+	return &Service{repo: repo, icd10Repo: icd10Repo, logger: logger}
 }
 
 // GetByAppointmentID retrieves the clinical record for an appointment.
@@ -75,6 +80,33 @@ func (s *Service) GetByAppointmentID(db *gorm.DB, appointmentID uint) (*domain.C
 // flow so the asesor can see the doctor's recommendation before quoting lenses.
 func (s *Service) GetLatestSignedForPatient(db *gorm.DB, patientID uint) (*domain.ClinicalRecord, error) {
 	return s.repo.GetLatestSignedByPatientID(db, patientID)
+}
+
+// HistoryOutput is the paginated response for a patient's longitudinal
+// clinical-record history.
+type HistoryOutput struct {
+	Data    []*domain.ClinicalRecord `json:"data"`
+	Total   int64                    `json:"total"`
+	Page    int                      `json:"page"`
+	PerPage int                      `json:"per_page"`
+}
+
+// ListHistoryForPatient returns the full signed-record history for a patient
+// (paginated, newest first) — unlike GetLatestSignedForPatient, this exposes
+// the evolution of the visual/refraction findings over time, not just the
+// most recent visit (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 11).
+func (s *Service) ListHistoryForPatient(db *gorm.DB, patientID uint, page, perPage int) (*HistoryOutput, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 15
+	}
+	data, total, err := s.repo.ListSignedByPatientID(db, patientID, page, perPage)
+	if err != nil {
+		return nil, err
+	}
+	return &HistoryOutput{Data: data, Total: total, Page: page, PerPage: perPage}, nil
 }
 
 // Create creates a new clinical record linked to an appointment.
@@ -187,7 +219,23 @@ type DiagnosisInput struct {
 }
 
 // UpsertDiagnosis saves or updates the diagnosis section of a clinical record.
+// Validates PrimaryCode and any populated Related*Code against the real
+// ICD-10 catalog before persisting — replaces the previous free-text
+// acceptance (docs/GAP_ANALYSIS_HISTORIA_CLINICA_JARVIS.md, section 03/08).
 func (s *Service) UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID uint, in DiagnosisInput) error {
+	if err := s.validateIcd10Code(db, "primary_code", in.PrimaryCode); err != nil {
+		return err
+	}
+	if err := s.validateIcd10Code(db, "related_1_code", in.Related1Code); err != nil {
+		return err
+	}
+	if err := s.validateIcd10Code(db, "related_2_code", in.Related2Code); err != nil {
+		return err
+	}
+	if err := s.validateIcd10Code(db, "related_3_code", in.Related3Code); err != nil {
+		return err
+	}
+
 	diagType := in.DiagnosisType
 	if diagType < 1 || diagType > 3 {
 		diagType = 1
@@ -220,6 +268,22 @@ func (s *Service) UpsertDiagnosis(db *gorm.DB, clinicalRecordID uint, branchID u
 			zap.Error(err),
 			zap.Uint("record_id", clinicalRecordID),
 		)
+		return err
+	}
+	return nil
+}
+
+// validateIcd10Code confirms code exists and is active in the real ICD-10
+// catalog. Empty codes are allowed (related diagnoses are optional).
+func (s *Service) validateIcd10Code(db *gorm.DB, field, code string) error {
+	if code == "" || s.icd10Repo == nil {
+		return nil
+	}
+	if _, err := s.icd10Repo.GetByCode(db, code); err != nil {
+		var notFound *domain.ErrNotFound
+		if errors.As(err, &notFound) {
+			return &domain.ErrValidation{Field: field, Message: "código CIE-10 no encontrado en el catálogo: " + code}
+		}
 		return err
 	}
 	return nil

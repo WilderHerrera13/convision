@@ -15,6 +15,7 @@ interface TypeConfig {
   tipBody: string;
   tableHeaders: string[];
   cancelPath: string;
+  template?: { filename: string; headers: string[]; rows: string[][] };
 }
 
 const PATIENTS_CONFIG: TypeConfig = {
@@ -117,6 +118,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
     : importType === 'lenses' ? ['codigointerno', 'descripción', 'precio', 'proveedor']
     : importType === 'staff-users' ? ['nombre', 'documento', 'rol', 'sede']
     : importType === 'inventory' ? ['código', 'descripción', 'cant', 'sede']
+    : importType === 'promotions' ? ['nombre', 'tipo', 'descuentoporcentaje']
     : ['documento', 'nombre', 'apellido', 'correo'];
 
   const searchPlaceholder =
@@ -125,6 +127,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ records, headers, importType 
     : importType === 'lenses' ? 'Buscar lente...'
     : importType === 'staff-users' ? 'Buscar usuario...'
     : importType === 'inventory' ? 'Buscar producto...'
+    : importType === 'promotions' ? 'Buscar promoción...'
     : 'Buscar especialista...';
 
   return (
@@ -329,6 +332,57 @@ const INVENTORY_CONFIG: TypeConfig = {
   cancelPath: '/admin/bulk-import',
 };
 
+const PROMOTIONS_TEMPLATE_HEADERS = [
+  'Nombre', 'Tipo', 'DescuentoPorcentaje', 'DescuentoMonto', 'CompraMinima',
+  'CantidadMinima', 'AplicaA', 'CategoriaObjetivo', 'MarcaObjetivo',
+  'TipoProductoObjetivo', 'CondicionAplicaA', 'CondicionCategoria',
+  'CondicionMarca', 'CondicionTipoProducto', 'FechaInicio', 'FechaFin',
+  'Prioridad', 'Acumulable', 'Activa', 'Descripcion',
+];
+
+const PROMOTIONS_TEMPLATE_ROWS: string[][] = [
+  ['10% en compras mayores a $500.000', 'por monto de compra', '10', '', '500000', '', '', '', '', '', '', '', '', '', '', '', '0', 'NO', 'SI', 'Campaña de ejemplo por umbral de compra'],
+  ['Bono de $40.000', 'monto fijo', '', '40000', '', '', '', '', '', '', '', '', '', '', '', '', '0', 'NO', 'SI', 'Descuento fijo para toda venta'],
+  ['Cumpleaños feliz 15%', 'cumpleaños', '15', '', '', '', '', '', '', '', '', '', '', '', '', '', '0', 'NO', 'SI', 'Aplica durante el mes de cumpleaños del cliente'],
+  ['20% en Monturas', 'categoria', '20', '', '', '', 'tipo producto', '', '', 'montura', '', '', '', '', '', '', '0', 'NO', 'SI', 'Descuento a todas las monturas'],
+  ['Segundo par 50% OFF', 'segundo par', '50', '', '', '', 'carrito', '', '', '', '', '', '', '', '', '', '0', 'NO', 'SI', 'El segundo producto (el más económico) al 50%'],
+  ['Montura + lentes 25% OFF', 'compra cruzada', '25', '', '', '', 'tipo producto', '', '', 'lente', 'tipo producto', '', '', 'montura', '', '', '0', 'NO', 'SI', 'Compra una montura y tus lentes quedan al 75%'],
+];
+
+const PROMOTIONS_CONFIG: TypeConfig = {
+  title: 'Carga Masiva de Promociones',
+  mapChips: [
+    { col: 'Nombre',              label: 'Nombre campaña'      },
+    { col: 'Tipo',                label: 'Tipo de promoción'   },
+    { col: 'DescuentoPorcentaje', label: 'Descuento (%)'       },
+    { col: 'DescuentoMonto',      label: 'Descuento fijo ($)'  },
+    { col: 'CompraMinima',        label: 'Compra mínima ($)'   },
+    { col: 'AplicaA',             label: 'Alcance descuento'   },
+    { col: 'CondicionAplicaA',    label: 'Condición (cruzada)' },
+    { col: 'FechaInicio',         label: 'Válida desde'        },
+    { col: 'FechaFin',            label: 'Válida hasta'        },
+    { col: 'Prioridad',           label: 'Prioridad'           },
+    { col: 'Acumulable',          label: 'Acumulable (SI/NO)'  },
+    { col: 'Activa',              label: 'Activa (SI/NO)'      },
+  ],
+  asideItems: [
+    { title: 'Columnas requeridas', body: 'Nombre y Tipo son obligatorios. El resto depende del tipo (descarga la plantilla con un ejemplo por cada tipo).' },
+    { title: 'Tipos aceptados', body: '"por monto de compra", "monto fijo", "cumpleaños", "categoria", "segundo par", "compra cruzada".' },
+    { title: 'Alcance (AplicaA)', body: '"carrito", "categoria" (+CategoriaObjetivo), "marca" (+MarcaObjetivo) o "tipo producto" (+TipoProductoObjetivo: lente, montura, lente de contacto, liquido, accesorio, otro).' },
+    { title: 'Compra cruzada', body: 'Las columnas Condicion* definen QUÉ debe comprar el cliente para activar el descuento. La condición y el objetivo deben ser distintos.' },
+    { title: 'Fechas y prioridad', body: 'FechaInicio/FechaFin en DD/MM/YYYY (opcionales). Prioridad decide conflictos entre promociones; Acumulable=SI permite combinarla con otras.' },
+    { title: 'Duplicados', body: 'Las promociones que ya existan (por Nombre) serán omitidas.' },
+  ],
+  tipBody: 'Las promociones creadas se aplican automáticamente en el carrito de venta según sus condiciones. Las categorías y marcas se buscan por nombre y deben existir previamente en el catálogo.',
+  tableHeaders: ['FILA', 'NOMBRE', 'TIPO', 'DESCUENTO', 'ESTADO'],
+  cancelPath: '/admin/bulk-import',
+  template: {
+    filename: 'plantilla-promociones.xlsx',
+    headers: PROMOTIONS_TEMPLATE_HEADERS,
+    rows: PROMOTIONS_TEMPLATE_ROWS,
+  },
+};
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const BulkImportPage: React.FC = () => {
@@ -342,6 +396,7 @@ const BulkImportPage: React.FC = () => {
     : type === 'lenses' ? 'lenses'
     : type === 'staff-users' ? 'staff-users'
     : type === 'inventory' ? 'inventory'
+    : type === 'promotions' ? 'promotions'
     : 'patients';
 
   const config =
@@ -350,6 +405,7 @@ const BulkImportPage: React.FC = () => {
     : importType === 'lenses' ? LENSES_CONFIG
     : importType === 'staff-users' ? STAFF_USERS_CONFIG
     : importType === 'inventory' ? INVENTORY_CONFIG
+    : importType === 'promotions' ? PROMOTIONS_CONFIG
     : PATIENTS_CONFIG;
 
   const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
@@ -426,6 +482,7 @@ const BulkImportPage: React.FC = () => {
         : importType === 'lenses' ? await bulkImportService.uploadLenses(file)
         : importType === 'staff-users' ? await bulkImportService.uploadStaffUsers(file)
         : importType === 'inventory' ? await bulkImportService.uploadInventory(file)
+        : importType === 'promotions' ? await bulkImportService.uploadPromotions(file)
         : await bulkImportService.uploadPatients(file);
       setResult(res);
       await fetchHistory();
@@ -491,7 +548,24 @@ const BulkImportPage: React.FC = () => {
             <div className="px-8 py-6 flex flex-col gap-6">
               {/* Upload zone */}
               <div>
-                <p className="text-[13px] font-semibold text-[#0f0f12]">Archivo Excel</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[13px] font-semibold text-[#0f0f12]">Archivo Excel</p>
+                  {config.template && (
+                    <button
+                      onClick={() => {
+                        const tpl = config.template!;
+                        const ws = XLSX.utils.aoa_to_sheet([tpl.headers, ...tpl.rows]);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
+                        XLSX.writeFile(wb, tpl.filename);
+                      }}
+                      className="text-[12px] font-semibold text-[#3a71f7] hover:underline"
+                      data-testid="download-template"
+                    >
+                      ⬇ Descargar plantilla con ejemplos
+                    </button>
+                  )}
+                </div>
                 <div className="h-px bg-[#f0f0f2] mt-3 mb-4" />
 
                 <div

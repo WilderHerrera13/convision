@@ -162,6 +162,41 @@ func (r *CashRegisterCloseRepository) ListByUserAndDateRange(db *gorm.DB, userID
 	return records, err
 }
 
+// ListDetailedByDateRange returns all closes within [from, to] (branchID 0 = all branches),
+// with User, Payments, ActualPayments and Denominations preloaded, ordered by close_date ASC.
+// Used to build the cash-close reconciliation Excel export.
+func (r *CashRegisterCloseRepository) ListDetailedByDateRange(db *gorm.DB, branchID uint, from, to string) ([]*domain.CashRegisterClose, error) {
+	var records []*domain.CashRegisterClose
+	q := db.
+		Model(&domain.CashRegisterClose{}).
+		Select("id, branch_id, user_id, close_date, status, total_counted, total_actual_amount, admin_actuals_recorded_at, admin_notes, advisor_notes, approved_by, approved_at, created_at, updated_at")
+	if from != "" {
+		q = q.Where("DATE(close_date) >= ?", from)
+	}
+	if to != "" {
+		q = q.Where("DATE(close_date) <= ?", to)
+	}
+	if branchID > 0 {
+		q = q.Where("branch_id = ?", branchID)
+	}
+	err := q.
+		Preload("User", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id, name, last_name, role_type")
+		}).
+		Preload("Payments", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id, cash_register_close_id, payment_method_name, counted_amount, created_at, updated_at")
+		}).
+		Preload("ActualPayments", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id, cash_register_close_id, payment_method_name, actual_amount, created_at, updated_at")
+		}).
+		Preload("Denominations", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("id, cash_register_close_id, denomination, quantity, subtotal, created_at, updated_at")
+		}).
+		Order("close_date ASC NULLS LAST, created_at ASC").
+		Find(&records).Error
+	return records, err
+}
+
 // Create inserts a close and its nested payment/denomination rows atomically.
 func (r *CashRegisterCloseRepository) Create(db *gorm.DB, c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination) error {
 	return db.Transaction(func(tx *gorm.DB) error {
@@ -236,6 +271,55 @@ func (r *CashRegisterCloseRepository) Update(db *gorm.DB, c *domain.CashRegister
 				if err := tx.Create(denoms).Error; err != nil {
 					return err
 				}
+			}
+		}
+
+		return nil
+	})
+}
+
+// AdjustAndApprove inserts the adjustment audit row and applies the admin's edits +
+// approval to the close (payments/denoms replaced) atomically in a single transaction.
+func (r *CashRegisterCloseRepository) AdjustAndApprove(db *gorm.DB, c *domain.CashRegisterClose, payments []domain.CashRegisterClosePayment, denoms []domain.CashCountDenomination, adjustment *domain.CashRegisterCloseAdjustment) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(adjustment).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&domain.CashRegisterClose{}).
+			Where("id = ?", c.ID).
+			Updates(map[string]any{
+				"status":        c.Status,
+				"total_counted": c.TotalCounted,
+				"admin_notes":   c.AdminNotes,
+				"approved_by":   c.ApprovedBy,
+				"approved_at":   c.ApprovedAt,
+				"updated_at":    time.Now().UTC(),
+			}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("cash_register_close_id = ?", c.ID).Delete(&domain.CashRegisterClosePayment{}).Error; err != nil {
+			return err
+		}
+		if len(payments) > 0 {
+			for i := range payments {
+				payments[i].CashRegisterCloseID = c.ID
+			}
+			if err := tx.Create(&payments).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Where("cash_register_close_id = ?", c.ID).Delete(&domain.CashCountDenomination{}).Error; err != nil {
+			return err
+		}
+		if len(denoms) > 0 {
+			for i := range denoms {
+				denoms[i].CashRegisterCloseID = c.ID
+			}
+			if err := tx.Create(&denoms).Error; err != nil {
+				return err
 			}
 		}
 

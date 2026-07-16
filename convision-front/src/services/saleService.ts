@@ -15,9 +15,13 @@ export interface Sale {
   total: number;
   amount_paid: number;
   balance: number;
-  status: 'pending' | 'completed' | 'cancelled';
-  payment_status: 'pending' | 'partial' | 'paid';
+  status: 'pending' | 'completed' | 'cancelled' | 'refunded';
+  payment_status: 'pending' | 'partial' | 'paid' | 'refunded';
   notes?: string;
+  invoicing_id?: string;
+  invoicing_status?: string;
+  credit_note_id?: string;
+  credit_note_status?: string;
   created_at: string;
   updated_at: string;
   created_by: number;
@@ -216,6 +220,14 @@ class SaleService {
    */
   async cancelSale(id: number) {
     const response = await api.post(`/api/v1/sales/${id}/cancel`);
+    return response.data;
+  }
+
+  /**
+   * Retry DIAN invoice emission for a sale whose first attempt failed outright
+   */
+  async retryInvoicing(id: number) {
+    const response = await api.post(`/api/v1/sales/${id}/retry-invoicing`);
     return response.data;
   }
 

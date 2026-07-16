@@ -52,6 +52,9 @@ import QuoteDetail from "./pages/receptionist/QuoteDetail";
 
 // Add the import for MyDiscountRequests
 import DiscountRequests from "./pages/receptionist/DiscountRequests";
+import AdminDiscountRequests from "./pages/admin/DiscountRequests";
+import Promotions from "./pages/admin/Promotions";
+import ElectronicInvoices from "./pages/admin/ElectronicInvoices";
 
 // Admin pages
 import Users from "./pages/admin/Users";
@@ -515,7 +518,15 @@ const router = createBrowserRouter([
           },
           {
             path: "discount-requests",
-            element: <DiscountRequests />,
+            element: <AdminDiscountRequests />,
+          },
+          {
+            path: "promotions",
+            element: <Promotions />,
+          },
+          {
+            path: "electronic-invoices",
+            element: <ElectronicInvoices />,
           },
           {
             path: "sales",
@@ -934,6 +945,10 @@ const router = createBrowserRouter([
           {
             path: "cash-close-detail/:id",
             element: <AdminCashCloseDetail />,
+          },
+          {
+            path: "notifications",
+            element: <AdminNotificationsPage />,
           },
           {
             path: "daily-report",

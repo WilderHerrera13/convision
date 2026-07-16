@@ -173,17 +173,17 @@ type VisualExam struct {
 	BiomiLensOi   string `json:"biomi_lens_oi"   gorm:"type:text"`
 
 	// Fondo de Ojo (Segmento Posterior)
-	FundusDiscOd     string `json:"fundus_disc_od"     gorm:"type:text"`
-	FundusDiscOi     string `json:"fundus_disc_oi"     gorm:"type:text"`
-	FundusMaculaOd   string `json:"fundus_macula_od"   gorm:"type:text"`
-	FundusMaculaOi   string `json:"fundus_macula_oi"   gorm:"type:text"`
-	FundusVesselsOd  string `json:"fundus_vessels_od"  gorm:"type:text"`
-	FundusVesselsOi  string `json:"fundus_vessels_oi"  gorm:"type:text"`
-	FundusPeriphOd   string `json:"fundus_periph_od"   gorm:"type:text"`
-	FundusPeriphOi   string `json:"fundus_periph_oi"   gorm:"type:text"`
+	FundusDiscOd    string `json:"fundus_disc_od"     gorm:"type:text"`
+	FundusDiscOi    string `json:"fundus_disc_oi"     gorm:"type:text"`
+	FundusMaculaOd  string `json:"fundus_macula_od"   gorm:"type:text"`
+	FundusMaculaOi  string `json:"fundus_macula_oi"   gorm:"type:text"`
+	FundusVesselsOd string `json:"fundus_vessels_od"  gorm:"type:text"`
+	FundusVesselsOi string `json:"fundus_vessels_oi"  gorm:"type:text"`
+	FundusPeriphOd  string `json:"fundus_periph_od"   gorm:"type:text"`
+	FundusPeriphOi  string `json:"fundus_periph_oi"   gorm:"type:text"`
 
 	// Motilidad Ocular
-	MotilityVersions  string `json:"motility_versions"  gorm:"type:text"`
+	MotilityVersions   string `json:"motility_versions"  gorm:"type:text"`
 	MotilityHirschberg string `json:"motility_hirschberg" gorm:"type:text"`
 	MotilityCoverTest  string `json:"motility_cover_test" gorm:"type:text"`
 
@@ -251,7 +251,7 @@ type ClinicalPrescription struct {
 	ValidityMonths int         `json:"validity_months" gorm:"default:12"`
 
 	ProfessionalTp string     `json:"professional_tp" gorm:"type:varchar(50)"`
-	SignedAt        *time.Time `json:"signed_at"       gorm:"type:timestamptz"`
+	SignedAt       *time.Time `json:"signed_at"       gorm:"type:timestamptz"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -261,6 +261,11 @@ type ClinicalPrescription struct {
 type ClinicalRecordRepository interface {
 	GetByAppointmentID(db *gorm.DB, appointmentID uint) (*ClinicalRecord, error)
 	GetLatestSignedByPatientID(db *gorm.DB, patientID uint) (*ClinicalRecord, error)
+	// ListSignedByPatientID returns the full signed-record history for a
+	// patient (paginated, newest first) — used both to expose a longitudinal
+	// history endpoint and, internally, to tell a first-time visit apart from
+	// a follow-up when building RIPS (finalidadTecnologiaSalud).
+	ListSignedByPatientID(db *gorm.DB, patientID uint, page, perPage int) ([]*ClinicalRecord, int64, error)
 	Create(db *gorm.DB, r *ClinicalRecord) error
 	UpsertAnamnesis(db *gorm.DB, clinicalRecordID uint, branchID uint, a *Anamnesis) error
 	UpsertVisualExam(db *gorm.DB, clinicalRecordID uint, branchID uint, v *VisualExam) error

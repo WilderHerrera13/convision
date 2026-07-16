@@ -462,9 +462,7 @@ const Patients: React.FC = () => {
         fetcher={async ({ page, per_page, search }) => {
           const params: Record<string, unknown> = { page, per_page };
           if (search && search.length >= 3) {
-            params.s_f = JSON.stringify(['first_name', 'last_name', 'identification', 'email']);
-            params.s_v = JSON.stringify([search, search, search, search]);
-            params.s_o = 'or';
+            params.search = search;
           }
           if (filterStatus && filterStatus !== 'all') {
             params.f_f = JSON.stringify(['status']);

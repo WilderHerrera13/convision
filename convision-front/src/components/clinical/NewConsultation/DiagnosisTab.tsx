@@ -1,7 +1,8 @@
-import { useForm, Controller } from 'react-hook-form';
-import { format } from 'date-fns';
+import { useForm } from 'react-hook-form';
 import type { DiagnosisInput } from '@/services/clinicalRecordService';
-import { DatePicker } from '@/components/ui/date-picker';
+import { Icd10ComboboxField } from './Icd10ComboboxField';
+import { DiagnosisSummaryPanel } from './DiagnosisSummaryPanel';
+import { CarePlanSection } from './CarePlanSection';
 
 interface Props {
   defaultValues?: Partial<DiagnosisInput>;
@@ -21,40 +22,11 @@ const FREQUENT = [
   { code: 'H041', desc: 'Ojo seco' },
 ];
 
-const OPTICAL = ['Gafas VL', 'Gafas VP', 'Progresivos', 'Bifocal FT-28', 'Lentes de contacto', 'Sin corrección'];
-
 const DIAG_TYPES = [
   { value: 1 as const, label: '1 — Impresión diagnóstica' },
   { value: 2 as const, label: '2 — Confirmado' },
   { value: 3 as const, label: '3 — Recurrente' },
 ];
-
-function Cie10Field({ label, code, desc, onCodeChange, onDescChange }: {
-  label: string; code: string; desc: string;
-  onCodeChange: (v: string) => void; onDescChange: (v: string) => void;
-}) {
-  const filled = !!code;
-  return (
-    <div className={`border rounded-[6px] px-3 pt-1.5 pb-2.5 ${filled ? 'border-[#0f8f64] bg-[#e5f6ef]' : 'border-[#e0e0e4] bg-white'}`}>
-      <p className={`text-[11px] font-medium mb-1.5 ${filled ? 'text-[#0f8f64]' : 'text-[#7d7d87]'}`}>{label}</p>
-      <div className="flex items-center gap-2">
-        <input
-          value={code}
-          onChange={e => onCodeChange(e.target.value.toUpperCase())}
-          placeholder="CIE-10"
-          maxLength={10}
-          className={`w-16 text-center text-[12px] font-semibold rounded-[4px] px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-[#0f8f64] ${filled ? 'bg-[#0f8f64] text-white' : 'bg-[#f5f5f6] text-[#7d7d87]'}`}
-        />
-        <input
-          value={desc}
-          onChange={e => onDescChange(e.target.value)}
-          placeholder="Buscar código o descripción..."
-          className="flex-1 text-[13px] bg-transparent focus:outline-none text-[#121215] placeholder:text-[#b4b5bc]"
-        />
-      </div>
-    </div>
-  );
-}
 
 export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props) {
   const { register, handleSubmit, setValue, watch, control } = useForm<DiagnosisInput>({
@@ -88,11 +60,11 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
       <div>
         <p className="text-[13px] font-semibold text-[#121215] mb-1">Diagnóstico principal (obligatorio)</p>
         <hr className="border-[#e5e5e9] mb-3" />
-        <Cie10Field
+        <Icd10ComboboxField
           label="Diagnóstico principal CIE-10 *"
           code={pc} desc={pd}
-          onCodeChange={v => setForm('primary_code', v)}
-          onDescChange={v => setForm('primary_description', v)}
+          onSelect={(code, desc) => { setForm('primary_code', code); setForm('primary_description', desc); }}
+          onClear={() => { setForm('primary_code', ''); setForm('primary_description', ''); }}
         />
         <input type="hidden" {...register('primary_code', { required: true })} value={pc} readOnly />
         <input type="hidden" {...register('primary_description', { required: true })} value={pd} readOnly />
@@ -138,9 +110,15 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
         <p className="text-[13px] font-semibold text-[#121215] mb-1">Diagnósticos relacionados (hasta 3, opcionales)</p>
         <hr className="border-[#e5e5e9] mb-3" />
         <div className="grid grid-cols-2 gap-3">
-          <Cie10Field label="Relacionado 1 (CIE-10)" code={r1c} desc={r1d} onCodeChange={v => setForm('related_1_code', v)} onDescChange={v => setForm('related_1_desc', v)} />
-          <Cie10Field label="Relacionado 2 (CIE-10)" code={r2c} desc={r2d} onCodeChange={v => setForm('related_2_code', v)} onDescChange={v => setForm('related_2_desc', v)} />
-          <Cie10Field label="Relacionado 3 (CIE-10)" code={r3c} desc={r3d} onCodeChange={v => setForm('related_3_code', v)} onDescChange={v => setForm('related_3_desc', v)} />
+          <Icd10ComboboxField label="Relacionado 1 (CIE-10)" code={r1c} desc={r1d}
+            onSelect={(code, desc) => { setForm('related_1_code', code); setForm('related_1_desc', desc); }}
+            onClear={() => { setForm('related_1_code', ''); setForm('related_1_desc', ''); }} />
+          <Icd10ComboboxField label="Relacionado 2 (CIE-10)" code={r2c} desc={r2d}
+            onSelect={(code, desc) => { setForm('related_2_code', code); setForm('related_2_desc', desc); }}
+            onClear={() => { setForm('related_2_code', ''); setForm('related_2_desc', ''); }} />
+          <Icd10ComboboxField label="Relacionado 3 (CIE-10)" code={r3c} desc={r3d}
+            onSelect={(code, desc) => { setForm('related_3_code', code); setForm('related_3_desc', desc); }}
+            onClear={() => { setForm('related_3_code', ''); setForm('related_3_desc', ''); }} />
         </div>
         <input type="hidden" {...register('related_1_code')} />
         <input type="hidden" {...register('related_1_desc')} />
@@ -149,112 +127,20 @@ export function DiagnosisTab({ defaultValues, onSave, onBack, isSaving }: Props)
         <input type="hidden" {...register('related_3_code')} />
         <input type="hidden" {...register('related_3_desc')} />
 
-        {(pc || relatedList.length > 0) && (
-          <div className="mt-3 border border-[#0f8f64] bg-[#e5f6ef] rounded-[8px] p-3">
-            <p className="text-[12px] font-semibold text-[#0f8f64] mb-2">Diagnósticos</p>
-            <div className="flex flex-wrap gap-2">
-              {pc && (
-                <div className="border-[1.5px] border-[#0f8f64] rounded-[6px] px-3 py-2 flex items-start gap-2 bg-[#e5f6ef] min-w-0">
-                  <span className="bg-[#0f8f64] text-white text-[10px] font-semibold rounded-[4px] px-1.5 py-0.5 shrink-0">{pc}</span>
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-[#121215]">{pd}</p>
-                    <div className="flex gap-1 mt-0.5">
-                      <span className="bg-[#f5f5f6] text-[#7d7d87] text-[10px] font-semibold rounded-[4px] px-1.5 py-0.5">
-                        {DIAG_TYPES.find(t => t.value === Number(dt))?.label.split(' — ')[1] ?? 'Impresión'}
-                      </span>
-                      <span className="bg-[#0f8f64] text-white text-[10px] font-semibold rounded-full px-2 py-0.5">Principal</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {relatedList.map(x => (
-                <div key={x.code} className="border border-[#e0e0e4] bg-[#f5f5f6] rounded-[6px] px-3 py-2 flex items-start gap-2">
-                  <span className="bg-[#121215] text-white text-[10px] font-semibold rounded-[4px] px-1.5 py-0.5 shrink-0">{x.code}</span>
-                  <p className="text-[12px] font-semibold text-[#121215]">{x.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <DiagnosisSummaryPanel
+          primaryCode={pc}
+          primaryDesc={pd}
+          diagnosisTypeLabel={DIAG_TYPES.find(t => t.value === Number(dt))?.label.split(' — ')[1] ?? 'Impresión'}
+          relatedList={relatedList}
+        />
       </div>
 
-      {/* Plan de atención */}
-      <div>
-        <p className="text-[13px] font-semibold text-[#121215] mb-1">Plan de atención</p>
-        <hr className="border-[#e5e5e9] mb-3" />
-
-        <div className="mb-4">
-          <p className="text-[11px] font-medium text-[#121215] mb-2">Corrección óptica indicada</p>
-          <div className="flex flex-wrap gap-2">
-            {OPTICAL.map(opt => {
-              const active = optical === opt;
-              return (
-                <button key={opt} type="button"
-                  onClick={() => setForm('optical_correction_plan', active ? '' : opt)}
-                  className={`text-[11px] px-3 py-1 rounded-full border transition-colors ${active ? 'bg-[#e5f6ef] border-[#0f8f64] text-[#0f8f64] font-semibold' : 'bg-[#f5f5f6] border-[#e0e0e4] text-[#7d7d87] hover:border-[#0f8f64] hover:text-[#0f8f64]'}`}>
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-          <input type="hidden" {...register('optical_correction_plan')} value={optical ?? ''} readOnly />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Recomendaciones y educación al paciente</label>
-          <textarea
-            {...register('patient_education')}
-            rows={3}
-            placeholder="Indicaciones, contraindicaciones u observaciones..."
-            className="w-full border border-[#e0e0e4] rounded-[6px] px-3 py-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] resize-none placeholder:text-[#b4b5bc]"
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div>
-            <p className="text-[11px] font-medium text-[#121215] mb-1.5">Próximo control sugerido</p>
-            <Controller
-              control={control}
-              name="next_control_date"
-              render={({ field }) => (
-                <DatePicker
-                  value={field.value}
-                  onChange={d => field.onChange(d ? format(d, 'yyyy-MM-dd') : '')}
-                  placeholder="Seleccionar fecha"
-                  useInputTrigger
-                  minDate={new Date()}
-                />
-              )}
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">Motivo del control</label>
-            <select
-              {...register('next_control_reason')}
-              className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white"
-            >
-              <option value="">Seleccionar</option>
-              <option value="Control rutina">Control rutina</option>
-              <option value="Seguimiento">Seguimiento</option>
-              <option value="Urgente">Urgente</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-medium text-[#121215] mb-1.5">¿Requiere remisión a Oftalmología?</label>
-            <select
-              {...register('requires_referral', { setValueAs: v => v === 'true' || v === true })}
-              className="w-full border border-[#e0e0e4] rounded-[6px] px-2 py-2 text-[12px] text-[#121215] focus:outline-none focus:ring-1 focus:ring-[#0f8f64] bg-white"
-            >
-              <option value="false">No — manejo en optometría</option>
-              <option value="true">Sí — remitir</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="bg-[#f9f9fb] border border-[#e0e0e4] rounded-[6px] px-3 py-2 text-[11px] text-[#7d7d87]">
-          CIE-11 (preparación migración — Res. 1442/2024)
-        </div>
-      </div>
+      <CarePlanSection
+        register={register}
+        control={control}
+        optical={optical}
+        onSelectOptical={(value) => setForm('optical_correction_plan', value)}
+      />
 
       {/* Navegación */}
       <div className="flex items-center justify-between pt-2">

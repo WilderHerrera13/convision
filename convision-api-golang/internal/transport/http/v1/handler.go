@@ -21,7 +21,9 @@ import (
 	dailyactivitysvc "github.com/convision/api/internal/dailyactivity"
 	"github.com/convision/api/internal/discount"
 	"github.com/convision/api/internal/domain"
+	promotionsvc "github.com/convision/api/internal/promotion"
 	expensesvc "github.com/convision/api/internal/expense"
+	icd10svc "github.com/convision/api/internal/icd10"
 	"github.com/convision/api/internal/inventory"
 	labsvc "github.com/convision/api/internal/laboratory"
 	"github.com/convision/api/internal/location"
@@ -36,8 +38,10 @@ import (
 	postgresplatform "github.com/convision/api/internal/platform/storage/postgres"
 	prescriptionsvc "github.com/convision/api/internal/prescription"
 	"github.com/convision/api/internal/product"
+	"github.com/convision/api/internal/invoicingclient"
 	purchasesvc "github.com/convision/api/internal/purchase"
 	quotesvc "github.com/convision/api/internal/quote"
+	ripssvc "github.com/convision/api/internal/rips"
 	salesvc "github.com/convision/api/internal/sale"
 	serviceordersvc "github.com/convision/api/internal/serviceorder"
 	suppliersvc "github.com/convision/api/internal/supplier"
@@ -126,6 +130,7 @@ type Handler struct {
 	category      *product.CategoryService
 	inventory     *inventory.Service
 	discount      *discount.Service
+	promotion     *promotionsvc.Service
 	quote         *quotesvc.Service
 	sale          *salesvc.Service
 	order         *ordersvc.Service
@@ -150,6 +155,9 @@ type Handler struct {
 	role                 *rolesvc.Service
 	opticaPermRepo       domain.OpticaPermissionRepository
 	superAdminPermSchema string
+	invoicing            *invoicingclient.Client
+	icd10                *icd10svc.Service
+	rips                 *ripssvc.Service
 }
 
 // NewHandler creates a Handler with all required services injected.
@@ -169,6 +177,7 @@ func NewHandler(
 	categorySvc *product.CategoryService,
 	inventorySvc *inventory.Service,
 	discountSvc *discount.Service,
+	promotionSvc *promotionsvc.Service,
 	quoteSvc *quotesvc.Service,
 	saleSvc *salesvc.Service,
 	orderSvc *ordersvc.Service,
@@ -193,6 +202,9 @@ func NewHandler(
 	roleSvc              *rolesvc.Service,
 	opticaPermRepo       domain.OpticaPermissionRepository,
 	superAdminPermSchema string,
+	invoicingClient      *invoicingclient.Client,
+	icd10Svc             *icd10svc.Service,
+	ripsSvc              *ripssvc.Service,
 ) *Handler {
 	return &Handler{
 		db:             db,
@@ -210,6 +222,7 @@ func NewHandler(
 		category:      categorySvc,
 		inventory:     inventorySvc,
 		discount:      discountSvc,
+		promotion:     promotionSvc,
 		quote:         quoteSvc,
 		sale:          saleSvc,
 		order:         orderSvc,
@@ -234,6 +247,9 @@ func NewHandler(
 		role:                 roleSvc,
 		opticaPermRepo:       opticaPermRepo,
 		superAdminPermSchema: superAdminPermSchema,
+		invoicing:            invoicingClient,
+		icd10:                icd10Svc,
+		rips:                 ripsSvc,
 	}
 }
 
